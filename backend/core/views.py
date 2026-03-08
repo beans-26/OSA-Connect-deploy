@@ -27,15 +27,22 @@ def login_view(request):
             SystemUser(username="guard", password="guard", role="guard", full_name="Gate Guard").save()
             # Add initial students for the live environment
             initial_students = [
-                {"id": "2023303188", "name": "Vincent Dagaraga"},
-                {"id": "2023303189", "name": "Mark Tajeros"},
-                {"id": "2023303199", "name": "Nyko Quezon"},
-                {"id": "2023303179", "name": "Christian James Ambongan"},
-                {"id": "2023303178", "name": "Dominic Wacan"}
+                {"id": "2023303188", "name": "Vincent Dagaraga", "contact": "09358541420", "email": "vinsdagaraga@gmail.com"},
+                {"id": "2023303189", "name": "Mark Tajeros", "contact": "09358731470", "email": "marktajeros@gmail.com"},
+                {"id": "2023303199", "name": "Nyko Quezon", "contact": "09356782310", "email": "nykoquezon@gmail.com"},
+                {"id": "2023303179", "name": "Christian James Ambongan", "contact": "09356730509", "email": "cjambongan@gmail.com"},
+                {"id": "2023303178", "name": "Dominic Wacan", "contact": "09358359302", "email": "dominicwacan@gmail.com"}
             ]
             for s in initial_students:
                 if not Student.objects.filter(student_id=s["id"]).first():
-                    Student(student_id=s["id"], name=s["name"], course="BSIT", department="CITC").save()
+                    Student(
+                        student_id=s["id"], 
+                        name=s["name"], 
+                        course="BSIT", 
+                        department="CITC",
+                        contact_number=s.get("contact", ""),
+                        email=s.get("email", "")
+                    ).save()
 
         user = SystemUser.objects.get(username=username)
         if user.password == password:
@@ -533,14 +540,21 @@ def health_check(request):
             SystemUser(username="guard", password="guard", role="guard").save()
             # Create Students
             initial_students = [
-                {"id": "2023303188", "name": "Vincent Dagaraga"},
-                {"id": "2023303189", "name": "Mark Tajeros"},
-                {"id": "2023303199", "name": "Nyko Quezon"},
-                {"id": "2023303179", "name": "Christian James Ambongan"},
-                {"id": "2023303178", "name": "Dominic Wacan"}
+                {"id": "2023303188", "name": "Vincent Dagaraga", "contact": "09358541420", "email": "vinsdagaraga@gmail.com"},
+                {"id": "2023303189", "name": "Mark Tajeros", "contact": "09358731470", "email": "marktajeros@gmail.com"},
+                {"id": "2023303199", "name": "Nyko Quezon", "contact": "09356782310", "email": "nykoquezon@gmail.com"},
+                {"id": "2023303179", "name": "Christian James Ambongan", "contact": "09356730509", "email": "cjambongan@gmail.com"},
+                {"id": "2023303178", "name": "Dominic Wacan", "contact": "09358359302", "email": "dominicwacan@gmail.com"}
             ]
             for s in initial_students:
-                Student(student_id=s["id"], name=s["name"], course="BSIT", department="CITC").save()
+                Student(
+                    student_id=s["id"], 
+                    name=s["name"], 
+                    course="BSIT", 
+                    department="CITC",
+                    contact_number=s.get("contact", ""),
+                    email=s.get("email", "")
+                ).save()
             user_count = SystemUser.objects.count()
 
         return Response({
