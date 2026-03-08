@@ -408,7 +408,7 @@ const StudentDashboard = () => {
                                                 displayStatus = ticket.status;
                                             }
                                             if (displayStatus === 'Approved') displayStatus = 'Active'; // Approved means active service
-                                            if (isCompleted) displayStatus = 'Finished';
+                                            if (isCompleted || displayStatus === 'Completed') displayStatus = 'Finished';
 
                                             return (
                                                 <div key={v.id} className={`p-6 border rounded-[32px] flex flex-col md:flex-row justify-between items-start md:items-center gap-6 transition-all ${isOngoing ? 'bg-green-50 border-green-200' : isCompleted ? 'bg-emerald-50 border-emerald-200 opacity-60' : 'bg-white border-slate-100 shadow-sm'}`}>
