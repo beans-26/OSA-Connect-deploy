@@ -84,6 +84,31 @@ class StudentViewSet(viewsets.ModelViewSet):
     serializer_class = StudentSerializer
     permission_classes = [AllowAny]
 
+    def update(self, request, *args, **kwargs):
+        try:
+            student = self.get_object()
+            data = request.data
+            
+            # Manually update fields to bypass DRF Mongoengine unique validation bug on custom lookup field
+            student.name = data.get('name', student.name)
+            student.course = data.get('course', student.course)
+            student.department = data.get('department', student.department)
+            student.year_level = data.get('year_level', student.year_level)
+            student.email = data.get('email', student.email)
+            student.contact_number = data.get('contact_number', student.contact_number)
+            
+            new_student_id = data.get('student_id')
+            if new_student_id and new_student_id != student.student_id:
+                if Student.objects.filter(student_id=new_student_id).first():
+                    return Response({"error": "Student ID already exists."}, status=status.HTTP_400_BAD_REQUEST)
+                student.student_id = new_student_id
+                
+            student.save()
+            serializer = self.get_serializer(student)
+            return Response(serializer.data)
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
 PUNISHMENT_SYSTEM = {
     "No ID": {
         1: {"punishment": "3 hours community service", "hours": 3},
