@@ -374,7 +374,7 @@ const StaffDashboard = () => {
                                         const matchesSearch = !searchTerm ||
                                             (report.student_details?.name?.toLowerCase().includes(searchTerm.toLowerCase())) ||
                                             (report.student_details?.student_id?.toLowerCase().includes(searchTerm.toLowerCase()));
-                                        return !isDismissed && !isCompleted && (!ticket || ticket.status !== 'Completed') && matchesSearch;
+                                        return !isPending && !isDismissed && !isCompleted && (!ticket || ticket.status !== 'Completed') && matchesSearch;
                                     });
 
                                     if (activeViolators.length === 0) {
