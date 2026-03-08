@@ -213,23 +213,23 @@ const StaffSettings = () => {
     };
 
     return (
-        <div className="flex bg-slate-50 min-h-screen">
+        <div className="flex bg-slate-50 min-h-screen relative">
             <Sidebar role="staff" />
-            <main className="flex-1 p-10 max-w-7xl mx-auto overflow-y-auto">
-                <header className="mb-12 text-center lg:text-left">
-                    <h1 className="text-4xl font-extrabold text-slate-900 tracking-tight flex flex-col lg:flex-row items-center gap-4">
+            <main className="flex-1 p-4 md:p-10 pt-24 md:pt-10 max-w-7xl mx-auto overflow-y-auto">
+                <header className="mb-8 md:mb-12 text-center md:text-left">
+                    <h1 className="text-3xl md:text-4xl font-extrabold text-slate-900 tracking-tight flex flex-col md:flex-row items-center gap-4">
                         <div className="p-3 bg-ustp-blue/10 rounded-2xl">
                             <SettingsIcon className="text-ustp-blue" size={32} />
                         </div>
                         Admin Command Center
                     </h1>
-                    <p className="text-slate-500 mt-2 font-medium">Control system logic, service hub overrides, and security protocols.</p>
+                    <p className="text-slate-500 mt-2 font-medium italic">Control system logic, service hub overrides, and security protocols.</p>
                 </header>
 
                 {saveStatus.msg && (
                     <div className={`fixed bottom-10 right-10 z-50 px-6 py-4 rounded-2xl shadow-2xl animate-in slide-in-from-right-10 duration-500 flex items-center gap-3 font-bold border-2 ${saveStatus.type === 'success' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' :
-                            saveStatus.type === 'error' ? 'bg-red-50 text-red-600 border-red-100' :
-                                'bg-blue-50 text-blue-600 border-blue-100'
+                        saveStatus.type === 'error' ? 'bg-red-50 text-red-600 border-red-100' :
+                            'bg-blue-50 text-blue-600 border-blue-100'
                         }`}>
                         <Save size={20} />
                         {saveStatus.msg}

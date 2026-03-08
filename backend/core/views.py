@@ -19,6 +19,24 @@ def login_view(request):
     
     # First check SystemUser (admin, guard, staff)
     try:
+        # AUTO-SEED PROTECTION: If DB is empty, create admin so they can log in
+        from core.models import Student
+        if SystemUser.objects.count() == 0:
+            print("LOGIN: Empty DB detected, auto-seeding...")
+            SystemUser(username="admin", password="admin", role="admin", full_name="System Admin").save()
+            SystemUser(username="guard", password="guard", role="guard", full_name="Gate Guard").save()
+            # Add initial students for the live environment
+            initial_students = [
+                {"id": "2023303188", "name": "Vincent Dagaraga"},
+                {"id": "2023303189", "name": "Mark Tajeros"},
+                {"id": "2023303199", "name": "Nyko Quezon"},
+                {"id": "2023303179", "name": "Christian James Ambongan"},
+                {"id": "2023303178", "name": "Dominic Wacan"}
+            ]
+            for s in initial_students:
+                if not Student.objects.filter(student_id=s["id"]).first():
+                    Student(student_id=s["id"], name=s["name"], course="BSIT", department="CITC").save()
+
         user = SystemUser.objects.get(username=username)
         if user.password == password:
             return Response({

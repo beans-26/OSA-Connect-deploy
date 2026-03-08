@@ -330,16 +330,16 @@ const StaffDashboard = () => {
     };
 
     return (
-        <div className="flex bg-slate-50 min-h-screen">
+        <div className="flex bg-slate-50 min-h-screen relative">
             <Sidebar role="staff" />
-            <div className="flex-1 flex">
-                <main className="flex-1 p-10 max-w-7xl mx-auto overflow-y-auto">
-                    <header className="mb-8">
-                        <h1 className="text-4xl font-extrabold text-slate-900 tracking-tight">Staff Command Center</h1>
-                        <p className="text-slate-500 mt-2 font-medium">
+            <div className="flex-1 flex flex-col lg:flex-row">
+                <main className="flex-1 p-4 md:p-10 pt-24 md:pt-10 max-w-7xl mx-auto overflow-y-auto">
+                    <header className="mb-8 text-center md:text-left">
+                        <h1 className="text-3xl md:text-4xl font-extrabold text-slate-900 tracking-tight uppercase italic">Staff Command Center</h1>
+                        <p className="text-slate-500 mt-2 font-medium italic">
                             {loading
-                                ? 'Syncing data from OSA Servers...'
-                                : 'Manage violations and track student compliance'}
+                                ? 'Syncing cloud databases...'
+                                : 'Awaiting compliance updates from field units'}
                         </p>
                     </header>
 

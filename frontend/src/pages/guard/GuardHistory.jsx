@@ -29,11 +29,11 @@ const GuardHistory = () => {
     };
 
     const filteredViolations = violations.filter(v => {
-        const matchesSearch = 
+        const matchesSearch =
             v.student_details?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
             v.student_details?.student_id?.toLowerCase().includes(searchTerm.toLowerCase()) ||
             v.violation_type?.toLowerCase().includes(searchTerm.toLowerCase());
-        
+
         if (filter === 'all') return matchesSearch;
         if (filter === 'pending') return matchesSearch && v.status === 'Pending OSA Review';
         if (filter === 'approved') return matchesSearch && v.status === 'Approved';
@@ -49,13 +49,13 @@ const GuardHistory = () => {
     };
 
     return (
-        <div className="flex bg-slate-50 min-h-screen">
+        <div className="flex bg-slate-50 min-h-screen relative">
             <Sidebar role="guard" />
-            <main className="flex-1 p-4 sm:p-6 lg:p-10 max-w-7xl mx-auto overflow-y-auto">
-                <header className="mb-8">
+            <main className="flex-1 p-4 md:p-10 pt-24 md:pt-10 max-w-7xl mx-auto overflow-y-auto">
+                <header className="mb-8 text-center md:text-left">
                     <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">Violation History</h1>
-                    <p className="text-slate-500 mt-2 font-medium">
-                        {loading ? 'Loading...' : `Viewing ${filteredViolations.length} violation records`}
+                    <p className="text-slate-500 mt-2 font-medium italic">
+                        {loading ? 'Syncing history...' : `Viewing ${filteredViolations.length} records in cache`}
                     </p>
                 </header>
 
@@ -75,11 +75,10 @@ const GuardHistory = () => {
                             <button
                                 key={f}
                                 onClick={() => setFilter(f)}
-                                className={`px-4 py-2 rounded-xl font-semibold text-sm transition-colors ${
-                                    filter === f 
-                                    ? 'bg-ustp-blue text-white' 
-                                    : 'bg-white text-slate-600 hover:bg-slate-100'
-                                }`}
+                                className={`px-4 py-2 rounded-xl font-semibold text-sm transition-colors ${filter === f
+                                        ? 'bg-ustp-blue text-white'
+                                        : 'bg-white text-slate-600 hover:bg-slate-100'
+                                    }`}
                             >
                                 {f.charAt(0).toUpperCase() + f.slice(1)} ({statusCounts[f]})
                             </button>
@@ -107,12 +106,11 @@ const GuardHistory = () => {
                                             <h3 className="font-bold text-lg text-slate-800">
                                                 {report.student_details?.name || 'Unknown Student'}
                                             </h3>
-                                            <span className={`text-[10px] font-black uppercase tracking-widest px-2 py-1 rounded-full ${
-                                                report.status === 'Pending OSA Review' ? 'bg-yellow-100 text-yellow-800' :
-                                                report.status === 'Approved' ? 'bg-green-100 text-green-800' :
-                                                report.status === 'Dismissed' ? 'bg-red-100 text-red-800' :
-                                                'bg-slate-100 text-slate-600'
-                                            }`}>
+                                            <span className={`text-[10px] font-black uppercase tracking-widest px-2 py-1 rounded-full ${report.status === 'Pending OSA Review' ? 'bg-yellow-100 text-yellow-800' :
+                                                    report.status === 'Approved' ? 'bg-green-100 text-green-800' :
+                                                        report.status === 'Dismissed' ? 'bg-red-100 text-red-800' :
+                                                            'bg-slate-100 text-slate-600'
+                                                }`}>
                                                 {report.status || 'Pending'}
                                             </span>
                                         </div>
