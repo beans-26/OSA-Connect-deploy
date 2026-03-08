@@ -34,15 +34,18 @@ def login_view(request):
                 {"id": "2023303178", "name": "Dominic Wacan", "contact": "09358359302", "email": "dominicwacan@gmail.com"}
             ]
             for s in initial_students:
-                if not Student.objects.filter(student_id=s["id"]).first():
-                    Student(
-                        student_id=s["id"], 
-                        name=s["name"], 
-                        course="BSIT", 
-                        department="CITC",
-                        contact_number=s.get("contact", ""),
-                        email=s.get("email", "")
-                    ).save()
+                # UPSERT: Find existing or create new
+                student = Student.objects.filter(student_id=s["id"]).first()
+                if not student:
+                    student = Student(student_id=s["id"])
+                
+                # Always update fields to match latest seed data
+                student.name = s["name"]
+                student.course = "BSIT"
+                student.department = "CITC"
+                student.contact_number = s.get("contact", "")
+                student.email = s.get("email", "")
+                student.save()
 
         user = SystemUser.objects.get(username=username)
         if user.password == password:
@@ -547,14 +550,18 @@ def health_check(request):
                 {"id": "2023303178", "name": "Dominic Wacan", "contact": "09358359302", "email": "dominicwacan@gmail.com"}
             ]
             for s in initial_students:
-                Student(
-                    student_id=s["id"], 
-                    name=s["name"], 
-                    course="BSIT", 
-                    department="CITC",
-                    contact_number=s.get("contact", ""),
-                    email=s.get("email", "")
-                ).save()
+                # UPSERT: Find existing or create new
+                student = Student.objects.filter(student_id=s["id"]).first()
+                if not student:
+                    student = Student(student_id=s["id"])
+                
+                # Always update fields to match latest seed data
+                student.name = s["name"]
+                student.course = "BSIT"
+                student.department = "CITC"
+                student.contact_number = s.get("contact", "")
+                student.email = s.get("email", "")
+                student.save()
             user_count = SystemUser.objects.count()
 
         return Response({
