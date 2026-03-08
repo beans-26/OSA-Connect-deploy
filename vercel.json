@@ -19,11 +19,18 @@
             "dest": "backend/osaconnect_backend/wsgi.py"
         },
         {
-            "handle": "filesystem"
+            "src": "/assets/(.*)",
+            "dest": "frontend/assets/$1"
         },
         {
             "src": "/(.*)",
-            "dest": "/index.html"
+            "dest": "frontend/$1",
+            "continue": true
+        },
+        {
+            "src": "/(.*)",
+            "status": 200,
+            "dest": "frontend/index.html"
         }
     ]
 }
