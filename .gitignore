@@ -1,0 +1,26 @@
+# Standard Python & Node ignores
+**/venv/
+**/node_modules/
+**/__pycache__/
+*.pyc
+*.pyo
+*.pyd
+db.sqlite3
+*.egg-info/
+frontend/dist/
+frontend/build/
+.env
+frontend/dist/
+frontend/build/
+.DS_Store
+*.log
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+Thumbs.db
+Desktop.ini

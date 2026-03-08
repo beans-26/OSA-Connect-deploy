@@ -1,0 +1,14 @@
+django
+djangorestframework
+django-cors-headers
+pymongo[srv]
+mongoengine
+python-dotenv
+cryptography
+djangorestframework-simplejwt
+django-rest-framework-mongoengine
+gunicorn
+whitenoise
+dj-database-url
+dnspython
+certifi
