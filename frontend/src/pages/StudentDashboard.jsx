@@ -383,10 +383,7 @@ const StudentDashboard = () => {
                             {loading ? (
                                 <div className="py-20 text-center animate-pulse text-slate-300 font-black uppercase tracking-widest text-xs">Syncing Cloud Database...</div>
                             ) : (() => {
-                                const activeViolations = violations.filter(v => {
-                                    const ticket = tickets.find(t => t.violation_details?.id === v.id || t.violation === v.id);
-                                    return !ticket || ticket.status !== 'Completed';
-                                });
+                                const activeViolations = violations;
 
                                 if (activeViolations.length === 0) {
                                     return (
@@ -403,24 +400,33 @@ const StudentDashboard = () => {
                                         {activeViolations.map((v) => {
                                             const ticket = tickets.find(t => t.violation_details?.id === v.id || t.violation === v.id);
                                             const isOngoing = ticket?.status === 'Ongoing';
+                                            const isCompleted = ticket?.status === 'Completed' || v.status === 'Completed';
+
+                                            // Determine display status based on ticket status instead of basic violation status
+                                            let displayStatus = v.status;
+                                            if (ticket) {
+                                                displayStatus = ticket.status;
+                                            }
+                                            if (displayStatus === 'Approved') displayStatus = 'Active'; // Approved means active service
+                                            if (isCompleted) displayStatus = 'Finished';
 
                                             return (
-                                                <div key={v.id} className={`p-6 border rounded-[32px] flex flex-col md:flex-row justify-between items-start md:items-center gap-6 transition-all ${isOngoing ? 'bg-green-50 border-green-200' : 'bg-white border-slate-100 shadow-sm'}`}>
+                                                <div key={v.id} className={`p-6 border rounded-[32px] flex flex-col md:flex-row justify-between items-start md:items-center gap-6 transition-all ${isOngoing ? 'bg-green-50 border-green-200' : isCompleted ? 'bg-emerald-50 border-emerald-200 opacity-60' : 'bg-white border-slate-100 shadow-sm'}`}>
                                                     <div className="flex gap-6 items-center w-full">
-                                                        <div className={`w-16 h-16 rounded-2xl flex items-center justify-center shrink-0 ${isOngoing ? 'bg-green-500 text-white shadow-lg shadow-green-200' : 'bg-red-50 text-red-600'}`}>
-                                                            {isOngoing ? <Clock size={28} className="animate-spin-slow" /> : <AlertTriangle size={28} />}
+                                                        <div className={`w-16 h-16 rounded-2xl flex items-center justify-center shrink-0 ${isOngoing ? 'bg-green-500 text-white shadow-lg shadow-green-200' : isCompleted ? 'bg-emerald-500 text-white' : 'bg-red-50 text-red-600'}`}>
+                                                            {isOngoing ? <Clock size={28} className="animate-spin-slow" /> : isCompleted ? <CheckCircle size={28} /> : <AlertTriangle size={28} />}
                                                         </div>
                                                         <div className="min-w-0 flex-1">
                                                             <h6 className="font-black text-slate-900 text-lg uppercase truncate tracking-tight">{v.violation_type}</h6>
                                                             <div className="flex items-center gap-3 mt-1 pr-4">
-                                                                <span className={`text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-widest ${isOngoing ? 'bg-green-200 text-green-800' : 'bg-orange-100 text-orange-600'}`}>
-                                                                    {ticket ? ticket.status : v.status}
+                                                                <span className={`text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-widest ${isOngoing ? 'bg-green-200 text-green-800' : isCompleted ? 'bg-emerald-200 text-emerald-800' : 'bg-orange-100 text-orange-600'}`}>
+                                                                    {displayStatus}
                                                                 </span>
                                                                 <span className="text-[10px] text-slate-300 font-bold">{new Date(v.created_at).toLocaleDateString()}</span>
                                                             </div>
                                                         </div>
-                                                        <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 hidden md:flex ${isOngoing ? 'bg-green-500 text-white shadow-lg shadow-green-200' : 'bg-slate-50 text-slate-200'}`}>
-                                                            {isOngoing ? <Clock size={20} className="animate-pulse" /> : <Play size={20} />}
+                                                        <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 hidden md:flex ${isOngoing ? 'bg-green-500 text-white shadow-lg shadow-green-200' : isCompleted ? 'bg-emerald-50 text-emerald-200' : 'bg-slate-50 text-slate-200'}`}>
+                                                            {isOngoing ? <Clock size={20} className="animate-pulse" /> : isCompleted ? <CheckCircle size={20} /> : <Play size={20} />}
                                                         </div>
                                                     </div>
                                                 </div>
