@@ -589,13 +589,6 @@ def health_check(request):
                 student.save()
             user_count = SystemUser.objects.count()
 
-        # Secret purge trigger for cleaning the live database
-        if request.GET.get('purge') == 'true':
-            ViolationReport.objects.all().delete()
-            ETicket.objects.all().delete()
-            TimeLog.objects.all().delete()
-            return Response({"status": "healthy", "message": "All violations, tickets, and logs have been completely wiped!"})
-
         return Response({
             "status": "healthy", 
             "database": "connected", 
