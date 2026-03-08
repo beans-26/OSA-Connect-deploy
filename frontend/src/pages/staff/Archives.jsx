@@ -66,18 +66,26 @@ const Archives = () => {
         const currentMonth = new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' }).toUpperCase();
 
         try {
+            const loadImage = (src) => {
+                return new Promise((resolve, reject) => {
+                    const img = new Image();
+                    img.crossOrigin = 'Anonymous';
+                    img.onload = () => resolve(img);
+                    img.onerror = reject;
+                    img.src = src;
+                });
+            };
+
             const [ustpImg, osaImg] = await Promise.all([
-                fetch('/ustp.png').then(r => r.blob()).catch(() => null),
-                fetch('/osa-logo.jpg').then(r => r.blob()).catch(() => null)
+                loadImage('/ustp.png').catch(() => null),
+                loadImage('/osa-logo.jpg').catch(() => null)
             ]);
 
             if (ustpImg) {
-                const ustpUrl = URL.createObjectURL(ustpImg);
-                doc.addImage(ustpUrl, 'PNG', 10, 8, 14, 14);
+                doc.addImage(ustpImg, 'PNG', 10, 8, 14, 14);
             }
             if (osaImg) {
-                const osaUrl = URL.createObjectURL(osaImg);
-                doc.addImage(osaUrl, 'JPG', 26, 8, 14, 14);
+                doc.addImage(osaImg, 'JPEG', 26, 8, 14, 14);
             }
         } catch (e) {
             console.log('Logo loading failed');
