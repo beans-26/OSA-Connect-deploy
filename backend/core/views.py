@@ -264,6 +264,10 @@ class ViolationViewSet(viewsets.ModelViewSet):
         try:
             violation_id = kwargs.get('id') or kwargs.get('pk')
             violation = ViolationReport.objects.get(id=violation_id)
+            
+            if violation.status == "Approved" or violation.status == "Completed":
+                return Response({"error": "Violation is already approved or completed."}, status=status.HTTP_400_BAD_REQUEST)
+
             violation.status = "Approved"
             violation.save()
             
