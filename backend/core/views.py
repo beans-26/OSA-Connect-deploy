@@ -16,6 +16,8 @@ SMTP_LOGIN = os.environ.get('SMTP_LOGIN', 'a46707001@smtp-brevo.com')
 SMTP_PASSWORD = os.environ.get('SMTP_PASSWORD', '')
 FROM_EMAIL = os.environ.get('FROM_EMAIL', 'a46707001@smtp-brevo.com')
 
+print(f"[EMAIL CONFIG] Enabled: {EMAIL_NOTIFICATION_ENABLED}, Login: {SMTP_LOGIN}, From: {FROM_EMAIL}, Password set: {bool(SMTP_PASSWORD)}")
+
 def send_violation_email(student_email, student_name, violation_type, incident_date, incident_time):
     print(f"[EMAIL DEBUG] Trying to send to: {student_email}, Name: {student_name}")
     
