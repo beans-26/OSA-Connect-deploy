@@ -7,6 +7,75 @@ from .models import Student, ViolationReport, ETicket, TimeLog, SystemUser
 from .serializers import StudentSerializer, ViolationReportSerializer, ETicketSerializer, TimeLogSerializer
 import datetime
 
+import os
+
+EMAIL_NOTIFICATION_ENABLED = os.environ.get('EMAIL_NOTIFICATION_ENABLED', 'true').lower() == 'true'
+SMTP_SERVER = "smtp-relay.brevo.com"
+SMTP_PORT = 587
+SMTP_LOGIN = os.environ.get('SMTP_LOGIN', 'a46707001@smtp-brevo.com')
+SMTP_PASSWORD = os.environ.get('SMTP_PASSWORD', '')
+FROM_EMAIL = os.environ.get('FROM_EMAIL', 'a46707001@smtp-brevo.com')
+
+def send_violation_email(student_email, student_name, violation_type, incident_date, incident_time):
+    print(f"[EMAIL DEBUG] Trying to send to: {student_email}, Name: {student_name}")
+    
+    if not EMAIL_NOTIFICATION_ENABLED:
+        print(f"[EMAIL NOTIFICATION DISABLED] Would send email to {student_email}")
+        return False
+    
+    if not student_email:
+        print(f"[EMAIL ERROR] No email address provided")
+        return False
+    
+    try:
+        import smtplib
+        from email.mime.text import MIMEText
+        from email.mime.multipart import MIMEMultipart
+        
+        body_html = f"""
+        <html>
+        <body style="font-family: Arial, sans-serif; padding: 20px;">
+            <h2 style="color: #d9534f;">Violation Notice</h2>
+            <p>Dear <strong>{student_name}</strong>,</p>
+            <p>This is to notify you that a violation has been recorded against your account.</p>
+            <table style="border-collapse: collapse; margin: 20px 0;">
+                <tr>
+                    <td style="padding: 8px; border: 1px solid #ddd;"><strong>Violation Type:</strong></td>
+                    <td style="padding: 8px; border: 1px solid #ddd;">{violation_type}</td>
+                </tr>
+                <tr>
+                    <td style="padding: 8px; border: 1px solid #ddd;"><strong>Date:</strong></td>
+                    <td style="padding: 8px; border: 1px solid #ddd;">{incident_date}</td>
+                </tr>
+                <tr>
+                    <td style="padding: 8px; border: 1px solid #ddd;"><strong>Time:</strong></td>
+                    <td style="padding: 8px; border: 1px solid #ddd;">{incident_time}</td>
+                </tr>
+            </table>
+            <p>Please coordinate with the OSA Office for the corresponding punishment.</p>
+            <p style="color: #888; font-size: 12px; margin-top: 30px;">This is an automated message. Please do not reply to this email.</p>
+        </body>
+        </html>
+        """
+        
+        msg = MIMEMultipart()
+        msg['From'] = FROM_EMAIL
+        msg['To'] = student_email
+        msg['Subject'] = f"Violation Notice - {violation_type}"
+        msg.attach(MIMEText(body_html, 'html'))
+        
+        server = smtplib.SMTP(SMTP_SERVER, SMTP_PORT)
+        server.starttls()
+        server.login(SMTP_LOGIN, SMTP_PASSWORD)
+        server.sendmail(FROM_EMAIL, student_email, msg.as_string())
+        server.quit()
+        
+        print(f"[EMAIL SENT] Notification sent to {student_email}")
+        return True
+    except Exception as e:
+        print(f"[EMAIL ERROR] Failed to send email: {str(e)}")
+        return False
+
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def login_view(request):
@@ -247,6 +316,13 @@ class ViolationViewSet(viewsets.ModelViewSet):
             
             print(f"DB SYNC SUCCESS: Violation {report.id} committed to collection 'violation_reports'")
             print(f"Offense #{offense_count} for {violation_type}: {punishment_info['punishment']}")
+            
+            student_email = data.get('email', '') or (student.email if student.email else '')
+            print(f"[DEBUG] Student email: {student_email}, Form email: {data.get('email', '')}, DB email: {student.email}")
+            if student_email:
+                incident_date = data.get('incident_date', '')
+                incident_time = data.get('incident_time', '')
+                send_violation_email(student_email, student.name, violation_type, incident_date, incident_time)
             
             # 4. Return serialized data so the frontend can update UI
             response_data = self.get_serializer(report).data

@@ -28,7 +28,7 @@ const ReportViolation = () => {
     const [statusMsg, setStatusMsg] = useState('');
     const [form, setForm] = useState({
         student_id: '', name: '', course: '', department: '', contact: '',
-        email: '', violation: '', description: '',
+        email: '', violation: '',
         incident_date: new Date().toISOString().split('T')[0],
         incident_time: new Date().toTimeString().slice(0, 5)
     });
@@ -121,7 +121,7 @@ const ReportViolation = () => {
         setStep(1);
         setForm({
             student_id: '', name: '', course: '', department: '', contact: '',
-            email: '', violation: '', description: '',
+            email: '', violation: '',
             incident_date: new Date().toISOString().split('T')[0],
             incident_time: new Date().toTimeString().slice(0, 5)
         });
@@ -227,6 +227,8 @@ const ReportViolation = () => {
                                                 {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
                                             </select>
                                         </div>
+                                        <input required type="email" placeholder="Email Address" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} className="w-full bg-slate-50 border-2 border-slate-100 rounded-[24px] p-5 font-bold focus:border-ustp-blue outline-none transition-all" />
+                                        <input required placeholder="Contact Number" value={form.contact} onChange={e => setForm({ ...form, contact: e.target.value })} className="w-full bg-slate-50 border-2 border-slate-100 rounded-[24px] p-5 font-bold focus:border-ustp-blue outline-none transition-all" />
                                     </div>
                                     <div className="space-y-6">
                                         <select required value={form.violation} onChange={e => setForm({ ...form, violation: e.target.value })} className="w-full bg-red-50 border-2 border-red-100 rounded-[24px] p-5 font-black text-red-900 focus:border-red-500 outline-none transition-all cursor-pointer">
@@ -248,7 +250,7 @@ const ReportViolation = () => {
                                                 <input type="time" required value={form.incident_time} onChange={e => setForm({ ...form, incident_time: e.target.value })} className="w-full bg-slate-50 border-2 border-slate-100 rounded-[24px] p-5 font-bold outline-none focus:border-ustp-blue" />
                                             </div>
                                         </div>
-                                        <textarea placeholder="Optional details / description..." value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} className="w-full bg-slate-50 border-2 border-slate-100 rounded-[24px] p-5 font-medium outline-none focus:border-ustp-blue h-[110px] resize-none" />
+
                                     </div>
                                 </div>
                                 <button type="submit" disabled={loading} className="group relative bg-ustp-blue text-white w-full py-6 rounded-[28px] text-xl font-black shadow-2xl shadow-blue-900/40 flex items-center justify-center gap-4 transition-all hover:bg-slate-900 active:scale-[0.98]">
