@@ -419,6 +419,8 @@ class ETicketViewSet(viewsets.ModelViewSet):
                 
                 if ticket.remaining_hours == 0:
                     ticket.status = "Completed"
+                    ticket.violation.status = "Completed"
+                    ticket.violation.save()
                 else:
                     ticket.status = "Active"
                 ticket.save()
@@ -452,6 +454,8 @@ class TimeLogViewSet(viewsets.ModelViewSet):
                 eticket.remaining_hours = max(0, eticket.remaining_hours - hours)
                 if eticket.remaining_hours == 0:
                     eticket.status = "Completed"
+                    eticket.violation.status = "Completed"
+                    eticket.violation.save()
                 eticket.save()
                 return Response({"message": f"Successfully deducted {hours} hours!"})
 
@@ -500,6 +504,8 @@ class TimeLogViewSet(viewsets.ModelViewSet):
                     eticket.remaining_hours = max(0, eticket.remaining_hours - hours_to_deduct)
                     if eticket.remaining_hours == 0:
                         eticket.status = "Completed"
+                        eticket.violation.status = "Completed"
+                        eticket.violation.save()
                     else:
                         eticket.status = "Active"
                     eticket.save()
