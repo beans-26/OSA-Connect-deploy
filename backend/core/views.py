@@ -364,13 +364,21 @@ class ETicketViewSet(viewsets.ModelViewSet):
                 log.duration_seconds = duration
                 log.save()
                 ticket.remaining_hours = max(0, ticket.remaining_hours - (duration / 3600))
+                
+                if ticket.remaining_hours <= 0.001:
+                    ticket.remaining_hours = 0
+                    ticket.status = "Completed"
+                    ticket.violation.status = "Completed"
+                    ticket.violation.save()
 
-            # Start timer - use remaining hours from ticket
-            ticket.status = "Ongoing"
-            ticket.save()
-
-            # Create a new time log
-            log = TimeLog(eticket=ticket).save()
+            if ticket.remaining_hours > 0:
+                # Start timer - use remaining hours from ticket
+                ticket.status = "Ongoing"
+                ticket.save()
+                # Create a new time log
+                log = TimeLog(eticket=ticket).save()
+            else:
+                ticket.save()
 
             return Response({
                 "message": f"Timer started for student {student_id}",
@@ -417,7 +425,8 @@ class ETicketViewSet(viewsets.ModelViewSet):
                 hours_to_deduct = duration / 3600
                 ticket.remaining_hours = max(0, ticket.remaining_hours - hours_to_deduct)
                 
-                if ticket.remaining_hours == 0:
+                if ticket.remaining_hours <= 0.001:
+                    ticket.remaining_hours = 0
                     ticket.status = "Completed"
                     ticket.violation.status = "Completed"
                     ticket.violation.save()
@@ -452,7 +461,8 @@ class TimeLogViewSet(viewsets.ModelViewSet):
             if action_type == 'custom':
                 hours = float(request.data.get('deduct_hours', 0))
                 eticket.remaining_hours = max(0, eticket.remaining_hours - hours)
-                if eticket.remaining_hours == 0:
+                if eticket.remaining_hours <= 0.001:
+                    eticket.remaining_hours = 0
                     eticket.status = "Completed"
                     eticket.violation.status = "Completed"
                     eticket.violation.save()
@@ -502,7 +512,8 @@ class TimeLogViewSet(viewsets.ModelViewSet):
                     
                     hours_to_deduct = duration / 3600
                     eticket.remaining_hours = max(0, eticket.remaining_hours - hours_to_deduct)
-                    if eticket.remaining_hours == 0:
+                    if eticket.remaining_hours <= 0.001:
+                        eticket.remaining_hours = 0
                         eticket.status = "Completed"
                         eticket.violation.status = "Completed"
                         eticket.violation.save()
