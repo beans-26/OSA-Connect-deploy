@@ -144,7 +144,7 @@ const Archives = () => {
         });
 
         autoTable(doc, {
-            head: [['ID NUMBER', 'FIRST NAME', 'LAST NAME', 'CONTACT NUMBER', 'YEAR LEVEL', 'COURSE/PROGRAM', 'COLLEGE', 'NATURE OF VIOLATION', 'DATE COMMITTED', 'PENALTY', 'COMMUNITY SERVED', 'STATUS']],
+            head: [['ID NUMBER', 'FIRST NAME', 'LAST NAME', 'CONTACT NUMBER', 'YEAR LEVEL', 'COURSE/PROGRAM', 'COLLEGE', 'NATURE OF VIOLATION', 'DATE COMMITTED', 'PENALTY', 'HOURS SERVED', 'STATUS']],
             body: tableData,
             startY: 25,
             styles: {
@@ -170,11 +170,6 @@ const Archives = () => {
 
         doc.save(`OSA_Community_Service_Log_${new Date().toISOString().split('T')[0]}.pdf`);
     };
-
-    const handlePrint = () => {
-        window.print();
-    };
-
     const formatDate = (dateStr) => {
         if (!dateStr) return '—';
         const d = new Date(dateStr);
@@ -203,12 +198,6 @@ const Archives = () => {
                             <p className="text-slate-500 mt-2 font-medium italic">Completed violations, dismissed cases, and service records.</p>
                         </div>
                         <div className="flex gap-3 print:hidden">
-                            <button
-                                onClick={handlePrint}
-                                className="flex items-center gap-2 px-5 py-3 bg-slate-100 text-slate-700 rounded-2xl font-bold text-sm hover:bg-slate-200 transition-all"
-                            >
-                                <Printer size={18} /> Print
-                            </button>
                             <button
                                 onClick={generatePDF}
                                 className="flex items-center gap-2 px-5 py-3 bg-ustp-blue text-white rounded-2xl font-bold text-sm hover:bg-blue-700 transition-all"
