@@ -94,14 +94,14 @@ const AllStudents = () => {
     const handleAddStudent = async (e) => {
         e.preventDefault();
         setSaving(true);
-        
+
         try {
             const response = await fetch('/api/students/', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(newStudent)
             });
-            
+
             if (response.ok) {
                 const data = await response.json();
                 setStudents([...students, data]);
@@ -148,14 +148,14 @@ const AllStudents = () => {
     const handleUpdateStudent = async (e) => {
         e.preventDefault();
         setSaving(true);
-        
+
         try {
             const response = await fetch(`/api/students/${selectedStudent.student_id}/`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(editStudent)
             });
-            
+
             if (response.ok) {
                 const data = await response.json();
                 setStudents(students.map(s => s.student_id === selectedStudent.student_id ? data : s));
@@ -174,26 +174,26 @@ const AllStudents = () => {
     const downloadQR = (student) => {
         const svg = document.getElementById('qr-code-svg');
         if (!svg) return;
-        
+
         const svgData = new XMLSerializer().serializeToString(svg);
         const canvas = document.createElement('canvas');
         const ctx = canvas.getContext('2d');
         const img = new Image();
-        
+
         const qrData = formatQRData(student);
-        
+
         img.onload = () => {
             canvas.width = 256;
             canvas.height = 256;
             ctx.drawImage(img, 0, 0);
             const pngFile = canvas.toDataURL('image/png');
-            
+
             const downloadLink = document.createElement('a');
             downloadLink.download = `${student.student_id}_qr.png`;
             downloadLink.href = pngFile;
             downloadLink.click();
         };
-        
+
         img.src = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgData)));
     };
 
@@ -203,14 +203,15 @@ const AllStudents = () => {
         return match ? `(${match[1]})` : dept;
     };
 
+
     const formatQRData = (student) => {
         if (!student.name) return student.student_id;
-        
+
         const nameParts = student.name.trim().split(/\s+/);
         let firstName = nameParts[0] || '';
         let middleInitial = '';
         let lastName = '';
-        
+
         if (nameParts.length >= 2) {
             const lastPart = nameParts[nameParts.length - 1];
             if (lastPart.endsWith('.') || lastPart.length <= 3) {
@@ -221,11 +222,11 @@ const AllStudents = () => {
                 middleInitial = nameParts.length > 2 ? nameParts[1] : '';
             }
         }
-        
+
         const formattedName = `${firstName.toUpperCase()} ${middleInitial.toUpperCase()} ${lastName.toUpperCase()}`.trim();
         const course = student.course ? student.course.replace(/^BS|^BSIT|^BSCS|^BSCE|^BSEE|^BSME|^BSCpE/i, '').trim() : '';
-        
-        return `${formattedName} ${student.student_id} ${course}`.trim();
+
+        return `${student.student_id} ${formattedName} ${course}`.trim();
     };
 
     const filteredStudents = students
@@ -369,7 +370,7 @@ const AllStudents = () => {
                                     type="text"
                                     required
                                     value={newStudent.student_id}
-                                    onChange={(e) => setNewStudent({...newStudent, student_id: e.target.value})}
+                                    onChange={(e) => setNewStudent({ ...newStudent, student_id: e.target.value })}
                                     className="w-full px-4 py-3 border-2 border-slate-100 rounded-2xl focus:border-ustp-blue focus:outline-none"
                                     placeholder="e.g., 2023303188"
                                 />
@@ -380,7 +381,7 @@ const AllStudents = () => {
                                     type="text"
                                     required
                                     value={newStudent.name}
-                                    onChange={(e) => setNewStudent({...newStudent, name: e.target.value})}
+                                    onChange={(e) => setNewStudent({ ...newStudent, name: e.target.value })}
                                     className="w-full px-4 py-3 border-2 border-slate-100 rounded-2xl focus:border-ustp-blue focus:outline-none"
                                     placeholder="e.g., John Doe"
                                 />
@@ -390,7 +391,7 @@ const AllStudents = () => {
                                     <label className="block text-sm font-semibold text-slate-700 mb-1">Course</label>
                                     <select
                                         value={newStudent.course}
-                                        onChange={(e) => setNewStudent({...newStudent, course: e.target.value})}
+                                        onChange={(e) => setNewStudent({ ...newStudent, course: e.target.value })}
                                         className="w-full px-4 py-3 border-2 border-slate-100 rounded-2xl focus:border-ustp-blue focus:outline-none"
                                     >
                                         <option value="">Select Course</option>
@@ -403,7 +404,7 @@ const AllStudents = () => {
                                     <label className="block text-sm font-semibold text-slate-700 mb-1">Department</label>
                                     <select
                                         value={newStudent.department}
-                                        onChange={(e) => setNewStudent({...newStudent, department: e.target.value})}
+                                        onChange={(e) => setNewStudent({ ...newStudent, department: e.target.value })}
                                         className="w-full px-4 py-3 border-2 border-slate-100 rounded-2xl focus:border-ustp-blue focus:outline-none"
                                     >
                                         <option value="">Select Department</option>
@@ -417,7 +418,7 @@ const AllStudents = () => {
                                 <label className="block text-sm font-semibold text-slate-700 mb-1">Year Level</label>
                                 <select
                                     value={newStudent.year_level}
-                                    onChange={(e) => setNewStudent({...newStudent, year_level: e.target.value})}
+                                    onChange={(e) => setNewStudent({ ...newStudent, year_level: e.target.value })}
                                     className="w-full px-4 py-3 border-2 border-slate-100 rounded-2xl focus:border-ustp-blue focus:outline-none"
                                 >
                                     <option value="">Select Year</option>
@@ -433,7 +434,7 @@ const AllStudents = () => {
                                 <input
                                     type="email"
                                     value={newStudent.email}
-                                    onChange={(e) => setNewStudent({...newStudent, email: e.target.value})}
+                                    onChange={(e) => setNewStudent({ ...newStudent, email: e.target.value })}
                                     className="w-full px-4 py-3 border-2 border-slate-100 rounded-2xl focus:border-ustp-blue focus:outline-none"
                                     placeholder="e.g., john@example.com"
                                 />
@@ -443,7 +444,7 @@ const AllStudents = () => {
                                 <input
                                     type="text"
                                     value={newStudent.contact_number}
-                                    onChange={(e) => setNewStudent({...newStudent, contact_number: e.target.value})}
+                                    onChange={(e) => setNewStudent({ ...newStudent, contact_number: e.target.value })}
                                     className="w-full px-4 py-3 border-2 border-slate-100 rounded-2xl focus:border-ustp-blue focus:outline-none"
                                     placeholder="e.g., 09351234567"
                                 />
@@ -511,7 +512,7 @@ const AllStudents = () => {
                                     type="text"
                                     required
                                     value={editStudent.student_id}
-                                    onChange={(e) => setEditStudent({...editStudent, student_id: e.target.value})}
+                                    onChange={(e) => setEditStudent({ ...editStudent, student_id: e.target.value })}
                                     className="w-full px-4 py-3 border-2 border-slate-100 rounded-2xl focus:border-ustp-blue focus:outline-none"
                                     placeholder="e.g., 2023303188"
                                 />
@@ -522,7 +523,7 @@ const AllStudents = () => {
                                     type="text"
                                     required
                                     value={editStudent.name}
-                                    onChange={(e) => setEditStudent({...editStudent, name: e.target.value})}
+                                    onChange={(e) => setEditStudent({ ...editStudent, name: e.target.value })}
                                     className="w-full px-4 py-3 border-2 border-slate-100 rounded-2xl focus:border-ustp-blue focus:outline-none"
                                     placeholder="e.g., John Doe"
                                 />
@@ -532,7 +533,7 @@ const AllStudents = () => {
                                     <label className="block text-sm font-semibold text-slate-700 mb-1">Course</label>
                                     <select
                                         value={editStudent.course}
-                                        onChange={(e) => setEditStudent({...editStudent, course: e.target.value})}
+                                        onChange={(e) => setEditStudent({ ...editStudent, course: e.target.value })}
                                         className="w-full px-4 py-3 border-2 border-slate-100 rounded-2xl focus:border-ustp-blue focus:outline-none"
                                     >
                                         <option value="">Select Course</option>
@@ -545,7 +546,7 @@ const AllStudents = () => {
                                     <label className="block text-sm font-semibold text-slate-700 mb-1">Department</label>
                                     <select
                                         value={editStudent.department}
-                                        onChange={(e) => setEditStudent({...editStudent, department: e.target.value})}
+                                        onChange={(e) => setEditStudent({ ...editStudent, department: e.target.value })}
                                         className="w-full px-4 py-3 border-2 border-slate-100 rounded-2xl focus:border-ustp-blue focus:outline-none"
                                     >
                                         <option value="">Select Department</option>
@@ -559,7 +560,7 @@ const AllStudents = () => {
                                 <label className="block text-sm font-semibold text-slate-700 mb-1">Year Level</label>
                                 <select
                                     value={editStudent.year_level}
-                                    onChange={(e) => setEditStudent({...editStudent, year_level: e.target.value})}
+                                    onChange={(e) => setEditStudent({ ...editStudent, year_level: e.target.value })}
                                     className="w-full px-4 py-3 border-2 border-slate-100 rounded-2xl focus:border-ustp-blue focus:outline-none"
                                 >
                                     <option value="">Select Year</option>
@@ -575,7 +576,7 @@ const AllStudents = () => {
                                 <input
                                     type="email"
                                     value={editStudent.email}
-                                    onChange={(e) => setEditStudent({...editStudent, email: e.target.value})}
+                                    onChange={(e) => setEditStudent({ ...editStudent, email: e.target.value })}
                                     className="w-full px-4 py-3 border-2 border-slate-100 rounded-2xl focus:border-ustp-blue focus:outline-none"
                                     placeholder="e.g., john@example.com"
                                 />
@@ -585,7 +586,7 @@ const AllStudents = () => {
                                 <input
                                     type="text"
                                     value={editStudent.contact_number}
-                                    onChange={(e) => setEditStudent({...editStudent, contact_number: e.target.value})}
+                                    onChange={(e) => setEditStudent({ ...editStudent, contact_number: e.target.value })}
                                     className="w-full px-4 py-3 border-2 border-slate-100 rounded-2xl focus:border-ustp-blue focus:outline-none"
                                     placeholder="e.g., 09351234567"
                                 />

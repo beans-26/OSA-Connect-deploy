@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import Sidebar from '../components/Sidebar';
+import QRCode from 'react-qr-code';
 import {
     AlertTriangle,
     Clock,
@@ -19,7 +20,8 @@ import {
     Timer,
     Bell,
     UserCheck,
-    ClipboardList
+    ClipboardList,
+    QrCode
 } from 'lucide-react';
 
 /* ─── Violation Detail Modal ──────────────────────────────────────── */

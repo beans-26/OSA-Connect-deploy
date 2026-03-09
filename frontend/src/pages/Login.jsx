@@ -146,8 +146,12 @@ const Login = () => {
                             </span>
                         </button>
 
-                        <div className="pt-6 text-center">
-                            <p className="text-slate-400 text-sm font-medium">
+                        <div className="pt-6 text-center space-y-4">
+                            <p className="text-slate-500 font-medium">
+                                Don't have a QR ID?{' '}
+                                <a href="/register" className="text-ustp-blue font-bold hover:underline">Register Here</a>
+                            </p>
+                            <p className="text-slate-400 text-xs font-bold uppercase tracking-widest">
                                 Protected by USTP OSA System Security
                             </p>
                         </div>

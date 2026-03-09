@@ -212,6 +212,32 @@ const StaffSettings = () => {
         setTimeout(() => setActionMessage({ text: '', type: '' }), 3000);
     };
 
+    const downloadRegistrationQR = () => {
+        const svg = document.getElementById('reg-qr-code-svg');
+        if (!svg) return;
+
+        const svgData = new XMLSerializer().serializeToString(svg);
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        const img = new Image();
+
+        img.onload = () => {
+            canvas.width = 256;
+            canvas.height = 256;
+            ctx.fillStyle = "white";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.drawImage(img, 0, 0);
+
+            const pngFile = canvas.toDataURL('image/png');
+            const downloadLink = document.createElement('a');
+            downloadLink.download = `registration_poster_qr.png`;
+            downloadLink.href = pngFile;
+            downloadLink.click();
+        };
+
+        img.src = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgData)));
+    };
+
     return (
         <div className="flex bg-slate-50 min-h-screen relative">
             <Sidebar role="staff" />
@@ -299,6 +325,21 @@ const StaffSettings = () => {
                                             <div className="bg-slate-800/50 text-slate-400 rounded-2xl px-6 py-3 font-mono font-black text-sm border border-slate-700/50 tracking-widest uppercase">
                                                 OSA-PAUSE
                                             </div>
+                                        </div>
+
+                                        <div className="bg-blue-950 p-8 flex flex-col items-center justify-center text-center rounded-[32px] shadow-2xl border-4 border-blue-800/30 group hover:border-blue-500 transition-all duration-500 md:col-span-2">
+                                            <h4 className="font-black text-xl uppercase tracking-tighter text-blue-400 mb-6 flex items-center gap-2">
+                                                <User size={20} /> Registration Form
+                                            </h4>
+                                            <div className="bg-white p-6 rounded-[32px] mb-6 shadow-2xl group-hover:scale-105 transition-transform duration-500 cursor-pointer" onClick={downloadRegistrationQR} title="Click to download poster">
+                                                <QRCode id="reg-qr-code-svg" value="https://osa-connect-deploy.vercel.app/register" size={140} level="H" />
+                                            </div>
+                                            <button
+                                                onClick={downloadRegistrationQR}
+                                                className="bg-blue-600 hover:bg-blue-500 text-white rounded-2xl px-6 py-3 font-black text-xs tracking-widest uppercase shadow-lg shadow-blue-500/20 transition-all"
+                                            >
+                                                Download Poster
+                                            </button>
                                         </div>
                                     </div>
                                 </div>
