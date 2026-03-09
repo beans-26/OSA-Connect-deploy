@@ -66,6 +66,12 @@ def send_violation_email(student_email, student_name, violation_type, incident_d
         msg['Subject'] = f"Violation Notice - {violation_type}"
         msg.attach(MIMEText(body_html, 'html'))
         
+        if not SMTP_PASSWORD:
+            print(f"--- MOCK EMAIL TO {student_email} ---")
+            print(f"Subject: Violation Notice - {violation_type}")
+            print("-------------------------------------")
+            return True
+
         server = smtplib.SMTP(SMTP_SERVER, SMTP_PORT)
         server.starttls()
         server.login(SMTP_LOGIN, SMTP_PASSWORD)
