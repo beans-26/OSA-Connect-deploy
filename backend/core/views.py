@@ -321,16 +321,23 @@ class ViolationViewSet(viewsets.ModelViewSet):
             
             student_email = data.get('email', '') or (student.email if student.email else '')
             print(f"[DEBUG] Student email: {student_email}, Form email: {data.get('email', '')}, DB email: {student.email}")
+            
+            email_sent = False
             if student_email:
                 incident_date = data.get('incident_date', '')
                 incident_time = data.get('incident_time', '')
-                send_violation_email(student_email, student.name, violation_type, incident_date, incident_time)
+                email_sent = send_violation_email(student_email, student.name, violation_type, incident_date, incident_time)
             
             # 4. Return serialized data so the frontend can update UI
             response_data = self.get_serializer(report).data
             response_data["offense_count"] = offense_count
             response_data["punishment"] = punishment_info["punishment"]
             response_data["notification_type"] = notification_type
+            response_data["email_debug"] = {
+                "student_email": student_email,
+                "email_sent": email_sent,
+                "email_enabled": EMAIL_NOTIFICATION_ENABLED
+            }
             return Response(response_data, status=status.HTTP_201_CREATED)
             
         except Exception as e:
