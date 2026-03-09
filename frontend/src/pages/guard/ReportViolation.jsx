@@ -170,6 +170,16 @@ const ReportViolation = () => {
                                 <p className="text-[10px] uppercase font-black text-slate-400 tracking-widest mb-1">Student Full Name</p>
                                 <p className="font-bold text-slate-800 text-lg">{form.name || '—'}</p>
                             </div>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="bg-slate-50 p-5 rounded-3xl">
+                                    <p className="text-[10px] uppercase font-black text-slate-400 tracking-widest mb-1">Email</p>
+                                    <p className="font-bold text-slate-700 text-sm">{form.email || '—'}</p>
+                                </div>
+                                <div className="bg-slate-50 p-5 rounded-3xl">
+                                    <p className="text-[10px] uppercase font-black text-slate-400 tracking-widest mb-1">Contact</p>
+                                    <p className="font-bold text-slate-700 text-sm">{form.contact || '—'}</p>
+                                </div>
+                            </div>
                             <div className="grid grid-cols-2 gap-4 text-center">
                                 <div className="bg-slate-50 p-5 rounded-3xl">
                                     <p className="text-[10px] uppercase font-black text-slate-400 tracking-widest mb-1">Date</p>
