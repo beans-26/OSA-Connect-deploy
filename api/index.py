@@ -8,14 +8,14 @@ backend_root = Path(__file__).resolve().parent.parent / "backend"
 if str(backend_root) not in sys.path:
     sys.path.append(str(backend_root))
 
-# Set Django settings and load env
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'osaconnect_backend.settings')
-
+# Load environment variables FIRST
 from dotenv import load_dotenv
 load_dotenv(backend_root / '.env')
 
-# Initialize Django on module load
+# Set Django settings
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'osaconnect_backend.settings')
+
+# Initialize Django
 import django
 django.setup()
 
