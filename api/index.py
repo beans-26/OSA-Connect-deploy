@@ -92,6 +92,26 @@ def handler(request):
                 try:
                     from core.models import SystemUser, Student
                     
+                    # AUTO-SEED: Create default users if DB is empty
+                    if SystemUser.objects.count() == 0:
+                        print("[Vercel] Empty DB detected, auto-seeding users...")
+                        SystemUser(username="admin", password="admin", role="admin", full_name="System Admin").save()
+                        SystemUser(username="staff", password="staff", role="staff", full_name="OSA Staff").save()
+                        SystemUser(username="guard", password="guard", role="guard", full_name="Gate Guard").save()
+                        SystemUser(username="faculty", password="faculty", role="faculty", full_name="University Faculty").save()
+                        # Seed initial students
+                        initial_students = [
+                            {"id": "2023303188", "name": "Vincent Dagaraga"},
+                            {"id": "2023303189", "name": "Mark Tajeros"},
+                        ]
+                        for s in initial_students:
+                            student = Student.objects.filter(student_id=s["id"]).first()
+                            if not student:
+                                student = Student(student_id=s["id"])
+                            student.name = s["name"]
+                            student.save()
+                        print("[Vercel] Auto-seeding complete")
+                    
                     # Check SystemUser first
                     try:
                         user = SystemUser.objects.get(username=username)
