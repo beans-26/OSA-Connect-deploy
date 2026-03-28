@@ -15,12 +15,21 @@
     ],
     "routes": [
         {
+            "src": "/api/status",
+            "dest": "api/status.py"
+        },
+        {
             "src": "/api(/.*)?",
             "dest": "api/index.py"
         },
         {
             "src": "/assets/(.*)",
             "dest": "frontend/assets/$1"
+        },
+        {
+            "src": "/(.*)",
+            "dest": "frontend/$1",
+            "continue": true
         },
         {
             "src": "/(.*)",
