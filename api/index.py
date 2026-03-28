@@ -59,6 +59,28 @@ def handler(request):
                 'headers': {'Content-Type': 'application/json'}
             }
         
+        if clean_path in ['/debug/', '/debug']:
+            try:
+                from core.models import SystemUser, Student
+                user_count = SystemUser.objects.count()
+                student_count = Student.objects.count()
+                return {
+                    'statusCode': 200,
+                    'body': json.dumps({
+                        'db_status': 'connected',
+                        'system_users': user_count,
+                        'students': student_count,
+                        'mongodb_uri': os.getenv('MONGODB_URI', 'NOT_SET')[:50] + '...'
+                    }),
+                    'headers': {'Content-Type': 'application/json'}
+                }
+            except Exception as db_e:
+                return {
+                    'statusCode': 500,
+                    'body': json.dumps({'db_status': 'error', 'error': str(db_e)}),
+                    'headers': {'Content-Type': 'application/json'}
+                }
+        
         return {
             'statusCode': 404,
             'body': json.dumps({'error': 'Not found', 'path': clean_path}),
