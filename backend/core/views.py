@@ -231,14 +231,12 @@ class ViolationViewSet(viewsets.ModelViewSet):
                 else:
                     punishment = f"{hours} hours community service (Bulk Report)"
                 
-                # Log to file for deep inspection
-                with open('bulk_report_debug.txt', 'a') as f:
-                    f.write(f"\n--- BULK REPORT DEBUG ---\n")
-                    f.write(f"Student: {sid} | Violation: {violation_type} | Count: {offense_count}\n")
-                    f.write(f"Raw Hours Input: '{custom_hours_raw}'\n")
-                    f.write(f"Final Hours Calculated: {hours}\n")
-                    f.write(f"Final Punishment: {punishment}\n")
-                    f.write(f"--------------------------\n")
+                print(f"--- BULK REPORT DEBUG ---")
+                print(f"Student: {sid} | Violation: {violation_type} | Count: {offense_count}")
+                print(f"Raw Hours Input: '{custom_hours_raw}'")
+                print(f"Final Hours Calculated: {hours}")
+                print(f"Final Punishment: {punishment}")
+                print(f"--------------------------")
 
                 report = ViolationReport(
                     student=student,
