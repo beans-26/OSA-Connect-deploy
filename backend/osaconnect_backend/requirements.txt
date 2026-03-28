@@ -1,7 +1,7 @@
 django
 djangorestframework
 django-cors-headers
-pymongo[srv]
+pymongo
 mongoengine
 python-dotenv
 cryptography

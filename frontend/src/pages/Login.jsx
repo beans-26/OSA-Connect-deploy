@@ -17,21 +17,22 @@ const Login = () => {
             });
             const data = await response.json();
             if (response.ok) {
-                const userData = { username: data.username, role: data.role };
-                if (data.name) userData.name = data.name;
-                if (data.student_id) userData.student_id = data.student_id;
+                const userData = {
+                    username: data.username,
+                    role: data.role,
+                    student_id: data.student_id,
+                    name: data.name
+                };
                 localStorage.setItem('user', JSON.stringify(userData));
-                if (data.role === 'admin' || data.role === 'staff') {
-                    navigate('/staff/overview');
-                } else if (data.role === 'guard') {
-                    navigate('/guard/report');
-                } else if (data.role === 'faculty') {
-                    navigate('/faculty/report');
-                } else {
-                    navigate('/student/dashboard');
-                }
+
+                // Redirect based on precise role
+                if (data.role === 'admin') navigate('/staff/overview');
+                else if (data.role === 'guard') navigate('/guard/report');
+                else if (data.role === 'faculty') navigate('/faculty/report');
+                else if (data.role === 'student') navigate('/student/dashboard');
+                else alert(`Unknown Role: ${data.role}. Please contact Admin.`);
             } else {
-                alert(data.error || 'Login failed');
+                alert(`Login Failed: ${data.error || 'Unknown Error'} (Status: ${response.status})`);
             }
         } catch (error) {
             console.error('Login error:', error);
