@@ -15,7 +15,7 @@ import os
 @permission_classes([AllowAny])
 def login_view(request):
     """Authenticate user against SystemUser or Student collection"""
-    username = request.data.get('username')
+    username = request.data.get('username', '').lower().strip()
     password = request.data.get('password')
     
     if not username or not password:

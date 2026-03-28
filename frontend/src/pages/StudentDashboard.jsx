@@ -195,9 +195,9 @@ const StudentDashboard = () => {
         };
     }, [showStopScanner]);
 
-    // Location Monitoring Effect (HIGH FREQUENCY POLLING)
+    // Location Monitoring Effect (OPTIMIZED POLLING)
     useEffect(() => {
-        let pollId;
+        let timeoutId;
         if (timerActive && activeTicket && activeTicket.lat && activeTicket.lng) {
             setMonitoringLocation(true);
 
@@ -218,25 +218,25 @@ const StudentDashboard = () => {
 
                         const accuracyBuffer = position.coords.accuracy * 0.7;
                         const effectiveRadius = (activeTicket.radius || 100) + accuracyBuffer;
+                        setIsOutOfBounds(dist > effectiveRadius);
 
-                        const out = dist > effectiveRadius;
-                        setIsOutOfBounds(out);
+                        // Schedule next poll ONLY after this one finishes (prevents stacking)
+                        timeoutId = setTimeout(pollLocation, 3000);
                     },
-                    (err) => console.error("Location error:", err),
-                    { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
+                    (err) => {
+                        console.error("Location error:", err);
+                        timeoutId = setTimeout(pollLocation, 5000); // Wait longer on error
+                    },
+                    { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
                 );
             };
 
-            // Initial poll
             pollLocation();
-
-            // Aggressive 1-second interval for real-time responsiveness
-            pollId = setInterval(pollLocation, 1000);
         } else {
             setMonitoringLocation(false);
             setIsOutOfBounds(false);
         }
-        return () => { if (pollId) clearInterval(pollId); };
+        return () => { if (timeoutId) clearTimeout(timeoutId); };
     }, [timerActive, activeTicket]);
 
     // Warning Countdown Effect (TICKER)
