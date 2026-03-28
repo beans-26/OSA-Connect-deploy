@@ -1,8 +1,7 @@
-import os
 import json
 
-def handler(request):
-    """Minimal Vercel handler"""
+def handler(request, context):
+    """Vercel Python handler with context parameter"""
     return {
         'statusCode': 200,
         'body': json.dumps({'status': 'ok', 'message': 'Hello from Python!'}),
