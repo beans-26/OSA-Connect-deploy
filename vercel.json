@@ -18,10 +18,5 @@
             "src": "/(.*)",
             "dest": "/frontend/dist/index.html"
         }
-    ],
-    "functions": {
-        "api/index.py": {
-            "runtime": "python3.12"
-        }
-    }
+    ]
 }
