@@ -200,3 +200,6 @@ def handler(request):
             'body': json.dumps({'error': str(e), 'trace': error_msg}),
             'headers': {'Content-Type': 'application/json'}
         }
+
+# Vercel expects 'app' or 'handler' at module level
+app = handler
