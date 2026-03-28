@@ -12,12 +12,24 @@ if str(backend_root) not in sys.path:
 from dotenv import load_dotenv
 load_dotenv(backend_root / '.env')
 
+# Print env status for debugging
+print(f"[Vercel] MONGODB_URI exists: {bool(os.getenv('MONGODB_URI'))}")
+print(f"[Vercel] MONGODB_URI preview: {str(os.getenv('MONGODB_URI', ''))[:30]}...")
+
 # Set Django settings
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'osaconnect_backend.settings')
 
 # Initialize Django
 import django
 django.setup()
+
+# Test MongoDB connection
+try:
+    from core.models import SystemUser
+    count = SystemUser.objects.count()
+    print(f"[Vercel] MongoDB connected. SystemUser count: {count}")
+except Exception as e:
+    print(f"[Vercel] MongoDB connection error: {e}")
 
 def handler(request):
     """Vercel serverless function handler"""
@@ -50,6 +62,7 @@ def handler(request):
         if clean_path in ['/debug/', '/debug']:
             try:
                 from core.models import SystemUser, Student
+                users = list(SystemUser.objects.all())
                 user_count = SystemUser.objects.count()
                 student_count = Student.objects.count()
                 return {
@@ -57,7 +70,9 @@ def handler(request):
                     'body': json.dumps({
                         'status': 'connected',
                         'system_users': user_count,
-                        'students': student_count
+                        'users': [{'username': u.username, 'role': u.role} for u in users],
+                        'students': student_count,
+                        'env_mongodb': bool(os.getenv('MONGODB_URI'))
                     }),
                     'headers': {'Content-Type': 'application/json'}
                 }
