@@ -15,7 +15,7 @@
     ],
     "routes": [
         {
-            "src": "/api/(.*)",
+            "src": "/api(/.*)?",
             "dest": "api/index.py"
         },
         {
@@ -24,12 +24,6 @@
         },
         {
             "src": "/(.*)",
-            "dest": "frontend/$1",
-            "continue": true
-        },
-        {
-            "src": "/(.*)",
-            "status": 200,
             "dest": "frontend/index.html"
         }
     ]
