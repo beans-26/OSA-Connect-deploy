@@ -1,31 +1,35 @@
 {
-    "buildCommand": "cd frontend && npm install && npm run build",
-    "outputDirectory": "frontend/dist",
-    "installCommand": "cd frontend && npm install",
+    "version": 2,
     "builds": [
         {
-            "src": "api/index.js",
-            "use": "@vercel/node"
+            "src": "api/index.py",
+            "use": "@vercel/python"
         },
         {
             "src": "frontend/package.json",
             "use": "@vercel/static-build",
-            "config": {"distDir": "dist"}
+            "config": {
+                "distDir": "dist"
+            }
         }
     ],
     "routes": [
         {
             "src": "/api/(.*)",
-            "dest": "/api/index.js"
+            "dest": "api/index.py"
         },
         {
             "src": "/assets/(.*)",
-            "dest": "/frontend/dist/assets/$1"
+            "dest": "frontend/assets/$1"
         },
         {
             "src": "/(.*)",
-            "dest": "/frontend/dist/index.html",
-            "statusCode": 200
+            "dest": "frontend/$1",
+            "continue": true
+        },
+        {
+            "src": "/(.*)",
+            "dest": "frontend/index.html"
         }
     ]
 }
