@@ -1,29 +1,25 @@
 {
-    "framework": null,
-    "buildCommand": null,
-    "outputDirectory": "frontend/dist",
-    "installCommand": null,
-    "devCommand": null,
+    "builds": [
+        {
+            "src": "api/**/*.py",
+            "use": "@vercel/python"
+        },
+        {
+            "src": "frontend/package.json",
+            "use": "@vercel/static-build",
+            "config": {
+                "distDir": "dist"
+            }
+        }
+    ],
     "routes": [
         {
-            "src": "/api/login",
-            "dest": "api/index.py"
-        },
-        {
-            "src": "/api/health",
-            "dest": "api/index.py"
-        },
-        {
-            "src": "/api/debug",
-            "dest": "api/index.py"
-        },
-        {
             "src": "/api/(.*)",
-            "dest": "api/index.py"
+            "dest": "/api/$1"
         },
         {
             "src": "/(.*)",
-            "dest": "frontend/dist/$1"
+            "dest": "/frontend/dist/$1"
         }
     ]
 }
