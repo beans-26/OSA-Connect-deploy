@@ -15,10 +15,12 @@ import os
 import dj_database_url
 from dotenv import load_dotenv
 
-load_dotenv()
-
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+
+# Load environment from root or backend root
+load_dotenv(BASE_DIR / '.env')
+load_dotenv(BASE_DIR.parent / '.env') # Handle /api bridge folder parent loads
 
 
 # Quick-start development settings - unsuitable for production
