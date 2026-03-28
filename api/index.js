@@ -48,7 +48,7 @@ async function handleRequest(req, res) {
     }
     
     // Login endpoint
-    if ((path.endsWith('/login') || path.endsWith('/login/') || path === '/api/login') && method === 'POST') {
+    if (path.includes('login') && method === 'POST') {
         let body = '';
         req.on('data', chunk => body += chunk);
         req.on('end', async () => {
