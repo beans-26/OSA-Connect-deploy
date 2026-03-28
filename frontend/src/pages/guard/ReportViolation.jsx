@@ -21,6 +21,10 @@ const DEPARTMENTS = [
 ];
 
 const ReportViolation = () => {
+    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    const userRole = user.role || 'guard';
+    const userName = user.full_name || 'Personnel';
+
     const [step, setStep] = useState(1);
     const [loading, setLoading] = useState(false);
     const [isScanning, setIsScanning] = useState(false);
@@ -102,7 +106,7 @@ const ReportViolation = () => {
             const response = await fetch('/api/violations/', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ ...form, reporting_guard: 'Gate Security' }),
+                body: JSON.stringify({ ...form, reporting_guard: userName }),
             });
             if (response.ok) setStep(2);
             else {
@@ -199,11 +203,15 @@ const ReportViolation = () => {
                 </div>
             )}
 
-            <Sidebar role="guard" />
+            <Sidebar role={userRole} />
             <main className="flex-1 p-4 md:p-10 pt-24 md:pt-10 max-w-7xl mx-auto overflow-y-auto">
                 <header className="mb-10 text-center md:text-left">
-                    <h1 className="text-3xl md:text-4xl font-extrabold text-slate-900 tracking-tighter uppercase italic">Gate Security</h1>
-                    <p className="text-slate-400 mt-1 font-medium italic text-sm md:text-base">Violation Reporting & Sync Center</p>
+                    <h1 className="text-3xl md:text-4xl font-extrabold text-slate-900 tracking-tighter uppercase italic">
+                        {userRole === 'faculty' ? 'Faculty Portal' : 'Gate Security'}
+                    </h1>
+                    <p className="text-slate-400 mt-1 font-medium italic text-sm md:text-base">
+                        {userRole === 'faculty' ? 'Academic Integrity & Safety Reporting' : 'Violation Reporting & Sync Center'}
+                    </p>
                 </header>
 
                 <div className="max-w-4xl mx-auto">

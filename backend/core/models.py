@@ -41,6 +41,9 @@ class ETicket(Document):
     total_hours_required = FloatField(required=True)
     remaining_hours = FloatField(required=True)
     status = StringField(default=ETicketStatus.ACTIVE.value)
+    lat = FloatField() # Allowed Geofence Lat
+    lng = FloatField() # Allowed Geofence Lng
+    radius = FloatField(default=100.0) # Allowed Radius in Meters
     created_at = DateTimeField(default=datetime.datetime.now)
     meta = {'collection': 'etickets'}
 
@@ -56,6 +59,5 @@ class SystemUser(Document):
     password = StringField(required=True) # In production, this should be hashed!
     full_name = StringField(default="OSA Administrator")
     bio = StringField(default="University of Science and Technology of Southern Philippines Personnel")
-    role = StringField(required=True, choices=['admin', 'guard', 'student', 'staff'])
+    role = StringField(required=True, choices=['admin', 'guard', 'student', 'staff', 'faculty'])
     meta = {'collection': 'system_users'}
-

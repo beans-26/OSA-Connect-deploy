@@ -302,16 +302,16 @@ const StaffSettings = () => {
                                         </div>
                                     </div>
 
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-8">
                                         <div className="bg-emerald-950 p-8 flex flex-col items-center justify-center text-center rounded-[32px] shadow-2xl border-4 border-emerald-800/30 group hover:border-emerald-500 transition-all duration-500">
                                             <h4 className="font-black text-xl uppercase tracking-tighter text-emerald-400 mb-6 flex items-center gap-2">
-                                                <Clock size={20} /> Start / Resume
+                                                <Clock size={20} /> Universal Start
                                             </h4>
                                             <div className="bg-white p-6 rounded-[32px] mb-6 shadow-2xl group-hover:scale-105 transition-transform duration-500">
-                                                <QRCode value="OSA-RESUME" size={140} level="H" />
+                                                <QRCode value="OSA-START" size={140} level="H" />
                                             </div>
-                                            <div className="bg-emerald-900/50 text-emerald-300 rounded-2xl px-6 py-3 font-mono font-black text-sm border border-emerald-700/50 tracking-widest uppercase">
-                                                OSA-RESUME
+                                            <div className="bg-emerald-900/50 text-emerald-300 rounded-2xl px-6 py-3 font-mono font-black text-xs border border-emerald-700/50 tracking-widest uppercase">
+                                                OSA-START
                                             </div>
                                         </div>
 
@@ -322,24 +322,56 @@ const StaffSettings = () => {
                                             <div className="bg-white p-6 rounded-[32px] mb-6 shadow-2xl group-hover:scale-105 transition-transform duration-500">
                                                 <QRCode value="OSA-PAUSE" size={140} level="H" />
                                             </div>
-                                            <div className="bg-slate-800/50 text-slate-400 rounded-2xl px-6 py-3 font-mono font-black text-sm border border-slate-700/50 tracking-widest uppercase">
+                                            <div className="bg-slate-800/50 text-slate-400 rounded-2xl px-6 py-3 font-mono font-black text-xs border border-slate-700/50 tracking-widest uppercase">
                                                 OSA-PAUSE
                                             </div>
                                         </div>
 
-                                        <div className="bg-blue-950 p-8 flex flex-col items-center justify-center text-center rounded-[32px] shadow-2xl border-4 border-blue-800/30 group hover:border-blue-500 transition-all duration-500 md:col-span-2">
-                                            <h4 className="font-black text-xl uppercase tracking-tighter text-blue-400 mb-6 flex items-center gap-2">
-                                                <User size={20} /> Registration Form
+                                        {/* Testing Building Codes */}
+                                        <div className="bg-indigo-950 p-8 flex flex-col items-center justify-center text-center rounded-[32px] shadow-2xl border-4 border-indigo-800/30 group hover:border-indigo-500 transition-all duration-500">
+                                            <h4 className="font-black text-xl uppercase tracking-tighter text-indigo-400 mb-2 flex items-center gap-2">
+                                                <Clock size={20} /> CITC Dept
                                             </h4>
-                                            <div className="bg-white p-6 rounded-[32px] mb-6 shadow-2xl group-hover:scale-105 transition-transform duration-500 cursor-pointer" onClick={downloadRegistrationQR} title="Click to download poster">
-                                                <QRCode id="reg-qr-code-svg" value="https://osa-connect-deploy.vercel.app/register" size={140} level="H" />
+                                            <div className="bg-white p-6 rounded-[32px] mb-6 shadow-2xl group-hover:scale-105 transition-transform duration-500">
+                                                <QRCode value="CITC-DEPT-5FT" size={140} level="H" />
                                             </div>
-                                            <button
-                                                onClick={downloadRegistrationQR}
-                                                className="bg-blue-600 hover:bg-blue-500 text-white rounded-2xl px-6 py-3 font-black text-xs tracking-widest uppercase shadow-lg shadow-blue-500/20 transition-all"
-                                            >
-                                                Download Poster
-                                            </button>
+                                            <div className="bg-indigo-900/50 text-indigo-300 rounded-2xl px-6 py-3 font-mono font-black text-xs border border-indigo-700/50 tracking-widest uppercase">
+                                                CITC-DEPT-5FT
+                                            </div>
+                                        </div>
+
+                                        <div className="bg-emerald-950 p-8 flex flex-col items-center justify-center text-center rounded-[32px] shadow-2xl border-4 border-emerald-800/30 group hover:border-emerald-500 transition-all duration-500">
+                                            <h4 className="font-black text-xl uppercase tracking-tighter text-emerald-400 mb-2 flex items-center gap-2">
+                                                <Clock size={20} /> CSM Dept
+                                            </h4>
+                                            <div className="bg-white p-6 rounded-[32px] mb-6 shadow-2xl group-hover:scale-105 transition-transform duration-500">
+                                                <QRCode value="CSM-DEPT-5FT" size={140} level="H" />
+                                            </div>
+                                            <div className="bg-emerald-900/50 text-emerald-300 rounded-2xl px-6 py-3 font-mono font-black text-xs border border-emerald-700/50 tracking-widest uppercase">
+                                                CSM-DEPT-5FT
+                                            </div>
+                                        </div>
+
+                                        <div className="bg-purple-950 p-8 flex flex-col items-center justify-center text-center rounded-[32px] shadow-2xl border-4 border-purple-800/30 group hover:border-purple-500 transition-all duration-500">
+                                            <h4 className="font-black text-xl uppercase tracking-tighter text-purple-400 mb-2 flex items-center gap-2">
+                                                <Clock size={20} /> CEA Dept
+                                            </h4>
+                                            <div className="bg-white p-6 rounded-[32px] mb-6 shadow-2xl group-hover:scale-105 transition-transform duration-500">
+                                                <QRCode value="CEA-DEPT-5FT" size={140} level="H" />
+                                            </div>
+                                            <div className="bg-purple-900/50 text-purple-300 rounded-2xl px-6 py-3 font-mono font-black text-xs border border-purple-700/50 tracking-widest uppercase">
+                                                CEA-DEPT-5FT
+                                            </div>
+                                        </div>
+
+                                        <div className="bg-blue-950/30 p-8 flex flex-col items-center justify-center text-center rounded-[32px] shadow-sm border-2 border-dashed border-blue-900/30 md:col-span-2">
+                                            <h4 className="font-black text-sm uppercase tracking-widest text-blue-400 mb-6 flex items-center gap-2">
+                                                <User size={16} /> Public Registration QR
+                                            </h4>
+                                            <div className="bg-white p-4 rounded-2xl mb-4 shadow-lg cursor-pointer transition-transform hover:scale-110" onClick={downloadRegistrationQR}>
+                                                <QRCode id="reg-qr-code-svg" value={`http://${window.location.hostname}:5173/register`} size={100} level="H" />
+                                            </div>
+                                            <button onClick={downloadRegistrationQR} className="text-blue-400 font-black text-[10px] uppercase tracking-[0.2em] hover:text-blue-300">Download Poster</button>
                                         </div>
                                     </div>
                                 </div>

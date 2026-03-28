@@ -23,6 +23,10 @@ const Sidebar = ({ role }) => {
             { name: 'Service Hub', path: '/student/dashboard', icon: LayoutDashboard },
             { name: 'Settings', path: '/student/settings', icon: User },
         ],
+        faculty: [
+            { name: 'Report Violation', path: '/faculty/report', icon: AlertTriangle },
+            { name: 'History', path: '/faculty/history', icon: History },
+        ],
     };
 
     const items = menuItems[role] || [];

@@ -29,6 +29,7 @@ def login_view(request):
             print("LOGIN: Empty DB detected, auto-seeding...")
             SystemUser(username="admin", password="admin", role="admin", full_name="System Admin").save()
             SystemUser(username="guard", password="guard", role="guard", full_name="Gate Guard").save()
+            SystemUser(username="faculty", password="faculty", role="faculty", full_name="University Faculty").save()
             # Add initial students for the live environment
             initial_students = [
                 {"id": "2023303188", "name": "Vincent Dagaraga", "contact": "09358541420", "email": "vinsdagaraga@gmail.com"},
@@ -196,6 +197,81 @@ class ViolationViewSet(viewsets.ModelViewSet):
             reverse=True
         )
         return Response(sorted_data)
+    @action(detail=False, methods=['post'])
+    def bulk_create(self, request):
+        data = request.data
+        student_ids = data.get('student_ids', [])
+        violation_type = data.get('violation', 'Other')
+        custom_hours = data.get('hours')
+        reporter = data.get('reporter', 'OSA Administrator')
+        
+        if not student_ids:
+            return Response({"error": "No students selected"}, status=status.HTTP_400_BAD_REQUEST)
+            
+        results = []
+        for sid in student_ids:
+            try:
+                student = Student.objects.get(student_id=sid)
+                offense_count = get_offense_count(student, violation_type)
+                
+                # Robust hour parsing
+                hours = 0
+                custom_hours_raw = data.get('hours', '')
+                try:
+                    if custom_hours_raw is not None and str(custom_hours_raw).strip():
+                        hours = float(custom_hours_raw)
+                except (ValueError, TypeError):
+                    hours = 0
+                
+                # If hours is still 0 (or empty), use the standard system punishment
+                if hours <= 0:
+                    punishment_info = get_punishment(violation_type, offense_count)
+                    punishment = punishment_info["punishment"]
+                    hours = punishment_info["hours"]
+                else:
+                    punishment = f"{hours} hours community service (Bulk Report)"
+                
+                # Log to file for deep inspection
+                with open('bulk_report_debug.txt', 'a') as f:
+                    f.write(f"\n--- BULK REPORT DEBUG ---\n")
+                    f.write(f"Student: {sid} | Violation: {violation_type} | Count: {offense_count}\n")
+                    f.write(f"Raw Hours Input: '{custom_hours_raw}'\n")
+                    f.write(f"Final Hours Calculated: {hours}\n")
+                    f.write(f"Final Punishment: {punishment}\n")
+                    f.write(f"--------------------------\n")
+
+                report = ViolationReport(
+                    student=student,
+                    violation_type=violation_type,
+                    description=data.get('description', f"Bulk report for {violation_type}"),
+                    reporting_guard=reporter,
+                    status="Approved", # Bulk admin reports are usually pre-approved
+                    offense_count=offense_count,
+                    punishment=punishment,
+                    created_at=datetime.datetime.now()
+                ).save()
+                
+                # Create ETicket automatically for bulk reports if hours > 0
+                if hours > 0:
+                    ETicket(
+                        violation=report,
+                        assigned_location="Campus Grounds / Events",
+                        total_hours_required=hours,
+                        remaining_hours=hours,
+                        status="Active",
+                        lat=data.get('lat'),
+                        lng=data.get('lng'),
+                        radius=data.get('radius', 100.0)
+                    ).save()
+                    
+                results.append({"student_id": sid, "status": "success"})
+            except Student.DoesNotExist:
+                results.append({"student_id": sid, "status": "failed", "error": "Student not found"})
+            except Exception as e:
+                results.append({"student_id": sid, "status": "failed", "error": str(e)})
+                
+        return Response({"results": results}, status=status.HTTP_201_CREATED)
+
     def create(self, request, *args, **kwargs):
         data = request.data
         print(f"--- DATABASE SYNC: PREPARING VIOLATION REPORT ---")
@@ -318,18 +394,7 @@ class ETicketViewSet(viewsets.ModelViewSet):
     permission_classes = [AllowAny]
 
     def get_queryset(self):
-        # Filter out E-Tickets with broken violation references
-        valid_tickets = []
-        for ticket in ETicket.objects.all():
-            try:
-                # Try to access the violation to check if it exists
-                _ = ticket.violation.violation_type
-                valid_tickets.append(ticket.id)
-            except Exception:
-                # Delete E-Tickets with broken references
-                print(f"Deleting E-Ticket {ticket.id} with broken violation reference")
-                ticket.delete()
-        return ETicket.objects.filter(id__in=valid_tickets)
+        return ETicket.objects.all()
 
     @action(detail=False, methods=['post'])
     def manual_time_in(self, request):
@@ -499,6 +564,17 @@ class TimeLogViewSet(viewsets.ModelViewSet):
                 return Response({"message": f"Timer started for {hours} hours!", "hours": hours})
 
             elif action_type == 'in':
+                # Update location if provided (Smart QR)
+                lat = request.data.get('lat')
+                lng = request.data.get('lng')
+                radius = request.data.get('radius')
+                
+                if lat is not None and lng is not None:
+                    eticket.lat = float(lat)
+                    eticket.lng = float(lng)
+                    eticket.radius = float(radius or 5)
+                    eticket.save()
+
                 # Check if there's already an active session
                 existing_log = TimeLog.objects.filter(eticket=eticket, time_out=None).first()
                 if existing_log:
@@ -591,6 +667,7 @@ def health_check(request):
             # Create Default Users
             SystemUser(username="admin", password="admin", role="admin").save()
             SystemUser(username="guard", password="guard", role="guard").save()
+            SystemUser(username="faculty", password="faculty", role="faculty").save()
             # Create Students
             initial_students = [
                 {"id": "2023303188", "name": "Vincent Dagaraga", "contact": "09358541420", "email": "vinsdagaraga@gmail.com"},

@@ -3,6 +3,9 @@ import Sidebar from '../../components/Sidebar';
 import { Clock, AlertTriangle, Filter, Search } from 'lucide-react';
 
 const GuardHistory = () => {
+    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    const userRole = user.role || 'guard';
+
     const [violations, setViolations] = useState([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
@@ -50,10 +53,12 @@ const GuardHistory = () => {
 
     return (
         <div className="flex bg-slate-50 min-h-screen relative">
-            <Sidebar role="guard" />
+            <Sidebar role={userRole} />
             <main className="flex-1 p-4 md:p-10 pt-24 md:pt-10 max-w-7xl mx-auto overflow-y-auto">
                 <header className="mb-8 text-center md:text-left">
-                    <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">Violation History</h1>
+                    <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">
+                        {userRole === 'faculty' ? 'Faculty Submission History' : 'Violation History'}
+                    </h1>
                     <p className="text-slate-500 mt-2 font-medium italic">
                         {loading ? 'Syncing history...' : `Viewing ${filteredViolations.length} records in cache`}
                     </p>
@@ -126,7 +131,7 @@ const GuardHistory = () => {
                                         <p className="text-xs text-slate-400 mt-1">
                                             {report.created_at ? new Date(report.created_at).toLocaleString() : 'N/A'}
                                         </p>
-                                        <p className="text-xs text-slate-400">Guard: {report.reporting_guard}</p>
+                                        <p className="text-xs text-slate-400">Reporter: {report.reporting_guard}</p>
                                     </div>
                                 </div>
                                 {report.description && (

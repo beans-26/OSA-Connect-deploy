@@ -59,3 +59,26 @@ body {
 .animate-spin-slow {
   animation: spin-slow 3s linear infinite;
 }
+
+.student-map-icon div {
+  animation: pulse-ring 2s cubic-bezier(0.455, 0.03, 0.515, 0.955) infinite;
+}
+
+@keyframes pulse-ring {
+  0% { transform: scale(.7); opacity: 1; }
+  50% { transform: scale(1.2); opacity: 0.7; }
+  100% { transform: scale(.7); opacity: 1; }
+}
+
+#geofence-map {
+  cursor: crosshair;
+}
+
+.leaflet-container {
+  font-family: inherit;
+}
+
+.leaflet-bar {
+  border: none !important;
+  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1) !important;
+}

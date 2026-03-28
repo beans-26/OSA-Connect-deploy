@@ -37,6 +37,9 @@ const ProtectedRoute = ({ element, allowedRoles }) => {
               {user.role === 'guard' && (
                 <a href="/guard/report" className="block w-full bg-ustp-blue text-white py-4 rounded-xl font-black uppercase text-xs tracking-widest hover:bg-blue-700 transition shadow-lg shadow-blue-200">Guard Dashboard</a>
               )}
+              {user.role === 'faculty' && (
+                <a href="/faculty/report" className="block w-full bg-ustp-blue text-white py-4 rounded-xl font-black uppercase text-xs tracking-widest hover:bg-blue-700 transition shadow-lg shadow-blue-200">Faculty Dashboard</a>
+              )}
               <button onClick={() => { localStorage.removeItem('user'); window.location.href = '/login'; }} className="block w-full bg-slate-100 text-slate-500 py-4 rounded-xl font-black uppercase text-xs tracking-widest hover:bg-slate-200 transition">Log Out</button>
             </div>
           </div>
@@ -60,6 +63,10 @@ function App() {
           <Route path="/guard/report" element={<ProtectedRoute element={<ReportViolation />} allowedRoles={['guard', 'admin']} />} />
           <Route path="/guard/history" element={<ProtectedRoute element={<GuardHistory />} allowedRoles={['guard', 'admin']} />} />
           <Route path="/guard/*" element={<Navigate to="/guard/report" replace />} />
+
+          <Route path="/faculty/report" element={<ProtectedRoute element={<ReportViolation />} allowedRoles={['faculty', 'admin']} />} />
+          <Route path="/faculty/history" element={<ProtectedRoute element={<GuardHistory />} allowedRoles={['faculty', 'admin']} />} />
+          <Route path="/faculty/*" element={<Navigate to="/faculty/report" replace />} />
 
           <Route path="/staff/overview" element={<ProtectedRoute element={<StaffDashboard />} allowedRoles={['admin']} />} />
           <Route path="/staff/students" element={<ProtectedRoute element={<AllStudents />} allowedRoles={['admin']} />} />

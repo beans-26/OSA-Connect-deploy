@@ -20,36 +20,48 @@ class ETicketSerializer(serializers.DocumentSerializer):
     
     def to_representation(self, instance):
         data = super().to_representation(instance)
-        # Dynamically calculate remaining hours for ongoing tickets
+        
+        # 1. Map ID properly
+        data['id'] = str(instance.id)
+
+        # 2. Dynamic Hour Calculation
         if instance.status == 'Ongoing':
             try:
+                from core.models import TimeLog
+                from datetime import datetime
                 open_log = TimeLog.objects.filter(eticket=instance, time_out=None).first()
                 if open_log and open_log.time_in:
-                    elapsed_seconds = (datetime.now() - open_log.time_in).total_seconds()
-                    elapsed_hours = elapsed_seconds / 3600
-                    # Use current remaining_hours as base, not total_hours_required
-                    data['remaining_hours'] = max(0, instance.remaining_hours - elapsed_hours)
-            except Exception:
-                pass
-        # Try to get violation details, but handle missing references gracefully
+                    elapsed = (datetime.now() - open_log.time_in).total_seconds() / 3600
+                    data['remaining_hours'] = max(0, instance.remaining_hours - elapsed)
+            except: pass
+
+        # 3. Violation Details Mapping (Manual Dereference)
         try:
-            if instance.violation:
-                violation = instance.violation
+            v_ref = instance.violation
+            if v_ref:
+                # Ensure we have the full document if it's a lazy reference
+                if hasattr(v_ref, '_get_current_object'):
+                    v_ref = v_ref._get_current_object()
+                
+                s_ref = v_ref.student
+                if s_ref and hasattr(s_ref, '_get_current_object'):
+                    s_ref = s_ref._get_current_object()
+
                 data['violation_details'] = {
-                    'id': str(violation.id),
-                    'violation_type': violation.violation_type,
-                    'status': violation.status,
-                    'punishment': violation.punishment,
+                    'id': str(v_ref.id),
+                    'violation_type': v_ref.violation_type,
+                    'status': v_ref.status,
+                    'punishment': v_ref.punishment,
                     'student_details': {
-                        'id': str(violation.student.id),
-                        'student_id': violation.student.student_id,
-                        'name': violation.student.name,
-                        'course': violation.student.course,
-                        'department': violation.student.department,
-                    } if violation.student else None
+                        'student_id': s_ref.student_id if s_ref else "Unknown",
+                        'name': s_ref.name if s_ref else "Unknown",
+                        'id': str(s_ref.id) if s_ref else "Unknown"
+                    }
                 }
-        except Exception:
+        except Exception as e:
+            print(f"SERIALIZER ERROR: {str(e)}")
             data['violation_details'] = None
+            
         return data
 
 class TimeLogSerializer(serializers.DocumentSerializer):

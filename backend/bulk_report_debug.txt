@@ -1,0 +1,28 @@
+
+--- BULK REPORT DEBUG ---
+Student: 2023303188 | Violation: No ID | Count: 1
+Raw Hours Input: '5'
+Final Hours Calculated: 5.0
+Final Punishment: 5.0 hours community service (Bulk Report)
+--------------------------
+
+--- BULK REPORT DEBUG ---
+Student: 2023303188 | Violation: Failure to Attend Event | Count: 1
+Raw Hours Input: '2'
+Final Hours Calculated: 2.0
+Final Punishment: 2.0 hours community service (Bulk Report)
+--------------------------
+
+--- BULK REPORT DEBUG ---
+Student: 2023303438 | Violation: No ID | Count: 1
+Raw Hours Input: '1'
+Final Hours Calculated: 1.0
+Final Punishment: 1.0 hours community service (Bulk Report)
+--------------------------
+
+--- BULK REPORT DEBUG ---
+Student: 2023303438 | Violation: Other | Count: 1
+Raw Hours Input: '2'
+Final Hours Calculated: 2.0
+Final Punishment: 2.0 hours community service (Bulk Report)
+--------------------------

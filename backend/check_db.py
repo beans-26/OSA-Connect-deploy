@@ -15,11 +15,17 @@ for s in Student.objects.all():
 
 print("\nViolations:")
 for v in ViolationReport.objects.all():
-    print(f" - {v.id}: {v.student.name} - {v.violation_type} - {v.status}")
+    ticket_count = ETicket.objects.filter(violation=v).count()
+    print(f" - [{v.id}] Student: {v.student.student_id} | Type: {v.violation_type} | Puns: {v.punishment} | Status: {v.status} | HasTicket: {ticket_count}")
 
 print("\nETickets:")
 for t in ETicket.objects.all():
-    print(f" - {t.id}: {t.violation.violation_type} - Hrs: {t.remaining_hours}/{t.total_hours_required} - {t.status}")
+    try:
+        violation_id = str(t.violation.id) if t.violation else "None"
+        student_id = t.violation.student.student_id if t.violation and t.violation.student else "Unknown"
+        print(f" - [{t.id}] Student: {student_id} | Violation: {violation_id} | Hrs: {t.remaining_hours}/{t.total_hours_required} | Status: {t.status}")
+    except Exception as ev:
+        print(f" - [{t.id}] Broken: {str(ev)}")
 
 print("\nTimeLogs:")
 for l in TimeLog.objects.all():

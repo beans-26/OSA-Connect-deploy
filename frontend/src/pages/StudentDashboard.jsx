@@ -8,10 +8,14 @@ import {
     AlertTriangle,
     Inbox,
     Key,
+    User,
     Play,
     CheckCircle,
     X,
-    QrCode
+    QrCode,
+    MapPin,
+    Navigation,
+    LocateFixed
 } from 'lucide-react';
 import { Html5QrcodeScanner } from 'html5-qrcode';
 
@@ -48,8 +52,82 @@ const StudentDashboard = () => {
     const [timerActive, setTimerActive] = useState(false);
     const [startTime, setStartTime] = useState(null);
     const [elapsed, setElapsed] = useState(0);
+    const [location, setLocation] = useState(null);
+    const [isOutOfBounds, setIsOutOfBounds] = useState(false);
+    const [monitoringLocation, setMonitoringLocation] = useState(false);
+    const [currentDistance, setCurrentDistance] = useState(0);
+    const [warningCountdown, setWarningCountdown] = useState(null);
+    const [gpsAccuracy, setGpsAccuracy] = useState(0);
+    const mapRef = React.useRef(null);
+    const [markerInstance, setMarkerInstance] = useState(null);
+    const [circleInstance, setCircleInstance] = useState(null);
+
+    // Initial Map Setup (using global L from CDN)
+    useEffect(() => {
+        if (!location || !timerActive || mapRef.current) return;
+
+        // Use a small timeout to let the DOM element render first
+        const timer = setTimeout(() => {
+            try {
+                const container = document.getElementById('geofence-map');
+                if (!container || !window.L) return;
+
+                const map = L.map('geofence-map', { zoomControl: false }).setView([location.lat, location.lng], 18);
+                L.tileLayer('https://{s}.tile.osm.org/{z}/{x}/{y}.png', {
+                    attribution: '&copy; OpenStreetMap'
+                }).addTo(map);
+
+                const studentIcon = L.divIcon({
+                    className: 'student-map-icon',
+                    html: '<div class="w-4 h-4 bg-blue-600 rounded-full border-2 border-white shadow-lg animate-pulse"></div>',
+                    iconSize: [16, 16]
+                });
+
+                const marker = L.marker([location.lat, location.lng], { icon: studentIcon }).addTo(map);
+
+                let circle = null;
+                if (activeTicket?.lat) {
+                    circle = L.circle([activeTicket.lat, activeTicket.lng], {
+                        color: '#10b981',
+                        fillColor: '#10b981',
+                        fillOpacity: 0.2,
+                        radius: (activeTicket.radius || 100) + (gpsAccuracy * 0.7)
+                    }).addTo(map);
+                }
+
+                mapRef.current = map;
+                setMarkerInstance(marker);
+                setCircleInstance(circle);
+            } catch (e) {
+                console.error("Map init error:", e);
+            }
+        }, 300); // 300ms cushion for React render
+
+        return () => clearTimeout(timer);
+    }, [location, timerActive]);
+
+    // Update Marker/Circle on Location Change
+    useEffect(() => {
+        if (!mapRef.current || !location) return;
+        if (markerInstance) markerInstance.setLatLng([location.lat, location.lng]);
+        if (circleInstance && activeTicket?.lat) {
+            circleInstance.setLatLng([activeTicket.lat, activeTicket.lng]);
+            circleInstance.setRadius((activeTicket.radius || 100) + (gpsAccuracy * 0.7));
+
+            // If out of bounds, change color to red
+            const dist = calculateDistance(location.lat, location.lng, activeTicket.lat, activeTicket.lng);
+            const limit = (activeTicket.radius || 100) + (gpsAccuracy * 0.7);
+            if (dist > limit) {
+                circleInstance.setStyle({ color: '#ef4444', fillColor: '#ef4444' });
+            } else {
+                circleInstance.setStyle({ color: '#10b981', fillColor: '#10b981' });
+            }
+        }
+    }, [location, gpsAccuracy]);
 
     const user = JSON.parse(localStorage.getItem('user') || '{}');
+    const activeTicket = tickets.find(t => t.status === 'Ongoing') || tickets.find(t => t.status === 'Active');
+    const displayHours = activeTicket ? activeTicket.remaining_hours : 0;
 
     useEffect(() => {
         fetchStudentData();
@@ -117,6 +195,103 @@ const StudentDashboard = () => {
         };
     }, [showStopScanner]);
 
+    // Location Monitoring Effect (HIGH FREQUENCY POLLING)
+    useEffect(() => {
+        let pollId;
+        if (timerActive && activeTicket && activeTicket.lat && activeTicket.lng) {
+            setMonitoringLocation(true);
+
+            const pollLocation = () => {
+                navigator.geolocation.getCurrentPosition(
+                    (position) => {
+                        const { latitude, longitude } = position.coords;
+                        setLocation({ lat: latitude, lng: longitude });
+
+                        const dist = calculateDistance(
+                            latitude,
+                            longitude,
+                            activeTicket.lat,
+                            activeTicket.lng
+                        );
+                        setCurrentDistance(dist);
+                        setGpsAccuracy(position.coords.accuracy);
+
+                        const accuracyBuffer = position.coords.accuracy * 0.7;
+                        const effectiveRadius = (activeTicket.radius || 100) + accuracyBuffer;
+
+                        const out = dist > effectiveRadius;
+                        setIsOutOfBounds(out);
+                    },
+                    (err) => console.error("Location error:", err),
+                    { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
+                );
+            };
+
+            // Initial poll
+            pollLocation();
+
+            // Aggressive 1-second interval for real-time responsiveness
+            pollId = setInterval(pollLocation, 1000);
+        } else {
+            setMonitoringLocation(false);
+            setIsOutOfBounds(false);
+        }
+        return () => { if (pollId) clearInterval(pollId); };
+    }, [timerActive, activeTicket]);
+
+    // Warning Countdown Effect (TICKER)
+    useEffect(() => {
+        let timer;
+        if (isOutOfBounds && timerActive) {
+            if (warningCountdown === null) setWarningCountdown(20);
+            timer = setInterval(() => {
+                setWarningCountdown(prev => {
+                    if (prev === null) return 20;
+                    if (prev <= 1) {
+                        autoStopTimer("Geofencing restriction: You were out of bounds for more than 20 seconds.");
+                        return 0;
+                    }
+                    return prev - 1;
+                });
+            }, 1000);
+        } else {
+            setWarningCountdown(null);
+        }
+        return () => clearInterval(timer);
+    }, [isOutOfBounds, timerActive]);
+
+    const calculateDistance = (lat1, lon1, lat2, lon2) => {
+        const R = 6371e3; // Earth radius in meters
+        const φ1 = lat1 * Math.PI / 180;
+        const φ2 = lat2 * Math.PI / 180;
+        const Δφ = (lat2 - lat1) * Math.PI / 180;
+        const Δλ = (lon2 - lon1) * Math.PI / 180;
+
+        const a = Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
+            Math.cos(φ1) * Math.cos(φ2) *
+            Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+        return R * c; // Distance in meters
+    };
+
+    const autoStopTimer = async (reason) => {
+        if (!timerActive || tickets.length === 0) return;
+        try {
+            const ticketId = tickets[0].id;
+            await fetch('/api/timelogs/log_time/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ eticket_id: ticketId, action: 'out' }),
+            });
+            setTimerActive(false);
+            setStartTime(null);
+            setElapsed(0);
+            fetchStudentData();
+            alert(reason);
+        } catch (e) { }
+    };
+
     const fetchStudentData = async () => {
         if (!user.username) return;
         try {
@@ -127,6 +302,7 @@ const StudentDashboard = () => {
             try {
                 const tResponse = await fetch('/api/etickets/?t=' + Date.now());
                 allTickets = await tResponse.json();
+                console.log('DEBUG: All Tickets Received:', allTickets);
             } catch (e) { console.log('ETickets error', e); }
 
             let allLogs = [];
@@ -176,31 +352,82 @@ const StudentDashboard = () => {
     };
 
     const processCode = async (codeToProcess) => {
-        const payloadCode = codeToProcess || adminCode;
+        const rawCode = (codeToProcess || adminCode) || "";
+        const payloadCode = rawCode.trim().toUpperCase();
 
         if (tickets.length === 0) {
-            alert("No active Service Obligations to process.");
+            alert("No active Service Obligations. Please wait for the Admin to assign your fresh violation.");
             return;
         }
 
         let actionType = null;
-        if (payloadCode === "OSA-RESUME" || payloadCode === "OSA-START") {
+        let forcedLat = null;
+        let forcedLng = null;
+        let forcedRadius = 3; // 3 meters as requested for test
+        const pinnedLoc = JSON.parse(localStorage.getItem('pinned-citc-loc') || 'null');
+
+        // Smart Department QR Detection
+        if (payloadCode.includes("CITC-DEPT-5FT")) {
+            actionType = 'in';
+            if (pinnedLoc) {
+                forcedLat = pinnedLoc.lat;
+                forcedLng = pinnedLoc.lng;
+            } else {
+                forcedLat = 8.485121;
+                forcedLng = 124.656512;
+            }
+        } else if (payloadCode.includes("CSM-DEPT-5FT")) {
+            actionType = 'in';
+            forcedLat = 8.485250;
+            forcedLng = 124.656620;
+        } else if (payloadCode.includes("CEA-DEPT-5FT")) {
+            actionType = 'in';
+            forcedLat = 8.485300;
+            forcedLng = 124.656700;
+        } else if (payloadCode.includes("OSA-START") || payloadCode.includes("OSA-RESUME")) {
             actionType = 'in';
         } else {
-            alert("Invalid or Unrecognized Staff Action Code!");
+            alert(`INVALID CODE: ${payloadCode}. Please scan a Department QR Code.`);
             setShowAdminCode(false);
             setAdminCode('');
             return;
         }
 
         try {
+            // Check location before starting
+            // BYPASS check if we are scanning a Department QR (which will set the location)
+            if (!forcedLat && activeTicket && activeTicket.lat && activeTicket.lng) {
+                if (!navigator.geolocation) {
+                    alert("SECURITY BLOCK: Geolocation is disabled. You must use HTTPS or enable the 'Insecure Origin' flag in Chrome settings to test this locally.");
+                    return;
+                }
+
+                const pos = await new Promise((resolve, reject) => {
+                    navigator.geolocation.getCurrentPosition(resolve, reject, {
+                        enableHighAccuracy: true,
+                        timeout: 10000,
+                        maximumAge: 0
+                    });
+                });
+
+                const dist = calculateDistance(pos.coords.latitude, pos.coords.longitude, activeTicket.lat, activeTicket.lng);
+
+                if (dist > (activeTicket.radius || 100)) {
+                    alert(`ACCESS DENIED: You are ${Math.round(dist)}m away. You must be at ${activeTicket.assigned_location} to start.`);
+                    return;
+                }
+            }
+
             const ticketId = tickets[0].id;
             const response = await fetch('/api/timelogs/log_time/', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     eticket_id: ticketId,
-                    action: actionType
+                    action: actionType,
+                    lat: forcedLat,
+                    lng: forcedLng,
+                    radius: forcedRadius
                 }),
             });
 
@@ -210,9 +437,14 @@ const StudentDashboard = () => {
                 setShowAdminCode(false);
                 setAdminCode('');
                 fetchStudentData();
+            } else {
+                alert("Server error. Check if the backend is running.");
             }
         } catch (err) {
-            alert("Network failure processing action code.");
+            console.error(err);
+            if (err.code === 1) alert("PERMISSION DENIED: Please reset location permissions in your browser settings.");
+            else if (err.code === 3) alert("GPS TIMEOUT: Move closer to a window for a better signal.");
+            else alert("Error: " + (err.message || "Unknown Failure"));
         }
     };
 
@@ -248,9 +480,6 @@ const StudentDashboard = () => {
             alert("Network failure processing action code.");
         }
     };
-
-    const activeTicket = tickets.find(t => t.status === 'Ongoing') || tickets.find(t => t.status === 'Active');
-    const displayHours = activeTicket ? activeTicket.remaining_hours : 0;
 
     const formatRemainingTime = () => {
         if (!activeTicket) return '00:00:00';
@@ -304,6 +533,30 @@ const StudentDashboard = () => {
             <main className="flex-1 p-4 md:p-10 pt-24 md:pt-10 max-w-7xl mx-auto overflow-y-auto">
                 <header className="mb-6 md:mb-10 flex flex-col md:flex-row justify-between items-center gap-4 text-center md:text-left">
                     <div className="w-full">
+                        {/* Debug Bar for ID Verification */}
+                        <div className="bg-red-900/10 text-red-600 p-2 rounded-xl border border-red-500/20 mb-6 flex flex-col md:flex-row items-center justify-between gap-2 overflow-hidden">
+                            <div className="flex items-center gap-2 overflow-hidden px-2">
+                                <User size={12} className="shrink-0" /> <span className="text-[10px] font-black uppercase tracking-[0.2em]">Logged in as:</span> <span className="bg-red-600 text-white px-2 py-0.5 rounded-md text-xs font-mono">{user.username}</span>
+                            </div>
+
+                            {/* CITC PINNING FOR TESTING */}
+                            <button
+                                onClick={() => {
+                                    navigator.geolocation.getCurrentPosition(
+                                        (pos) => {
+                                            const loc = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+                                            localStorage.setItem('pinned-citc-loc', JSON.stringify(loc));
+                                            alert(`CITC DEPT pinned to your laptop's current location: ${loc.lat}, ${loc.lng}. Now scan the CITC QR code!`);
+                                        },
+                                        (err) => alert("Pinning failed: " + err.message),
+                                        { enableHighAccuracy: true }
+                                    );
+                                }}
+                                className="bg-red-600 hover:bg-red-700 text-white text-[9px] font-black uppercase px-4 py-1.5 rounded-lg flex items-center gap-2 transition-all shrink-0"
+                            >
+                                <LocateFixed size={12} /> Pin CITC Here (3m Test)
+                            </button>
+                        </div>
                         <h1 className="text-2xl md:text-3xl font-extrabold text-slate-900 tracking-tight uppercase">Service Hub</h1>
                         <p className="text-slate-500 mt-1 font-medium italic text-sm md:text-base">Welcome back, {user.name || user.username || 'Student'}</p>
                     </div>
@@ -335,16 +588,76 @@ const StudentDashboard = () => {
                                 </h4>
                                 {timerActive ? (
                                     <div className="w-full flex flex-col items-center mt-4">
-                                        <div className="font-mono text-3xl font-black text-green-600 tracking-tighter animate-pulse mb-6">
+                                        <div className="font-mono text-3xl font-black text-green-600 tracking-tighter animate-pulse mb-2">
                                             {formatRemainingTime()}
                                         </div>
+
+                                        {/* Live Map Integration */}
+                                        <div className="card-premium w-full p-0 border-2 border-white shadow-xl overflow-hidden relative group h-[300px]">
+                                            <div id="geofence-map" className="w-full h-full bg-slate-50 relative z-10" />
+                                            {!timerActive && (
+                                                <div className="absolute inset-0 bg-slate-100/80 backdrop-blur-sm z-20 flex flex-col items-center justify-center text-center p-6">
+                                                    <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center text-slate-400 mb-4 shadow-xl">
+                                                        <MapPin size={24} />
+                                                    </div>
+                                                    <p className="text-xs font-black text-slate-800 uppercase tracking-widest mb-1">Satellite Tracking Inactive</p>
+                                                    <p className="text-[10px] text-slate-400 font-bold max-w-[150px]">Scan a Staff QR code to activate live boundary monitoring.</p>
+                                                </div>
+                                            )}
+                                            <div className="absolute top-4 right-4 z-20 bg-white/90 backdrop-blur p-2 rounded-xl text-[8px] font-black uppercase tracking-widest shadow-xl border border-white">
+                                                Live GPS Feed
+                                            </div>
+                                        </div>
+
+                                        {monitoringLocation && (
+                                            <div className="flex flex-col items-center gap-2 mb-6 w-full">
+                                                {/* 10-Second Warning Alert */}
+                                                {warningCountdown !== null && (
+                                                    <div className="w-full bg-red-600 text-white p-4 rounded-3xl mb-4 animate-bounce shadow-2xl flex items-center justify-between border-4 border-red-400">
+                                                        <div className="flex items-center gap-3">
+                                                            <AlertTriangle size={24} className="animate-pulse" />
+                                                            <div>
+                                                                <p className="text-[10px] font-black uppercase tracking-widest leading-none">Warning: Out of Boundary</p>
+                                                                <p className="text-xs font-bold mt-1">Return to area immediately!</p>
+                                                            </div>
+                                                        </div>
+                                                        <div className="bg-white text-red-600 w-12 h-12 rounded-2xl flex items-center justify-center font-black text-2xl shadow-inner">
+                                                            {warningCountdown}
+                                                        </div>
+                                                    </div>
+                                                )}
+
+                                                <div className={`p-4 rounded-3xl w-full border-2 transition-all ${isOutOfBounds ? "bg-red-50 border-red-200" : "bg-emerald-50 border-emerald-200"}`}>
+                                                    <div className="flex items-center justify-between mb-2">
+                                                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Current Distance</p>
+                                                        <div className={`px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest ${isOutOfBounds ? "bg-red-500 text-white" : "bg-emerald-500 text-white"}`}>
+                                                            {isOutOfBounds ? "Warning: Out" : "Verified: In"}
+                                                        </div>
+                                                    </div>
+                                                    <p className={`text-4xl font-black tracking-tighter ${isOutOfBounds ? "text-red-700" : "text-emerald-700"}`}>
+                                                        {currentDistance.toFixed(1)}<span className="text-sm ml-1 uppercase">meters</span>
+                                                    </p>
+                                                    <div className={`mt-1 mb-3 text-[7px] font-black uppercase text-center ${isOutOfBounds ? "text-red-300" : "text-emerald-400"}`}>
+                                                        Threshold: {((activeTicket.radius || 100) + (gpsAccuracy * 0.7)).toFixed(1)}m (incl. drift buffer)
+                                                    </div>
+                                                    <div className={`mt-3 pt-3 border-t flex items-center justify-between ${isOutOfBounds ? "border-red-100" : "border-emerald-100"}`}>
+                                                        <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-1">
+                                                            <MapPin size={10} /> GPS Precision
+                                                        </p>
+                                                        <p className={`text-[10px] font-black tracking-tighter ${gpsAccuracy > 15 ? "text-amber-600" : "text-emerald-600"}`}>
+                                                            ±{gpsAccuracy.toFixed(1)}m
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        )}
                                         <button onClick={() => setShowStopScanner(true)} className="w-full bg-red-50 text-red-600 border-2 border-red-200 font-black py-4 rounded-xl flex items-center justify-center gap-2 hover:bg-red-600 hover:text-white transition-all uppercase text-[10px] tracking-widest">
                                             <QrCode size={16} /> Scan to Stop
                                         </button>
                                     </div>
                                 ) : (
                                     <p className="text-sm text-slate-400 mt-4 font-medium max-w-[200px] leading-relaxed mx-auto">
-                                        {displayHours > 0 ? "Scan QR from OSA Staff to start your service session." : "No active service requirements at this time."}
+                                        {displayHours > 0 ? "Scan QR from OSA Staff to start your service session. (Location tracking required)" : "No active service requirements at this time."}
                                     </p>
                                 )}
                             </div>
@@ -402,12 +715,11 @@ const StudentDashboard = () => {
                                             const isOngoing = ticket?.status === 'Ongoing';
                                             const isCompleted = ticket?.status === 'Completed' || v.status === 'Completed';
 
-                                            // Determine display status based on ticket status instead of basic violation status
                                             let displayStatus = v.status;
                                             if (ticket) {
                                                 displayStatus = ticket.status;
                                             }
-                                            if (displayStatus === 'Approved') displayStatus = 'Active'; // Approved means active service
+                                            if (displayStatus === 'Approved') displayStatus = 'Active';
                                             if (isCompleted || displayStatus === 'Completed') displayStatus = 'Finished';
 
                                             return (

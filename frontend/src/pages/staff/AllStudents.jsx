@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import Sidebar from '../../components/Sidebar';
 import { Users, Search, Plus, X, QrCode, Download, Edit } from 'lucide-react';
 import QRCode from 'react-qr-code';
+import { Shield, AlertCircle, CheckCircle2, Send, Clock, LocateFixed } from 'lucide-react';
 
 const COURSES = [
     "BS Civil Engineering",
@@ -45,6 +46,13 @@ const DEPARTMENTS = [
     "Senior High School (SHS)"
 ];
 
+const PRESET_LOCATIONS = [
+    { name: 'OSA Admin Office (5-Foot Test)', lat: 8.4855, lng: 124.6564, radius: 2 },
+    { name: 'CITC Dept (5-Foot Test)', lat: 8.4858, lng: 124.6562, radius: 2 },
+    { name: 'CSM Dept (5-Foot Test)', lat: 8.4852, lng: 124.6568, radius: 2 },
+    { name: 'Campus Grounds', lat: 8.4853, lng: 124.6568, radius: 100 },
+];
+
 const AllStudents = () => {
     const [students, setStudents] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -71,7 +79,18 @@ const AllStudents = () => {
         email: '',
         contact_number: ''
     });
+    const [selectedIds, setSelectedIds] = useState([]);
+    const [showBulkModal, setShowBulkModal] = useState(false);
     const [saving, setSaving] = useState(false);
+    const [bulkForm, setBulkForm] = useState({
+        violation: 'Other',
+        hours: 10,
+        description: 'Failure to attend mandatory campus event',
+        location_type: 'custom',
+        lat: '',
+        lng: '',
+        radius: 100
+    });
 
     useEffect(() => {
         const fetchStudents = async () => {
@@ -171,6 +190,55 @@ const AllStudents = () => {
         }
     };
 
+    const handleBulkReport = async (e) => {
+        e.preventDefault();
+        setSaving(true);
+        const reporter = JSON.parse(localStorage.getItem('user') || '{}').full_name || 'Admin';
+
+        try {
+            const response = await fetch('/api/violations/bulk_create/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    student_ids: selectedIds,
+                    violation: bulkForm.violation,
+                    hours: bulkForm.hours,
+                    description: bulkForm.description,
+                    reporter: reporter,
+                    lat: bulkForm.lat,
+                    lng: bulkForm.lng,
+                    radius: bulkForm.radius
+                })
+            });
+
+            if (response.ok) {
+                // Successfully reported
+                setSelectedIds([]);
+                setShowBulkModal(false);
+            } else {
+                alert('Bulk reporting failed');
+            }
+        } catch (error) {
+            alert('Server error during bulk reporting');
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    const toggleSelect = (id) => {
+        setSelectedIds(prev =>
+            prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+        );
+    };
+
+    const toggleSelectAll = () => {
+        if (selectedIds.length === filteredStudents.length) {
+            setSelectedIds([]);
+        } else {
+            setSelectedIds(filteredStudents.map(s => s.student_id));
+        }
+    };
+
     const downloadQR = (student) => {
         const svg = document.getElementById('qr-code-svg');
         if (!svg) return;
@@ -249,13 +317,24 @@ const AllStudents = () => {
                             {loading ? "Loading students..." : `Viewing ${filteredStudents.length} registered students`}
                         </p>
                     </div>
-                    <button
-                        onClick={() => setShowAddModal(true)}
-                        className="flex items-center gap-2 bg-ustp-blue text-white px-6 py-3 rounded-2xl font-bold hover:bg-blue-700 transition-colors shadow-lg shadow-blue-200"
-                    >
-                        <Plus size={20} />
-                        Add Student
-                    </button>
+                    <div className="flex gap-4">
+                        {selectedIds.length > 0 && (
+                            <button
+                                onClick={() => setShowBulkModal(true)}
+                                className="flex items-center gap-2 bg-red-600 text-white px-6 py-3 rounded-2xl font-bold hover:bg-red-700 transition-all shadow-lg shadow-red-200 animate-in slide-in-from-right-4"
+                            >
+                                <Shield size={20} />
+                                Bulk Report ({selectedIds.length})
+                            </button>
+                        )}
+                        <button
+                            onClick={() => setShowAddModal(true)}
+                            className="flex items-center gap-2 bg-ustp-blue text-white px-6 py-3 rounded-2xl font-bold hover:bg-blue-700 transition-colors shadow-lg shadow-blue-200"
+                        >
+                            <Plus size={20} />
+                            Add Student
+                        </button>
+                    </div>
                 </header>
 
                 <div className="card-premium mb-8">
@@ -289,6 +368,14 @@ const AllStudents = () => {
                         <table className="w-full">
                             <thead>
                                 <tr className="text-left bg-slate-50 border-b-2 border-slate-200">
+                                    <th className="py-3 px-4">
+                                        <input
+                                            type="checkbox"
+                                            checked={selectedIds.length === filteredStudents.length && filteredStudents.length > 0}
+                                            onChange={toggleSelectAll}
+                                            className="w-4 h-4 rounded border-slate-300 text-ustp-blue focus:ring-ustp-blue"
+                                        />
+                                    </th>
                                     <th className="py-3 px-3 font-bold text-slate-600 uppercase tracking-wider text-xs">Student ID</th>
                                     <th className="py-3 px-3 font-bold text-slate-600 uppercase tracking-wider text-xs">Name</th>
                                     <th className="py-3 px-3 font-bold text-slate-600 uppercase tracking-wider text-xs">Course</th>
@@ -296,12 +383,20 @@ const AllStudents = () => {
                                     <th className="py-3 px-3 font-bold text-slate-600 uppercase tracking-wider text-xs">Year</th>
                                     <th className="py-3 px-3 font-bold text-slate-600 uppercase tracking-wider text-xs">Email</th>
                                     <th className="py-3 px-3 font-bold text-slate-600 uppercase tracking-wider text-xs">Contact</th>
-                                    <th className="py-3 px-3 font-bold text-slate-600 uppercase tracking-wider text-xs">Actions</th>
+                                    <th className="py-3 px-3 font-bold text-slate-600 uppercase tracking-wider text-xs text-center">Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {filteredStudents.map((student) => (
-                                    <tr key={student.id} className="border-b border-slate-100 hover:bg-slate-50 transition-colors">
+                                    <tr key={student.id} className={`border-b border-slate-100 transition-colors ${selectedIds.includes(student.student_id) ? 'bg-blue-50/50' : 'hover:bg-slate-50'}`}>
+                                        <td className="py-2 px-4">
+                                            <input
+                                                type="checkbox"
+                                                checked={selectedIds.includes(student.student_id)}
+                                                onChange={() => toggleSelect(student.student_id)}
+                                                className="w-4 h-4 rounded border-slate-300 text-ustp-blue focus:ring-ustp-blue"
+                                            />
+                                        </td>
                                         <td className="py-2 px-2">
                                             <span className="text-xs text-blue-700 font-bold">{student.student_id}</span>
                                         </td>
@@ -324,7 +419,13 @@ const AllStudents = () => {
                                             <span className="text-xs text-slate-500">{student.contact_number || 'N/A'}</span>
                                         </td>
                                         <td className="py-2 px-2">
-                                            <div className="flex gap-1">
+                                            <div className="flex gap-1 justify-center">
+                                                <button
+                                                    onClick={() => { setSelectedIds([student.student_id]); setShowBulkModal(true); }}
+                                                    className="px-2 py-1 bg-red-50 hover:bg-red-100 text-red-600 text-xs font-bold rounded transition-colors flex items-center gap-1"
+                                                >
+                                                    <AlertCircle size={10} /> Report
+                                                </button>
                                                 <button
                                                     onClick={() => handleEditClick(student)}
                                                     className="px-2 py-1 bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-semibold rounded transition-colors"
@@ -597,6 +698,89 @@ const AllStudents = () => {
                                 className="w-full bg-ustp-blue text-white py-3 rounded-2xl font-bold hover:bg-blue-700 transition-colors disabled:opacity-50"
                             >
                                 {saving ? 'Saving...' : 'Save Changes'}
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            )}
+            {/* Bulk Violation Modal */}
+            {showBulkModal && (
+                <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-[32px] p-8 w-full max-w-lg shadow-2xl animate-in zoom-in-95">
+                        <div className="flex justify-between items-center mb-6">
+                            <div className="flex items-center gap-3">
+                                <div className="w-12 h-12 bg-red-100 text-red-600 rounded-2xl flex items-center justify-center">
+                                    <Shield size={24} />
+                                </div>
+                                <div>
+                                    <h2 className="text-2xl font-black text-slate-900 uppercase">Bulk Reporting</h2>
+                                    <p className="text-xs text-slate-400 font-bold uppercase tracking-widest">{selectedIds.length} Students Selected</p>
+                                </div>
+                            </div>
+                            <button onClick={() => { setShowBulkModal(false); if (selectedIds.length === 1) setSelectedIds([]); }} className="text-slate-400 hover:text-slate-600">
+                                <X size={24} />
+                            </button>
+                        </div>
+
+                        <form onSubmit={handleBulkReport} className="space-y-6">
+                            <div>
+                                <label className="text-[10px] uppercase font-black text-slate-400 tracking-widest mb-2 block">Violation Type</label>
+                                <select
+                                    value={bulkForm.violation}
+                                    onChange={e => setBulkForm({ ...bulkForm, violation: e.target.value })}
+                                    className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl p-4 font-bold outline-none focus:border-ustp-blue"
+                                >
+                                    <option value="Failure to Attend Event">Failure to Attend Event</option>
+                                    <option value="No ID">No ID</option>
+                                    <option value="Improper wearing of ID">Improper Wearing of ID</option>
+                                    <option value="Dress code violation">Dress Code</option>
+                                    <option value="Littering">Littering</option>
+                                    <option value="Other">Other</option>
+                                </select>
+                            </div>
+
+                            <div>
+                                <label className="text-[10px] uppercase font-black text-slate-400 tracking-widest mb-2 block">Required Community Service Hours</label>
+                                <div className="relative">
+                                    <input
+                                        type="number"
+                                        value={bulkForm.hours}
+                                        onChange={e => setBulkForm({ ...bulkForm, hours: e.target.value })}
+                                        className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl p-4 pl-12 font-black text-lg focus:border-ustp-blue outline-none"
+                                        placeholder="10"
+                                    />
+                                    <Clock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" size={20} />
+                                </div>
+                            </div>
+
+                            <div>
+                                <label className="text-[10px] uppercase font-black text-slate-400 tracking-widest mb-2 block">Incident Description</label>
+                                <textarea
+                                    rows="1"
+                                    value={bulkForm.description}
+                                    onChange={e => setBulkForm({ ...bulkForm, description: e.target.value })}
+                                    className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl p-4 font-medium focus:border-ustp-blue outline-none"
+                                    placeholder="Provide details about the incident..."
+                                />
+                            </div>
+
+                            {/* Geofencing is now handled automatically by Smart QR scan */}
+                            <div className="bg-slate-900 p-6 rounded-[32px] text-center border-4 border-slate-800 shadow-2xl">
+                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2">Automated Geofencing</p>
+                                <p className="text-white text-xs font-medium leading-relaxed">Location and 5m radius will be applied automatically when the student scans a Department QR code.</p>
+                            </div>
+
+                            <button
+                                type="submit"
+                                disabled={saving}
+                                className="w-full bg-red-600 text-white py-5 rounded-[24px] font-black uppercase text-sm tracking-widest hover:bg-red-700 shadow-xl shadow-red-200 transition-all flex items-center justify-center gap-3 active:scale-95 disabled:opacity-50"
+                            >
+                                {saving ? "Processing..." : (
+                                    <>
+                                        <Send size={18} />
+                                        Confirm & Submit Report
+                                    </>
+                                )}
                             </button>
                         </form>
                     </div>

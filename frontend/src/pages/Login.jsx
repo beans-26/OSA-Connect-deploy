@@ -25,6 +25,8 @@ const Login = () => {
                     navigate('/staff/overview');
                 } else if (data.role === 'guard') {
                     navigate('/guard/report');
+                } else if (data.role === 'faculty') {
+                    navigate('/faculty/report');
                 } else {
                     navigate('/student/dashboard');
                 }
