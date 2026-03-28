@@ -66,7 +66,10 @@ ROOT_URLCONF = 'osaconnect_backend.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [BASE_DIR / 'templates'],
+        'DIRS': [
+            BASE_DIR / 'templates',
+            BASE_DIR / '../frontend/dist',
+        ],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -160,3 +163,8 @@ STATIC_URL = 'static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 # Use the non-manifest version to avoid startup crashes on serverless environments
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedStaticFilesStorage'
+
+# Include frontend assets in static search
+STATICFILES_DIRS = [
+    BASE_DIR / '../frontend/dist',
+]
