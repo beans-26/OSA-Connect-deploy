@@ -1,18 +1,25 @@
-def app(environ, start_response):
-    import os
-    from pathlib import Path
-    
-    root = Path(__file__).resolve().parent
-    backend = root / "backend"
-    
-    res = {
-        "bridge_alive": True,
-        "root_files": os.listdir(root),
-        "backend_exists": backend.exists(),
-        "backend_files": os.listdir(backend) if backend.exists() else "NONE"
-    }
-    
-    import json
-    start_response('200 OK', [('Content-Type', 'application/json')])
-    return [json.dumps(res, indent=2).encode('utf-8')]
+import os
+import sys
+from pathlib import Path
 
+# THE MASTER BRIDGE (Verified Paths)
+root = Path(__file__).resolve().parent
+backend_root = root / "backend"
+
+# CRITICAL: Append both to sys.path
+if str(backend_root) not in sys.path:
+    sys.path.append(str(backend_root))
+
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'osaconnect_backend.settings')
+
+try:
+    from django.core.wsgi import get_wsgi_application
+    app = get_wsgi_application()
+    application = app
+except Exception as e:
+    import traceback
+    error_msg = traceback.format_exc()
+    def app(environ, start_response):
+        start_response('500 Internal Server Error', [('Content-Type', 'text/plain')])
+        return [f"FINAL BRIDGE ERROR:\n{error_msg}".encode('utf-8')]
+    application = app
