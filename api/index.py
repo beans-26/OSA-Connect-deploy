@@ -8,13 +8,18 @@ backend_root = Path(__file__).resolve().parent.parent / "backend"
 if str(backend_root) not in sys.path:
     sys.path.append(str(backend_root))
 
-# Load environment variables FIRST
-from dotenv import load_dotenv
-load_dotenv(backend_root / '.env')
+# Load environment variables from .env file (for local development)
+# On Vercel, use environment variables set in dashboard
+env_file = backend_root / '.env'
+if env_file.exists():
+    from dotenv import load_dotenv
+    load_dotenv(env_file)
+    print(f"[Vercel] Loaded .env file")
+else:
+    print(f"[Vercel] No .env file found, using system env vars")
 
 # Print env status for debugging
 print(f"[Vercel] MONGODB_URI exists: {bool(os.getenv('MONGODB_URI'))}")
-print(f"[Vercel] MONGODB_URI preview: {str(os.getenv('MONGODB_URI', ''))[:30]}...")
 
 # Set Django settings
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'osaconnect_backend.settings')
