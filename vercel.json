@@ -5,6 +5,20 @@
     "installCommand": null,
     "devCommand": null,
     "regions": ["hkg1"],
+    "routes": [
+        {
+            "src": "/api/(.*)",
+            "dest": "/api/index.py"
+        },
+        {
+            "src": "/assets/(.*)",
+            "dest": "/frontend/dist/assets/$1"
+        },
+        {
+            "src": "/(.*)",
+            "dest": "/frontend/dist/index.html"
+        }
+    ],
     "functions": {
         "api/index.py": {
             "runtime": "python3.12"
