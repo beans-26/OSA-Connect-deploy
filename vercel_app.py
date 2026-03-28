@@ -1,24 +1,13 @@
-import os
-import sys
-from pathlib import Path
+# ZERO-DEPENDENCY SKELETON BRIDGE
+# This is a TEST to confirm Vercel can find the 'app' variable at all.
+# If this turns GREEN, it means our pathing for Django was the issue.
 
-# Standard Vercel Root Entry Point
-# CWD = /var/task/
-backend_root = Path(__file__).resolve().parent / "backend"
-if str(backend_root) not in sys.path:
-    sys.path.append(str(backend_root))
+def app(environ, start_response):
+    status = '200 OK'
+    response_headers = [('Content-Type', 'text/plain')]
+    start_response(status, response_headers)
+    return [b"BRIDGE IS ALIVE. IF YOU SEE THIS, THE PROBLEM IS DJANGO IMPORT PATHS!"]
 
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'osaconnect_backend.settings')
-
-try:
-    from django.core.wsgi import get_wsgi_application
-    app = get_wsgi_application()
-    application = app
-except Exception as e:
-    import traceback
-    error_msg = traceback.format_exc()
-    # Diagnostic handler if Django fails to start
-    def app(environ, start_response):
-        start_response('500 Internal Server Error', [('Content-Type', 'text/plain')])
-        return [f"ROOT DJANGO ERROR:\n{error_msg}".encode('utf-8')]
-    application = app
+application = app
+# Vercel's Python runtime searches for 'handler', 'app', or 'application'
+handler = app
