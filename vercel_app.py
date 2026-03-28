@@ -1,13 +1,18 @@
-# ZERO-DEPENDENCY SKELETON BRIDGE
-# This is a TEST to confirm Vercel can find the 'app' variable at all.
-# If this turns GREEN, it means our pathing for Django was the issue.
-
 def app(environ, start_response):
-    status = '200 OK'
-    response_headers = [('Content-Type', 'text/plain')]
-    start_response(status, response_headers)
-    return [b"BRIDGE IS ALIVE. IF YOU SEE THIS, THE PROBLEM IS DJANGO IMPORT PATHS!"]
+    import os
+    from pathlib import Path
+    
+    root = Path(__file__).resolve().parent
+    backend = root / "backend"
+    
+    res = {
+        "bridge_alive": True,
+        "root_files": os.listdir(root),
+        "backend_exists": backend.exists(),
+        "backend_files": os.listdir(backend) if backend.exists() else "NONE"
+    }
+    
+    import json
+    start_response('200 OK', [('Content-Type', 'application/json')])
+    return [json.dumps(res, indent=2).encode('utf-8')]
 
-application = app
-# Vercel's Python runtime searches for 'handler', 'app', or 'application'
-handler = app
