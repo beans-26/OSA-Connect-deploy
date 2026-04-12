@@ -92,17 +92,6 @@ async function handleRequest(req, res) {
                     return;
                 }
                 
-                if (username === 'staff' && password === 'staff') {
-                    res.writeHead(200);
-                    res.end(JSON.stringify({
-                        success: true,
-                        role: 'staff',
-                        username: 'staff',
-                        full_name: 'OSA Staff'
-                    }));
-                    return;
-                }
-                
                 // Try MongoDB for other users
                 const client = await connectToDatabase();
                 if (client) {
