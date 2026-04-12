@@ -30,8 +30,6 @@
       "dest": "/static/$1"
     },
     {
-      "src": "/(.*)",
-      "dest": "frontend/$1",
       "handle": "filesystem"
     },
     {
