@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Shield, Key, User, ArrowRight, ShieldCheck, Clock } from 'lucide-react';
+import logo from '../assets/logo.png';
 
 const Login = () => {
     const [username, setUsername] = useState('');
@@ -57,8 +58,8 @@ const Login = () => {
                     </div>
 
                     <div className="relative z-10">
-                        <div className="w-16 h-16 bg-white/10 rounded-2xl flex items-center justify-center mb-10 group-hover:scale-110 transition-transform duration-500">
-                            <ShieldCheck className="text-ustp-gold" size={36} />
+                        <div className="mb-10 flex items-center justify-start">
+                            <img src={logo} alt="OSA Connect" className="h-20 w-auto object-contain" />
                         </div>
                         <h1 className="text-4xl md:text-5xl font-black mb-6 leading-tight">
                             USTP OSA <br />
@@ -95,13 +96,7 @@ const Login = () => {
                 <div className="p-8 md:p-12 flex flex-col justify-center bg-white">
                     {/* Mobile View Logo */}
                     <div className="flex items-center gap-3 mb-10 md:hidden">
-                        <div className="w-12 h-12 bg-ustp-navy rounded-xl flex items-center justify-center shadow-lg">
-                            <ShieldCheck className="text-ustp-gold" size={28} />
-                        </div>
-                        <div>
-                            <h1 className="text-2xl font-black text-ustp-navy leading-none">USTP OSA</h1>
-                            <span className="text-ustp-gold font-bold text-sm tracking-tighter uppercase">Connect</span>
-                        </div>
+                        <img src={logo} alt="OSA Connect" className="h-12 w-auto object-contain" />
                     </div>
 
                     <div className="mb-10 md:mb-12">
