@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { NavLink, Link } from 'react-router-dom';
-import { Shield, LayoutDashboard, User, AlertTriangle, Clock, LogOut, Menu, X, Users, History, BarChart3, Settings } from 'lucide-react';
+import { LayoutDashboard, User, AlertTriangle, Clock, LogOut, Menu, X, Users, History, BarChart3, Settings } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import logo from '../assets/logo.png';
 
@@ -21,7 +21,7 @@ const Sidebar = ({ role }) => {
             { name: 'History', path: '/guard/history', icon: History },
         ],
         staff: [
-            { name: 'Dashboard', path: '/staff/overview', icon: LayoutDashboard },
+            { name: 'Report Violation', path: '/staff/report', icon: AlertTriangle },
             { name: 'View All Students', path: '/staff/students', icon: Users },
             { name: 'Pending Reviews', path: '/staff/pending', icon: AlertTriangle },
             { name: 'Archives', path: '/staff/archives', icon: Clock },
@@ -56,8 +56,7 @@ const Sidebar = ({ role }) => {
               flex items-center gap-3 px-4 py-3 rounded-2xl transition-all duration-300
               ${isActive
                                 ? 'bg-ustp-blue shadow-blue-200 text-white shadow-lg translate-x-1'
-                                : 'text-slate-500 hover:bg-slate-100 hover:text-ustp-blue'}
-            `}
+                                : 'text-slate-500 hover:bg-slate-100 hover:text-ustp-blue'}`}
                     >
                         <item.icon size={20} />
                         <span className="font-semibold text-sm">{item.name}</span>
