@@ -68,13 +68,6 @@ function App() {
           <Route path="/guard/history" element={<ProtectedRoute element={<GuardHistory />} allowedRoles={['guard', 'admin']} />} />
           <Route path="/guard/*" element={<Navigate to="/guard/report" replace />} />
 
-          <Route path="/faculty/dashboard" element={<ProtectedRoute element={<FacultyDashboard />} allowedRoles={['faculty', 'admin', 'staff']} />} />
-          <Route path="/faculty/report" element={<ProtectedRoute element={<ReportViolation />} allowedRoles={['faculty', 'admin']} />} />
-          <Route path="/faculty/history" element={<ProtectedRoute element={<GuardHistory />} allowedRoles={['faculty', 'admin']} />} />
-          <Route path="/faculty/*" element={<Navigate to="/faculty/dashboard" replace />} />
-
-          <Route path="/staff/report" element={<ProtectedRoute element={<ReportViolation />} allowedRoles={['staff']} />} />
-          <Route path="/staff/*" element={<Navigate to="/staff/report" replace />} />
 
           <Route path="/admin/overview" element={<ProtectedRoute element={<StaffDashboard />} allowedRoles={['admin']} />} />
           <Route path="/admin/students" element={<ProtectedRoute element={<AllStudents />} allowedRoles={['admin']} />} />

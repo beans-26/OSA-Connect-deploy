@@ -70,17 +70,6 @@ async function handleRequest(req, res) {
                     return;
                 }
                 
-                if (username === 'faculty' && password === 'faculty') {
-                    res.writeHead(200);
-                    res.end(JSON.stringify({
-                        success: true,
-                        role: 'faculty',
-                        username: 'faculty',
-                        full_name: 'Faculty Member'
-                    }));
-                    return;
-                }
-                
                 if (username === 'guard' && password === 'guard') {
                     res.writeHead(200);
                     res.end(JSON.stringify({
@@ -102,9 +91,7 @@ async function handleRequest(req, res) {
                     if (userCount === 0) {
                         await db.collection('system_users').insertMany([
                             { username: 'admin', password: 'admin', role: 'admin', full_name: 'System Admin' },
-                            { username: 'staff', password: 'staff', role: 'staff', full_name: 'OSA Staff' },
                             { username: 'guard', password: 'guard', role: 'guard', full_name: 'Gate Guard' },
-                            { username: 'faculty', password: 'faculty', role: 'faculty', full_name: 'Faculty' },
                         ]);
                     }
                     

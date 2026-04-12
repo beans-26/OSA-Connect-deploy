@@ -20,16 +20,9 @@ const Sidebar = ({ role }) => {
             { name: 'Report Violation', path: '/guard/report', icon: AlertTriangle },
             { name: 'History', path: '/guard/history', icon: History },
         ],
-        staff: [
-            { name: 'Dashboard', path: '/staff/report', icon: LayoutDashboard },
-        ],
         student: [
             { name: 'Service Hub', path: '/student/dashboard', icon: LayoutDashboard },
             { name: 'Settings', path: '/student/settings', icon: User },
-        ],
-        faculty: [
-            { name: 'Report Violation', path: '/faculty/report', icon: AlertTriangle },
-            { name: 'History', path: '/faculty/history', icon: History },
         ],
     };
 

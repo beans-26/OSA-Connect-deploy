@@ -212,14 +212,13 @@ const ReportViolation = () => {
                 </div>
             )}
 
-            {userRole !== 'staff' && <Sidebar role={userRole} />}
             <main className="flex-1 p-4 md:p-10 pt-24 md:pt-10 max-w-7xl mx-auto overflow-y-auto">
                 <header className="mb-10 text-center md:text-left">
                     <h1 className="text-3xl md:text-4xl font-extrabold text-slate-900 tracking-tighter uppercase italic">
-                        {userRole === 'faculty' || userRole === 'staff' ? 'Faculty Report' : 'Gate Security'}
+                        Faculty Report
                     </h1>
                     <p className="text-slate-400 mt-1 font-medium italic text-sm md:text-base">
-                        {userRole === 'faculty' || userRole === 'staff' ? 'Academic Integrity & Safety Reporting' : 'Violation Reporting & Sync Center'}
+                        Academic Integrity & Safety Reporting
                     </p>
                 </header>
 
