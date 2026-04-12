@@ -73,16 +73,24 @@ function App() {
           <Route path="/faculty/history" element={<ProtectedRoute element={<GuardHistory />} allowedRoles={['faculty', 'admin']} />} />
           <Route path="/faculty/*" element={<Navigate to="/faculty/dashboard" replace />} />
 
-          <Route path="/staff/overview" element={<ProtectedRoute element={<ReportViolation />} allowedRoles={['staff']} />} />
-          <Route path="/staff/*" element={<Navigate to="/staff/overview" replace />} />
-
-          <Route path="/admin/overview" element={<ProtectedRoute element={<StaffDashboard />} allowedRoles={['admin']} />} />
+          <Route path="/admin/overview" element={
+            <ProtectedRoute 
+              allowedRoles={['admin', 'staff']} 
+              element={
+                (() => {
+                  const user = JSON.parse(localStorage.getItem('user') || '{}');
+                  return user.role === 'admin' ? <StaffDashboard /> : <ReportViolation />;
+                })()
+              } 
+            />
+          } />
           <Route path="/admin/students" element={<ProtectedRoute element={<AllStudents />} allowedRoles={['admin', 'staff']} />} />
           <Route path="/admin/pending" element={<ProtectedRoute element={<PendingReviews />} allowedRoles={['admin', 'staff']} />} />
           <Route path="/admin/archives" element={<ProtectedRoute element={<Archives />} allowedRoles={['admin', 'staff']} />} />
           <Route path="/admin/settings" element={<ProtectedRoute element={<StaffSettings />} allowedRoles={['admin', 'staff']} />} />
           <Route path="/admin/analytics" element={<ProtectedRoute element={<Analytics />} allowedRoles={['admin', 'staff']} />} />
           <Route path="/admin/*" element={<Navigate to="/admin/overview" replace />} />
+          <Route path="/staff/*" element={<Navigate to="/admin/overview" replace />} />
 
           <Route path="/student/dashboard" element={<ProtectedRoute element={<StudentDashboard />} allowedRoles={['student']} />} />
           <Route path="/student/settings" element={<ProtectedRoute element={<Settings />} allowedRoles={['student']} />} />
