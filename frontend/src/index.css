@@ -9,7 +9,8 @@
 body {
   background-color: var(--color-slate-50);
   color: var(--color-slate-900);
-  font-family: var(--font-sans);
+  font-family: 'Inter', sans-serif;
+  letter-spacing: -0.01em;
 }
 
 
