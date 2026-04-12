@@ -331,9 +331,11 @@ const StaffDashboard = () => {
         return 'Just now';
     };
 
+    const userRole = JSON.parse(localStorage.getItem('user') || '{}').role || 'staff';
+
     return (
         <div className="flex bg-slate-50 min-h-screen relative">
-            <Sidebar role="staff" />
+            <Sidebar role={userRole} />
             <div className="flex-1 flex flex-col lg:flex-row">
                 <main className="flex-1 p-4 md:p-10 pt-24 md:pt-10 max-w-7xl mx-auto overflow-y-auto">
                     <header className="mb-8 text-center md:text-left">
