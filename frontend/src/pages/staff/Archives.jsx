@@ -5,6 +5,7 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
 const Archives = () => {
+    const userRole = JSON.parse(localStorage.getItem('user') || '{}').role || 'staff';
     const [violations, setViolations] = useState([]);
     const [tickets, setTickets] = useState([]);
     const [logs, setLogs] = useState([]);
@@ -186,8 +187,8 @@ const Archives = () => {
     };
 
     return (
-        <div className="flex bg-slate-50 min-h-screen">
-            <Sidebar role="staff" />
+        <div className="flex bg-slate-50 min-h-screen relative">
+            <Sidebar role={userRole} />
             <main className="flex-1 p-10 max-w-7xl mx-auto overflow-y-auto">
                 <header className="mb-8">
                     <div className="flex justify-between items-end">

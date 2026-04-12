@@ -54,6 +54,7 @@ const PRESET_LOCATIONS = [
 ];
 
 const AllStudents = () => {
+    const userRole = JSON.parse(localStorage.getItem('user') || '{}').role || 'staff';
     const [students, setStudents] = useState([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
@@ -308,7 +309,7 @@ const AllStudents = () => {
 
     return (
         <div className="flex bg-slate-50 min-h-screen">
-            <Sidebar role="staff" />
+            <Sidebar role={userRole} />
             <main className="flex-1 p-10 max-w-7xl mx-auto overflow-y-auto">
                 <header className="mb-12 flex justify-between items-center">
                     <div>

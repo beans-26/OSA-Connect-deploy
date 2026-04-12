@@ -3,6 +3,7 @@ import Sidebar from '../../components/Sidebar';
 import { Search, Check, X, ShieldAlert, User, Eye, AlertCircle } from 'lucide-react';
 
 const PendingReviews = () => {
+    const userRole = JSON.parse(localStorage.getItem('user') || '{}').role || 'staff';
     const [reports, setReports] = useState([]);
     const [loading, setLoading] = useState(true);
     const [selectedReport, setSelectedReport] = useState(null);
@@ -44,7 +45,7 @@ const PendingReviews = () => {
 
     return (
         <div className="flex bg-slate-50 min-h-screen relative">
-            <Sidebar role="staff" />
+            <Sidebar role={userRole} />
             <main className="flex-1 p-4 md:p-10 pt-24 md:pt-10 max-w-7xl mx-auto overflow-y-auto">
                 <header className="mb-8 md:mb-12 text-center md:text-left">
                     <h1 className="text-3xl md:text-4xl font-extrabold text-slate-900 tracking-tight uppercase italic">Pending Reviews</h1>

@@ -73,6 +73,7 @@ const TopViolationsChart = ({ data }) => {
 };
 
 const Analytics = () => {
+    const userRole = JSON.parse(localStorage.getItem('user') || '{}').role || 'staff';
     const [activeTab, setActiveTab] = useState('overview');
     const [violations, setViolations] = useState([]);
     const [analyticsData, setAnalyticsData] = useState([]);
@@ -153,7 +154,7 @@ const Analytics = () => {
 
     return (
         <div className="flex bg-slate-50 min-h-screen">
-            <Sidebar role="staff" />
+            <Sidebar role={userRole} />
             <div className="flex-1 flex">
                 <main className="flex-1 p-10 max-w-7xl mx-auto overflow-y-auto">
                     <header className="mb-12">

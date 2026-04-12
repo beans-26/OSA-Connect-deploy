@@ -15,6 +15,7 @@ const LiveTimer = ({ remainingHours }) => {
 };
 
 const StaffSettings = () => {
+    const userRole = JSON.parse(localStorage.getItem('user') || '{}').role || 'staff';
     const [activeSection, setActiveSection] = useState('codes');
     const [searchId, setSearchId] = useState('');
     const [lookupResult, setLookupResult] = useState(null);
@@ -240,7 +241,7 @@ const StaffSettings = () => {
 
     return (
         <div className="flex bg-slate-50 min-h-screen relative">
-            <Sidebar role="staff" />
+            <Sidebar role={userRole} />
             <main className="flex-1 p-4 md:p-10 pt-24 md:pt-10 max-w-7xl mx-auto overflow-y-auto">
                 <header className="mb-8 md:mb-12 text-center md:text-left">
                     <h1 className="text-3xl md:text-4xl font-extrabold text-slate-900 tracking-tight flex flex-col md:flex-row items-center gap-4">
