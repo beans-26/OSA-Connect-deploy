@@ -8,21 +8,30 @@ const Sidebar = ({ role }) => {
     const [mobileOpen, setMobileOpen] = useState(false);
 
     const menuItems = {
-        admin: [
-            { name: 'Dashboard', path: '/admin/overview', icon: LayoutDashboard },
-            { name: 'View All Students', path: '/admin/students', icon: Users },
-            { name: 'Pending Reviews', path: '/admin/pending', icon: AlertTriangle },
-            { name: 'Archives', path: '/admin/archives', icon: Clock },
-            { name: 'Analytics', path: '/admin/analytics', icon: BarChart3 },
-            { name: 'Settings', path: '/admin/settings', icon: Settings },
-        ],
         guard: [
             { name: 'Report Violation', path: '/guard/report', icon: AlertTriangle },
             { name: 'History', path: '/guard/history', icon: History },
         ],
+        staff: [
+            { name: 'Dashboard', path: '/staff/overview', icon: LayoutDashboard },
+            { name: 'View All Students', path: '/staff/students', icon: Users },
+            { name: 'Pending Reviews', path: '/staff/pending', icon: AlertTriangle },
+            { name: 'Archives', path: '/staff/archives', icon: Clock },
+            { name: 'Analytics', path: '/staff/analytics', icon: BarChart3 },
+            { name: 'Settings', path: '/staff/settings', icon: Settings },
+        ],
+        admin: [
+            { name: 'Overview', path: '/admin/overview', icon: LayoutDashboard },
+            { name: 'Analytics', path: '/staff/analytics', icon: BarChart3 },
+            { name: 'Settings', path: '/staff/settings', icon: Settings },
+        ],
         student: [
             { name: 'Service Hub', path: '/student/dashboard', icon: LayoutDashboard },
             { name: 'Settings', path: '/student/settings', icon: User },
+        ],
+        faculty: [
+            { name: 'Report Violation', path: '/faculty/report', icon: AlertTriangle },
+            { name: 'History', path: '/faculty/history', icon: History },
         ],
     };
 
