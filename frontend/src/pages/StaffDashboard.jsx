@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import Sidebar from '../components/Sidebar';
 import QRCode from 'react-qr-code';
 import {
@@ -331,7 +332,8 @@ const StaffDashboard = () => {
         return 'Just now';
     };
 
-    const userRole = JSON.parse(localStorage.getItem('user') || '{}').role || 'staff';
+    const location = useLocation();
+    const userRole = location.pathname.startsWith('/admin') ? 'admin' : 'staff';
 
     return (
         <div className="flex bg-slate-50 min-h-screen relative">
