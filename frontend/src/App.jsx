@@ -13,6 +13,7 @@ import Analytics from './pages/staff/Analytics';
 import StudentDashboard from './pages/StudentDashboard';
 import Settings from './pages/student/Settings';
 import FacultyDashboard from './pages/faculty/FacultyDashboard';
+import AdminDashboard from './pages/admin/AdminDashboard';
 
 const ProtectedRoute = ({ element, allowedRoles }) => {
   const userStr = localStorage.getItem('user');
@@ -40,6 +41,9 @@ const ProtectedRoute = ({ element, allowedRoles }) => {
               )}
               {user.role === 'faculty' && (
                 <a href="/faculty/report" className="block w-full bg-ustp-blue text-white py-4 rounded-xl font-black uppercase text-xs tracking-widest hover:bg-blue-700 transition shadow-lg shadow-blue-200">Faculty Dashboard</a>
+              )}
+              {user.role === 'admin' && (
+                <a href="/admin/overview" className="block w-full bg-ustp-blue text-white py-4 rounded-xl font-black uppercase text-xs tracking-widest hover:bg-blue-700 transition shadow-lg shadow-blue-200">Admin Dashboard</a>
               )}
               <button onClick={() => { localStorage.removeItem('user'); window.location.href = '/login'; }} className="block w-full bg-slate-100 text-slate-500 py-4 rounded-xl font-black uppercase text-xs tracking-widest hover:bg-slate-200 transition">Log Out</button>
             </div>
@@ -77,6 +81,9 @@ function App() {
           <Route path="/staff/settings" element={<ProtectedRoute element={<StaffSettings />} allowedRoles={['admin', 'staff']} />} />
           <Route path="/staff/analytics" element={<ProtectedRoute element={<Analytics />} allowedRoles={['admin', 'staff']} />} />
           <Route path="/staff/*" element={<Navigate to="/staff/overview" replace />} />
+
+          <Route path="/admin/overview" element={<ProtectedRoute element={<AdminDashboard />} allowedRoles={['admin']} />} />
+          <Route path="/admin/*" element={<Navigate to="/admin/overview" replace />} />
 
           <Route path="/student/dashboard" element={<ProtectedRoute element={<StudentDashboard />} allowedRoles={['student']} />} />
           <Route path="/student/settings" element={<ProtectedRoute element={<Settings />} allowedRoles={['student']} />} />
