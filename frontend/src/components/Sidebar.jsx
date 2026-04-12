@@ -21,7 +21,7 @@ const Sidebar = ({ role }) => {
             { name: 'History', path: '/guard/history', icon: History },
         ],
         staff: [
-            { name: 'Dashboard', path: '/admin/overview', icon: LayoutDashboard },
+            { name: 'Dashboard', path: '/staff/report', icon: LayoutDashboard },
         ],
         student: [
             { name: 'Service Hub', path: '/student/dashboard', icon: LayoutDashboard },
