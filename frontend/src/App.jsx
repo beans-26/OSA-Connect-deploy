@@ -82,7 +82,7 @@ function App() {
           <Route path="/staff/analytics" element={<ProtectedRoute element={<Analytics />} allowedRoles={['admin', 'staff']} />} />
           <Route path="/staff/*" element={<Navigate to="/staff/overview" replace />} />
 
-          <Route path="/admin/overview" element={<ProtectedRoute element={<AdminDashboard />} allowedRoles={['admin']} />} />
+          <Route path="/admin/overview" element={<ProtectedRoute element={<StaffDashboard />} allowedRoles={['admin']} />} />
           <Route path="/admin/*" element={<Navigate to="/admin/overview" replace />} />
 
           <Route path="/student/dashboard" element={<ProtectedRoute element={<StudentDashboard />} allowedRoles={['student']} />} />
