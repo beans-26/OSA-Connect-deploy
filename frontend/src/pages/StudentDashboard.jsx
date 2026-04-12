@@ -534,29 +534,6 @@ const StudentDashboard = () => {
                 <header className="mb-6 md:mb-10 flex flex-col md:flex-row justify-between items-center gap-4 text-center md:text-left">
                     <div className="w-full">
                         {/* Debug Bar for ID Verification */}
-                        <div className="bg-red-900/10 text-red-600 p-2 rounded-xl border border-red-500/20 mb-6 flex flex-col md:flex-row items-center justify-between gap-2 overflow-hidden">
-                            <div className="flex items-center gap-2 overflow-hidden px-2">
-                                <User size={12} className="shrink-0" /> <span className="text-[10px] font-black uppercase tracking-[0.2em]">Logged in as:</span> <span className="bg-red-600 text-white px-2 py-0.5 rounded-md text-xs font-mono">{user.username}</span>
-                            </div>
-
-                            {/* CITC PINNING FOR TESTING */}
-                            <button
-                                onClick={() => {
-                                    navigator.geolocation.getCurrentPosition(
-                                        (pos) => {
-                                            const loc = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-                                            localStorage.setItem('pinned-citc-loc', JSON.stringify(loc));
-                                            alert(`CITC DEPT pinned to your laptop's current location: ${loc.lat}, ${loc.lng}. Now scan the CITC QR code!`);
-                                        },
-                                        (err) => alert("Pinning failed: " + err.message),
-                                        { enableHighAccuracy: true }
-                                    );
-                                }}
-                                className="bg-red-600 hover:bg-red-700 text-white text-[9px] font-black uppercase px-4 py-1.5 rounded-lg flex items-center gap-2 transition-all shrink-0"
-                            >
-                                <LocateFixed size={12} /> Pin CITC Here (3m Test)
-                            </button>
-                        </div>
                         <h1 className="text-2xl md:text-3xl font-extrabold text-slate-900 tracking-tight uppercase">Service Hub</h1>
                         <p className="text-slate-500 mt-1 font-medium italic text-sm md:text-base">Welcome back, {user.name || user.username || 'Student'}</p>
                     </div>
