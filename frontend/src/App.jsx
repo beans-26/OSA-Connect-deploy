@@ -84,11 +84,11 @@ function App() {
               } 
             />
           } />
-          <Route path="/admin/students" element={<ProtectedRoute element={<AllStudents />} allowedRoles={['admin', 'staff']} />} />
-          <Route path="/admin/pending" element={<ProtectedRoute element={<PendingReviews />} allowedRoles={['admin', 'staff']} />} />
-          <Route path="/admin/archives" element={<ProtectedRoute element={<Archives />} allowedRoles={['admin', 'staff']} />} />
-          <Route path="/admin/settings" element={<ProtectedRoute element={<StaffSettings />} allowedRoles={['admin', 'staff']} />} />
-          <Route path="/admin/analytics" element={<ProtectedRoute element={<Analytics />} allowedRoles={['admin', 'staff']} />} />
+          <Route path="/admin/students" element={<ProtectedRoute element={<AllStudents />} allowedRoles={['admin']} />} />
+          <Route path="/admin/pending" element={<ProtectedRoute element={<PendingReviews />} allowedRoles={['admin']} />} />
+          <Route path="/admin/archives" element={<ProtectedRoute element={<Archives />} allowedRoles={['admin']} />} />
+          <Route path="/admin/settings" element={<ProtectedRoute element={<StaffSettings />} allowedRoles={['admin']} />} />
+          <Route path="/admin/analytics" element={<ProtectedRoute element={<Analytics />} allowedRoles={['admin']} />} />
           <Route path="/admin/*" element={<Navigate to="/admin/overview" replace />} />
           <Route path="/staff/*" element={<Navigate to="/admin/overview" replace />} />
 
