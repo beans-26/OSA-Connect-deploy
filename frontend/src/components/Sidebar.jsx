@@ -22,9 +22,6 @@ const Sidebar = ({ role }) => {
         ],
         admin: [
             { name: 'Overview', path: '/admin/overview', icon: LayoutDashboard },
-            { name: 'View All Students', path: '/staff/students', icon: Users },
-            { name: 'Pending Reviews', path: '/staff/pending', icon: AlertTriangle },
-            { name: 'Archives', path: '/staff/archives', icon: Clock },
             { name: 'Analytics', path: '/staff/analytics', icon: BarChart3 },
             { name: 'Settings', path: '/staff/settings', icon: Settings },
         ],

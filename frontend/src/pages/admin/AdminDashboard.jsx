@@ -275,21 +275,7 @@ const AdminDashboard = () => {
                                 <TrendingUp className="text-ustp-gold" size={28} />
                                 <h3 className="font-bold uppercase tracking-wider">Quick Actions</h3>
                             </div>
-                            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                                <a
-                                    href="/staff/students"
-                                    className="flex flex-col items-center gap-2 p-4 bg-white/10 rounded-xl hover:bg-white/20 transition-colors"
-                                >
-                                    <Users size={24} />
-                                    <span className="text-xs font-bold uppercase tracking-wider">Manage Students</span>
-                                </a>
-                                <a
-                                    href="/staff/pending"
-                                    className="flex flex-col items-center gap-2 p-4 bg-white/10 rounded-xl hover:bg-white/20 transition-colors"
-                                >
-                                    <AlertTriangle size={24} />
-                                    <span className="text-xs font-bold uppercase tracking-wider">Pending Reviews</span>
-                                </a>
+                            <div className="grid grid-cols-2 gap-3">
                                 <a
                                     href="/staff/analytics"
                                     className="flex flex-col items-center gap-2 p-4 bg-white/10 rounded-xl hover:bg-white/20 transition-colors"
