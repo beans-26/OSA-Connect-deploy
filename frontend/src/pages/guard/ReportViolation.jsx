@@ -222,7 +222,7 @@ const ReportViolation = () => {
 
                 <div className="max-w-4xl mx-auto">
                     {step === 1 ? (
-                        <div className="card-premium border-2 border-white shadow-2xl p-8 md:p-12 animate-in slide-in-from-bottom-5 duration-500">
+                        <div className="card-premium border-2 border-white shadow-2xl p-6 sm:p-8 md:p-12 animate-in slide-in-from-bottom-5 duration-500">
                             <h3 className="text-xl md:text-2xl font-black text-slate-900 flex items-center gap-4 mb-10 pb-6 border-b border-slate-50 uppercase tracking-tighter">
                                 <ClipboardList className="text-ustp-blue" size={32} />
                                 New Incident Report
@@ -234,28 +234,28 @@ const ReportViolation = () => {
                                         <div className="relative group">
                                             <label className="text-[10px] uppercase font-black text-slate-300 tracking-[0.2em] ml-1 mb-2 block">Student ID / Scan QR</label>
                                             <div className="relative">
-                                                <input required value={form.student_id} onChange={handleIdChange} placeholder="202X-XXXXXXX" className="w-full bg-slate-50 border-2 border-slate-100 rounded-[24px] p-5 pr-16 font-black focus:border-ustp-blue outline-none transition-all uppercase placeholder:text-slate-200" />
+                                                <input required value={form.student_id} onChange={handleIdChange} placeholder="202X-XXXXXXX" className="w-full bg-slate-50 border-2 border-slate-100 rounded-[24px] p-4 md:p-5 pr-14 font-black focus:border-ustp-blue outline-none transition-all uppercase placeholder:text-slate-200 text-base" />
                                                 <button type="button" onClick={() => setIsScanning(true)} className="absolute right-3 top-3 bottom-3 aspect-square bg-ustp-blue text-white rounded-2xl flex items-center justify-center shadow-lg shadow-blue-200 hover:scale-105 active:scale-95 transition-all">
                                                     <Scan size={22} />
                                                 </button>
                                             </div>
                                         </div>
-                                        <input required placeholder="Student Full Name" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} className="w-full bg-slate-50 border-2 border-slate-100 rounded-[24px] p-5 font-bold focus:border-ustp-blue outline-none transition-all" />
+                                        <input required placeholder="Student Full Name" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} className="w-full bg-slate-50 border-2 border-slate-100 rounded-[24px] p-4 md:p-5 font-bold focus:border-ustp-blue outline-none transition-all text-base" />
                                         <div className="grid grid-cols-2 gap-4">
-                                            <select required value={form.course} onChange={e => setForm({ ...form, course: e.target.value })} className="w-full bg-slate-50 border-2 border-slate-100 rounded-[24px] p-5 font-bold outline-none focus:border-ustp-blue text-xs appearance-none">
+                                            <select required value={form.course} onChange={e => setForm({ ...form, course: e.target.value })} className="w-full bg-slate-50 border-2 border-slate-100 rounded-[24px] p-4 md:p-5 font-bold outline-none focus:border-ustp-blue text-base appearance-none">
                                                 <option value="">Course</option>
                                                 {COURSES.map(c => <option key={c} value={c}>{c}</option>)}
                                             </select>
-                                            <select required value={form.department} onChange={e => setForm({ ...form, department: e.target.value })} className="w-full bg-slate-50 border-2 border-slate-100 rounded-[24px] p-5 font-bold outline-none focus:border-ustp-blue text-xs appearance-none">
+                                            <select required value={form.department} onChange={e => setForm({ ...form, department: e.target.value })} className="w-full bg-slate-50 border-2 border-slate-100 rounded-[24px] p-4 md:p-5 font-bold outline-none focus:border-ustp-blue text-base appearance-none">
                                                 <option value="">Dept</option>
                                                 {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
                                             </select>
                                         </div>
-                                        <input required type="email" placeholder="Email Address" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} className="w-full bg-slate-50 border-2 border-slate-100 rounded-[24px] p-5 font-bold focus:border-ustp-blue outline-none transition-all" />
-                                        <input required placeholder="Contact Number" value={form.contact} onChange={e => setForm({ ...form, contact: e.target.value })} className="w-full bg-slate-50 border-2 border-slate-100 rounded-[24px] p-5 font-bold focus:border-ustp-blue outline-none transition-all" />
+                                        <input required type="email" placeholder="Email Address" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} className="w-full bg-slate-50 border-2 border-slate-100 rounded-[24px] p-4 md:p-5 font-bold focus:border-ustp-blue outline-none transition-all text-base" />
+                                        <input required placeholder="Contact Number" value={form.contact} onChange={e => setForm({ ...form, contact: e.target.value })} className="w-full bg-slate-50 border-2 border-slate-100 rounded-[24px] p-4 md:p-5 font-bold focus:border-ustp-blue outline-none transition-all text-base" />
                                     </div>
                                     <div className="space-y-6">
-                                        <select required value={form.violation} onChange={e => setForm({ ...form, violation: e.target.value })} className="w-full bg-red-50 border-2 border-red-100 rounded-[24px] p-5 font-black text-red-900 focus:border-red-500 outline-none transition-all cursor-pointer">
+                                        <select required value={form.violation} onChange={e => setForm({ ...form, violation: e.target.value })} className="w-full bg-red-50 border-2 border-red-100 rounded-[24px] p-4 md:p-5 font-black text-red-900 focus:border-red-500 outline-none transition-all cursor-pointer text-base appearance-none truncate">
                                             <option value="">SELECT VIOLATION</option>
                                             <option value="No ID">No ID</option>
                                             <option value="Improper wearing of ID">Improper Wearing of ID</option>
@@ -267,11 +267,11 @@ const ReportViolation = () => {
                                         <div className="grid grid-cols-2 gap-4">
                                             <div>
                                                 <label className="text-[10px] uppercase font-black text-slate-300 tracking-widest mb-1 ml-1 block">Incident Date</label>
-                                                <input type="date" required value={form.incident_date} onChange={e => setForm({ ...form, incident_date: e.target.value })} className="w-full bg-slate-50 border-2 border-slate-100 rounded-[24px] p-5 font-bold outline-none focus:border-ustp-blue" />
+                                                <input type="date" required value={form.incident_date} onChange={e => setForm({ ...form, incident_date: e.target.value })} className="w-full bg-slate-50 border-2 border-slate-100 rounded-[24px] p-4 md:p-5 font-bold outline-none focus:border-ustp-blue text-base" />
                                             </div>
                                             <div>
                                                 <label className="text-[10px] uppercase font-black text-slate-300 tracking-widest mb-1 ml-1 block">Incident Time</label>
-                                                <input type="time" required value={form.incident_time} onChange={e => setForm({ ...form, incident_time: e.target.value })} className="w-full bg-slate-50 border-2 border-slate-100 rounded-[24px] p-5 font-bold outline-none focus:border-ustp-blue" />
+                                                <input type="time" required value={form.incident_time} onChange={e => setForm({ ...form, incident_time: e.target.value })} className="w-full bg-slate-50 border-2 border-slate-100 rounded-[24px] p-4 md:p-5 font-bold outline-none focus:border-ustp-blue text-base" />
                                             </div>
                                         </div>
 
