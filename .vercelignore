@@ -1,6 +1,8 @@
-backend/
-wsgi.py
+.git
+.env
+venv
+node_modules
 *.pyc
-__pycache__/
-venv/
-node_modules/
+db.sqlite3
+frontend/node_modules
+backend/venv
