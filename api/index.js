@@ -48,7 +48,8 @@ async function handleRequest(req, res) {
     }
     
     // Login endpoint
-    if (path.includes('login') && method === 'POST') {
+    // Login endpoint - check if path is just / or includes login
+    if ((path === '/' || path === '' || path.includes('login')) && method === 'POST') {
         let body = '';
         req.on('data', chunk => body += chunk);
         req.on('end', async () => {
