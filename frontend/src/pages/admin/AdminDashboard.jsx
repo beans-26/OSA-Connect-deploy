@@ -277,28 +277,28 @@ const AdminDashboard = () => {
                             </div>
                             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                                 <a
-                                    href="/staff/students"
+                                    href="/admin/students"
                                     className="flex flex-col items-center gap-2 p-4 bg-white/10 rounded-xl hover:bg-white/20 transition-colors"
                                 >
                                     <Users size={24} />
                                     <span className="text-xs font-bold uppercase tracking-wider">Manage Students</span>
                                 </a>
                                 <a
-                                    href="/staff/pending"
+                                    href="/admin/pending"
                                     className="flex flex-col items-center gap-2 p-4 bg-white/10 rounded-xl hover:bg-white/20 transition-colors"
                                 >
                                     <AlertTriangle size={24} />
                                     <span className="text-xs font-bold uppercase tracking-wider">Pending Reviews</span>
                                 </a>
                                 <a
-                                    href="/staff/analytics"
+                                    href="/admin/analytics"
                                     className="flex flex-col items-center gap-2 p-4 bg-white/10 rounded-xl hover:bg-white/20 transition-colors"
                                 >
                                     <Activity size={24} />
                                     <span className="text-xs font-bold uppercase tracking-wider">Analytics</span>
                                 </a>
                                 <a
-                                    href="/staff/settings"
+                                    href="/admin/settings"
                                     className="flex flex-col items-center gap-2 p-4 bg-white/10 rounded-xl hover:bg-white/20 transition-colors"
                                 >
                                     <Settings size={24} />
