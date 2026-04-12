@@ -92,6 +92,7 @@ async function handleRequest(req, res) {
                         await db.collection('system_users').insertMany([
                             { username: 'admin', password: 'admin', role: 'admin', full_name: 'System Admin' },
                             { username: 'guard', password: 'guard', role: 'guard', full_name: 'Gate Guard' },
+                            { username: 'staff', password: 'staff', role: 'staff', full_name: 'OSA Staff' },
                         ]);
                     }
                     
