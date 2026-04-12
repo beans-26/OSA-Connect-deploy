@@ -43,7 +43,7 @@ const ProtectedRoute = ({ element, allowedRoles }) => {
                 <a href="/faculty/report" className="block w-full bg-ustp-blue text-white py-4 rounded-xl font-black uppercase text-xs tracking-widest hover:bg-blue-700 transition shadow-lg shadow-blue-200">Faculty Dashboard</a>
               )}
               {user.role === 'admin' && (
-                <a href="/admin/overview" className="block w-full bg-ustp-blue text-white py-4 rounded-xl font-black uppercase text-xs tracking-widest hover:bg-blue-700 transition shadow-lg shadow-blue-200">Admin Dashboard</a>
+                <a href="/staff/overview" className="block w-full bg-ustp-blue text-white py-4 rounded-xl font-black uppercase text-xs tracking-widest hover:bg-blue-700 transition shadow-lg shadow-blue-200">Admin Dashboard</a>
               )}
               <button onClick={() => { localStorage.removeItem('user'); window.location.href = '/login'; }} className="block w-full bg-slate-100 text-slate-500 py-4 rounded-xl font-black uppercase text-xs tracking-widest hover:bg-slate-200 transition">Log Out</button>
             </div>
@@ -74,7 +74,17 @@ function App() {
           <Route path="/faculty/history" element={<ProtectedRoute element={<GuardHistory />} allowedRoles={['faculty', 'admin']} />} />
           <Route path="/faculty/*" element={<Navigate to="/faculty/dashboard" replace />} />
 
-          <Route path="/staff/overview" element={<ProtectedRoute element={<ReportViolation />} allowedRoles={['admin', 'staff']} />} />
+          <Route path="/staff/overview" element={
+            <ProtectedRoute 
+              allowedRoles={['admin', 'staff']} 
+              element={
+                (() => {
+                  const user = JSON.parse(localStorage.getItem('user') || '{}');
+                  return user.role === 'admin' ? <StaffDashboard /> : <ReportViolation />;
+                })()
+              } 
+            />
+          } />
           <Route path="/staff/students" element={<ProtectedRoute element={<AllStudents />} allowedRoles={['admin', 'staff']} />} />
           <Route path="/staff/pending" element={<ProtectedRoute element={<PendingReviews />} allowedRoles={['admin', 'staff']} />} />
           <Route path="/staff/archives" element={<ProtectedRoute element={<Archives />} allowedRoles={['admin', 'staff']} />} />
@@ -82,8 +92,7 @@ function App() {
           <Route path="/staff/analytics" element={<ProtectedRoute element={<Analytics />} allowedRoles={['admin', 'staff']} />} />
           <Route path="/staff/*" element={<Navigate to="/staff/overview" replace />} />
 
-          <Route path="/admin/overview" element={<ProtectedRoute element={<StaffDashboard />} allowedRoles={['admin']} />} />
-          <Route path="/admin/*" element={<Navigate to="/admin/overview" replace />} />
+          <Route path="/admin/*" element={<Navigate to="/staff/overview" replace />} />
 
           <Route path="/student/dashboard" element={<ProtectedRoute element={<StudentDashboard />} allowedRoles={['student']} />} />
           <Route path="/student/settings" element={<ProtectedRoute element={<Settings />} allowedRoles={['student']} />} />

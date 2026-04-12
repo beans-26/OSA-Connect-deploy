@@ -9,7 +9,7 @@ const Sidebar = ({ role }) => {
 
     const menuItems = {
         admin: [
-            { name: 'Dashboard', path: '/admin/overview', icon: LayoutDashboard },
+            { name: 'Dashboard', path: '/staff/overview', icon: LayoutDashboard },
             { name: 'View All Students', path: '/staff/students', icon: Users },
             { name: 'Pending Reviews', path: '/staff/pending', icon: AlertTriangle },
             { name: 'Archives', path: '/staff/archives', icon: Clock },

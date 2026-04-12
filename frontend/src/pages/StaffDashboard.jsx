@@ -332,8 +332,7 @@ const StaffDashboard = () => {
         return 'Just now';
     };
 
-    const location = useLocation();
-    const userRole = location.pathname.startsWith('/admin') ? 'admin' : 'staff';
+    const userRole = JSON.parse(localStorage.getItem('user') || '{}').role || 'staff';
 
     return (
         <div className="flex bg-slate-50 min-h-screen relative">
