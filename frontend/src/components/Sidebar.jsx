@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { NavLink, Link } from 'react-router-dom';
 import { Shield, LayoutDashboard, User, AlertTriangle, Clock, LogOut, Menu, X, Users, History, BarChart3, Settings } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import logo from '../assets/logo.png.png';
 
 const Sidebar = ({ role }) => {
     const [mobileOpen, setMobileOpen] = useState(false);
@@ -33,14 +34,8 @@ const Sidebar = ({ role }) => {
 
     const sidebarContent = (
         <>
-            <div className="mb-10 flex items-center gap-3">
-                <div className="w-10 h-10 bg-ustp-blue rounded-xl flex items-center justify-center shadow-lg">
-                    <Shield className="text-ustp-gold" size={24} />
-                </div>
-                <div>
-                    <h1 className="font-bold text-xl text-ustp-blue leading-none">OSA</h1>
-                    <p className="text-[10px] uppercase tracking-widest text-slate-500 font-bold">Connect</p>
-                </div>
+            <div className="mb-10 flex items-center justify-center p-4 bg-white rounded-2xl shadow-sm border border-slate-100">
+                <img src={logo} alt="OSA Connect Logo" className="h-16 w-auto object-contain" />
             </div>
 
             <nav className="flex-1 space-y-2">
@@ -75,14 +70,8 @@ const Sidebar = ({ role }) => {
         <>
             {/* Mobile Top Bar */}
             <div className="lg:hidden fixed top-0 left-0 right-0 z-40 glass border-b border-slate-200/50 px-4 py-3 flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 bg-ustp-blue rounded-lg flex items-center justify-center shadow-md">
-                        <Shield className="text-ustp-gold" size={18} />
-                    </div>
-                    <div>
-                        <h1 className="font-bold text-lg text-ustp-blue leading-none">OSA</h1>
-                        <p className="text-[8px] uppercase tracking-widest text-slate-500 font-bold">Connect</p>
-                    </div>
+                <div className="flex items-center gap-3 bg-white px-3 py-1 rounded-xl">
+                    <img src={logo} alt="OSA Connect Logo" className="h-8 w-auto object-contain" />
                 </div>
                 <button
                     onClick={() => setMobileOpen(!mobileOpen)}
