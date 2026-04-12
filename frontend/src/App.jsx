@@ -30,10 +30,6 @@ const ProtectedRoute = ({ element, allowedRoles }) => {
               </svg>
             </div>
             <h2 className="text-2xl font-black text-slate-900 mb-2 uppercase tracking-tight">Access Denied</h2>
-            <div className="bg-slate-50 p-3 rounded-2xl mb-6 text-[10px] font-mono text-slate-400">
-              Logged in as: <span className="text-slate-900">{user.username}</span> |
-              Role: <span className="text-red-600 font-bold">{user.role || "None"}</span>
-            </div>
             <p className="text-slate-500 font-medium mb-8 text-sm leading-relaxed">This link is restricted. Your account does not have permission for this section.</p>
             <div className="space-y-3">
               {user.role === 'student' && (
