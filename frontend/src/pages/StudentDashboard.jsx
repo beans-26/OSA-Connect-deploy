@@ -440,26 +440,30 @@ const StudentDashboard = () => {
             return;
         }
         try {
-            // Check location before starting
-            // BYPASS check if we are scanning a Department QR (which will set the location)
-            if (!forcedLat && activeTicket && activeTicket.lat && activeTicket.lng) {
+            // SECURITY REQUIREMENT: Mandatory location check for all Time-In actions
+            if (actionType === 'in') {
                 if (!navigator.geolocation) {
-                    alert("SECURITY BLOCK: Geolocation is disabled. You must use HTTPS or enable the 'Insecure Origin' flag in Chrome settings to test this locally.");
+                    alert("SECURITY BLOCK: Geocation is not supported by this browser.");
                     return;
                 }
 
-                const pos = await new Promise((resolve, reject) => {
-                    navigator.geolocation.getCurrentPosition(resolve, reject, {
-                        enableHighAccuracy: true,
-                        timeout: 10000,
-                        maximumAge: 0
+                try {
+                    // This "ping" ensures location is active and permissions are granted
+                    await new Promise((resolve, reject) => {
+                        navigator.geolocation.getCurrentPosition(resolve, reject, {
+                            enableHighAccuracy: true,
+                            timeout: 8000,
+                            maximumAge: 0
+                        });
                     });
-                });
-
-                const dist = calculateDistance(pos.coords.latitude, pos.coords.longitude, activeTicket.lat, activeTicket.lng);
-
-                if (dist > (activeTicket.radius || 100)) {
-                    alert(`ACCESS DENIED: You are ${Math.round(dist)}m away. You must be at ${activeTicket.assigned_location} to start.`);
+                } catch (locErr) {
+                    if (locErr.code === 1) {
+                        alert("ACCESS DENIED: You must enable Location Services to start your service timer.");
+                    } else if (locErr.code === 3) {
+                        alert("GPS TIMEOUT: Please move to an area with better signal and try again.");
+                    } else {
+                        alert("LOCATION ERROR: Unable to verify your position. Please ensure GPS is ON.");
+                    }
                     return;
                 }
             }
