@@ -14,6 +14,7 @@ import StudentDashboard from './pages/StudentDashboard';
 import Settings from './pages/student/Settings';
 import FacultyDashboard from './pages/faculty/FacultyDashboard';
 import LandingPage from './pages/LandingPage';
+import AdminLogin from './pages/AdminLogin';
 
 const ProtectedRoute = ({ element, allowedRoles }) => {
   const userStr = localStorage.getItem('user');
@@ -63,6 +64,7 @@ function App() {
       <div className="min-h-screen bg-slate-50 text-slate-900">
         <Routes>
           <Route path="/login" element={<Login />} />
+          <Route path="/login/admin" element={<AdminLogin />} />
           <Route path="/register" element={<StudentRegistration />} />
 
           <Route path="/guard/report" element={<ProtectedRoute element={<ReportViolation />} allowedRoles={['guard', 'admin']} />} />

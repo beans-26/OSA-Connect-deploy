@@ -1,5 +1,19 @@
 import React, { useState } from 'react';
-import { UserPlus, CheckCircle2, QrCode, Download, ShieldCheck } from 'lucide-react';
+import { 
+    UserPlus, 
+    CheckCircle2, 
+    QrCode, 
+    Download, 
+    ChevronRight, 
+    IdCard, 
+    Mail, 
+    Phone, 
+    GraduationCap, 
+    Building2, 
+    Layers, 
+    Lock,
+    Loader2
+} from 'lucide-react';
 import QRCode from 'react-qr-code';
 import { Link } from 'react-router-dom';
 
@@ -31,17 +45,25 @@ const StudentRegistration = () => {
         year_level: '',
         email: '',
         contact_number: '',
-        password: '' // Will use student_id as default if not filled by them
+        password: ''
     });
+
+    const CSSLogo = ({ className = "" }) => (
+        <div className={`flex items-center gap-2 ${className}`}>
+            <div className="relative">
+                <div className="absolute -top-1 -left-1 w-4 h-3 bg-amber-400 rounded-tr-[4px] rounded-tl-[2px]" />
+                <h2 className="text-xl font-bold text-slate-800 tracking-tight relative z-10 leading-none">OSA</h2>
+            </div>
+            <span className="text-xl font-bold text-blue-900">Connect</span>
+        </div>
+    );
 
     const formatQRData = (student) => {
         if (!student.name) return student.student_id;
-
         const nameParts = student.name.trim().split(/\s+/);
         let firstName = nameParts[0] || '';
         let middleInitial = '';
         let lastName = '';
-
         if (nameParts.length >= 2) {
             const lastPart = nameParts[nameParts.length - 1];
             if (lastPart.endsWith('.') || lastPart.length <= 3) {
@@ -52,39 +74,32 @@ const StudentRegistration = () => {
                 middleInitial = nameParts.length > 2 ? nameParts[1] : '';
             }
         }
-
         const formattedName = `${firstName.toUpperCase()} ${middleInitial.toUpperCase()} ${lastName.toUpperCase()}`.trim();
         const course = student.course ? student.course.replace(/^BS|^BSIT|^BSCS|^BSCE|^BSEE|^BSME|^BSCpE/i, '').trim() : '';
-
         return `${student.student_id} ${formattedName} ${course}`.trim();
-
     };
 
     const handleRegister = async (e) => {
         e.preventDefault();
         setSaving(true);
-
         try {
             const payload = {
                 ...studentData,
                 password: studentData.password || studentData.student_id
             };
-
             const response = await fetch('/api/students/', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
             });
-
             if (response.ok) {
-                setStep(2); // Success & Show QR
+                setStep(2);
             } else {
                 const data = await response.json();
-                alert(`Registration failed: ${data.message || 'Check your details or ID might already be registered.'}`);
+                alert(`Registration failed: ${data.message || 'Check your details'}`);
             }
         } catch (error) {
-            console.error('Error registering:', error);
-            alert('Failed to connect to the server.');
+            alert('Server connection error');
         } finally {
             setSaving(false);
         }
@@ -93,142 +108,117 @@ const StudentRegistration = () => {
     const downloadQR = () => {
         const svg = document.getElementById('qr-code-svg');
         if (!svg) return;
-
         const svgData = new XMLSerializer().serializeToString(svg);
         const canvas = document.createElement('canvas');
         const ctx = canvas.getContext('2d');
         const img = new Image();
-
         img.onload = () => {
-            canvas.width = 256;
-            canvas.height = 256;
+            canvas.width = 1024;
+            canvas.height = 1024;
             ctx.fillStyle = "white";
-            ctx.fillRect(0, 0, canvas.width, canvas.height); // white background
-            ctx.drawImage(img, 0, 0);
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.drawImage(img, 0, 0, 1024, 1024);
             const pngFile = canvas.toDataURL('image/png');
-
             const downloadLink = document.createElement('a');
-            downloadLink.download = `${studentData.student_id}_qr.png`;
+            downloadLink.download = `${studentData.student_id}_qr_secure.png`;
             downloadLink.href = pngFile;
             downloadLink.click();
         };
-
         img.src = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgData)));
     };
 
     return (
-        <div className="min-h-screen bg-slate-50 flex flex-col justify-center items-center py-10 px-4">
-
-            {/* Header */}
-            <div className="mb-10 text-center">
-                <div className="w-20 h-20 bg-ustp-blue rounded-[24px] flex items-center justify-center mx-auto mb-6 shadow-2xl shadow-blue-200">
-                    <ShieldCheck className="text-white" size={40} />
+        <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-6 sm:p-12">
+            <div className="w-full max-w-2xl space-y-10">
+                
+                {/* Clean Header */}
+                <div className="text-center space-y-4">
+                    <CSSLogo className="justify-center" />
+                    <div className="space-y-1">
+                        <h1 className="text-2xl font-bold text-slate-900 uppercase tracking-tight">Student Identity Proxy</h1>
+                        <p className="text-slate-500 font-bold text-[10px] uppercase tracking-widest text-blue-900/60">Registry Portal</p>
+                    </div>
                 </div>
-                <h1 className="text-3xl md:text-5xl font-black text-slate-900 tracking-tighter uppercase italic">OSA Connect</h1>
-                <p className="text-slate-500 mt-2 font-medium tracking-wide uppercase text-sm">Student Identity Registration</p>
+
+                {/* Stable Registration Card */}
+                <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-8 sm:p-12">
+                    {step === 1 ? (
+                        <div className="space-y-8 animate-in fade-in duration-300">
+                            <div className="border-b border-slate-50 pb-6">
+                                <h2 className="text-xl font-bold text-slate-800 tracking-tight">Account Details</h2>
+                                <p className="text-slate-400 font-bold text-[10px] uppercase tracking-widest">Step 01: Personal Information</p>
+                            </div>
+
+                            <form onSubmit={handleRegister} className="space-y-8">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                                    {[
+                                        { label: 'Student ID', key: 'student_id', icon: IdCard, placeholder: '2023303188' },
+                                        { label: 'Full Name', key: 'name', icon: UserPlus, placeholder: 'First M. Last' },
+                                        { label: 'Course', key: 'course', icon: GraduationCap, type: 'select', options: COURSES },
+                                        { label: 'Department', key: 'department', icon: Building2, type: 'select', options: DEPARTMENTS },
+                                        { label: 'Year Level', key: 'year_level', icon: Layers, type: 'select', options: [1,2,3,4,5] },
+                                        { label: 'Contact', key: 'contact_number', icon: Phone, placeholder: '09XXX' }
+                                    ].map((f) => (
+                                        <div key={f.key} className="space-y-1.5">
+                                            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">{f.label}</label>
+                                            {f.type === 'select' ? (
+                                                <select required value={studentData[f.key]} onChange={(e) => setStudentData({...studentData, [f.key]: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-lg p-3 font-semibold text-slate-700 outline-none focus:bg-white focus:border-blue-600 appearance-none text-sm transition-none">
+                                                    <option value="">Select {f.label}</option>
+                                                    {f.options.map(o => <option key={o} value={o}>{f.key === 'year_level' ? `Year ${o}` : o}</option>)}
+                                                </select>
+                                            ) : (
+                                                <input required type="text" value={studentData[f.key]} onChange={(e) => setStudentData({...studentData, [f.key]: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-lg p-3 outline-none font-semibold text-slate-700 placeholder:text-slate-200 focus:bg-white focus:border-blue-600 text-sm transition-none" placeholder={f.placeholder} />
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
+
+                                <div className="space-y-6 pt-6 border-t border-slate-100">
+                                    <div className="space-y-1.5">
+                                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Email Address</label>
+                                        <input required type="email" value={studentData.email} onChange={(e) => setStudentData({...studentData, email: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-lg p-3.5 outline-none font-semibold text-slate-700 focus:bg-white focus:border-blue-600 transition-none text-sm" placeholder="student@example.edu" />
+                                    </div>
+                                    <div className="space-y-1.5">
+                                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Password</label>
+                                        <input type="password" value={studentData.password} onChange={(e) => setStudentData({...studentData, password: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-lg p-3.5 outline-none font-semibold text-slate-700 focus:bg-white focus:border-blue-600 transition-none text-sm" placeholder="ID as default if blank" />
+                                    </div>
+                                </div>
+
+                                <button type="submit" disabled={saving} className="w-full h-14 bg-blue-900 text-white rounded-lg font-bold text-xs uppercase tracking-[0.2em] shadow-sm flex items-center justify-center gap-3 hover:bg-slate-800 transition-colors">
+                                    {saving ? <Loader2 className="animate-spin" size={20} /> : <>Complete Registration <ChevronRight size={18} /></>}
+                                </button>
+                            </form>
+
+                            <div className="mt-10 text-center pt-8 border-t border-slate-100/50">
+                                <p className="text-slate-400 font-bold text-[10px] uppercase tracking-widest">Already have an account? <Link to="/login" className="text-blue-900 font-bold underline underline-offset-4">Log in</Link></p>
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="text-center py-6 animate-in fade-in duration-300">
+                            <div className="w-16 h-16 bg-blue-50 text-blue-900 rounded-2xl flex items-center justify-center mx-auto mb-10 border border-blue-100">
+                                <CheckCircle2 size={32} />
+                            </div>
+                            <h2 className="text-2xl font-bold text-slate-900 uppercase tracking-tight mb-2">Registration Success</h2>
+                            <p className="text-slate-500 font-bold text-sm max-w-sm mx-auto mb-10">Verification complete. Save your official QR credentials below for campus entry.</p>
+
+                            <div className="bg-white p-10 rounded-2xl shadow-sm border border-slate-100 inline-block mb-10">
+                                <QRCode id="qr-code-svg" value={formatQRData(studentData)} size={200} level={"H"} />
+                            </div>
+
+                            <div className="flex flex-col sm:flex-row gap-4 justify-center max-w-md mx-auto">
+                                <button onClick={downloadQR} className="h-14 flex-1 bg-blue-900 text-white rounded-lg font-bold text-[10px] uppercase tracking-widest shadow-sm flex items-center justify-center gap-3 hover:bg-slate-800 transition-colors">
+                                    <Download size={18} /> Download QR ID
+                                </button>
+                                <Link to="/login" className="h-14 flex-1 bg-slate-100 text-slate-500 rounded-lg font-bold text-[10px] uppercase tracking-widest flex items-center justify-center gap-3 hover:bg-slate-200 transition-colors">
+                                    Continue to Login
+                                </Link>
+                            </div>
+                        </div>
+                    )}
+                </div>
             </div>
 
-            {/* Registration Card */}
-            <div className="bg-white rounded-[40px] p-8 md:p-12 w-full max-w-2xl shadow-2xl border-4 border-slate-50">
-                {step === 1 ? (
-                    <div className="animate-in slide-in-from-bottom-5 duration-500">
-                        <div className="flex items-center gap-4 mb-8 pb-6 border-b-2 border-slate-50">
-                            <div className="w-12 h-12 bg-blue-50 text-ustp-blue rounded-full flex items-center justify-center">
-                                <UserPlus size={24} />
-                            </div>
-                            <div>
-                                <h2 className="text-2xl font-black text-slate-800 uppercase tracking-tight">Enter Your Details</h2>
-                                <p className="text-slate-400 text-xs font-bold uppercase tracking-widest mt-1">Generate your official QR ID</p>
-                            </div>
-                        </div>
-
-                        <form onSubmit={handleRegister} className="space-y-6">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                <div>
-                                    <label className="text-[10px] uppercase font-black text-slate-400 tracking-widest ml-1 mb-2 block">Student ID *</label>
-                                    <input type="text" required value={studentData.student_id} onChange={(e) => setStudentData({ ...studentData, student_id: e.target.value })} className="w-full bg-slate-50 border-2 border-slate-100 rounded-[24px] p-4 font-bold focus:border-ustp-blue outline-none transition-all placeholder:text-slate-300" placeholder="e.g. 2023303188" />
-                                </div>
-                                <div>
-                                    <label className="text-[10px] uppercase font-black text-slate-400 tracking-widest ml-1 mb-2 block">Full Name *</label>
-                                    <input type="text" required value={studentData.name} onChange={(e) => setStudentData({ ...studentData, name: e.target.value })} className="w-full bg-slate-50 border-2 border-slate-100 rounded-[24px] p-4 font-bold focus:border-ustp-blue outline-none transition-all placeholder:text-slate-300" placeholder="e.g. Juan De La Cruz" />
-                                </div>
-                                <div>
-                                    <label className="text-[10px] uppercase font-black text-slate-400 tracking-widest ml-1 mb-2 block">Course *</label>
-                                    <select required value={studentData.course} onChange={(e) => setStudentData({ ...studentData, course: e.target.value })} className="w-full bg-slate-50 border-2 border-slate-100 rounded-[24px] p-4 font-bold text-slate-700 outline-none focus:border-ustp-blue appearance-none">
-                                        <option value="" disabled>Select Course</option>
-                                        {COURSES.map(c => <option key={c} value={c}>{c}</option>)}
-                                    </select>
-                                </div>
-                                <div>
-                                    <label className="text-[10px] uppercase font-black text-slate-400 tracking-widest ml-1 mb-2 block">Department *</label>
-                                    <select required value={studentData.department} onChange={(e) => setStudentData({ ...studentData, department: e.target.value })} className="w-full bg-slate-50 border-2 border-slate-100 rounded-[24px] p-4 font-bold text-slate-700 outline-none focus:border-ustp-blue appearance-none">
-                                        <option value="" disabled>Select Department</option>
-                                        {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
-                                    </select>
-                                </div>
-                                <div>
-                                    <label className="text-[10px] uppercase font-black text-slate-400 tracking-widest ml-1 mb-2 block">Year Level *</label>
-                                    <select required value={studentData.year_level} onChange={(e) => setStudentData({ ...studentData, year_level: e.target.value })} className="w-full bg-slate-50 border-2 border-slate-100 rounded-[24px] p-4 font-bold text-slate-700 outline-none focus:border-ustp-blue appearance-none">
-                                        <option value="" disabled>Select Year</option>
-                                        {[1, 2, 3, 4, 5].map(v => <option key={v} value={v}>{v}</option>)}
-                                    </select>
-                                </div>
-                                <div>
-                                    <label className="text-[10px] uppercase font-black text-slate-400 tracking-widest ml-1 mb-2 block">Contact Number</label>
-                                    <input type="tel" value={studentData.contact_number} onChange={(e) => setStudentData({ ...studentData, contact_number: e.target.value })} className="w-full bg-slate-50 border-2 border-slate-100 rounded-[24px] p-4 font-bold focus:border-ustp-blue outline-none transition-all placeholder:text-slate-300" placeholder="09XX..." />
-                                </div>
-                            </div>
-                            <div>
-                                <label className="text-[10px] uppercase font-black text-slate-400 tracking-widest ml-1 mb-2 block">Email Address *</label>
-                                <input type="email" required value={studentData.email} onChange={(e) => setStudentData({ ...studentData, email: e.target.value })} className="w-full bg-slate-50 border-2 border-slate-100 rounded-[24px] p-4 font-bold focus:border-ustp-blue outline-none transition-all placeholder:text-slate-300" placeholder="student@example.com" />
-                            </div>
-
-                            <button type="submit" disabled={saving} className="w-full bg-ustp-blue text-white py-5 rounded-[24px] font-black uppercase tracking-widest hover:bg-slate-900 transition-all shadow-xl shadow-blue-200 disabled:opacity-50 mt-4">
-                                {saving ? "Registering..." : "Complete Registration"}
-                            </button>
-                        </form>
-                        <div className="mt-8 text-center border-t-2 border-slate-50 pt-8">
-                            <p className="text-slate-400 text-sm font-medium">Already registered?</p>
-                            <Link to="/login" className="text-ustp-blue font-bold uppercase text-xs tracking-widest hover:underline mt-2 inline-block">Go to Login</Link>
-                        </div>
-                    </div>
-                ) : (
-                    <div className="animate-in zoom-in duration-500 text-center py-6">
-                        <div className="w-20 h-20 bg-green-500 text-white rounded-full flex items-center justify-center mx-auto mb-8 shadow-xl shadow-green-200">
-                            <CheckCircle2 size={40} />
-                        </div>
-                        <h2 className="text-3xl font-black text-slate-900 uppercase tracking-tight italic mb-2">Registration Complete!</h2>
-                        <p className="text-slate-500 font-medium mb-10 max-w-sm mx-auto">Your identity has been verified. Save your QR code below; you will need it when entering the campus.</p>
-
-                        <div className="bg-slate-50 p-8 rounded-[32px] inline-block border-4 border-white shadow-inner mb-10 relative">
-                            {/* Decorative corners */}
-                            <div className="absolute top-4 left-4 w-4 h-4 border-t-4 border-l-4 border-ustp-blue"></div>
-                            <div className="absolute top-4 right-4 w-4 h-4 border-t-4 border-r-4 border-ustp-blue"></div>
-                            <div className="absolute bottom-4 left-4 w-4 h-4 border-b-4 border-l-4 border-ustp-blue"></div>
-                            <div className="absolute bottom-4 right-4 w-4 h-4 border-b-4 border-r-4 border-ustp-blue"></div>
-
-                            <QRCode
-                                id="qr-code-svg"
-                                value={formatQRData(studentData)}
-                                size={220}
-                                level={"H"}
-                            />
-                        </div>
-
-                        <div className="space-y-4 max-w-sm mx-auto">
-                            <button onClick={downloadQR} className="w-full flex items-center justify-center gap-3 bg-slate-900 text-white py-5 rounded-[24px] font-black uppercase text-sm tracking-widest hover:bg-slate-800 transition-all shadow-xl">
-                                <Download size={20} />
-                                Download My QR ID
-                            </button>
-                            <Link to="/login" className="w-full flex items-center justify-center bg-slate-100 text-slate-500 py-5 rounded-[24px] font-black uppercase text-sm tracking-widest hover:bg-slate-200 transition-all">
-                                Continue to Dashboard
-                            </Link>
-                        </div>
-                    </div>
-                )}
-            </div>
-            {/* Footer */}
-            <p className="mt-12 tracking-widest text-[10px] font-bold text-slate-400 uppercase">OSTP Gate Security System © {new Date().getFullYear()}</p>
+            <p className="mt-12 text-[10px] font-bold text-slate-300 uppercase tracking-widest">OSA CONNECT SECURITY © 2026</p>
         </div>
     );
 };

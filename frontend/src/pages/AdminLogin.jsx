@@ -9,7 +9,7 @@ import {
     Loader2
 } from 'lucide-react';
 
-const Login = () => {
+const AdminLogin = () => {
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
@@ -28,10 +28,10 @@ const Login = () => {
                 body: JSON.stringify({ username, password })
             });
             const data = await response.json();
+            
             if (response.ok) {
-                // Treat Admin as invalid on public login
-                if (data.role === 'admin') {
-                    setError('Invalid credentials');
+                if (data.role !== 'admin') {
+                    setError('Access denied.');
                     setLoading(false);
                     return;
                 }
@@ -43,12 +43,7 @@ const Login = () => {
                     name: data.name
                 };
                 localStorage.setItem('user', JSON.stringify(userData));
-                
-                if (data.role === 'admin') navigate('/admin/overview');
-                else if (data.role === 'staff') navigate('/staff/report');
-                else if (data.role === 'guard') navigate('/guard/report');
-                else if (data.role === 'student') navigate('/student/dashboard');
-                else setError(`Unknown Role: ${data.role}`);
+                navigate('/admin/overview');
             } else {
                 setError(data.error || 'Invalid credentials');
             }
@@ -62,7 +57,7 @@ const Login = () => {
     const CSSLogo = ({ className = "" }) => (
         <div className={`flex items-center gap-2 ${className}`}>
             <div className="relative">
-                <div className="absolute -top-1 -left-1 w-4 h-3 bg-amber-400 rounded-tr-[4px] rounded-tl-[2px] transition-none" />
+                <div className="absolute -top-1 -left-1 w-4 h-3 bg-amber-400 rounded-tr-[4px] rounded-tl-[2px]" />
                 <h2 className="text-xl font-bold text-slate-900 tracking-tight relative z-10 leading-none">OSA</h2>
             </div>
             <span className="text-xl font-bold text-blue-900">Connect</span>
@@ -78,16 +73,17 @@ const Login = () => {
                         <CSSLogo />
                     </div>
                     <div className="space-y-1">
-                        <h1 className="text-2xl font-bold text-slate-800">Login to Portal</h1>
+                        <h1 className="text-2xl font-bold text-slate-800">Admin Portal</h1>
                         <p className="text-slate-500 text-sm font-medium">Smart student violation management</p>
                     </div>
                 </div>
 
-                {/* Clean Form Card */}
-                <div className="bg-white p-8 rounded-xl shadow-sm border border-slate-200">
+                {/* Secure Form Card - Minimalist */}
+                <div className="bg-white p-8 rounded-xl shadow-sm border-t-4 border-blue-900 border-x border-b border-slate-200">
+                    
                     {error && (
-                        <div className="mb-6 p-4 bg-red-50 border border-red-100 rounded-lg">
-                            <p className="text-red-600 font-bold text-xs uppercase tracking-widest text-center">{error}</p>
+                        <div className="mb-6 p-4 bg-red-50 border border-red-100 rounded-lg text-center">
+                            <p className="text-red-600 font-bold text-[10px] uppercase tracking-widest">{error}</p>
                         </div>
                     )}
 
@@ -95,17 +91,17 @@ const Login = () => {
                         <div className="space-y-4">
                             {/* Input Field */}
                             <div className="space-y-1.5">
-                                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Account ID / Username</label>
-                                <div className="relative border border-slate-200 rounded-lg bg-slate-50 overflow-hidden focus-within:bg-white focus-within:border-blue-600 transition-none">
-                                    <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
+                                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Account ID</label>
+                                <div className="relative border border-slate-200 rounded-lg bg-slate-50 overflow-hidden focus-within:bg-white focus-within:border-blue-900 transition-none">
+                                    <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-900 transition-colors">
                                         <User size={18} />
                                     </div>
                                     <input
                                         type="text"
                                         value={username}
                                         onChange={(e) => setUsername(e.target.value)}
-                                        placeholder="Enter your ID"
-                                        className="w-full bg-transparent p-3.5 pl-11 outline-none font-semibold text-slate-700 placeholder:text-slate-300 text-sm"
+                                        placeholder="Admin ID"
+                                        className="w-full bg-transparent p-3.5 pl-11 outline-none font-bold text-slate-700 placeholder:text-slate-200 text-sm"
                                         required
                                     />
                                 </div>
@@ -113,8 +109,8 @@ const Login = () => {
 
                             {/* Password Field */}
                             <div className="space-y-1.5">
-                                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Secret Password</label>
-                                <div className="relative border border-slate-200 rounded-lg bg-slate-50 overflow-hidden focus-within:bg-white focus-within:border-blue-600 transition-none">
+                                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Password</label>
+                                <div className="relative border border-slate-200 rounded-lg bg-slate-50 overflow-hidden focus-within:bg-white focus-within:border-blue-900 transition-none">
                                     <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
                                         <Lock size={18} />
                                     </div>
@@ -122,8 +118,8 @@ const Login = () => {
                                         type={showPassword ? "text" : "password"}
                                         value={password}
                                         onChange={(e) => setPassword(e.target.value)}
-                                        placeholder="Enter password"
-                                        className="w-full bg-transparent p-3.5 pl-11 pr-11 outline-none font-semibold text-slate-700 placeholder:text-slate-300 text-sm"
+                                        placeholder="Secure password"
+                                        className="w-full bg-transparent p-3.5 pl-11 pr-11 outline-none font-bold text-slate-700 placeholder:text-slate-300 text-sm"
                                         required
                                     />
                                     <button 
@@ -140,12 +136,12 @@ const Login = () => {
                         <button
                             type="submit"
                             disabled={loading}
-                            className={`w-full h-12 bg-blue-900 text-white rounded-lg font-bold text-sm tracking-widest flex items-center justify-center gap-2 hover:bg-slate-800 transition-colors ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}
+                            className={`w-full h-12 bg-slate-900 text-white rounded-lg font-bold text-xs uppercase tracking-[0.4em] shadow-sm flex items-center justify-center gap-3 hover:bg-black transition-colors ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}
                         >
                             {loading ? (
-                                <Loader2 className="animate-spin" size={18} />
+                                <Loader2 className="animate-spin text-blue-400" size={18} />
                             ) : (
-                                <>Sign In Portal <ChevronRight size={16} /></>
+                                <>Sign In <ChevronRight size={16} /></>
                             )}
                         </button>
                     </form>
@@ -153,9 +149,8 @@ const Login = () => {
 
                 {/* Footer Links */}
                 <div className="text-center pt-2">
-                    <p className="text-slate-400 font-bold text-[10px] uppercase tracking-widest">
-                        Don't have an ID?{' '}
-                        <Link to="/register" className="text-blue-700 hover:text-blue-900 font-bold">Register Now</Link>
+                    <p className="text-slate-400 font-bold text-[9px] uppercase tracking-[0.2em]">
+                        Admin Interface • <Link to="/login" className="text-blue-900 hover:text-blue-700 font-black underline underline-offset-4">Return</Link>
                     </p>
                 </div>
             </div>
@@ -163,4 +158,4 @@ const Login = () => {
     );
 };
 
-export default Login;
+export default AdminLogin;
