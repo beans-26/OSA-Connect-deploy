@@ -22,7 +22,8 @@ import {
     Bell,
     UserCheck,
     ClipboardList,
-    QrCode
+    QrCode,
+    CheckCircle
 } from 'lucide-react';
 
 /* ─── Violation Detail Modal ──────────────────────────────────────── */
@@ -52,6 +53,7 @@ const ViolationModal = ({ report, ticket, onClose, onAction }) => {
         const sl = s.toLowerCase();
         if (sl.includes('pending')) return 'bg-orange-100 text-orange-800';
         if (sl.includes('approved') || sl === 'ongoing' || sl === 'active') return 'bg-green-100 text-green-800';
+        if (sl === 'finished') return 'bg-blue-100 text-blue-800';
         if (sl.includes('dismissed')) return 'bg-red-100 text-red-800';
         if (sl === 'completed') return 'bg-blue-100 text-blue-800';
         return 'bg-slate-100 text-slate-700';
@@ -60,7 +62,7 @@ const ViolationModal = ({ report, ticket, onClose, onAction }) => {
     const currentStatus = ticket ? ticket.status : report.status;
     const remainingHours = ticket?.remaining_hours;
     const isOngoing = ticket?.status === 'Ongoing';
-    const isPending = report.status.toLowerCase().includes('pending');
+    const isPending = (report.status || '').toLowerCase().includes('pending');
 
     const Row = ({ icon: Icon, label, value, accent }) => (
         <div className="flex items-start gap-3 py-3 border-b border-slate-50 last:border-0">
@@ -170,6 +172,7 @@ const ViolationModal = ({ report, ticket, onClose, onAction }) => {
                         </div>
                     )}
 
+
                     {/* Special case for 0-hour punishments that aren't pending but need "Mark Done" (if status is Approved) */}
                     {!isPending && report.status === 'Approved' && !ticket && (
                         <button
@@ -223,9 +226,10 @@ const StaffDashboard = () => {
         }
     };
 
+
     const fetchDashboardData = async () => {
         try {
-            const vResponse = await fetch('/api/violations/');
+            const vResponse = await fetch('/api/violations/?t=' + Date.now());
             const violations = await vResponse.json();
 
             let tickets = [];
@@ -381,15 +385,19 @@ const StaffDashboard = () => {
                             <div className="space-y-3 max-h-[600px] overflow-y-auto pr-2 custom-scrollbar">
                                 {(() => {
                                     const activeViolators = violators.filter(report => {
-                                        const status = report.status.toLowerCase();
+                                        const status = (report.status || '').toLowerCase();
                                         const isDismissed = status === 'dismissed';
                                         const isCompleted = status === 'completed';
                                         const isPending = status.includes('pending');
+                                        
                                         const ticket = allTickets.find(t => t.violation_details?.id === report.id || t.violation === report.id);
+                                        const isTicketFinished = ticket && (ticket.status === 'Completed' || ticket.status === 'Finished' || ticket.remaining_hours <= 0.001);
+                                        
                                         const matchesSearch = !searchTerm ||
                                             (report.student_details?.name?.toLowerCase().includes(searchTerm.toLowerCase())) ||
                                             (report.student_details?.student_id?.toLowerCase().includes(searchTerm.toLowerCase()));
-                                        return !isPending && !isDismissed && !isCompleted && (!ticket || ticket.status !== 'Completed') && matchesSearch;
+
+                                        return !isPending && !isDismissed && !isCompleted && !isTicketFinished && matchesSearch;
                                     });
 
                                     if (activeViolators.length === 0) {
@@ -404,7 +412,7 @@ const StaffDashboard = () => {
                                     return activeViolators.map((report) => {
                                         const ticket = allTickets.find(t => t.violation_details?.id === report.id || t.violation === report.id);
                                         const isOngoing = ticket?.status === 'Ongoing';
-                                        const isPending = report.status.toLowerCase().includes('pending');
+                                        const isPending = (report.status || '').toLowerCase().includes('pending');
 
                                         return (
                                             <div
@@ -426,7 +434,7 @@ const StaffDashboard = () => {
                                                         </div>
                                                     </div>
 
-                                                    <div className="flex gap-2 flex-shrink-0">
+                                                    <div className="flex gap-2 flex-shrink-0 relative z-10">
                                                         {isPending && (
                                                             <>
                                                                 <button
@@ -445,9 +453,9 @@ const StaffDashboard = () => {
                                                         )}
                                                         <button
                                                             onClick={() => setSelectedViolation({ report, ticket })}
-                                                            className="flex items-center gap-1 p-2 bg-slate-50 hover:bg-slate-800 hover:text-white text-slate-600 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all"
+                                                            className="flex items-center gap-1 p-2 bg-slate-50 hover:bg-slate-800 hover:text-white text-slate-600 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all cursor-pointer"
                                                         >
-                                                            <Eye size={14} /> Details
+                                                            <Eye size={14} className="pointer-events-none" /> Details
                                                         </button>
                                                     </div>
                                                 </div>

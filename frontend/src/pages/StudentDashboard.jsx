@@ -147,10 +147,16 @@ const StudentDashboard = () => {
             interval = setInterval(() => {
                 const secondsSinceStart = Math.floor((Date.now() - startTime) / 1000);
                 setElapsed(secondsSinceStart);
+
+                // Auto-stop when hours reach zero
+                const currentRemaining = displayHours - (secondsSinceStart / 3600);
+                if (currentRemaining <= 0) {
+                    autoStopTimer("Service obligation completed! The system has automatically recorded your completion.");
+                }
             }, 1000);
         }
         return () => clearInterval(interval);
-    }, [timerActive, startTime]);
+    }, [timerActive, startTime, displayHours]);
 
     // QR Scanner Effect
     useEffect(() => {
@@ -238,6 +244,10 @@ const StudentDashboard = () => {
                 },
                 (err) => {
                     console.error("Location tracking error:", err);
+                    // Automatically stop timer if location is disabled or permission is revoked
+                    if (err.code === 1 || err.code === 2) {
+                        autoStopTimer("Security Alert: Location services must remain ON. Your session has been stopped.");
+                    }
                 },
                 options
             );
@@ -534,9 +544,10 @@ const StudentDashboard = () => {
 
     const formatRemainingTime = () => {
         if (!activeTicket) return '00:00:00';
-        const hours = Math.floor(displayHours);
-        const minutes = Math.floor((displayHours - hours) * 60);
-        const seconds = Math.floor(((displayHours - hours) * 60 - minutes) * 60);
+        const currentRemainingHours = Math.max(0, displayHours - (elapsed / 3600));
+        const hours = Math.floor(currentRemainingHours);
+        const minutes = Math.floor((currentRemainingHours - hours) * 60);
+        const seconds = Math.floor(((currentRemainingHours - hours) * 60 - minutes) * 60);
         return `${hours}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
     };
 
@@ -766,7 +777,12 @@ const StudentDashboard = () => {
                                         <div className="min-w-0 flex-1">
                                             <h6 className="font-black text-slate-900 text-base uppercase truncate tracking-tight mb-1">{v.violation_type}</h6>
                                             <div className="flex items-center gap-2">
-                                                <span className={`text-[8px] font-black px-2 py-0.5 rounded-full uppercase tracking-widest ${isOngoing ? 'bg-green-200 text-green-800' : isCompleted ? 'bg-emerald-200 text-emerald-800' : 'bg-orange-100 text-orange-600'}`}>
+                                                <span className={`text-[8px] font-black px-2 py-0.5 rounded-full uppercase tracking-widest ${
+                                                    isOngoing ? 'bg-green-200 text-green-800' : 
+                                                    displayStatus === 'Finished' ? 'bg-blue-200 text-blue-800' :
+                                                    isCompleted ? 'bg-emerald-200 text-emerald-800' : 
+                                                    'bg-orange-100 text-orange-600'
+                                                }`}>
                                                     {displayStatus}
                                                 </span>
                                                 <span className="text-[8px] text-slate-300 font-bold">{new Date(v.created_at).toLocaleDateString()}</span>

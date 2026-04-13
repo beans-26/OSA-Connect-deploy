@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import Sidebar from '../../components/Sidebar';
 import QRCode from 'react-qr-code';
-import { Settings as SettingsIcon, Shield, Clock, QrCode, Bell, Lock, User, Search, Key, AlertTriangle, Save, LogOut } from 'lucide-react';
+import { Settings as SettingsIcon, Shield, Clock, QrCode, Bell, Lock, User, Search, Key, AlertTriangle, Save, LogOut, CheckCircle } from 'lucide-react';
 
 const LiveTimer = ({ remainingHours }) => {
     const formatTime = (hours) => {
@@ -23,6 +23,7 @@ const StaffSettings = () => {
     const [adminCode, setAdminCode] = useState('');
     const [tickets, setTickets] = useState([]);
     const [violations, setViolations] = useState([]);
+    const [deductHours, setDeductHours] = useState('');
     const [manualStudentId, setManualStudentId] = useState('');
     const [manualMessage, setManualMessage] = useState('');
     const [manualCode, setManualCode] = useState('');
@@ -204,7 +205,7 @@ const StaffSettings = () => {
                 }),
             });
             if (resp.ok) {
-                setActionMessage({ text: 'Success!', type: 'success' });
+                setActionMessage({ text: 'Hours successfully deducted!', type: 'success' });
                 setAdminCode('');
                 handleLookup();
                 fetchAdminData();
@@ -260,6 +261,13 @@ const StaffSettings = () => {
                         }`}>
                         <Save size={20} />
                         {saveStatus.msg}
+                    </div>
+                )}
+
+                {actionMessage.text && (
+                    <div className={`fixed bottom-10 left-10 z-50 px-6 py-4 rounded-2xl shadow-2xl animate-in slide-in-from-left-10 duration-500 flex items-center gap-3 font-bold border-2 ${actionMessage.type === 'success' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-red-50 text-red-600 border-red-100'}`}>
+                        {actionMessage.type === 'success' ? <CheckCircle size={20} /> : <AlertTriangle size={20} />}
+                        {actionMessage.text}
                     </div>
                 )}
 
@@ -400,7 +408,7 @@ const StaffSettings = () => {
                                         </div>
 
                                         {lookupResult && lookupResult !== 'Not Found' && (
-                                            <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm animate-in zoom-in">
+                                            <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm animate-in zoom-in max-w-md">
                                                 <div className="flex items-center gap-3 mb-6">
                                                     <div className="w-10 h-10 bg-blue-50 text-ustp-blue rounded-xl flex items-center justify-center font-black">
                                                         {lookupResult.violation_details?.student_details?.name?.charAt(0)}
@@ -410,9 +418,18 @@ const StaffSettings = () => {
                                                 <div className="space-y-3">
                                                     <input type="password" placeholder="ADMIN CODE" className="w-full bg-slate-50 p-3 rounded-xl text-center font-black text-xs outline-none focus:bg-white focus:ring-2 ring-ustp-blue/10" value={adminCode} onChange={e => setAdminCode(e.target.value)} />
                                                     <div className="flex gap-2">
-                                                        <input type="number" id="deductInput" className="w-20 bg-slate-50 p-3 rounded-xl text-center font-black text-xs outline-none" placeholder="Hrs" />
+                                                        <input 
+                                                            type="number" 
+                                                            className="w-20 bg-slate-50 p-3 rounded-xl text-center font-black text-xs outline-none" 
+                                                            placeholder="Hrs"
+                                                            value={deductHours}
+                                                            onChange={(e) => setDeductHours(e.target.value)}
+                                                        />
                                                         <button
-                                                            onClick={() => handleSyncLog('custom', parseFloat(document.getElementById('deductInput').value))}
+                                                            onClick={() => {
+                                                                handleSyncLog('custom', parseFloat(deductHours) || 0);
+                                                                setDeductHours('');
+                                                            }}
                                                             className="flex-1 bg-ustp-blue text-white rounded-xl font-black text-[10px] uppercase tracking-widest"
                                                         >
                                                             Deduct Time
@@ -421,34 +438,6 @@ const StaffSettings = () => {
                                                 </div>
                                             </div>
                                         )}
-                                    </div>
-
-                                    <div className="card-premium flex flex-col h-[500px]">
-                                        <div className="flex items-center justify-between mb-8 pb-4 border-b border-slate-50">
-                                            <h4 className="font-black text-slate-800 uppercase tracking-widest text-[10px]">Live Service Hub</h4>
-                                            <div className="flex items-center gap-2">
-                                                <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
-                                                <span className="text-[10px] font-black text-emerald-600 uppercase">Live</span>
-                                            </div>
-                                        </div>
-                                        <div className="flex-1 overflow-y-auto space-y-3 pr-2 custom-scrollbar">
-                                            {violations.filter(v => {
-                                                const ticket = tickets.find(t => t.violation_details?.id === v.id || t.violation === v.id);
-                                                return ticket && ticket.status !== 'Completed';
-                                            }).map(v => {
-                                                const ticket = tickets.find(t => t.violation_details?.id === v.id || t.violation === v.id);
-                                                const isOngoing = ticket?.status === 'Ongoing';
-                                                return (
-                                                    <div key={v.id} className={`p-4 rounded-2xl border transition-all ${isOngoing ? 'bg-emerald-50/50 border-emerald-200' : 'bg-slate-50 border-slate-100 opacity-60'}`}>
-                                                        <div className="flex justify-between items-center mb-1">
-                                                            <p className="font-black text-slate-900 text-xs truncate max-w-[150px] uppercase italic">{v.student_details?.name}</p>
-                                                            {isOngoing ? <LiveTimer remainingHours={ticket.remaining_hours} /> : <span className="text-[10px] font-black text-slate-400 uppercase">Paused</span>}
-                                                        </div>
-                                                        <p className="text-[8px] font-bold text-slate-500 uppercase tracking-widest">{v.violation_type}</p>
-                                                    </div>
-                                                );
-                                            })}
-                                        </div>
                                     </div>
                                 </div>
                             </div>

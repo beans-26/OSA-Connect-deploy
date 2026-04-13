@@ -36,11 +36,12 @@ const Archives = () => {
 
     // Show completed violations (those with a Completed ticket) AND dismissed violations
     const archivedViolations = violations.filter(v => {
-        const isDismissed = v.status?.toLowerCase() === 'dismissed';
-        const isCompletedStatus = v.status?.toLowerCase() === 'completed';
+        const isDismissed = (v.status || '').toLowerCase() === 'dismissed';
+        const isCompletedStatus = (v.status || '').toLowerCase() === 'completed';
+        const isFinishedStatus = (v.status || '').toLowerCase() === 'finished';
         const ticket = tickets.find(t => t.violation_details?.id === v.id || t.violation === v.id);
-        const isCompletedTicket = ticket && ticket.status === 'Completed';
-        return isDismissed || isCompletedStatus || isCompletedTicket;
+        const isCompletedTicket = ticket && (ticket.status === 'Completed' || ticket.status === 'Finished' || ticket.remaining_hours <= 0.001);
+        return isDismissed || isCompletedStatus || isFinishedStatus || isCompletedTicket;
     });
 
     // Apply search & filter

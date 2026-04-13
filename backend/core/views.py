@@ -438,8 +438,8 @@ class ETicketViewSet(viewsets.ModelViewSet):
                 
                 if ticket.remaining_hours <= 0.001:
                     ticket.remaining_hours = 0
-                    ticket.status = "Completed"
-                    ticket.violation.status = "Completed"
+                    ticket.status = "Finished"
+                    ticket.violation.status = "Finished"
                     ticket.violation.save()
 
             if ticket.remaining_hours > 0:
@@ -498,8 +498,8 @@ class ETicketViewSet(viewsets.ModelViewSet):
                 
                 if ticket.remaining_hours <= 0.001:
                     ticket.remaining_hours = 0
-                    ticket.status = "Completed"
-                    ticket.violation.status = "Completed"
+                    ticket.status = "Finished"
+                    ticket.violation.status = "Finished"
                     ticket.violation.save()
                 else:
                     ticket.status = "Active"
@@ -515,6 +515,7 @@ class ETicketViewSet(viewsets.ModelViewSet):
             return Response({"error": "Student not found"}, status=status.HTTP_404_NOT_FOUND)
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
 
 class TimeLogViewSet(viewsets.ModelViewSet):
     queryset = TimeLog.objects.all()

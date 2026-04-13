@@ -7,11 +7,21 @@ class StudentSerializer(serializers.DocumentSerializer):
         model = Student
         fields = '__all__'
 
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        data['id'] = str(instance.id)
+        return data
+
 class ViolationReportSerializer(serializers.DocumentSerializer):
     student_details = StudentSerializer(source='student', read_only=True)
     class Meta:
         model = ViolationReport
         fields = '__all__'
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        data['id'] = str(instance.id)
+        return data
 
 class ETicketSerializer(serializers.DocumentSerializer):
     class Meta:
@@ -23,6 +33,8 @@ class ETicketSerializer(serializers.DocumentSerializer):
         
         # 1. Map ID properly
         data['id'] = str(instance.id)
+        if hasattr(instance, 'violation') and instance.violation:
+            data['violation'] = str(instance.violation.id)
 
         # 2. Dynamic Hour Calculation
         if instance.status == 'Ongoing':

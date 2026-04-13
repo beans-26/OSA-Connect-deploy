@@ -12,6 +12,7 @@ class ETicketStatus(Enum):
     ONGOING = "Ongoing"
     COMPLETED = "Completed"
     CLEARED = "Cleared"
+    FINISHED = "Finished"
 
 class Student(Document):
     student_id = StringField(required=True, unique=True)
