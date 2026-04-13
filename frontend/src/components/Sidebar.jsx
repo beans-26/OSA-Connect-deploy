@@ -47,16 +47,16 @@ const Sidebar = ({ role }) => {
                                 : 'text-slate-500 hover:bg-slate-100 hover:text-ustp-blue'}
             `}
                     >
-                        <item.icon size={20} />
-                        <span className="font-semibold text-sm">{item.name}</span>
+                        <item.icon size={22} />
+                        <span className="font-bold text-base">{item.name}</span>
                     </NavLink>
                 ))}
             </nav>
 
             <div className="mt-auto pt-6 border-t border-slate-100">
-                <Link to="/login" onClick={() => setMobileOpen(false)} className="flex items-center gap-3 px-4 py-3 w-full text-red-500 hover:bg-red-50 rounded-2xl transition-all group">
-                    <LogOut size={20} className="group-hover:-translate-x-1 transition-transform" />
-                    <span className="font-semibold text-sm">Log Out</span>
+                <Link to="/login" onClick={() => setMobileOpen(false)} className="flex items-center gap-3 px-4 py-4 w-full text-red-500 hover:bg-red-50 rounded-2xl transition-all group">
+                    <LogOut size={22} className="group-hover:-translate-x-1 transition-transform" />
+                    <span className="font-bold text-base">Log Out</span>
                 </Link>
             </div>
         </>
@@ -105,7 +105,7 @@ const Sidebar = ({ role }) => {
             <motion.aside
                 initial={{ x: -100, opacity: 0 }}
                 animate={{ x: 0, opacity: 1 }}
-                className="hidden lg:flex w-64 h-screen glass border-r border-slate-200/50 sticky top-0 p-6 flex-col"
+                className="hidden lg:flex w-72 h-screen glass border-r border-slate-200/50 sticky top-0 p-8 flex-col shrink-0"
             >
                 {sidebarContent}
             </motion.aside>

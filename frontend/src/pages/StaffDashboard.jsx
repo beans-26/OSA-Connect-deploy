@@ -351,9 +351,9 @@ const StaffDashboard = () => {
         <div className="flex bg-slate-50 min-h-screen h-screen overflow-hidden relative">
             <Sidebar role={userRole} />
             <div className="flex-1 flex flex-col lg:flex-row h-full overflow-hidden">
-                <main className="flex-1 p-3 md:p-6 pt-20 md:pt-6 max-w-7xl mx-auto w-full flex flex-col overflow-hidden">
-                    <header className="mb-4 text-center md:text-left shrink-0">
-                        <h1 className="text-2xl md:text-3xl font-extrabold text-slate-900 tracking-tight uppercase italic">Admin Dashboard</h1>
+                <main className="flex-1 p-4 md:p-8 pt-20 md:pt-8 max-w-8xl mx-auto w-full flex flex-col overflow-hidden">
+                    <header className="mb-6 text-center md:text-left shrink-0">
+                        <h1 className="text-3xl md:text-4xl font-black text-slate-900 tracking-tight uppercase italic">Admin Dashboard</h1>
                         <p className="text-slate-500 mt-1 font-medium italic text-xs">
                             {loading
                                 ? 'Syncing cloud databases...'

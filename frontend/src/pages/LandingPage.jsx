@@ -41,8 +41,8 @@ const RotatingDeviceStack = ({ laptop, tablet, phone }) => {
     };
 
     return (
-        <div className="relative w-full max-w-2xl h-[420px] md:h-[550px] flex flex-col items-center justify-center">
-            <div className="relative w-full h-80 md:h-[400px] flex items-center justify-center translate-y-[-10px] md:translate-y-[-30px]">
+        <div className="relative w-full max-w-3xl h-[450px] md:h-[600px] flex flex-col items-center justify-center">
+            <div className="relative w-full h-80 md:h-[450px] flex items-center justify-center translate-y-[-10px] md:translate-y-[-30px]">
                 {devices.map((d, i) => {
                     const pos = getPos(i);
                     const isFront = pos === 'front';
@@ -115,21 +115,21 @@ const LandingPage = () => {
     return (
         <div className="min-h-screen bg-white font-sans text-slate-700 selection:bg-blue-50 selection:text-blue-900">
             {/* Simple Navigation */}
-            <nav className={`fixed top-0 left-0 right-0 z-[100] transition-all duration-200 ${scrolled ? 'bg-white shadow-sm py-4 border-b border-slate-100' : 'bg-transparent py-6'}`}>
-                <div className="max-w-6xl mx-auto px-6 flex items-center justify-between">
-                    <CSSLogo />
+            <nav className={`fixed top-0 left-0 right-0 z-[100] transition-all duration-200 ${scrolled ? 'bg-white shadow-sm py-5 border-b border-slate-100' : 'bg-transparent py-8'}`}>
+                <div className="max-w-7xl mx-auto px-6 flex items-center justify-between">
+                    <CSSLogo className="scale-110 md:scale-125 origin-left" />
                     
-                    <div className="hidden md:flex items-center gap-8">
+                    <div className="hidden md:flex items-center gap-10">
                         {navLinks.map((link) => (
                             <a 
                                 key={link.name} 
                                 href={link.href} 
-                                className="text-xs font-semibold text-slate-500 hover:text-blue-900 transition-colors"
+                                className="text-sm font-black text-slate-500 hover:text-blue-900 transition-colors uppercase tracking-widest"
                             >
                                 {link.name}
                             </a>
                         ))}
-                        <Link to="/login" className="px-6 py-2 bg-blue-900 text-white rounded-lg text-xs font-bold hover:bg-slate-800 transition-colors">
+                        <Link to="/login" className="px-8 py-3 bg-blue-900 text-white rounded-xl text-sm font-bold hover:bg-slate-800 transition-colors shadow-lg shadow-blue-900/10">
                             Sign In
                         </Link>
                     </div>
@@ -151,21 +151,21 @@ const LandingPage = () => {
             </nav>
 
             {/* Hero Section - Clean & Static */}
-            <section id="home" className="pt-40 pb-24 px-6 bg-slate-50">
-                <div className="max-w-6xl mx-auto grid md:grid-cols-2 gap-16 items-center">
-                    <div className="space-y-8">
-                        <div className="space-y-4">
-                            <h1 className="text-5xl md:text-6xl font-extrabold text-slate-900 tracking-tight leading-tight">
+            <section id="home" className="pt-48 pb-32 px-6 bg-slate-50">
+                <div className="max-w-7xl mx-auto grid md:grid-cols-2 gap-20 items-center">
+                    <div className="space-y-12">
+                        <div className="space-y-6">
+                            <h1 className="text-6xl md:text-8xl font-black text-slate-900 lg:leading-[0.9] tracking-tighter uppercase italic">
                                 Integrated <br/>
                                 <span className="text-blue-900">OSA Connect</span>
                             </h1>
-                            <div className="inline-block px-3 py-1 bg-amber-100 text-amber-800 text-xs font-bold rounded border border-amber-200 uppercase tracking-widest">
+                            <div className="inline-block px-4 py-1.5 bg-amber-100 text-amber-800 text-sm font-black rounded border border-amber-200 uppercase tracking-[0.2em]">
                                 "One scan at a time"
                             </div>
                         </div>
                         
-                        <p className="text-lg text-slate-600 font-medium leading-relaxed max-w-lg">
-                            A smart and efficient student violation management system. Record violations, verify identities, and track community service in real time through a digital ecosystem.
+                        <p className="text-xl md:text-2xl text-slate-600 font-medium leading-relaxed max-w-xl">
+                            A smart and efficient student violation management system. Record violations, verify identities, and track community service in real time.
                         </p>
 
                         <div className="flex gap-4 pt-4">
@@ -186,11 +186,11 @@ const LandingPage = () => {
             </section>
 
             {/* Features - Pure Grid */}
-            <section id="features" className="py-24 px-6 bg-white border-t border-slate-50">
-                <div className="max-w-6xl mx-auto">
-                    <div className="mb-16">
-                        <h2 className="text-3xl font-extrabold text-slate-900 tracking-tight">System Features</h2>
-                        <div className="w-12 h-1 bg-amber-400 mt-2" />
+            <section id="features" className="py-32 px-6 bg-white border-t border-slate-50">
+                <div className="max-w-7xl mx-auto">
+                    <div className="mb-20">
+                        <h2 className="text-4xl font-black text-slate-900 tracking-tight uppercase italic">System Features</h2>
+                        <div className="w-16 h-1.5 bg-amber-400 mt-3" />
                     </div>
 
                     <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-10">
