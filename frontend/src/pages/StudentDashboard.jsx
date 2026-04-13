@@ -61,12 +61,12 @@ const StudentDashboard = () => {
     const mapRef = React.useRef(null);
     const [markerInstance, setMarkerInstance] = useState(null);
     const [circleInstance, setCircleInstance] = useState(null);
+    const watchIdRef = React.useRef(null);
 
-    // Initial Map Setup (using global L from CDN)
+    // Leaflet Map Setup
     useEffect(() => {
         if (!location || !timerActive || mapRef.current) return;
 
-        // Use a small timeout to let the DOM element render first
         const timer = setTimeout(() => {
             try {
                 const container = document.getElementById('geofence-map');
@@ -91,7 +91,7 @@ const StudentDashboard = () => {
                         color: '#10b981',
                         fillColor: '#10b981',
                         fillOpacity: 0.2,
-                        radius: (activeTicket.radius || 100) + (gpsAccuracy * 0.7)
+                        radius: (activeTicket.radius || 3) + (gpsAccuracy * 0.7)
                     }).addTo(map);
                 }
 
@@ -99,9 +99,9 @@ const StudentDashboard = () => {
                 setMarkerInstance(marker);
                 setCircleInstance(circle);
             } catch (e) {
-                console.error("Map init error:", e);
+                console.error("Leaflet init error:", e);
             }
-        }, 300); // 300ms cushion for React render
+        }, 300);
 
         return () => clearTimeout(timer);
     }, [location, timerActive]);
@@ -109,14 +109,19 @@ const StudentDashboard = () => {
     // Update Marker/Circle on Location Change
     useEffect(() => {
         if (!mapRef.current || !location) return;
-        if (markerInstance) markerInstance.setLatLng([location.lat, location.lng]);
-        if (circleInstance && activeTicket?.lat) {
-            circleInstance.setLatLng([activeTicket.lat, activeTicket.lng]);
-            circleInstance.setRadius((activeTicket.radius || 100) + (gpsAccuracy * 0.7));
 
-            // If out of bounds, change color to red
+        if (markerInstance) {
+            markerInstance.setLatLng([location.lat, location.lng]);
+            mapRef.current.panTo([location.lat, location.lng]);
+        }
+
+        if (circleInstance && activeTicket?.lat) {
             const dist = calculateDistance(location.lat, location.lng, activeTicket.lat, activeTicket.lng);
-            const limit = (activeTicket.radius || 100) + (gpsAccuracy * 0.7);
+            const limit = (activeTicket.radius || 3) + (gpsAccuracy * 0.7);
+            
+            circleInstance.setLatLng([activeTicket.lat, activeTicket.lng]);
+            circleInstance.setRadius(limit);
+
             if (dist > limit) {
                 circleInstance.setStyle({ color: '#ef4444', fillColor: '#ef4444' });
             } else {
@@ -195,48 +200,54 @@ const StudentDashboard = () => {
         };
     }, [showStopScanner]);
 
-    // Location Monitoring Effect (OPTIMIZED POLLING)
+    // Location Monitoring Effect (Leaflet watchPosition)
     useEffect(() => {
-        let timeoutId;
         if (timerActive && activeTicket && activeTicket.lat && activeTicket.lng) {
             setMonitoringLocation(true);
 
-            const pollLocation = () => {
-                navigator.geolocation.getCurrentPosition(
-                    (position) => {
-                        const { latitude, longitude } = position.coords;
-                        setLocation({ lat: latitude, lng: longitude });
-
-                        const dist = calculateDistance(
-                            latitude,
-                            longitude,
-                            activeTicket.lat,
-                            activeTicket.lng
-                        );
-                        setCurrentDistance(dist);
-                        setGpsAccuracy(position.coords.accuracy);
-
-                        const accuracyBuffer = position.coords.accuracy * 0.7;
-                        const effectiveRadius = (activeTicket.radius || 100) + accuracyBuffer;
-                        setIsOutOfBounds(dist > effectiveRadius);
-
-                        // Schedule next poll ONLY after this one finishes (prevents stacking)
-                        timeoutId = setTimeout(pollLocation, 3000);
-                    },
-                    (err) => {
-                        console.error("Location error:", err);
-                        timeoutId = setTimeout(pollLocation, 5000); // Wait longer on error
-                    },
-                    { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
-                );
+            const options = {
+                enableHighAccuracy: true,
+                timeout: 10000,
+                maximumAge: 0
             };
 
-            pollLocation();
+            watchIdRef.current = navigator.geolocation.watchPosition(
+                (position) => {
+                    const { latitude, longitude, accuracy } = position.coords;
+                    setLocation({ lat: latitude, lng: longitude });
+                    setGpsAccuracy(accuracy);
+
+                    const dist = calculateDistance(
+                        latitude,
+                        longitude,
+                        activeTicket.lat,
+                        activeTicket.lng
+                    );
+                    setCurrentDistance(dist);
+
+                    const accuracyBuffer = accuracy * 0.7;
+                    const effectiveRadius = (activeTicket.radius || 3) + accuracyBuffer;
+                    setIsOutOfBounds(dist > effectiveRadius);
+                },
+                (err) => {
+                    console.error("Location tracking error:", err);
+                },
+                options
+            );
         } else {
+            if (watchIdRef.current !== null) {
+                navigator.geolocation.clearWatch(watchIdRef.current);
+                watchIdRef.current = null;
+            }
             setMonitoringLocation(false);
             setIsOutOfBounds(false);
         }
-        return () => { if (timeoutId) clearTimeout(timeoutId); };
+
+        return () => {
+            if (watchIdRef.current !== null) {
+                navigator.geolocation.clearWatch(watchIdRef.current);
+            }
+        };
     }, [timerActive, activeTicket]);
 
     // Warning Countdown Effect (TICKER)
@@ -629,7 +640,7 @@ const StudentDashboard = () => {
                                                         {currentDistance.toFixed(1)}<span className="text-sm ml-1 uppercase">meters</span>
                                                     </p>
                                                     <div className={`mt-1 mb-3 text-[7px] font-black uppercase text-center ${isOutOfBounds ? "text-red-300" : "text-emerald-400"}`}>
-                                                        Threshold: {((activeTicket.radius || 100) + (gpsAccuracy * 0.7)).toFixed(1)}m (incl. drift buffer)
+                                                        Threshold: {((activeTicket.radius || 3) + (gpsAccuracy * 0.7)).toFixed(1)}m (incl. drift buffer)
                                                     </div>
                                                     <div className={`mt-3 pt-3 border-t flex items-center justify-between ${isOutOfBounds ? "border-red-100" : "border-emerald-100"}`}>
                                                         <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-1">
