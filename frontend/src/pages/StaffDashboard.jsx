@@ -260,16 +260,21 @@ const StaffDashboard = () => {
 
             const newNotifications = [];
 
-            violationsToday.filter(v => v.status.toLowerCase().includes('pending')).forEach(v => {
-                const name = v.student_details?.name || 'A student';
-                newNotifications.push({
-                    id: `pending-${v.id}`,
-                    type: 'warning',
-                    message: `${name} violation is pending OSA review`,
-                    time: formatTimeAgo(v.created_at),
+            // 1. All Pending Reviews (Show all, regardless of date, sorted by newest)
+            violations.filter(v => v.status.toLowerCase().includes('pending'))
+                .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+                .forEach(v => {
+                    const name = v.student_details?.name || 'A student';
+                    newNotifications.push({
+                        id: `pending-${v.id}`,
+                        type: 'warning',
+                        message: `Pending Review: ${name} (Action Required)`,
+                        time: formatTimeAgo(v.created_at),
+                        created_at: v.created_at
+                    });
                 });
-            });
 
+            // 2. Completed Services (Today only)
             ticketsCompletedToday.forEach(t => {
                 const name = t.student_details?.name || 'A student';
                 newNotifications.push({
@@ -277,16 +282,17 @@ const StaffDashboard = () => {
                     type: 'success',
                     message: `${name} completed their assigned community service`,
                     time: formatTimeAgo(t.updated_at),
+                    created_at: t.updated_at
                 });
             });
 
+            // 3. Overdue Pending (Legacy warning)
             const threeDaysAgo = new Date();
             threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
-            const overduePending = violations.filter(v =>
+            violations.filter(v =>
                 v.status.toLowerCase().includes('pending') &&
                 new Date(v.created_at) < threeDaysAgo
-            );
-            overduePending.forEach(v => {
+            ).forEach(v => {
                 const name = v.student_details?.name || 'A student';
                 const days = Math.floor((new Date() - new Date(v.created_at)) / (1000 * 60 * 60 * 24));
                 newNotifications.push({
@@ -294,10 +300,13 @@ const StaffDashboard = () => {
                     type: 'error',
                     message: `${name} has not completed their pending review for ${days} days`,
                     time: formatTimeAgo(v.created_at),
+                    created_at: v.created_at
                 });
             });
 
-            setNotifications(newNotifications.slice(0, 10));
+            // Sort all by date descending and take top 10
+            const sortedNotifs = newNotifications.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+            setNotifications(sortedNotifs.slice(0, 10));
 
             const pending = violations.filter(v => v.status.toLowerCase().includes('pending'));
             const activeTickets = tickets.filter(t => t.status === 'Ongoing');
@@ -340,7 +349,7 @@ const StaffDashboard = () => {
             <div className="flex-1 flex flex-col lg:flex-row">
                 <main className="flex-1 p-4 md:p-10 pt-24 md:pt-10 max-w-7xl mx-auto overflow-y-auto">
                     <header className="mb-8 text-center md:text-left">
-                        <h1 className="text-3xl md:text-4xl font-extrabold text-slate-900 tracking-tight uppercase italic">Staff Command Center</h1>
+                        <h1 className="text-3xl md:text-4xl font-extrabold text-slate-900 tracking-tight uppercase italic">Admin Dashboard</h1>
                         <p className="text-slate-500 mt-2 font-medium italic">
                             {loading
                                 ? 'Syncing cloud databases...'

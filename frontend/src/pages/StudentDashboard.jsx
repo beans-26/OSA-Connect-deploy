@@ -499,13 +499,14 @@ const StudentDashboard = () => {
     };
 
     const processStopCode = async (codeToProcess) => {
+        const payloadCode = (codeToProcess || "").trim().toUpperCase();
         if (tickets.length === 0) {
             alert("No active Service Obligations to process.");
             return;
         }
 
-        if (codeToProcess !== "OSA-PAUSE" && codeToProcess !== "CITC-BUILDING-3M") {
-            alert("Invalid code. Please scan the CITC Building QR code to stop the timer.");
+        if (payloadCode !== "OSA-PAUSE" && payloadCode !== "CITC-BUILDING-3M" && payloadCode !== "OSA-STOP") {
+            alert(`INVALID CODE: ${payloadCode}. Please scan a valid STOP QR code.`);
             return;
         }
 

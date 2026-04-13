@@ -303,8 +303,8 @@ const StaffSettings = () => {
                                         </div>
                                     </div>
 
-                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-8">
-                                        <div className="bg-indigo-950 p-8 flex flex-col items-center justify-center text-center rounded-[32px] shadow-2xl border-4 border-indigo-800/30 group hover:border-indigo-500 transition-all duration-500 col-span-1 md:col-span-2">
+                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                                        <div className="bg-indigo-950 p-8 flex flex-col items-center justify-center text-center rounded-[32px] shadow-2xl border-4 border-indigo-800/30 group hover:border-indigo-500 transition-all duration-500">
                                             <h4 className="font-black text-xl uppercase tracking-tighter text-indigo-400 mb-6 flex items-center gap-2">
                                                 <Clock size={20} /> CITC Building
                                             </h4>
@@ -312,12 +312,25 @@ const StaffSettings = () => {
                                                 <QRCode value="CITC-BUILDING-3M" size={140} level="H" />
                                             </div>
                                             <div className="bg-indigo-900/50 text-indigo-300 rounded-2xl px-6 py-3 font-mono font-black text-xs border border-indigo-700/50 tracking-widest uppercase">
-                                                CITC-BUILDING-3M
+                                                CITC-BUILDING
                                             </div>
-                                            <p className="text-indigo-400/60 text-[10px] font-bold mt-4 uppercase tracking-widest">3-Meter Geofence Active</p>
+                                            <p className="text-indigo-400/60 text-[10px] font-bold mt-4 uppercase tracking-widest">Start/Resume Tracking</p>
                                         </div>
 
-                                        <div className="bg-blue-950/30 p-8 flex flex-col items-center justify-center text-center rounded-[32px] shadow-sm border-2 border-dashed border-blue-900/30 md:col-span-2">
+                                        <div className="bg-rose-950 p-8 flex flex-col items-center justify-center text-center rounded-[32px] shadow-2xl border-4 border-rose-800/30 group hover:border-rose-500 transition-all duration-500">
+                                            <h4 className="font-black text-xl uppercase tracking-tighter text-rose-400 mb-6 flex items-center gap-2">
+                                                <Shield size={20} /> Stop Service
+                                            </h4>
+                                            <div className="bg-white p-6 rounded-[32px] mb-6 shadow-2xl group-hover:scale-105 transition-transform duration-500">
+                                                <QRCode value="OSA-STOP" size={140} level="H" />
+                                            </div>
+                                            <div className="bg-rose-900/50 text-rose-300 rounded-2xl px-6 py-3 font-mono font-black text-xs border border-rose-700/50 tracking-widest uppercase">
+                                                OSA-STOP
+                                            </div>
+                                            <p className="text-rose-400/60 text-[10px] font-bold mt-4 uppercase tracking-widest">End Session Immediately</p>
+                                        </div>
+
+                                        <div className="bg-blue-950/30 p-8 flex flex-col items-center justify-center text-center rounded-[32px] shadow-sm border-2 border-dashed border-blue-900/30">
                                             <h4 className="font-black text-sm uppercase tracking-widest text-blue-400 mb-6 flex items-center gap-2">
                                                 <User size={16} /> Public Registration QR
                                             </h4>
