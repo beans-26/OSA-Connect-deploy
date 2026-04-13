@@ -40,11 +40,17 @@ const LandingPage = () => {
             {/* Premium Navbar */}
             <nav className="fixed top-0 left-0 right-0 bg-white/70 backdrop-blur-xl z-[100] border-b border-slate-100/50">
                 <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
-                    <div className="flex items-center gap-4 group cursor-pointer">
-                        <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center shadow-lg shadow-blue-100 group-hover:scale-110 transition-transform duration-500 overflow-hidden border border-slate-100">
-                            <img src="/logo-premium.png" alt="OSA Logo" className="w-full h-full object-contain p-1" />
+                    <div className="flex items-center gap-3 group cursor-pointer">
+                        <div className="relative">
+                            {/* The "Semi Curve Triangle" Shard */}
+                            <div className="absolute -top-1 -left-1 w-6 h-4 bg-amber-400 rounded-tr-[100%] rounded-tl-[40%] rotate-[-15deg] group-hover:rotate-[15deg] transition-transform duration-500 z-0 opacity-80" />
+                            <div className="absolute -top-0.5 -left-0.5 w-5 h-3 bg-white rounded-tr-[100%] rounded-tl-[40%] rotate-[-15deg] group-hover:rotate-[15deg] transition-transform duration-500 z-0 opacity-40 ml-1 mt-0.5" />
+                            
+                            <h2 className="text-2xl font-black text-slate-800 tracking-tighter relative z-10 leading-none">
+                                OSA <span className="text-blue-600 font-bold italic tracking-normal ml-1">Connect</span>
+                            </h2>
+                            <p className="text-[7px] font-black text-slate-400 uppercase tracking-[0.3em] mt-0.5 ml-1">University Governance</p>
                         </div>
-                        <span className="text-xl font-black text-slate-800 tracking-tighter uppercase italic">OSA<span className="text-blue-600">Connect</span></span>
                     </div>
                     <div className="hidden md:flex items-center gap-10">
                         {['Features', 'Roles', 'Security'].map((item) => (
@@ -75,9 +81,12 @@ const LandingPage = () => {
 
                 <div className="max-w-7xl mx-auto grid lg:grid-cols-12 gap-16 items-center relative z-10">
                     <div className="lg:col-span-7 space-y-10 text-center lg:text-left">
-                        <div className="inline-flex items-center gap-3 px-5 py-2.5 bg-white shadow-xl shadow-blue-100/50 rounded-full border border-blue-50 text-blue-600 font-black text-[10px] uppercase tracking-[0.2em]">
-                            <img src="/logo-premium.png" alt="Logo" className="w-4 h-4 object-contain" />
-                            Next-Generation Campus Discipline
+                        <div className="inline-flex items-center gap-3 px-5 py-2.5 bg-white shadow-xl shadow-blue-100/50 rounded-full border border-blue-50">
+                            <div className="relative">
+                                <div className="absolute -top-1 -left-1 w-4 h-3 bg-amber-400 rounded-tr-[100%] rounded-tl-[40%] rotate-[-15deg]" />
+                                <span className="text-[10px] font-black text-slate-900 tracking-tighter relative z-10">OSA</span>
+                            </div>
+                            <span className="text-blue-600 font-black text-[10px] uppercase tracking-[0.2em]">Next-Gen Discipline</span>
                         </div>
                         
                         <h1 className="text-5xl md:text-8xl font-black text-slate-900 leading-[0.95] tracking-tighter">
@@ -242,11 +251,17 @@ const LandingPage = () => {
             {/* Footer */}
             <footer className="bg-white py-20 px-6 border-t border-slate-100">
                 <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-10">
-                    <div className="flex items-center gap-2">
-                        <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
-                            <Shield className="text-white" size={18} />
+                    <div className="text-center md:text-left space-y-4">
+                        <div className="flex items-center justify-center md:justify-start gap-3">
+                            <div className="relative">
+                                <div className="absolute -top-1 -left-1 w-6 h-4 bg-amber-400 rounded-tr-[100%] rounded-tl-[40%] rotate-[-15deg] opacity-80" />
+                                <div className="absolute -top-0.5 -left-0.5 w-5 h-3 bg-white rounded-tr-[100%] rounded-tl-[40%] rotate-[-15deg] opacity-40 ml-1 mt-0.5" />
+                                <h2 className="text-3xl font-black text-slate-800 tracking-tighter relative z-10 leading-none">
+                                    OSA <span className="text-blue-500 font-bold italic tracking-normal ml-1">Connect</span>
+                                </h2>
+                                <p className="text-[8px] font-black text-slate-400 uppercase tracking-[0.3em] mt-1 ml-1">USTP Office of Student Affairs</p>
+                            </div>
                         </div>
-                        <span className="text-lg font-black text-slate-800 tracking-tighter uppercase">OSA<span className="text-blue-600 italic">Connect</span></span>
                     </div>
                     <div className="flex gap-8">
                         <a href="#" className="text-[10px] font-black text-slate-400 hover:text-blue-600 transition-all uppercase tracking-widest">Privacy Policy</a>
