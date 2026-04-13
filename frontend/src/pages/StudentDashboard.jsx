@@ -225,9 +225,16 @@ const StudentDashboard = () => {
                     );
                     setCurrentDistance(dist);
 
+                    // 5-meter limit with GPS accuracy buffer
                     const accuracyBuffer = accuracy * 0.7;
-                    const effectiveRadius = (activeTicket.radius || 3) + accuracyBuffer;
-                    setIsOutOfBounds(dist > effectiveRadius);
+                    const effectiveRadius = (activeTicket.radius || 5) + accuracyBuffer;
+                    const isOut = dist > effectiveRadius;
+                    setIsOutOfBounds(isOut);
+
+                    // Automatically stop session if more than 5 meters away
+                    if (isOut) {
+                        handleBoundaryViolation();
+                    }
                 },
                 (err) => {
                     console.error("Location tracking error:", err);
@@ -249,6 +256,12 @@ const StudentDashboard = () => {
             }
         };
     }, [timerActive, activeTicket]);
+
+    const handleBoundaryViolation = async () => {
+        if (warningCountdown === null) {
+            setWarningCountdown(10); // Start a quick 10s countdown
+        }
+    };
 
     // Warning Countdown Effect (TICKER)
     useEffect(() => {
@@ -377,47 +390,55 @@ const StudentDashboard = () => {
         let forcedRadius = 3; // 3 meters as requested for test
         const pinnedLoc = JSON.parse(localStorage.getItem('pinned-citc-loc') || 'null');
 
-        // Smart Building QR Detection
-        if (payloadCode.includes("CITC-BUILDING-3M")) {
-            actionType = 'in';
-            forcedRadius = 3;
-            if (pinnedLoc) {
-                forcedLat = pinnedLoc.lat;
-                forcedLng = pinnedLoc.lng;
-            } else {
+        // 1. Dynamic Coordinate QR (LAT:8.485121,LNG:124.656512)
+        if (payloadCode.includes("LAT:") && payloadCode.includes("LNG:")) {
+            try {
+                const latMatch = payloadCode.match(/LAT:(-?\d+\.\d+)/);
+                const lngMatch = payloadCode.match(/LNG:(-?\d+\.\d+)/);
+                if (latMatch && lngMatch) {
+                    forcedLat = parseFloat(latMatch[1]);
+                    forcedLng = parseFloat(lngMatch[1]);
+                    forcedRadius = 5;
+                    actionType = 'in';
+                }
+            } catch (e) {
+                console.error("Coordinate parsing error:", e);
+            }
+        } 
+        
+        // 2. Specific Building/Dept Codes
+        if (!actionType) {
+            if (payloadCode.includes("CITC-BUILDING") || payloadCode.includes("CITC-DEPT")) {
                 forcedLat = 8.485121;
                 forcedLng = 124.656512;
+                forcedRadius = 5;
+                actionType = 'in';
+            } else if (payloadCode.includes("CSM-DEPT")) {
+                forcedLat = 8.485421;
+                forcedLng = 124.656812;
+                forcedRadius = 5;
+                actionType = 'in';
+            } else if (payloadCode.includes("CEA-DEPT")) {
+                forcedLat = 8.485721;
+                forcedLng = 124.657112;
+                forcedRadius = 5;
+                actionType = 'in';
             }
-        } else if (payloadCode.includes("CITC-DEPT-5FT")) {
-            actionType = 'in';
-            forcedRadius = 3;
-            if (pinnedLoc) {
-                forcedLat = pinnedLoc.lat;
-                forcedLng = pinnedLoc.lng;
-            } else {
-                forcedLat = 8.485121;
-                forcedLng = 124.656512;
-            }
-        } else if (payloadCode.includes("CSM-DEPT-5FT")) {
-            actionType = 'in';
-            forcedRadius = 3;
-            forcedLat = 8.485250;
-            forcedLng = 124.656620;
-        } else if (payloadCode.includes("CEA-DEPT-5FT")) {
-            actionType = 'in';
-            forcedRadius = 3;
-            forcedLat = 8.485300;
-            forcedLng = 124.656700;
-        } else if (payloadCode.includes("OSA-START") || payloadCode.includes("OSA-RESUME")) {
-            actionType = 'in';
-            forcedRadius = 3;
-        } else {
-            alert(`INVALID CODE: ${payloadCode}. Please scan the CITC Building QR Code.`);
-            setShowAdminCode(false);
-            setAdminCode('');
-            return;
         }
 
+        // 3. System Action Codes
+        if (!actionType) {
+            if (payloadCode.includes("OSA-START") || payloadCode.includes("OSA-RESUME")) {
+                actionType = 'in';
+            } else if (payloadCode.includes("OSA-PAUSE") || payloadCode.includes("OSA-STOP") || payloadCode.includes("OSA-OUT")) {
+                actionType = 'out';
+            }
+        }
+
+        if (!actionType) {
+            alert("Invalid QR Code. Please scan a valid location or action code.");
+            return;
+        }
         try {
             // Check location before starting
             // BYPASS check if we are scanning a Department QR (which will set the location)
@@ -629,25 +650,33 @@ const StudentDashboard = () => {
                                                     </div>
                                                 )}
 
-                                                <div className={`p-4 rounded-3xl w-full border-2 transition-all ${isOutOfBounds ? "bg-red-50 border-red-200" : "bg-emerald-50 border-emerald-200"}`}>
-                                                    <div className="flex items-center justify-between mb-2">
-                                                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Current Distance</p>
-                                                        <div className={`px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest ${isOutOfBounds ? "bg-red-500 text-white" : "bg-emerald-500 text-white"}`}>
-                                                            {isOutOfBounds ? "Warning: Out" : "Verified: In"}
+                                                <div className={`p-6 rounded-3xl w-full border-2 transition-all ${isOutOfBounds ? "bg-rose-50 border-rose-200" : "bg-emerald-50 border-emerald-200"}`}>
+                                                    <div className="flex items-center justify-between mb-4">
+                                                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Position Status</p>
+                                                        <div className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${isOutOfBounds ? "bg-rose-600 text-white shadow-lg shadow-rose-200" : "bg-emerald-600 text-white shadow-lg shadow-emerald-200"}`}>
+                                                            {isOutOfBounds ? "Outside Area" : "Inside Area"}
                                                         </div>
                                                     </div>
-                                                    <p className={`text-4xl font-black tracking-tighter ${isOutOfBounds ? "text-red-700" : "text-emerald-700"}`}>
-                                                        {currentDistance.toFixed(1)}<span className="text-sm ml-1 uppercase">meters</span>
-                                                    </p>
-                                                    <div className={`mt-1 mb-3 text-[7px] font-black uppercase text-center ${isOutOfBounds ? "text-red-300" : "text-emerald-400"}`}>
-                                                        Threshold: {((activeTicket.radius || 3) + (gpsAccuracy * 0.7)).toFixed(1)}m (incl. drift buffer)
-                                                    </div>
-                                                    <div className={`mt-3 pt-3 border-t flex items-center justify-between ${isOutOfBounds ? "border-red-100" : "border-emerald-100"}`}>
-                                                        <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-1">
-                                                            <MapPin size={10} /> GPS Precision
+
+                                                    <div className="flex flex-col items-center py-4">
+                                                        <div className={`text-4xl font-black tracking-tight mb-1 ${
+                                                            currentDistance <= 5 ? "text-emerald-700" : 
+                                                            currentDistance <= 20 ? "text-amber-600" : "text-rose-700"
+                                                        }`}>
+                                                            {currentDistance <= 5 ? "Very Near" : 
+                                                             currentDistance <= 20 ? "Near" : "Far"}
+                                                        </div>
+                                                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">
+                                                            Estimated Distance: {Math.round(currentDistance)}m
                                                         </p>
-                                                        <p className={`text-[10px] font-black tracking-tighter ${gpsAccuracy > 15 ? "text-amber-600" : "text-emerald-600"}`}>
-                                                            ±{gpsAccuracy.toFixed(1)}m
+                                                    </div>
+
+                                                    <div className={`mt-4 pt-4 border-t flex items-center justify-between ${isOutOfBounds ? "border-rose-100" : "border-emerald-100"}`}>
+                                                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-2">
+                                                            <MapPin size={12} /> Precision
+                                                        </p>
+                                                        <p className={`text-[10px] font-black tracking-tight ${gpsAccuracy > 15 ? "text-amber-600" : "text-emerald-600"}`}>
+                                                            {gpsAccuracy < 10 ? "Excellent" : gpsAccuracy < 25 ? "Good" : "Weak"} (±{Math.round(gpsAccuracy)}m)
                                                         </p>
                                                     </div>
                                                 </div>
