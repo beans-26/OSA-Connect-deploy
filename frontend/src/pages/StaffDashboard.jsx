@@ -27,7 +27,7 @@ import {
 } from 'lucide-react';
 
 /* ─── Violation Detail Modal ──────────────────────────────────────── */
-const ViolationModal = ({ report, ticket, onClose, onAction }) => {
+const ViolationModal = ({ report, ticket, activeLog, onClose, onAction }) => {
     if (!report) return null;
     const student = report.student_details || {};
 
@@ -391,7 +391,11 @@ const StaffDashboard = () => {
                                         const isPending = status.includes('pending');
                                         
                                         const ticket = allTickets.find(t => t.violation_details?.id === report.id || t.violation === report.id);
-                                        const isTicketFinished = ticket && (ticket.status === 'Completed' || ticket.status === 'Finished' || ticket.remaining_hours <= 0.001);
+                                        const isTicketFinished = ticket && (
+                                            ticket.status === 'Completed' || 
+                                            ticket.status === 'Finished' || 
+                                            (ticket.status !== 'Ongoing' && ticket.remaining_hours <= 0.001)
+                                        );
                                         
                                         const matchesSearch = !searchTerm ||
                                             (report.student_details?.name?.toLowerCase().includes(searchTerm.toLowerCase())) ||
@@ -431,7 +435,7 @@ const StaffDashboard = () => {
                                                             <span className={`text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-md ${isOngoing ? 'bg-green-200 text-green-800' : isPending ? 'bg-orange-100 text-orange-800' : 'bg-blue-50 text-blue-900'}`}>
                                                                 {ticket ? ticket.status : report.status}
                                                             </span>
-                                                        </div>
+                                                         </div>
                                                     </div>
 
                                                     <div className="flex gap-2 flex-shrink-0 relative z-10">
@@ -452,7 +456,12 @@ const StaffDashboard = () => {
                                                             </>
                                                         )}
                                                         <button
-                                                            onClick={() => setSelectedViolation({ report, ticket })}
+                                                            onClick={() => {
+                                                                const activeLog = logs.find(l => 
+                                                                    (ticket && (l.eticket === ticket.id || l.eticket?.id === ticket.id)) && !l.time_out
+                                                                );
+                                                                setSelectedViolation({ report, ticket, activeLog });
+                                                            }}
                                                             className="flex items-center gap-1 p-2 bg-slate-50 hover:bg-slate-800 hover:text-white text-slate-600 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all cursor-pointer"
                                                         >
                                                             <Eye size={14} className="pointer-events-none" /> Details
@@ -555,6 +564,7 @@ const StaffDashboard = () => {
                 <ViolationModal
                     report={selectedViolation.report}
                     ticket={selectedViolation.ticket}
+                    activeLog={selectedViolation.activeLog}
                     onClose={() => setSelectedViolation(null)}
                     onAction={handleAction}
                 />

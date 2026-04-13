@@ -13,6 +13,9 @@ import {
     Menu,
     X
 } from 'lucide-react';
+import laptopMockup from '../assets/mockup_laptop.png';
+import tabletMockup from '../assets/mockup_tablet.png';
+import phoneMockup from '../assets/mockup_phone.png';
 
 const LandingPage = () => {
     const [scrolled, setScrolled] = useState(false);
@@ -144,6 +147,69 @@ const LandingPage = () => {
                                 </div>
                             </div>
                         ))}
+                    </div>
+                </div>
+            </section>
+
+            {/* Device Showcase Section - Premium Overlapping Mockups */}
+            <section className="py-24 bg-slate-50 overflow-hidden border-t border-slate-100">
+                <div className="max-w-6xl mx-auto px-6 text-center">
+                    <div className="mb-16 space-y-4">
+                        <h2 className="text-3xl font-extrabold text-slate-900 tracking-tight uppercase italic">Multi-Platform Ecosystem</h2>
+                        <p className="text-slate-500 text-sm font-medium tracking-widest uppercase italic">Optimized for every screen in the university network</p>
+                    </div>
+
+                    <div className="relative flex justify-center items-center py-20">
+                        {/* Device Composition Group */}
+                        <div className="relative w-full max-w-5xl flex justify-center items-center h-[350px] md:h-[600px]">
+                            
+                            {/* Tablet (Behind/Left) */}
+                            <div className="absolute left-[0%] md:left-[5%] bottom-[15%] w-[38%] md:w-[45%] aspect-[4/3] z-10 
+                                          bg-slate-800 rounded-2xl md:rounded-3xl p-1 md:p-3 shadow-2xl border-2 md:border-4 border-slate-900 overflow-hidden transform rotate-[-3deg] hover:rotate-0 transition-transform duration-500">
+                                <img 
+                                    src={tabletMockup} 
+                                    className="w-full h-full object-cover rounded-lg md:rounded-xl opacity-90 transition-opacity hover:opacity-100" 
+                                    alt="Tablet View" 
+                                />
+                            </div>
+
+                            {/* Laptop (Center/Main) */}
+                            <div className="relative w-[65%] md:w-[75%] aspect-[16/10] z-20 
+                                          bg-slate-900 rounded-2xl md:rounded-3xl p-1.5 md:p-4 shadow-[0_45px_100px_-20px_rgba(0,0,0,0.4)] border-2 md:border-8 border-slate-950 overflow-hidden">
+                                <img 
+                                    src={laptopMockup} 
+                                    className="w-full h-full object-cover rounded-xl md:rounded-2xl shadow-inner shadow-black/20" 
+                                    alt="Laptop View" 
+                                />
+                            </div>
+
+                            {/* Mobile Phone (Front/Right) */}
+                            <div className="absolute right-[2%] md:right-[8%] -bottom-[5%] md:-bottom-[10%] w-[18%] md:w-[22%] aspect-[9/19] z-30 
+                                          bg-black rounded-3xl md:rounded-[50px] p-1 md:p-3 shadow-2xl border-2 md:border-8 border-slate-900 overflow-hidden transform rotate-[5deg] hover:rotate-0 transition-transform duration-500">
+                                <img 
+                                    src={phoneMockup} 
+                                    className="w-full h-full object-cover rounded-2xl md:rounded-[40px]" 
+                                    alt="Phone View" 
+                                />
+                                {/* Phone Notch Mockup */}
+                                <div className="absolute top-0 left-1/2 -translate-x-1/2 w-1/3 h-5 bg-black rounded-b-xl z-10" />
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-4 md:gap-12 mt-24 max-w-3xl mx-auto">
+                        <div className="space-y-1">
+                            <p className="text-blue-900 font-black text-xs md:text-xl italic uppercase">Desktop</p>
+                            <p className="text-slate-400 text-[8px] md:text-[10px] font-bold uppercase tracking-widest">Admin Panel</p>
+                        </div>
+                        <div className="space-y-1">
+                            <p className="text-blue-900 font-black text-xs md:text-xl italic uppercase">Tablet</p>
+                            <p className="text-slate-400 text-[8px] md:text-[10px] font-bold uppercase tracking-widest">Field System</p>
+                        </div>
+                        <div className="space-y-1">
+                            <p className="text-blue-900 font-black text-xs md:text-xl italic uppercase">Mobile</p>
+                            <p className="text-slate-400 text-[8px] md:text-[10px] font-bold uppercase tracking-widest">Student Hub</p>
+                        </div>
                     </div>
                 </div>
             </section>
