@@ -144,6 +144,11 @@ const Archives = () => {
             ];
         });
 
+        // Add dummy rows to reach at least 20 slots (as requested)
+        while (tableData.length < 20) {
+            tableData.push(['', '', '', '', '', '', '', '', '', '', '', '']);
+        }
+
         autoTable(doc, {
             head: [['ID NUMBER', 'FIRST NAME', 'LAST NAME', 'CONTACT NUMBER', 'YEAR LEVEL', 'COURSE/PROGRAM', 'COLLEGE', 'NATURE OF VIOLATION', 'DATE COMMITTED', 'PENALTY', 'HOURS SERVED', 'STATUS']],
             body: tableData,
@@ -349,7 +354,28 @@ const Archives = () => {
                             </tr>
                         </thead>
                         <tbody>
-                            {filtered.map((v) => {
+                            {(() => {
+                                const rows = [...filtered];
+                                while (rows.length < 20) rows.push({ id: `dummy-${rows.length}`, isDummy: true });
+                                return rows.map((v) => {
+                                    if (v.isDummy) {
+                                        return (
+                                            <tr key={v.id}>
+                                                <td className="border border-black p-0.5 text-center">&nbsp;</td>
+                                                <td className="border border-black p-0.5">&nbsp;</td>
+                                                <td className="border border-black p-0.5">&nbsp;</td>
+                                                <td className="border border-black p-0.5 text-center">&nbsp;</td>
+                                                <td className="border border-black p-0.5 text-center">&nbsp;</td>
+                                                <td className="border border-black p-0.5">&nbsp;</td>
+                                                <td className="border border-black p-0.5">&nbsp;</td>
+                                                <td className="border border-black p-0.5">&nbsp;</td>
+                                                <td className="border border-black p-0.5 text-center">&nbsp;</td>
+                                                <td className="border border-black p-0.5">&nbsp;</td>
+                                                <td className="border border-black p-0.5 text-center">&nbsp;</td>
+                                                <td className="border border-black p-0.5 text-center">&nbsp;</td>
+                                            </tr>
+                                        );
+                                    }
                                 const student = v.student_details || {};
                                 const ticket = tickets.find(t => t.violation_details?.id === v.id || t.violation === v.id);
                                 const isDismissed = v.status?.toLowerCase() === 'dismissed';
@@ -385,7 +411,8 @@ const Archives = () => {
                                         <td className="border border-black p-0.5 text-center">{isDismissed ? 'DISMISSED' : (ticket?.status === 'Completed' ? 'COMPLETED' : 'ONGOING')}</td>
                                     </tr>
                                 );
-                            })}
+                            });
+                        })()}
                         </tbody>
                     </table>
                 </div>

@@ -118,7 +118,7 @@ const StudentDashboard = () => {
         if (circleInstance && activeTicket?.lat) {
             const dist = calculateDistance(location.lat, location.lng, activeTicket.lat, activeTicket.lng);
             const limit = (activeTicket.radius || 3) + (gpsAccuracy * 0.7);
-            
+
             circleInstance.setLatLng([activeTicket.lat, activeTicket.lng]);
             circleInstance.setRadius(limit);
 
@@ -404,8 +404,8 @@ const StudentDashboard = () => {
             } catch (e) {
                 console.error("Coordinate parsing error:", e);
             }
-        } 
-        
+        }
+
         // 2. Specific Building/Dept Codes
         if (!actionType) {
             if (payloadCode.includes("CITC-BUILDING") || payloadCode.includes("CITC-DEPT")) {
@@ -594,197 +594,196 @@ const StudentDashboard = () => {
                     {/* Left Col: Obligation & Timer */}
                     <div className="lg:col-span-4 space-y-8">
                         {/* Service Obligation Card */}
-                        <div className="card-premium bg-slate-900 text-white relative overflow-hidden p-8 border-4 border-yellow-400/20 text-center">
-                            <p className="text-[10px] uppercase font-black tracking-[0.4em] text-yellow-400 mb-6 drop-shadow-sm">Service Obligation</p>
-                            <div className="text-5xl md:text-6xl font-mono text-yellow-400 font-black tracking-tighter drop-shadow-xl">{formatObligationTime(displayHours)}</div>
-                            <div className="text-[10px] font-black tracking-widest text-yellow-400/80 mt-2 uppercase">Remaining Time</div>
-                        </div>
+                        <div className="card-premium bg-slate-900 text-white relative overflow-hidden p-8 border-4 border-yellow-400/20">
+                            <p className=" text-[9px] uppercase font-black tracking-[0.4em] text-yellow-400 mb-6 drop-shadow-sm">Service Obligation</p>
+                    <div className="text-4xl md:text-5xl font-mono text-yellow-400 font-black tracking-tighter drop-shadow-xl">{formatObligationTime(displayHours)}</div>
+                    <div className="text-[9px] font-black tracking-widest text-yellow-400/80 mt-2 uppercase">Remaining Time</div>
+                </div>
 
-                        {/* Timer / Scanner Card */}
-                        <div className="card-premium flex flex-col items-center justify-center p-8 border-2 border-white shadow-xl relative overflow-hidden">
-                            {timerActive && (
-                                <div className="absolute top-0 left-0 w-full h-1 bg-yellow-400 animate-pulse shadow-[0_0_15px_rgba(255,184,28,0.5)]" />
-                            )}
+                {/* Timer / Scanner Card */}
+                <div className="card-premium flex flex-col items-center justify-center p-8 border-2 border-white shadow-xl relative overflow-hidden">
+                    {timerActive && (
+                        <div className="absolute top-0 left-0 w-full h-1 bg-yellow-400 animate-pulse shadow-[0_0_15px_rgba(255,184,28,0.5)]" />
+                    )}
 
-                            <div className={`w-24 h-24 rounded-[32px] flex items-center justify-center transition-all duration-500 ${timerActive ? 'bg-green-500 text-white shadow-2xl rotate-[360deg]' : 'bg-slate-50 text-slate-300'}`}>
-                                {timerActive ? <Clock size={36} className="animate-spin-slow" /> : <Scan size={36} />}
-                            </div>
+                    <div className={`w-20 h-20 rounded-[28px] flex items-center justify-center transition-all duration-500 ${timerActive ? 'bg-green-500 text-white shadow-2xl rotate-[360deg]' : 'bg-slate-50 text-slate-300'}`}>
+                        {timerActive ? <Clock size={32} className="animate-spin-slow" /> : <Scan size={32} />}
+                    </div>
 
-                            <div className="text-center w-full mt-6">
-                                <h4 className="font-black text-slate-900 text-xl tracking-tight uppercase">
-                                    {timerActive ? "Service in Progress" : "Staff Code Scanner"}
-                                </h4>
-                                {timerActive ? (
-                                    <div className="w-full flex flex-col items-center mt-4">
-                                        <div className="font-mono text-3xl font-black text-green-600 tracking-tighter animate-pulse mb-2">
-                                            {formatRemainingTime()}
-                                        </div>
+                    <div className="text-center w-full mt-6">
+                        <h4 className="font-black text-slate-900 text-lg tracking-tight uppercase">
+                            {timerActive ? "Service in Progress" : "Staff Code Scanner"}
+                        </h4>
+                        {timerActive ? (
+                            <div className="w-full flex flex-col items-center mt-4">
+                                <div className="font-mono text-2xl font-black text-green-600 tracking-tighter animate-pulse mb-2">
+                                    {formatRemainingTime()}
+                                </div>
 
-                                        {/* Live Map Integration */}
-                                        <div className="card-premium w-full p-0 border-2 border-white shadow-xl overflow-hidden relative group h-[300px]">
-                                            <div id="geofence-map" className="w-full h-full bg-slate-50 relative z-10" />
-                                            {!timerActive && (
-                                                <div className="absolute inset-0 bg-slate-100/80 backdrop-blur-sm z-20 flex flex-col items-center justify-center text-center p-6">
-                                                    <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center text-slate-400 mb-4 shadow-xl">
-                                                        <MapPin size={24} />
-                                                    </div>
-                                                    <p className="text-xs font-black text-slate-800 uppercase tracking-widest mb-1">Satellite Tracking Inactive</p>
-                                                    <p className="text-[10px] text-slate-400 font-bold max-w-[150px]">Scan a Staff QR code to activate live boundary monitoring.</p>
-                                                </div>
-                                            )}
-                                            <div className="absolute top-4 right-4 z-20 bg-white/90 backdrop-blur p-2 rounded-xl text-[8px] font-black uppercase tracking-widest shadow-xl border border-white">
-                                                Live GPS Feed
+                                {/* Live Map Integration */}
+                                <div className="card-premium w-full p-0 border-2 border-white shadow-xl overflow-hidden relative group h-[260px]">
+                                    <div id="geofence-map" className="w-full h-full bg-slate-50 relative z-10" />
+                                    {!timerActive && (
+                                        <div className="absolute inset-0 bg-slate-100/80 backdrop-blur-sm z-20 flex flex-col items-center justify-center text-center p-6">
+                                            <div className="w-10 h-10 bg-white rounded-2xl flex items-center justify-center text-slate-400 mb-4 shadow-xl">
+                                                <MapPin size={20} />
                                             </div>
+                                            <p className="text-[9px] font-black text-slate-800 uppercase tracking-widest mb-1">Satellite Tracking Inactive</p>
+                                            <p className="text-[8px] text-slate-400 font-bold max-w-[150px]">Scan a Staff QR code to activate live boundary monitoring.</p>
                                         </div>
+                                    )}
+                                    <div className="absolute top-4 right-4 z-20 bg-white/90 backdrop-blur p-2 rounded-xl text-[7px] font-black uppercase tracking-widest shadow-xl border border-white">
+                                        Live GPS Feed
+                                    </div>
+                                </div>
 
-                                        {monitoringLocation && (
-                                            <div className="flex flex-col items-center gap-2 mb-6 w-full">
-                                                {/* 10-Second Warning Alert */}
-                                                {warningCountdown !== null && (
-                                                    <div className="w-full bg-red-600 text-white p-4 rounded-3xl mb-4 animate-bounce shadow-2xl flex items-center justify-between border-4 border-red-400">
-                                                        <div className="flex items-center gap-3">
-                                                            <AlertTriangle size={24} className="animate-pulse" />
-                                                            <div>
-                                                                <p className="text-[10px] font-black uppercase tracking-widest leading-none">Warning: Out of Boundary</p>
-                                                                <p className="text-xs font-bold mt-1">Return to area immediately!</p>
-                                                            </div>
-                                                        </div>
-                                                        <div className="bg-white text-red-600 w-12 h-12 rounded-2xl flex items-center justify-center font-black text-2xl shadow-inner">
-                                                            {warningCountdown}
-                                                        </div>
+                                {monitoringLocation && (
+                                    <div className="flex flex-col items-center gap-2 mb-6 w-full">
+                                        {/* 10-Second Warning Alert */}
+                                        {warningCountdown !== null && (
+                                            <div className="w-full bg-red-600 text-white p-3 rounded-2xl mb-4 animate-bounce shadow-2xl flex items-center justify-between border-2 border-red-400">
+                                                <div className="flex items-center gap-3">
+                                                    <AlertTriangle size={20} className="animate-pulse" />
+                                                    <div>
+                                                        <p className="text-[9px] font-black uppercase tracking-widest leading-none">Warning: Out of Boundary</p>
+                                                        <p className="text-[10px] font-bold mt-1">Return to area immediately!</p>
                                                     </div>
-                                                )}
-
-                                                <div className={`p-6 rounded-3xl w-full border-2 transition-all ${isOutOfBounds ? "bg-rose-50 border-rose-200" : "bg-emerald-50 border-emerald-200"}`}>
-                                                    <div className="flex items-center justify-between mb-4">
-                                                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Position Status</p>
-                                                        <div className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${isOutOfBounds ? "bg-rose-600 text-white shadow-lg shadow-rose-200" : "bg-emerald-600 text-white shadow-lg shadow-emerald-200"}`}>
-                                                            {isOutOfBounds ? "Outside Area" : "Inside Area"}
-                                                        </div>
-                                                    </div>
-
-                                                    <div className="flex flex-col items-center py-4">
-                                                        <div className={`text-4xl font-black tracking-tight mb-1 ${
-                                                            currentDistance <= (activeTicket?.radius || 5) ? "text-emerald-700" : 
-                                                            currentDistance <= 25 ? "text-amber-600" : "text-rose-700"
-                                                        }`}>
-                                                            {currentDistance <= (activeTicket?.radius || 5) ? "Very Near" : 
-                                                             currentDistance <= 25 ? "Near" : "Far"}
-                                                        </div>
-                                                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">
-                                                            Estimated Distance: {Math.round(currentDistance)}m
-                                                        </p>
-                                                    </div>
-
-                                                    <div className={`mt-4 pt-4 border-t flex items-center justify-between ${isOutOfBounds ? "border-rose-100" : "border-emerald-100"}`}>
-                                                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-2">
-                                                            <MapPin size={12} /> Precision
-                                                        </p>
-                                                        <p className={`text-[10px] font-black tracking-tight ${gpsAccuracy > 15 ? "text-amber-600" : "text-emerald-600"}`}>
-                                                            {gpsAccuracy < 10 ? "Excellent" : gpsAccuracy < 25 ? "Good" : "Weak"} (±{Math.round(gpsAccuracy)}m)
-                                                        </p>
-                                                    </div>
+                                                </div>
+                                                <div className="bg-white text-red-600 w-10 h-10 rounded-xl flex items-center justify-center font-black text-xl shadow-inner">
+                                                    {warningCountdown}
                                                 </div>
                                             </div>
                                         )}
-                                        <button onClick={() => setShowStopScanner(true)} className="w-full bg-red-50 text-red-600 border-2 border-red-200 font-black py-4 rounded-xl flex items-center justify-center gap-2 hover:bg-red-600 hover:text-white transition-all uppercase text-[10px] tracking-widest">
-                                            <QrCode size={16} /> Scan to Stop
-                                        </button>
-                                    </div>
-                                ) : (
-                                    <p className="text-sm text-slate-400 mt-4 font-medium max-w-[200px] leading-relaxed mx-auto">
-                                        {displayHours > 0 ? "Scan QR from OSA Staff to start your service session. (Location tracking required)" : "No active service requirements at this time."}
-                                    </p>
-                                )}
-                            </div>
 
-                            {!showAdminCode && !timerActive && (
-                                <div className="w-full grid grid-cols-2 gap-4 mt-8">
-                                    <button onClick={() => setIsScanning(true)} className="bg-ustp-blue text-white font-black py-4 rounded-xl shadow-lg uppercase tracking-widest text-[10px] flex items-center justify-center gap-2">
-                                        <QrCode size={16} /> Scan QR
-                                    </button>
-                                    <button onClick={() => setShowAdminCode(true)} className="bg-slate-900 text-white font-black py-4 rounded-xl shadow-lg uppercase tracking-widest text-[10px] flex flex-col items-center justify-center">
-                                        <Key size={14} className="mb-0.5" /> Manual
-                                    </button>
-                                </div>
-                            )}
-
-                            {showAdminCode && (
-                                <div className="w-full space-y-4 mt-6">
-                                    <input type="password" placeholder="••••••••" className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl p-4 font-black text-center outline-none focus:border-ustp-blue tracking-widest" value={adminCode} onChange={(e) => setAdminCode(e.target.value)} onKeyPress={(e) => e.key === 'Enter' && processCode()} />
-                                    <div className="flex gap-2">
-                                        <button onClick={() => processCode()} className="flex-1 bg-ustp-blue text-white font-black py-4 rounded-xl text-[10px] uppercase">Submit</button>
-                                        <button onClick={() => { setShowAdminCode(false); setAdminCode(''); }} className="flex-1 bg-slate-100 text-slate-400 font-black py-4 rounded-xl text-[10px] uppercase">Cancel</button>
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-                    </div>
-
-                    {/* Right Col: Violations */}
-                    <div className="lg:col-span-8 space-y-8">
-                        <div className="card-premium border-2 border-white shadow-xl p-8">
-                            <h4 className="font-black text-slate-900 text-xl flex items-center gap-4 mb-10 pb-6 border-b border-slate-50 uppercase tracking-tight">
-                                <AlertTriangle className="text-red-500" size={24} />
-                                Violation Records
-                            </h4>
-
-                            {loading ? (
-                                <div className="py-20 text-center animate-pulse text-slate-300 font-black uppercase tracking-widest text-xs">Syncing Cloud Database...</div>
-                            ) : (() => {
-                                const activeViolations = violations;
-
-                                if (activeViolations.length === 0) {
-                                    return (
-                                        <div className="bg-slate-50/50 rounded-[40px] p-20 border-4 border-dotted border-slate-100 text-center">
-                                            <Shield className="mx-auto text-slate-200 mb-6" size={48} />
-                                            <h5 className="font-black text-slate-900 text-xl tracking-tighter">GOOD STANDING</h5>
-                                            <p className="text-slate-400 text-sm mt-3 font-medium max-w-xs mx-auto leading-relaxed">No active violations detected. Thank you for following university policies.</p>
-                                        </div>
-                                    );
-                                }
-
-                                return (
-                                    <div className="space-y-4">
-                                        {activeViolations.map((v) => {
-                                            const ticket = tickets.find(t => t.violation_details?.id === v.id || t.violation === v.id);
-                                            const isOngoing = ticket?.status === 'Ongoing';
-                                            const isCompleted = ticket?.status === 'Completed' || v.status === 'Completed';
-
-                                            let displayStatus = v.status;
-                                            if (ticket) {
-                                                displayStatus = ticket.status;
-                                            }
-                                            if (displayStatus === 'Approved') displayStatus = 'Active';
-                                            if (isCompleted || displayStatus === 'Completed') displayStatus = 'Finished';
-
-                                            return (
-                                                <div key={v.id} className={`p-6 border rounded-[32px] flex flex-col md:flex-row justify-between items-start md:items-center gap-6 transition-all ${isOngoing ? 'bg-green-50 border-green-200' : isCompleted ? 'bg-emerald-50 border-emerald-200 opacity-60' : 'bg-white border-slate-100 shadow-sm'}`}>
-                                                    <div className="flex gap-6 items-center w-full">
-                                                        <div className={`w-16 h-16 rounded-2xl flex items-center justify-center shrink-0 ${isOngoing ? 'bg-green-500 text-white shadow-lg shadow-green-200' : isCompleted ? 'bg-emerald-500 text-white' : 'bg-red-50 text-red-600'}`}>
-                                                            {isOngoing ? <Clock size={28} className="animate-spin-slow" /> : isCompleted ? <CheckCircle size={28} /> : <AlertTriangle size={28} />}
-                                                        </div>
-                                                        <div className="min-w-0 flex-1">
-                                                            <h6 className="font-black text-slate-900 text-lg uppercase truncate tracking-tight">{v.violation_type}</h6>
-                                                            <div className="flex items-center gap-3 mt-1 pr-4">
-                                                                <span className={`text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-widest ${isOngoing ? 'bg-green-200 text-green-800' : isCompleted ? 'bg-emerald-200 text-emerald-800' : 'bg-orange-100 text-orange-600'}`}>
-                                                                    {displayStatus}
-                                                                </span>
-                                                                <span className="text-[10px] text-slate-300 font-bold">{new Date(v.created_at).toLocaleDateString()}</span>
-                                                            </div>
-                                                        </div>
-                                                        <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 hidden md:flex ${isOngoing ? 'bg-green-500 text-white shadow-lg shadow-green-200' : isCompleted ? 'bg-emerald-50 text-emerald-200' : 'bg-slate-50 text-slate-200'}`}>
-                                                            {isOngoing ? <Clock size={20} className="animate-pulse" /> : isCompleted ? <CheckCircle size={20} /> : <Play size={20} />}
-                                                        </div>
-                                                    </div>
+                                        <div className={`p-5 rounded-[28px] w-full border-2 transition-all ${isOutOfBounds ? "bg-rose-50 border-rose-200" : "bg-emerald-50 border-emerald-200"}`}>
+                                            <div className="flex items-center justify-between mb-4">
+                                                <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Position Status</p>
+                                                <div className={`px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest ${isOutOfBounds ? "bg-rose-600 text-white shadow-lg shadow-rose-200" : "bg-emerald-600 text-white shadow-lg shadow-emerald-200"}`}>
+                                                    {isOutOfBounds ? "Outside Area" : "Inside Area"}
                                                 </div>
-                                            );
-                                        })}
+                                            </div>
+
+                                            <div className="flex flex-col items-center py-2">
+                                                <div className={`text-3xl font-black tracking-tight mb-1 ${currentDistance <= (activeTicket?.radius || 5) ? "text-emerald-700" :
+                                                        currentDistance <= 25 ? "text-amber-600" : "text-rose-700"
+                                                    }`}>
+                                                    {currentDistance <= (activeTicket?.radius || 5) ? "Very Near" :
+                                                        currentDistance <= 25 ? "Near" : "Far"}
+                                                </div>
+                                                <p className="text-[9px] font-bold text-slate-400 uppercase tracking-[0.2em]">
+                                                    Est. Distance: {Math.round(currentDistance)}m
+                                                </p>
+                                            </div>
+
+                                            <div className={`mt-3 pt-3 border-t flex items-center justify-between ${isOutOfBounds ? "border-rose-100" : "border-emerald-100"}`}>
+                                                <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-2">
+                                                    <MapPin size={10} /> Precision
+                                                </p>
+                                                <p className={`text-[9px] font-black tracking-tight ${gpsAccuracy > 15 ? "text-amber-600" : "text-emerald-600"}`}>
+                                                    {gpsAccuracy < 10 ? "Excellent" : gpsAccuracy < 25 ? "Good" : "Weak"}
+                                                </p>
+                                            </div>
+                                        </div>
                                     </div>
-                                );
-                            })()}
-                        </div>
+                                )}
+                                <button onClick={() => setShowStopScanner(true)} className="w-full bg-red-50 text-red-600 border-2 border-red-200 font-black py-3 rounded-xl flex items-center justify-center gap-2 hover:bg-red-600 hover:text-white transition-all uppercase text-[9px] tracking-widest">
+                                    <QrCode size={14} /> Scan to Stop
+                                </button>
+                            </div>
+                        ) : (
+                            <p className="text-xs text-slate-400 mt-4 font-medium max-w-[200px] leading-relaxed mx-auto text-center">
+                                {displayHours > 0 ? "Scan QR from OSA Staff to start your service session." : "No active service requirements at this time."}
+                            </p>
+                        )}
                     </div>
+
+                    {!showAdminCode && !timerActive && (
+                        <div className="w-full grid grid-cols-2 gap-4 mt-8">
+                            <button onClick={() => setIsScanning(true)} className="bg-ustp-blue text-white font-black py-3 rounded-xl shadow-lg uppercase tracking-widest text-[9px] flex items-center justify-center gap-2">
+                                <QrCode size={14} /> Scan QR
+                            </button>
+                            <button onClick={() => setShowAdminCode(true)} className="bg-slate-900 text-white font-black py-3 rounded-xl shadow-lg uppercase tracking-widest text-[9px] flex flex-col items-center justify-center">
+                                <Key size={12} className="mb-0.5" /> Manual
+                            </button>
+                        </div>
+                    )}
+
+                    {showAdminCode && (
+                        <div className="w-full space-y-4 mt-6">
+                            <input type="password" placeholder="••••••••" className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl p-4 font-black text-center outline-none focus:border-ustp-blue tracking-widest text-sm" value={adminCode} onChange={(e) => setAdminCode(e.target.value)} onKeyPress={(e) => e.key === 'Enter' && processCode()} />
+                            <div className="flex gap-2">
+                                <button onClick={() => processCode()} className="flex-1 bg-ustp-blue text-white font-black py-3 rounded-xl text-[9px] uppercase">Submit</button>
+                                <button onClick={() => { setShowAdminCode(false); setAdminCode(''); }} className="flex-1 bg-slate-100 text-slate-400 font-black py-3 rounded-xl text-[9px] uppercase">Cancel</button>
+                            </div>
+                        </div>
+                    )}
+                </div>
+        </div>
+
+                    {/* Right Col: Violations */ }
+    <div className="lg:col-span-8 space-y-8">
+        <div className="card-premium border-2 border-white shadow-xl p-6 md:p-8">
+            <h4 className="font-black text-slate-900 text-lg flex items-center gap-4 mb-8 pb-6 border-b border-slate-50 uppercase tracking-tight">
+                <AlertTriangle className="text-red-500" size={20} />
+                Violation Records
+            </h4>
+
+            {loading ? (
+                <div className="py-20 text-center animate-pulse text-slate-300 font-black uppercase tracking-widest text-[10px]">Syncing Data...</div>
+            ) : (() => {
+                const activeViolations = violations;
+
+                if (activeViolations.length === 0) {
+                    return (
+                        <div className="bg-slate-50/50 rounded-[32px] p-16 border-4 border-dotted border-slate-100 text-center">
+                            <Shield className="mx-auto text-slate-200 mb-6" size={40} />
+                            <h5 className="font-black text-slate-800 text-lg tracking-tighter uppercase">Good Standing</h5>
+                            <p className="text-slate-400 text-xs mt-3 font-medium max-w-xs mx-auto leading-relaxed">No active violations detected. Keep up the good work!</p>
+                        </div>
+                    );
+                }
+
+                return (
+                    <div className="space-y-3">
+                        {activeViolations.map((v) => {
+                            const ticket = tickets.find(t => t.violation_details?.id === v.id || t.violation === v.id);
+                            const isOngoing = ticket?.status === 'Ongoing';
+                            const isCompleted = ticket?.status === 'Completed' || v.status === 'Completed';
+
+                            let displayStatus = v.status;
+                            if (ticket) {
+                                displayStatus = ticket.status;
+                            }
+                            if (displayStatus === 'Approved') displayStatus = 'Active';
+                            if (isCompleted || displayStatus === 'Completed') displayStatus = 'Finished';
+
+                            return (
+                                <div key={v.id} className={`p-5 border rounded-[28px] flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 transition-all ${isOngoing ? 'bg-green-50 border-green-200' : isCompleted ? 'bg-emerald-50 border-emerald-200 opacity-60' : 'bg-white border-slate-100 shadow-sm'}`}>
+                                    <div className="flex gap-4 items-center w-full">
+                                        <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 ${isOngoing ? 'bg-green-500 text-white shadow-lg shadow-green-200' : isCompleted ? 'bg-emerald-500 text-white' : 'bg-red-50 text-red-600'}`}>
+                                            {isOngoing ? <Clock size={20} className="animate-spin-slow" /> : isCompleted ? <CheckCircle size={20} /> : <AlertTriangle size={20} />}
+                                        </div>
+                                        <div className="min-w-0 flex-1">
+                                            <h6 className="font-black text-slate-900 text-base uppercase truncate tracking-tight mb-1">{v.violation_type}</h6>
+                                            <div className="flex items-center gap-2">
+                                                <span className={`text-[8px] font-black px-2 py-0.5 rounded-full uppercase tracking-widest ${isOngoing ? 'bg-green-200 text-green-800' : isCompleted ? 'bg-emerald-200 text-emerald-800' : 'bg-orange-100 text-orange-600'}`}>
+                                                    {displayStatus}
+                                                </span>
+                                                <span className="text-[8px] text-slate-300 font-bold">{new Date(v.created_at).toLocaleDateString()}</span>
+                                            </div>
+                                        </div>
+                                        <div className={`hidden sm:flex w-10 h-10 rounded-xl items-center justify-center shrink-0 ${isOngoing ? 'bg-green-500 text-white shadow-lg shadow-green-200' : isCompleted ? 'bg-emerald-50 text-emerald-200' : 'bg-slate-50 text-slate-100'}`}>
+                                            {isOngoing ? <Clock size={16} className="animate-pulse" /> : isCompleted ? <CheckCircle size={16} /> : <Play size={16} />}
+                                        </div>
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                );
+            })()}
+        </div>
+    </div>
                 </div>
             </main>
         </div>
