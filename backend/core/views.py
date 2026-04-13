@@ -309,6 +309,9 @@ class ViolationViewSet(viewsets.ModelViewSet):
         except Student.DoesNotExist:
             # CHECK FOR DUPLICATE NAME (Prevent duplicate accounts for same person with different ID)
             provided_name = data.get('name', 'New Student').strip()
+            # Normalize ID as well just in case
+            student_id = student_id.strip()
+            
             existing_student_by_name = Student.objects.filter(name__iexact=provided_name).first()
             
             if existing_student_by_name:
