@@ -409,9 +409,9 @@ const StudentDashboard = () => {
         // 2. Specific Building/Dept Codes
         if (!actionType) {
             if (payloadCode.includes("CITC-BUILDING") || payloadCode.includes("CITC-DEPT")) {
-                forcedLat = 8.485121;
-                forcedLng = 124.656512;
-                forcedRadius = 5;
+                forcedLat = 8.503306;
+                forcedLng = 124.660861;
+                forcedRadius = 10;
                 actionType = 'in';
             } else if (payloadCode.includes("CSM-DEPT")) {
                 forcedLat = 8.485421;
@@ -664,11 +664,11 @@ const StudentDashboard = () => {
 
                                                     <div className="flex flex-col items-center py-4">
                                                         <div className={`text-4xl font-black tracking-tight mb-1 ${
-                                                            currentDistance <= 5 ? "text-emerald-700" : 
-                                                            currentDistance <= 20 ? "text-amber-600" : "text-rose-700"
+                                                            currentDistance <= (activeTicket?.radius || 5) ? "text-emerald-700" : 
+                                                            currentDistance <= 25 ? "text-amber-600" : "text-rose-700"
                                                         }`}>
-                                                            {currentDistance <= 5 ? "Very Near" : 
-                                                             currentDistance <= 20 ? "Near" : "Far"}
+                                                            {currentDistance <= (activeTicket?.radius || 5) ? "Very Near" : 
+                                                             currentDistance <= 25 ? "Near" : "Far"}
                                                         </div>
                                                         <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">
                                                             Estimated Distance: {Math.round(currentDistance)}m
