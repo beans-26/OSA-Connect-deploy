@@ -96,7 +96,7 @@ const StudentRegistration = () => {
                 setStep(2);
             } else {
                 const data = await response.json();
-                alert(`Registration failed: ${data.message || 'Check your details'}`);
+                alert(`Registration failed: ${data.error || data.message || 'Check your details'}`);
             }
         } catch (error) {
             alert('Server connection error');

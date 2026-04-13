@@ -89,25 +89,44 @@ class StudentViewSet(viewsets.ModelViewSet):
     serializer_class = StudentSerializer
     permission_classes = [AllowAny]
 
+    def create(self, request, *args, **kwargs):
+        data = request.data
+        sid = data.get('student_id', '').strip()
+        name = data.get('name', '').strip()
+
+        if sid and Student.objects.filter(student_id=sid).first():
+            return Response({"error": f"Student ID '{sid}' is already in use."}, status=status.HTTP_400_BAD_REQUEST)
+        
+        if name and Student.objects.filter(name__iexact=name).first():
+            return Response({"error": f"A student named '{name}' is already registered."}, status=status.HTTP_400_BAD_REQUEST)
+            
+        return super().create(request, *args, **kwargs)
+
     def update(self, request, *args, **kwargs):
         try:
             student = self.get_object()
             data = request.data
             
-            # Manually update fields to bypass DRF Mongoengine unique validation bug on custom lookup field
-            student.name = data.get('name', student.name)
+            # 1. Validate Name Uniqueness if changing
+            new_name = data.get('name', '').strip()
+            if new_name and new_name.lower() != student.name.lower():
+                if Student.objects.filter(name__iexact=new_name).first():
+                    return Response({"error": f"A student named '{new_name}' is already registered."}, status=status.HTTP_400_BAD_REQUEST)
+                student.name = new_name
+
+            # 2. Validate Student ID Uniqueness if changing
+            new_student_id = data.get('student_id', '').strip()
+            if new_student_id and new_student_id != student.student_id:
+                if Student.objects.filter(student_id=new_student_id).first():
+                    return Response({"error": f"Student ID '{new_student_id}' is already in use."}, status=status.HTTP_400_BAD_REQUEST)
+                student.student_id = new_student_id
+
             student.course = data.get('course', student.course)
             student.department = data.get('department', student.department)
             student.year_level = data.get('year_level', student.year_level)
             student.email = data.get('email', student.email)
             student.contact_number = data.get('contact_number', student.contact_number)
             
-            new_student_id = data.get('student_id')
-            if new_student_id and new_student_id != student.student_id:
-                if Student.objects.filter(student_id=new_student_id).first():
-                    return Response({"error": "Student ID already exists."}, status=status.HTTP_400_BAD_REQUEST)
-                student.student_id = new_student_id
-                
             student.save()
             serializer = self.get_serializer(student)
             return Response(serializer.data)
@@ -288,16 +307,24 @@ class ViolationViewSet(viewsets.ModelViewSet):
             student = Student.objects.get(student_id=student_id)
             print(f"DB MATCH: Existing student record found: {student.name}")
         except Student.DoesNotExist:
-            print(f"DB SYNC: Creating missing student profile for {student_id}...")
-            student = Student(
-                student_id=student_id,
-                name=data.get('name', 'New Student'),
-                course=data.get('course', 'Unknown'),
-                department=data.get('department', 'Unknown'),
-                contact_number=data.get('contact', ''),
-                email=data.get('email', '')
-            ).save()
-            print(f"DB SUCCESS: New student registered: {student.name}")
+            # CHECK FOR DUPLICATE NAME (Prevent duplicate accounts for same person with different ID)
+            provided_name = data.get('name', 'New Student').strip()
+            existing_student_by_name = Student.objects.filter(name__iexact=provided_name).first()
+            
+            if existing_student_by_name:
+                print(f"DB LINK: Student {provided_name} exists under different ID. Linking report to existing account.")
+                student = existing_student_by_name
+            else:
+                print(f"DB SYNC: Creating missing student profile for {student_id}...")
+                student = Student(
+                    student_id=student_id,
+                    name=provided_name,
+                    course=data.get('course', 'Unknown'),
+                    department=data.get('department', 'Unknown'),
+                    contact_number=data.get('contact', ''),
+                    email=data.get('email', '')
+                ).save()
+                print(f"DB SUCCESS: New student registered: {student.name}")
             
         # 2. Calculate offense count and punishment
         violation_type = data.get('violation', 'Other')
