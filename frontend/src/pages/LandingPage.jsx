@@ -41,8 +41,8 @@ const RotatingDeviceStack = ({ laptop, tablet, phone }) => {
     };
 
     return (
-        <div className="relative w-full max-w-lg h-[450px] flex flex-col items-center justify-center">
-            <div className="relative w-full h-80 flex items-center justify-center translate-y-[-20px]">
+        <div className="relative w-full max-w-lg h-[380px] md:h-[450px] flex flex-col items-center justify-center">
+            <div className="relative w-full h-64 md:h-80 flex items-center justify-center translate-y-[-10px] md:translate-y-[-20px]">
                 {devices.map((d, i) => {
                     const pos = getPos(i);
                     const isFront = pos === 'front';
@@ -53,9 +53,9 @@ const RotatingDeviceStack = ({ laptop, tablet, phone }) => {
                             key={d.id}
                             className={`
                                 absolute transition-all duration-1000 ease-in-out
-                                ${isFront ? 'z-30 scale-100 opacity-100 translate-x-0' : ''}
-                                ${isRight ? 'z-10 scale-75 opacity-40 translate-x-[40%] rotate-[10deg]' : ''}
-                                ${!isFront && !isRight ? 'z-10 scale-75 opacity-40 translate-x-[-40%] rotate-[-10deg]' : ''}
+                                ${isFront ? 'z-30 scale-[0.85] md:scale-100 opacity-100 translate-x-0' : ''}
+                                ${isRight ? 'z-10 scale-[0.6] md:scale-75 opacity-30 md:opacity-40 translate-x-[35%] md:translate-x-[40%] rotate-[10deg]' : ''}
+                                ${!isFront && !isRight ? 'z-10 scale-[0.6] md:scale-75 opacity-30 md:opacity-40 translate-x-[-35%] md:translate-x-[-40%] rotate-[-10deg]' : ''}
                             `}
                         >
                             <div className={`
@@ -178,7 +178,7 @@ const LandingPage = () => {
                         </div>
                     </div>
                     
-                    <div className="hidden md:flex justify-end relative">
+                    <div className="flex justify-center md:justify-end relative order-first md:order-last mb-12 md:mb-0">
                         <RotatingDeviceStack laptop={laptopMockup} tablet={tabletMockup} phone={phoneMockup} />
                     </div>
 
