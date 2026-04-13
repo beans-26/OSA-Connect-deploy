@@ -41,8 +41,8 @@ const RotatingDeviceStack = ({ laptop, tablet, phone }) => {
     };
 
     return (
-        <div className="relative w-full max-w-lg h-[380px] md:h-[450px] flex flex-col items-center justify-center">
-            <div className="relative w-full h-64 md:h-80 flex items-center justify-center translate-y-[-10px] md:translate-y-[-20px]">
+        <div className="relative w-full max-w-2xl h-[420px] md:h-[550px] flex flex-col items-center justify-center">
+            <div className="relative w-full h-80 md:h-[400px] flex items-center justify-center translate-y-[-10px] md:translate-y-[-30px]">
                 {devices.map((d, i) => {
                     const pos = getPos(i);
                     const isFront = pos === 'front';
@@ -53,16 +53,16 @@ const RotatingDeviceStack = ({ laptop, tablet, phone }) => {
                             key={d.id}
                             className={`
                                 absolute transition-all duration-1000 ease-in-out
-                                ${isFront ? 'z-30 scale-[0.85] md:scale-100 opacity-100 translate-x-0' : ''}
-                                ${isRight ? 'z-10 scale-[0.6] md:scale-75 opacity-30 md:opacity-40 translate-x-[35%] md:translate-x-[40%] rotate-[10deg]' : ''}
-                                ${!isFront && !isRight ? 'z-10 scale-[0.6] md:scale-75 opacity-30 md:opacity-40 translate-x-[-35%] md:translate-x-[-40%] rotate-[-10deg]' : ''}
+                                ${isFront ? 'z-30 scale-[0.95] md:scale-110 opacity-100 translate-x-0' : ''}
+                                ${isRight ? 'z-10 scale-[0.7] md:scale-85 opacity-30 md:opacity-40 translate-x-[40%] md:translate-x-[45%] rotate-[10deg]' : ''}
+                                ${!isFront && !isRight ? 'z-10 scale-[0.7] md:scale-85 opacity-30 md:opacity-40 translate-x-[-40%] md:translate-x-[-45%] rotate-[-10deg]' : ''}
                             `}
                         >
                             <div className={`
                                 relative bg-slate-900 border-2 md:border-4 border-slate-950 shadow-2xl overflow-hidden
-                                ${d.type === 'laptop' ? 'w-64 md:w-80 aspect-[16/10] rounded-2xl' : ''}
-                                ${d.type === 'tablet' ? 'w-40 md:w-52 aspect-[3/4.5] rounded-2xl border-slate-800' : ''}
-                                ${d.type === 'phone' ? 'w-28 md:w-36 aspect-[9/19] rounded-[30px] border-slate-900 bg-black p-1' : ''}
+                                ${d.type === 'laptop' ? 'w-72 md:w-[450px] aspect-[16/10] rounded-2xl' : ''}
+                                ${d.type === 'tablet' ? 'w-48 md:w-[260px] aspect-[3/4.5] rounded-3xl border-slate-800' : ''}
+                                ${d.type === 'phone' ? 'w-32 md:w-[180px] aspect-[9/19] rounded-[40px] border-slate-900 bg-black p-1' : ''}
                             `}>
                                 <img src={d.img} className="w-full h-full object-cover" alt={d.title} />
                                 {d.type === 'phone' && <div className="absolute top-0 left-1/2 -translate-x-1/2 w-1/3 h-5 bg-black rounded-b-xl z-10" />}
