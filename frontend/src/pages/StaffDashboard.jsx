@@ -344,25 +344,26 @@ const StaffDashboard = () => {
     const userRole = JSON.parse(localStorage.getItem('user') || '{}').role || 'staff';
 
     return (
-        <div className="flex bg-slate-50 min-h-screen relative">
+        <div className="flex bg-slate-50 min-h-screen h-screen overflow-hidden relative">
             <Sidebar role={userRole} />
-            <div className="flex-1 flex flex-col lg:flex-row">
-                <main className="flex-1 p-4 md:p-10 pt-24 md:pt-10 max-w-7xl mx-auto overflow-y-auto">
-                    <header className="mb-8 text-center md:text-left">
-                        <h1 className="text-3xl md:text-4xl font-extrabold text-slate-900 tracking-tight uppercase italic">Admin Dashboard</h1>
-                        <p className="text-slate-500 mt-2 font-medium italic">
+            <div className="flex-1 flex flex-col lg:flex-row h-full overflow-hidden">
+                <main className="flex-1 p-3 md:p-6 pt-20 md:pt-6 max-w-7xl mx-auto w-full flex flex-col overflow-hidden">
+                    <header className="mb-4 text-center md:text-left shrink-0">
+                        <h1 className="text-2xl md:text-3xl font-extrabold text-slate-900 tracking-tight uppercase italic">Admin Dashboard</h1>
+                        <p className="text-slate-500 mt-1 font-medium italic text-xs">
                             {loading
                                 ? 'Syncing cloud databases...'
                                 : 'Awaiting compliance updates from field units'}
                         </p>
                     </header>
-
-                    <div className="space-y-8">
-                        {/* ── Violators Feed ── */}
-                        <div className="card-premium">
-                            <div className="flex justify-between items-center mb-4 pb-4 border-b border-slate-50">
-                                <h4 className="font-bold text-slate-800 uppercase tracking-widest text-sm text-blue-900">Violators Feed</h4>
-                            </div>
+ 
+                    <div className="flex-1 overflow-y-auto custom-scrollbar pb-10">
+                        <div className="space-y-6">
+                            {/* ── Violators Feed ── */}
+                            <div className="card-premium p-4 md:p-6">
+                                <div className="flex justify-between items-center mb-4 pb-4 border-b border-slate-50">
+                                    <h4 className="font-bold text-slate-800 uppercase tracking-widest text-[10px] text-blue-900">Violators Feed</h4>
+                                </div>
 
                             <div className="mb-4">
                                 <div className="relative">
@@ -457,6 +458,7 @@ const StaffDashboard = () => {
                             </div>
                         </div>
                     </div>
+                </div>
                 </main>
 
                 {/* Right Sidebar */}

@@ -208,54 +208,54 @@ const ReportViolation = () => {
                         </div>
                     </div>
                 </div>
-            )}
-
-            <main className="flex-1 p-4 md:p-10 pt-24 md:pt-10 max-w-7xl mx-auto overflow-y-auto">
-                <header className="mb-10 text-center md:text-left">
-                    <h1 className="text-3xl md:text-4xl font-extrabold text-slate-900 tracking-tighter uppercase italic">
+                        <main className="flex-1 p-3 md:p-10 pt-20 md:pt-10 max-w-7xl mx-auto h-screen overflow-hidden flex flex-col">
+                <header className="mb-4 text-center md:text-left shrink-0">
+                    <h1 className="text-2xl md:text-3xl font-extrabold text-slate-900 tracking-tighter uppercase italic">
                         {userRole === 'guard' ? 'Guard Report' : 'Faculty Report'}
                     </h1>
-                    <p className="text-slate-400 mt-1 font-medium italic text-sm md:text-base">
+                    <p className="text-slate-400 mt-1 font-medium italic text-xs md:text-sm">
                         Academic Integrity & Safety Reporting
                     </p>
                 </header>
-
-                <div className="max-w-4xl mx-auto">
+ 
+                <div className="max-w-4xl mx-auto w-full flex-1 overflow-y-auto pb-20 custom-scrollbar">
                     {step === 1 ? (
-                        <div className="card-premium border-2 border-white shadow-2xl p-6 sm:p-8 md:p-12 animate-in slide-in-from-bottom-5 duration-500">
-                            <h3 className="text-xl md:text-2xl font-black text-slate-900 flex items-center gap-4 mb-10 pb-6 border-b border-slate-50 uppercase tracking-tighter">
-                                <ClipboardList className="text-ustp-blue" size={32} />
+                        <div className="card-premium border-2 border-white shadow-2xl p-5 sm:p-8 md:p-10 animate-in slide-in-from-bottom-5 duration-500">
+                            <h3 className="text-lg md:text-xl font-black text-slate-900 flex items-center gap-3 mb-6 pb-4 border-b border-slate-50 uppercase tracking-tighter">
+                                <ClipboardList className="text-ustp-blue" size={24} />
                                 New Incident Report
                             </h3>
-
-                            <form onSubmit={handleSubmit} className="space-y-8">
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                                    <div className="space-y-6">
+ 
+                            <form onSubmit={handleSubmit} className="space-y-4">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div className="space-y-4">
                                         <div className="relative group">
-                                            <label className="text-[10px] uppercase font-black text-slate-300 tracking-[0.2em] ml-1 mb-2 block">Student ID / Scan QR</label>
+                                            <label className="text-[9px] uppercase font-black text-slate-300 tracking-[0.2em] ml-1 mb-1 block">Student ID / Scan QR</label>
                                             <div className="relative">
-                                                <input required value={form.student_id} onChange={handleIdChange} placeholder="202X-XXXXXXX" className="w-full bg-slate-50 border-2 border-slate-100 rounded-[24px] p-4 md:p-5 pr-14 font-black focus:border-ustp-blue outline-none transition-all uppercase placeholder:text-slate-200 text-base" />
-                                                <button type="button" onClick={() => setIsScanning(true)} className="absolute right-3 top-3 bottom-3 aspect-square bg-ustp-blue text-white rounded-2xl flex items-center justify-center shadow-lg shadow-blue-200 hover:scale-105 active:scale-95 transition-all">
-                                                    <Scan size={22} />
+                                                <input required value={form.student_id} onChange={handleIdChange} placeholder="202X-XXXXXXX" className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl p-3 md:p-4 pr-12 font-black focus:border-ustp-blue outline-none transition-all uppercase placeholder:text-slate-200 text-sm" />
+                                                <button type="button" onClick={() => setIsScanning(true)} className="absolute right-2 top-2 bottom-2 aspect-square bg-ustp-blue text-white rounded-xl flex items-center justify-center shadow-lg shadow-blue-200 hover:scale-105 active:scale-95 transition-all">
+                                                    <Scan size={18} />
                                                 </button>
                                             </div>
                                         </div>
-                                        <input required placeholder="Student Full Name" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} className="w-full bg-slate-50 border-2 border-slate-100 rounded-[24px] p-4 md:p-5 font-bold focus:border-ustp-blue outline-none transition-all text-base" />
-                                        <div className="grid grid-cols-2 gap-4">
-                                            <select required value={form.course} onChange={e => setForm({ ...form, course: e.target.value })} className="w-full bg-slate-50 border-2 border-slate-100 rounded-[24px] p-4 md:p-5 font-bold outline-none focus:border-ustp-blue text-base appearance-none">
+                                        <input required placeholder="Student Full Name" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl p-3 md:p-4 font-bold focus:border-ustp-blue outline-none transition-all text-sm" />
+                                        <div className="grid grid-cols-2 gap-3">
+                                            <select required value={form.course} onChange={e => setForm({ ...form, course: e.target.value })} className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl p-3 md:p-4 font-bold outline-none focus:border-ustp-blue text-sm appearance-none truncate">
                                                 <option value="">Course</option>
                                                 {COURSES.map(c => <option key={c} value={c}>{c}</option>)}
                                             </select>
-                                            <select required value={form.department} onChange={e => setForm({ ...form, department: e.target.value })} className="w-full bg-slate-50 border-2 border-slate-100 rounded-[24px] p-4 md:p-5 font-bold outline-none focus:border-ustp-blue text-base appearance-none">
+                                            <select required value={form.department} onChange={e => setForm({ ...form, department: e.target.value })} className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl p-3 md:p-4 font-bold outline-none focus:border-ustp-blue text-sm appearance-none truncate">
                                                 <option value="">Dept</option>
                                                 {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
                                             </select>
                                         </div>
-                                        <input required type="email" placeholder="Email Address" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} className="w-full bg-slate-50 border-2 border-slate-100 rounded-[24px] p-4 md:p-5 font-bold focus:border-ustp-blue outline-none transition-all text-base" />
-                                        <input required placeholder="Contact Number" value={form.contact} onChange={e => setForm({ ...form, contact: e.target.value })} className="w-full bg-slate-50 border-2 border-slate-100 rounded-[24px] p-4 md:p-5 font-bold focus:border-ustp-blue outline-none transition-all text-base" />
                                     </div>
-                                    <div className="space-y-6">
-                                        <select required value={form.violation} onChange={e => setForm({ ...form, violation: e.target.value })} className="w-full bg-red-50 border-2 border-red-100 rounded-[24px] p-4 md:p-5 font-black text-red-900 focus:border-red-500 outline-none transition-all cursor-pointer text-base appearance-none truncate">
+                                    <div className="space-y-4">
+                                        <div className="grid grid-cols-1 gap-4">
+                                            <input required type="email" placeholder="Email Address" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl p-3 md:p-4 font-bold focus:border-ustp-blue outline-none transition-all text-sm" />
+                                            <input required placeholder="Contact Number" value={form.contact} onChange={e => setForm({ ...form, contact: e.target.value })} className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl p-3 md:p-4 font-bold focus:border-ustp-blue outline-none transition-all text-sm" />
+                                        </div>
+                                        <select required value={form.violation} onChange={e => setForm({ ...form, violation: e.target.value })} className="w-full bg-red-50 border-2 border-red-100 rounded-2xl p-3 md:p-4 font-black text-red-900 focus:border-red-500 outline-none transition-all cursor-pointer text-sm appearance-none truncate">
                                             <option value="">SELECT VIOLATION</option>
                                             <option value="No ID">No ID</option>
                                             <option value="Improper wearing of ID">Improper Wearing of ID</option>
@@ -264,22 +264,21 @@ const ReportViolation = () => {
                                             <option value="Smoking inside campus">Smoking</option>
                                             <option value="Serious misconduct">Serious Misconduct</option>
                                         </select>
-                                        <div className="grid grid-cols-2 gap-4">
+                                        <div className="grid grid-cols-2 gap-3">
                                             <div>
-                                                <label className="text-[10px] uppercase font-black text-slate-300 tracking-widest mb-1 ml-1 block">Incident Date</label>
-                                                <input type="date" required value={form.incident_date} onChange={e => setForm({ ...form, incident_date: e.target.value })} className="w-full bg-slate-50 border-2 border-slate-100 rounded-[24px] p-4 md:p-5 font-bold outline-none focus:border-ustp-blue text-base" />
+                                                <label className="text-[9px] uppercase font-black text-slate-300 tracking-widest mb-1 ml-1 block">Date</label>
+                                                <input type="date" required value={form.incident_date} onChange={e => setForm({ ...form, incident_date: e.target.value })} className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl p-3 md:p-4 font-bold outline-none focus:border-ustp-blue text-xs" />
                                             </div>
                                             <div>
-                                                <label className="text-[10px] uppercase font-black text-slate-300 tracking-widest mb-1 ml-1 block">Incident Time</label>
-                                                <input type="time" required value={form.incident_time} onChange={e => setForm({ ...form, incident_time: e.target.value })} className="w-full bg-slate-50 border-2 border-slate-100 rounded-[24px] p-4 md:p-5 font-bold outline-none focus:border-ustp-blue text-base" />
+                                                <label className="text-[9px] uppercase font-black text-slate-300 tracking-widest mb-1 ml-1 block">Time</label>
+                                                <input type="time" required value={form.incident_time} onChange={e => setForm({ ...form, incident_time: e.target.value })} className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl p-3 md:p-4 font-bold outline-none focus:border-ustp-blue text-xs" />
                                             </div>
                                         </div>
-
                                     </div>
                                 </div>
-                                <button type="submit" disabled={loading} className="group relative bg-ustp-blue text-white w-full py-6 rounded-[28px] text-xl font-black shadow-2xl shadow-blue-900/40 flex items-center justify-center gap-4 transition-all hover:bg-slate-900 active:scale-[0.98]">
-                                    <Send size={24} className="group-hover:-translate-y-1 group-hover:translate-x-1 transition-transform" />
-                                    {loading ? statusMsg : "SUBMIT INCIDENT"}
+                                <button type="submit" disabled={loading} className="group relative bg-ustp-blue text-white w-full py-4 rounded-2xl text-lg font-black shadow-xl shadow-blue-900/20 flex items-center justify-center gap-3 transition-all hover:bg-slate-900 active:scale-[0.98]">
+                                    <Send size={20} className="group-hover:-translate-y-1 group-hover:translate-x-1 transition-transform" />
+                                    {loading ? "Syncing..." : "SUBMIT REPORT"}
                                 </button>
                             </form>
                         </div>

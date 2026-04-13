@@ -54,17 +54,18 @@ const GuardHistory = () => {
     return (
         <div className="flex bg-slate-50 min-h-screen relative">
             <Sidebar role={userRole} />
-            <main className="flex-1 p-4 md:p-10 pt-24 md:pt-10 max-w-7xl mx-auto overflow-y-auto">
-                <header className="mb-8 text-center md:text-left">
-                    <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">
+            <main className="flex-1 p-3 md:p-6 pt-20 md:pt-6 max-w-7xl mx-auto h-screen overflow-hidden flex flex-col">
+                <header className="mb-4 text-center md:text-left shrink-0">
+                    <h1 className="text-xl md:text-2xl font-extrabold text-slate-900 tracking-tight">
                         {userRole === 'faculty' ? 'Faculty Submission History' : 'Violation History'}
                     </h1>
-                    <p className="text-slate-500 mt-2 font-medium italic">
-                        {loading ? 'Syncing history...' : `Viewing ${filteredViolations.length} records in cache`}
+                    <p className="text-slate-500 mt-1 font-medium italic text-xs">
+                        {loading ? 'Syncing history...' : `Viewing ${filteredViolations.length} records`}
                     </p>
                 </header>
 
-                <div className="flex flex-col sm:flex-row gap-4 mb-6">
+                <div className="flex-1 overflow-y-auto pr-1 pb-10 custom-scrollbar mt-2">
+                    <div className="flex flex-col sm:flex-row gap-3 mb-4">
                     <div className="relative flex-1">
                         <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
                         <input
@@ -142,7 +143,9 @@ const GuardHistory = () => {
                             </div>
                         ))}
                     </div>
-                )}
+                        </div>
+                    )}
+                </div>
             </main>
         </div>
     );
