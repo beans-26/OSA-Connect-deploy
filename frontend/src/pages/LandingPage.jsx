@@ -17,6 +17,75 @@ import laptopMockup from '../assets/mockup_laptop.png';
 import tabletMockup from '../assets/mockup_tablet.png';
 import phoneMockup from '../assets/mockup_phone.png';
 
+const RotatingDeviceStack = ({ laptop, tablet, phone }) => {
+    const [index, setIndex] = useState(0);
+    const devices = [
+        { id: 'desktop', type: 'laptop', img: laptop, device: 'Desktop', title: 'ADMIN DASHBOARD' },
+        { id: 'tablet', type: 'tablet', img: tablet, device: 'Tablet', title: 'GUARD REPORT' },
+        { id: 'mobile', type: 'phone', img: phone, device: 'Phone', title: 'STUDENT HUB' },
+    ];
+
+    useEffect(() => {
+        const timer = setInterval(() => {
+            setIndex((prev) => (prev + 1) % devices.length);
+        }, 3000);
+        return () => clearInterval(timer);
+    }, []);
+
+    // Helper to get position based on current index
+    const getPos = (i) => {
+        const diff = (i - index + devices.length) % devices.length;
+        if (diff === 0) return 'front';
+        if (diff === 1) return 'right';
+        return 'left';
+    };
+
+    return (
+        <div className="relative w-full max-w-lg h-[450px] flex flex-col items-center justify-center">
+            <div className="relative w-full h-80 flex items-center justify-center translate-y-[-20px]">
+                {devices.map((d, i) => {
+                    const pos = getPos(i);
+                    const isFront = pos === 'front';
+                    const isRight = pos === 'right';
+                    
+                    return (
+                        <div 
+                            key={d.id}
+                            className={`
+                                absolute transition-all duration-1000 ease-in-out
+                                ${isFront ? 'z-30 scale-100 opacity-100 translate-x-0' : ''}
+                                ${isRight ? 'z-10 scale-75 opacity-40 translate-x-[40%] rotate-[10deg]' : ''}
+                                ${!isFront && !isRight ? 'z-10 scale-75 opacity-40 translate-x-[-40%] rotate-[-10deg]' : ''}
+                            `}
+                        >
+                            <div className={`
+                                relative bg-slate-900 border-2 md:border-4 border-slate-950 shadow-2xl overflow-hidden
+                                ${d.type === 'laptop' ? 'w-64 md:w-80 aspect-[16/10] rounded-2xl' : ''}
+                                ${d.type === 'tablet' ? 'w-40 md:w-52 aspect-[3/4.5] rounded-2xl border-slate-800' : ''}
+                                ${d.type === 'phone' ? 'w-28 md:w-36 aspect-[9/19] rounded-[30px] border-slate-900 bg-black p-1' : ''}
+                            `}>
+                                <img src={d.img} className="w-full h-full object-cover" alt={d.title} />
+                                {d.type === 'phone' && <div className="absolute top-0 left-1/2 -translate-x-1/2 w-1/3 h-5 bg-black rounded-b-xl z-10" />}
+                            </div>
+                        </div>
+                    );
+                })}
+            </div>
+
+            {/* Active Device Info Overlay */}
+            <div className="text-center mt-10 space-y-2 animate-in fade-in slide-in-from-bottom-2 duration-500" key={index}>
+                <div className="inline-block px-3 py-1 bg-blue-50 text-blue-900 text-[10px] font-black rounded-full uppercase tracking-widest">{devices[index].device}</div>
+                <h3 className="text-2xl font-black text-slate-900 italic tracking-tighter uppercase">{devices[index].title}</h3>
+                <div className="flex justify-center gap-1.5 pt-2">
+                    {devices.map((_, i) => (
+                        <div key={i} className={`h-1 rounded-full transition-all duration-500 ${i === index ? 'w-6 bg-blue-900' : 'w-1.5 bg-slate-200'}`} />
+                    ))}
+                </div>
+            </div>
+        </div>
+    );
+};
+
 const LandingPage = () => {
     const [scrolled, setScrolled] = useState(false);
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -108,16 +177,11 @@ const LandingPage = () => {
                             </Link>
                         </div>
                     </div>
-
-                    <div className="hidden md:flex justify-end">
-                        <div className="bg-white p-10 rounded-2xl shadow-sm border border-slate-100 flex flex-col items-center gap-6">
-                            <QrCode size={120} className="text-slate-200" />
-                            <div className="text-center">
-                                <p className="font-bold text-slate-800 uppercase tracking-tighter text-lg leading-none">Identity Check</p>
-                                <p className="text-slate-400 font-bold text-[10px] uppercase tracking-widest mt-1">Verified Secure</p>
-                            </div>
-                        </div>
+                    
+                    <div className="hidden md:flex justify-end relative">
+                        <RotatingDeviceStack laptop={laptopMockup} tablet={tabletMockup} phone={phoneMockup} />
                     </div>
+
                 </div>
             </section>
 
@@ -147,69 +211,6 @@ const LandingPage = () => {
                                 </div>
                             </div>
                         ))}
-                    </div>
-                </div>
-            </section>
-
-            {/* Device Showcase Section - Premium Overlapping Mockups */}
-            <section className="py-24 bg-slate-50 overflow-hidden border-t border-slate-100">
-                <div className="max-w-6xl mx-auto px-6 text-center">
-                    <div className="mb-16 space-y-4">
-                        <h2 className="text-3xl font-extrabold text-slate-900 tracking-tight uppercase italic">Multi-Platform Ecosystem</h2>
-                        <p className="text-slate-500 text-sm font-medium tracking-widest uppercase italic">Optimized for every screen in the university network</p>
-                    </div>
-
-                    <div className="relative flex justify-center items-center py-20">
-                        {/* Device Composition Group */}
-                        <div className="relative w-full max-w-5xl flex justify-center items-center h-[350px] md:h-[600px]">
-                            
-                            {/* Tablet (Behind/Left) */}
-                            <div className="absolute left-[0%] md:left-[5%] bottom-[15%] w-[38%] md:w-[45%] aspect-[4/3] z-10 
-                                          bg-slate-800 rounded-2xl md:rounded-3xl p-1 md:p-3 shadow-2xl border-2 md:border-4 border-slate-900 overflow-hidden transform rotate-[-3deg] hover:rotate-0 transition-transform duration-500">
-                                <img 
-                                    src={tabletMockup} 
-                                    className="w-full h-full object-cover rounded-lg md:rounded-xl opacity-90 transition-opacity hover:opacity-100" 
-                                    alt="Tablet View" 
-                                />
-                            </div>
-
-                            {/* Laptop (Center/Main) */}
-                            <div className="relative w-[65%] md:w-[75%] aspect-[16/10] z-20 
-                                          bg-slate-900 rounded-2xl md:rounded-3xl p-1.5 md:p-4 shadow-[0_45px_100px_-20px_rgba(0,0,0,0.4)] border-2 md:border-8 border-slate-950 overflow-hidden">
-                                <img 
-                                    src={laptopMockup} 
-                                    className="w-full h-full object-cover rounded-xl md:rounded-2xl shadow-inner shadow-black/20" 
-                                    alt="Laptop View" 
-                                />
-                            </div>
-
-                            {/* Mobile Phone (Front/Right) */}
-                            <div className="absolute right-[2%] md:right-[8%] -bottom-[5%] md:-bottom-[10%] w-[18%] md:w-[22%] aspect-[9/19] z-30 
-                                          bg-black rounded-3xl md:rounded-[50px] p-1 md:p-3 shadow-2xl border-2 md:border-8 border-slate-900 overflow-hidden transform rotate-[5deg] hover:rotate-0 transition-transform duration-500">
-                                <img 
-                                    src={phoneMockup} 
-                                    className="w-full h-full object-cover rounded-2xl md:rounded-[40px]" 
-                                    alt="Phone View" 
-                                />
-                                {/* Phone Notch Mockup */}
-                                <div className="absolute top-0 left-1/2 -translate-x-1/2 w-1/3 h-5 bg-black rounded-b-xl z-10" />
-                            </div>
-                        </div>
-                    </div>
-
-                    <div className="grid grid-cols-3 gap-4 md:gap-12 mt-24 max-w-3xl mx-auto">
-                        <div className="space-y-1">
-                            <p className="text-blue-900 font-black text-xs md:text-xl italic uppercase">Desktop</p>
-                            <p className="text-slate-400 text-[8px] md:text-[10px] font-bold uppercase tracking-widest">Admin Panel</p>
-                        </div>
-                        <div className="space-y-1">
-                            <p className="text-blue-900 font-black text-xs md:text-xl italic uppercase">Tablet</p>
-                            <p className="text-slate-400 text-[8px] md:text-[10px] font-bold uppercase tracking-widest">Field System</p>
-                        </div>
-                        <div className="space-y-1">
-                            <p className="text-blue-900 font-black text-xs md:text-xl italic uppercase">Mobile</p>
-                            <p className="text-slate-400 text-[8px] md:text-[10px] font-bold uppercase tracking-widest">Student Hub</p>
-                        </div>
                     </div>
                 </div>
             </section>
