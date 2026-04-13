@@ -366,9 +366,20 @@ const StudentDashboard = () => {
         let forcedRadius = 3; // 3 meters as requested for test
         const pinnedLoc = JSON.parse(localStorage.getItem('pinned-citc-loc') || 'null');
 
-        // Smart Department QR Detection
-        if (payloadCode.includes("CITC-DEPT-5FT")) {
+        // Smart Building QR Detection
+        if (payloadCode.includes("CITC-BUILDING-3M")) {
             actionType = 'in';
+            forcedRadius = 3;
+            if (pinnedLoc) {
+                forcedLat = pinnedLoc.lat;
+                forcedLng = pinnedLoc.lng;
+            } else {
+                forcedLat = 8.485121;
+                forcedLng = 124.656512;
+            }
+        } else if (payloadCode.includes("CITC-DEPT-5FT")) {
+            actionType = 'in';
+            forcedRadius = 3;
             if (pinnedLoc) {
                 forcedLat = pinnedLoc.lat;
                 forcedLng = pinnedLoc.lng;
@@ -378,16 +389,19 @@ const StudentDashboard = () => {
             }
         } else if (payloadCode.includes("CSM-DEPT-5FT")) {
             actionType = 'in';
+            forcedRadius = 3;
             forcedLat = 8.485250;
             forcedLng = 124.656620;
         } else if (payloadCode.includes("CEA-DEPT-5FT")) {
             actionType = 'in';
+            forcedRadius = 3;
             forcedLat = 8.485300;
             forcedLng = 124.656700;
         } else if (payloadCode.includes("OSA-START") || payloadCode.includes("OSA-RESUME")) {
             actionType = 'in';
+            forcedRadius = 3;
         } else {
-            alert(`INVALID CODE: ${payloadCode}. Please scan a Department QR Code.`);
+            alert(`INVALID CODE: ${payloadCode}. Please scan the CITC Building QR Code.`);
             setShowAdminCode(false);
             setAdminCode('');
             return;
@@ -454,8 +468,8 @@ const StudentDashboard = () => {
             return;
         }
 
-        if (codeToProcess !== "OSA-PAUSE") {
-            alert("Invalid code. Please scan the correct QR code to stop the timer.");
+        if (codeToProcess !== "OSA-PAUSE" && codeToProcess !== "CITC-BUILDING-3M") {
+            alert("Invalid code. Please scan the CITC Building QR code to stop the timer.");
             return;
         }
 

@@ -304,65 +304,17 @@ const StaffSettings = () => {
                                     </div>
 
                                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-8">
-                                        <div className="bg-emerald-950 p-8 flex flex-col items-center justify-center text-center rounded-[32px] shadow-2xl border-4 border-emerald-800/30 group hover:border-emerald-500 transition-all duration-500">
-                                            <h4 className="font-black text-xl uppercase tracking-tighter text-emerald-400 mb-6 flex items-center gap-2">
-                                                <Clock size={20} /> Universal Start
+                                        <div className="bg-indigo-950 p-8 flex flex-col items-center justify-center text-center rounded-[32px] shadow-2xl border-4 border-indigo-800/30 group hover:border-indigo-500 transition-all duration-500 col-span-1 md:col-span-2">
+                                            <h4 className="font-black text-xl uppercase tracking-tighter text-indigo-400 mb-6 flex items-center gap-2">
+                                                <Clock size={20} /> CITC Building
                                             </h4>
                                             <div className="bg-white p-6 rounded-[32px] mb-6 shadow-2xl group-hover:scale-105 transition-transform duration-500">
-                                                <QRCode value="OSA-START" size={140} level="H" />
-                                            </div>
-                                            <div className="bg-emerald-900/50 text-emerald-300 rounded-2xl px-6 py-3 font-mono font-black text-xs border border-emerald-700/50 tracking-widest uppercase">
-                                                OSA-START
-                                            </div>
-                                        </div>
-
-                                        <div className="bg-slate-900 p-8 flex flex-col items-center justify-center text-center rounded-[32px] shadow-2xl border-4 border-slate-800 group hover:border-slate-600 transition-all duration-500">
-                                            <h4 className="font-black text-xl uppercase tracking-tighter text-slate-300 mb-6 flex items-center gap-2">
-                                                <Clock size={20} /> Pause Service
-                                            </h4>
-                                            <div className="bg-white p-6 rounded-[32px] mb-6 shadow-2xl group-hover:scale-105 transition-transform duration-500">
-                                                <QRCode value="OSA-PAUSE" size={140} level="H" />
-                                            </div>
-                                            <div className="bg-slate-800/50 text-slate-400 rounded-2xl px-6 py-3 font-mono font-black text-xs border border-slate-700/50 tracking-widest uppercase">
-                                                OSA-PAUSE
-                                            </div>
-                                        </div>
-
-                                        {/* Testing Building Codes */}
-                                        <div className="bg-indigo-950 p-8 flex flex-col items-center justify-center text-center rounded-[32px] shadow-2xl border-4 border-indigo-800/30 group hover:border-indigo-500 transition-all duration-500">
-                                            <h4 className="font-black text-xl uppercase tracking-tighter text-indigo-400 mb-2 flex items-center gap-2">
-                                                <Clock size={20} /> CITC Dept
-                                            </h4>
-                                            <div className="bg-white p-6 rounded-[32px] mb-6 shadow-2xl group-hover:scale-105 transition-transform duration-500">
-                                                <QRCode value="CITC-DEPT-5FT" size={140} level="H" />
+                                                <QRCode value="CITC-BUILDING-3M" size={140} level="H" />
                                             </div>
                                             <div className="bg-indigo-900/50 text-indigo-300 rounded-2xl px-6 py-3 font-mono font-black text-xs border border-indigo-700/50 tracking-widest uppercase">
-                                                CITC-DEPT-5FT
+                                                CITC-BUILDING-3M
                                             </div>
-                                        </div>
-
-                                        <div className="bg-emerald-950 p-8 flex flex-col items-center justify-center text-center rounded-[32px] shadow-2xl border-4 border-emerald-800/30 group hover:border-emerald-500 transition-all duration-500">
-                                            <h4 className="font-black text-xl uppercase tracking-tighter text-emerald-400 mb-2 flex items-center gap-2">
-                                                <Clock size={20} /> CSM Dept
-                                            </h4>
-                                            <div className="bg-white p-6 rounded-[32px] mb-6 shadow-2xl group-hover:scale-105 transition-transform duration-500">
-                                                <QRCode value="CSM-DEPT-5FT" size={140} level="H" />
-                                            </div>
-                                            <div className="bg-emerald-900/50 text-emerald-300 rounded-2xl px-6 py-3 font-mono font-black text-xs border border-emerald-700/50 tracking-widest uppercase">
-                                                CSM-DEPT-5FT
-                                            </div>
-                                        </div>
-
-                                        <div className="bg-purple-950 p-8 flex flex-col items-center justify-center text-center rounded-[32px] shadow-2xl border-4 border-purple-800/30 group hover:border-purple-500 transition-all duration-500">
-                                            <h4 className="font-black text-xl uppercase tracking-tighter text-purple-400 mb-2 flex items-center gap-2">
-                                                <Clock size={20} /> CEA Dept
-                                            </h4>
-                                            <div className="bg-white p-6 rounded-[32px] mb-6 shadow-2xl group-hover:scale-105 transition-transform duration-500">
-                                                <QRCode value="CEA-DEPT-5FT" size={140} level="H" />
-                                            </div>
-                                            <div className="bg-purple-900/50 text-purple-300 rounded-2xl px-6 py-3 font-mono font-black text-xs border border-purple-700/50 tracking-widest uppercase">
-                                                CEA-DEPT-5FT
-                                            </div>
+                                            <p className="text-indigo-400/60 text-[10px] font-bold mt-4 uppercase tracking-widest">3-Meter Geofence Active</p>
                                         </div>
 
                                         <div className="bg-blue-950/30 p-8 flex flex-col items-center justify-center text-center rounded-[32px] shadow-sm border-2 border-dashed border-blue-900/30 md:col-span-2">
