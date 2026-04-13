@@ -225,13 +225,13 @@ const StudentDashboard = () => {
                     );
                     setCurrentDistance(dist);
 
-                    // 5-meter limit with GPS accuracy buffer
+                    // 15-meter limit with GPS accuracy buffer
                     const accuracyBuffer = accuracy * 0.7;
-                    const effectiveRadius = (activeTicket.radius || 5) + accuracyBuffer;
+                    const effectiveRadius = (activeTicket.radius || 15) + accuracyBuffer;
                     const isOut = dist > effectiveRadius;
                     setIsOutOfBounds(isOut);
 
-                    // Automatically stop session if more than 5 meters away
+                    // Automatically stop session if more than 15 meters away
                     if (isOut) {
                         handleBoundaryViolation();
                     }
@@ -259,7 +259,7 @@ const StudentDashboard = () => {
 
     const handleBoundaryViolation = async () => {
         if (warningCountdown === null) {
-            setWarningCountdown(10); // Start a quick 10s countdown
+            setWarningCountdown(30); // Start a 30s countdown
         }
     };
 
@@ -267,12 +267,12 @@ const StudentDashboard = () => {
     useEffect(() => {
         let timer;
         if (isOutOfBounds && timerActive) {
-            if (warningCountdown === null) setWarningCountdown(20);
+            if (warningCountdown === null) setWarningCountdown(30);
             timer = setInterval(() => {
                 setWarningCountdown(prev => {
-                    if (prev === null) return 20;
+                    if (prev === null) return 30;
                     if (prev <= 1) {
-                        autoStopTimer("Geofencing restriction: You were out of bounds for more than 20 seconds.");
+                        autoStopTimer("Geofencing restriction: You were out of bounds for more than 30 seconds.");
                         return 0;
                     }
                     return prev - 1;
@@ -387,7 +387,7 @@ const StudentDashboard = () => {
         let actionType = null;
         let forcedLat = null;
         let forcedLng = null;
-        let forcedRadius = 3; // 3 meters as requested for test
+        let forcedRadius = 15; // 15 meters as requested
         const pinnedLoc = JSON.parse(localStorage.getItem('pinned-citc-loc') || 'null');
 
         // 1. Dynamic Coordinate QR (LAT:8.485121,LNG:124.656512)
@@ -398,7 +398,7 @@ const StudentDashboard = () => {
                 if (latMatch && lngMatch) {
                     forcedLat = parseFloat(latMatch[1]);
                     forcedLng = parseFloat(lngMatch[1]);
-                    forcedRadius = 5;
+                    forcedRadius = 15;
                     actionType = 'in';
                 }
             } catch (e) {
@@ -411,17 +411,17 @@ const StudentDashboard = () => {
             if (payloadCode.includes("CITC-BUILDING") || payloadCode.includes("CITC-DEPT")) {
                 forcedLat = 8.503306;
                 forcedLng = 124.660861;
-                forcedRadius = 10;
+                forcedRadius = 15;
                 actionType = 'in';
             } else if (payloadCode.includes("CSM-DEPT")) {
                 forcedLat = 8.485421;
                 forcedLng = 124.656812;
-                forcedRadius = 5;
+                forcedRadius = 15;
                 actionType = 'in';
             } else if (payloadCode.includes("CEA-DEPT")) {
                 forcedLat = 8.485721;
                 forcedLng = 124.657112;
-                forcedRadius = 5;
+                forcedRadius = 15;
                 actionType = 'in';
             }
         }
