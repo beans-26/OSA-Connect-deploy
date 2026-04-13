@@ -533,7 +533,7 @@ class TimeLogViewSet(viewsets.ModelViewSet):
             if action_type == 'custom':
                 hours = float(request.data.get('deduct_hours', 0))
                 eticket.remaining_hours = max(0, eticket.remaining_hours - hours)
-                if eticket.remaining_hours <= 0.001:
+                if eticket.remaining_hours <= 0.01:
                     eticket.remaining_hours = 0
                     eticket.status = "Completed"
                     eticket.violation.status = "Completed"
@@ -595,7 +595,7 @@ class TimeLogViewSet(viewsets.ModelViewSet):
                     
                     hours_to_deduct = duration / 3600
                     eticket.remaining_hours = max(0, eticket.remaining_hours - hours_to_deduct)
-                    if eticket.remaining_hours <= 0.001:
+                    if eticket.remaining_hours <= 0.01:
                         eticket.remaining_hours = 0
                         eticket.status = "Completed"
                         eticket.violation.status = "Completed"

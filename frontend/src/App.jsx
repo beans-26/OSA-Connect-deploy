@@ -13,6 +13,7 @@ import Analytics from './pages/staff/Analytics';
 import StudentDashboard from './pages/StudentDashboard';
 import Settings from './pages/student/Settings';
 import FacultyDashboard from './pages/faculty/FacultyDashboard';
+import LandingPage from './pages/LandingPage';
 
 const ProtectedRoute = ({ element, allowedRoles }) => {
   const userStr = localStorage.getItem('user');
@@ -83,7 +84,7 @@ function App() {
           <Route path="/student/settings" element={<ProtectedRoute element={<Settings />} allowedRoles={['student']} />} />
           <Route path="/student/*" element={<Navigate to="/student/dashboard" replace />} />
 
-          <Route path="/" element={<Navigate to="/login" replace />} />
+          <Route path="/" element={<LandingPage />} />
         </Routes>
       </div>
     </Router>
