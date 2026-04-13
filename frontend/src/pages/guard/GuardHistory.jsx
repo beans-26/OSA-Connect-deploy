@@ -143,10 +143,9 @@ const GuardHistory = () => {
                             </div>
                         ))}
                     </div>
-                        </div>
-                    )}
-                </div>
-            </main>
+                )}
+            </div>
+        </main>
         </div>
     );
 };

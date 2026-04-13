@@ -208,7 +208,9 @@ const ReportViolation = () => {
                         </div>
                     </div>
                 </div>
-                        <main className="flex-1 p-3 md:p-10 pt-20 md:pt-10 max-w-7xl mx-auto h-screen overflow-hidden flex flex-col">
+            )}
+ 
+            <main className="flex-1 p-3 md:p-10 pt-20 md:pt-10 max-w-7xl mx-auto h-screen overflow-hidden flex flex-col">
                 <header className="mb-4 text-center md:text-left shrink-0">
                     <h1 className="text-2xl md:text-3xl font-extrabold text-slate-900 tracking-tighter uppercase italic">
                         {userRole === 'guard' ? 'Guard Report' : 'Faculty Report'}
@@ -283,13 +285,13 @@ const ReportViolation = () => {
                             </form>
                         </div>
                     ) : (
-                        <div className="card-premium border-2 border-green-200 bg-green-50/20 shadow-2xl p-12 md:p-20 text-center animate-in zoom-in duration-500">
-                            <div className="w-24 h-24 bg-green-500 rounded-full flex items-center justify-center mx-auto mb-10 shadow-xl shadow-green-200">
-                                <CheckCircle2 className="text-white" size={48} />
+                        <div className="card-premium border-2 border-green-200 bg-green-50/20 shadow-2xl p-8 md:p-20 text-center animate-in zoom-in duration-500">
+                            <div className="w-16 h-16 bg-green-500 rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg shadow-green-200">
+                                <CheckCircle2 className="text-white" size={32} />
                             </div>
-                            <h2 className="text-3xl md:text-4xl font-black text-slate-900 uppercase italic tracking-tighter">Report Stored!</h2>
-                            <p className="text-slate-500 mt-6 max-w-sm mx-auto font-bold text-lg leading-relaxed">Violation for student <span className="text-ustp-blue underline decoration-4 underline-offset-8">{form.student_id}</span> has been synchronized with OSTP OSA servers.</p>
-                            <button onClick={resetForm} className="mt-12 bg-slate-900 text-white w-full max-w-sm py-5 rounded-[24px] font-black uppercase text-sm tracking-widest shadow-xl hover:bg-slate-800 transition-all">New Entry</button>
+                            <h2 className="text-2xl md:text-3xl font-black text-slate-900 uppercase italic tracking-tighter">Report Stored!</h2>
+                            <p className="text-slate-500 mt-4 max-w-xs mx-auto font-bold text-base leading-relaxed">Violation synchronized with cloud database.</p>
+                            <button onClick={resetForm} className="mt-8 bg-slate-900 text-white w-full max-w-[240px] py-4 rounded-2xl font-black uppercase text-xs tracking-widest shadow-xl hover:bg-slate-800 transition-all">New Entry</button>
                         </div>
                     )}
                 </div>
