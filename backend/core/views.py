@@ -73,15 +73,16 @@ def login_view(request):
         if not student:
             return Response({"error": "User not found"}, status=status.HTTP_404_NOT_FOUND)
 
-        # SECURITY: If student has set a custom password, we MUST use it.
-        # Otherwise, fallback to their Student ID for first-time login.
-        has_custom_password = hasattr(student, 'password') and student.password
+        # Use getattr to be safe with dynamic fields in Mongoengine
+        custom_password = getattr(student, 'password', None)
         
         is_valid = False
-        if has_custom_password:
-            is_valid = (student.password == password)
+        if custom_password:
+            # If they have a custom password, that is the ONLY one that works
+            is_valid = (str(custom_password) == str(password))
         else:
-            is_valid = (student.student_id == password)
+            # Otherwise, fallback to their Student ID
+            is_valid = (str(student.student_id) == str(password))
 
         if is_valid:
             return Response({
