@@ -582,7 +582,7 @@ const StudentDashboard = () => {
                 }
             }
 
-            const ticketId = tickets[0].id;
+            const ticketId = activeTicket.id;
             setPendingActionData({
                 ticketId,
                 actionType,
@@ -613,7 +613,7 @@ const StudentDashboard = () => {
         }
 
         try {
-            const ticketId = tickets[0].id;
+            const ticketId = activeTicket.id;
             setPendingActionData({
                 ticketId,
                 actionType: 'out',
