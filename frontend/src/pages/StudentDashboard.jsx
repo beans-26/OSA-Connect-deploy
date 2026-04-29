@@ -145,6 +145,7 @@ const StudentDashboard = () => {
                     setTimerActive(false);
                     setStartTime(null);
                     setElapsed(0);
+                    alert("TIMER STOPPED");
                 }
                 setShowAdminCode(false);
                 setAdminCode('');
