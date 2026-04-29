@@ -69,19 +69,24 @@ def login_view(request):
     
     # Then check Student collection
     try:
+        # Support login by Student ID or Email
         student = Student.objects.filter(student_id=username).first()
+        if not student:
+            student = Student.objects.filter(email__iexact=username).first()
+
         if not student:
             return Response({"error": "User not found"}, status=status.HTTP_404_NOT_FOUND)
 
-        # Use getattr to be safe with dynamic fields in Mongoengine
-        custom_password = getattr(student, 'password', None)
+        # Get the current password record
+        stored_password = getattr(student, 'password', None)
         
+        # Determine if we are using the fallback (ID) or custom password
         is_valid = False
-        if custom_password:
-            # If they have a custom password, that is the ONLY one that works
-            is_valid = (str(custom_password) == str(password))
+        if stored_password and str(stored_password).strip():
+            # If a custom password exists, ONLY it can be used
+            is_valid = (str(stored_password) == str(password))
         else:
-            # Otherwise, fallback to their Student ID
+            # First-time login: Student ID is the password
             is_valid = (str(student.student_id) == str(password))
 
         if is_valid:
@@ -93,6 +98,8 @@ def login_view(request):
                 "name": student.name
             })
         else:
+            # For security, we don't tell them which part was wrong, 
+            # but internally we know it was a password mismatch
             return Response({"error": "Invalid credentials"}, status=status.HTTP_401_UNAUTHORIZED)
     except Exception as e:
         return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
