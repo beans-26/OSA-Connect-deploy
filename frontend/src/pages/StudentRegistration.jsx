@@ -42,7 +42,9 @@ const StudentRegistration = () => {
     const [otpCooldown, setOtpCooldown] = useState(0);
     const [studentData, setStudentData] = useState({
         student_id: '',
-        name: '',
+        first_name: '',
+        middle_name: '',
+        last_name: '',
         course: '',
         department: '',
         year_level: '',
@@ -122,8 +124,10 @@ const StudentRegistration = () => {
         e.preventDefault();
         setSaving(true);
         try {
+            const fullName = `${studentData.first_name} ${studentData.middle_name ? studentData.middle_name + ' ' : ''}${studentData.last_name}`.trim();
             const payload = {
                 ...studentData,
+                name: fullName,
                 password: studentData.password || studentData.student_id,
                 otp: otp
             };
@@ -193,7 +197,9 @@ const StudentRegistration = () => {
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                                     {[
                                         { label: 'Student ID', key: 'student_id', icon: IdCard, placeholder: '2023303188' },
-                                        { label: 'Full Name', key: 'name', icon: UserPlus, placeholder: 'First M. Last' },
+                                        { label: 'First Name', key: 'first_name', icon: UserPlus, placeholder: 'Juan' },
+                                        { label: 'Middle Name (Optional)', key: 'middle_name', icon: UserPlus, placeholder: 'Dela', required: false },
+                                        { label: 'Last Name', key: 'last_name', icon: UserPlus, placeholder: 'Cruz' },
                                         { label: 'Course', key: 'course', icon: GraduationCap, type: 'select', options: COURSES },
                                         { label: 'Department', key: 'department', icon: Building2, type: 'select', options: DEPARTMENTS },
                                         { label: 'Year Level', key: 'year_level', icon: Layers, type: 'select', options: [1,2,3,4,5] },
@@ -207,7 +213,7 @@ const StudentRegistration = () => {
                                                     {f.options.map(o => <option key={o} value={o}>{f.key === 'year_level' ? `Year ${o}` : o}</option>)}
                                                 </select>
                                             ) : (
-                                                <input required type="text" value={studentData[f.key]} onChange={(e) => setStudentData({...studentData, [f.key]: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-lg p-3 outline-none font-semibold text-slate-700 placeholder:text-slate-200 focus:bg-white focus:border-blue-600 text-sm transition-none" placeholder={f.placeholder} />
+                                                <input required={f.required !== false} type="text" value={studentData[f.key]} onChange={(e) => setStudentData({...studentData, [f.key]: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-lg p-3 outline-none font-semibold text-slate-700 placeholder:text-slate-200 focus:bg-white focus:border-blue-600 text-sm transition-none" placeholder={f.placeholder} />
                                             )}
                                         </div>
                                     ))}
