@@ -110,16 +110,32 @@ async function handleRequest(req, res) {
                     }
                     
                     // Check students
-                    const student = await db.collection('students').findOne({ student_id: username });
-                    if (student && (student.student_id === password || password === student.student_id)) {
-                        res.writeHead(200);
-                        res.end(JSON.stringify({
-                            success: true,
-                            role: 'student',
-                            username: student.student_id,
-                            name: student.name
-                        }));
-                        return;
+                    let student = await db.collection('students').findOne({ student_id: username });
+                    if (!student) {
+                        // Support email login in Node.js bridge too
+                        student = await db.collection('students').findOne({ email: new RegExp(`^${username}$`, 'i') });
+                    }
+
+                    if (student) {
+                        const storedPw = student.password;
+                        let isValid = false;
+                        
+                        if (storedPw && storedPw.trim()) {
+                            isValid = (storedPw === password);
+                        } else {
+                            isValid = (student.student_id === password);
+                        }
+
+                        if (isValid) {
+                            res.writeHead(200);
+                            res.end(JSON.stringify({
+                                success: true,
+                                role: 'student',
+                                username: student.student_id,
+                                name: student.name
+                            }));
+                            return;
+                        }
                     }
                 }
                 

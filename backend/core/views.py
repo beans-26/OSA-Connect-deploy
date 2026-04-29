@@ -16,44 +16,15 @@ import os
 @permission_classes([AllowAny])
 def login_view(request):
     """Authenticate user against SystemUser or Student collection"""
-    username = request.data.get('username', '').lower().strip()
+    username = request.data.get('username', '').strip()
     password = request.data.get('password')
     
     if not username or not password:
         return Response({"error": "Username and password required"}, status=status.HTTP_400_BAD_REQUEST)
     
-    # First check SystemUser (admin, guard, staff)
-    try:
-        # AUTO-SEED PROTECTION: If DB is empty, create admin so they can log in
-        from core.models import Student
-        if SystemUser.objects.count() == 0:
-            print("LOGIN: Empty DB detected, auto-seeding...")
-            SystemUser(username="admin", password="admin", role="admin", full_name="System Admin").save()
-            SystemUser(username="guard", password="guard", role="guard", full_name="Gate Guard").save()
-            SystemUser(username="faculty", password="faculty", role="faculty", full_name="University Faculty").save()
-            # Add initial students for the live environment
-            initial_students = [
-                {"id": "2023303188", "name": "Vincent Dagaraga", "contact": "09358541420", "email": "vinsdagaraga@gmail.com"},
-                {"id": "2023303189", "name": "Mark Tajeros", "contact": "09358731470", "email": "marktajeros@gmail.com"},
-                {"id": "2023303199", "name": "Nyko Quezon", "contact": "09356782310", "email": "nykoquezon@gmail.com"},
-                {"id": "2023303179", "name": "Christian James Ambongan", "contact": "09356730509", "email": "cjambongan@gmail.com"},
-                {"id": "2023303178", "name": "Dominic Wacan", "contact": "09358359302", "email": "dominicwacan@gmail.com"}
-            ]
-            for s in initial_students:
-                # UPSERT: Find existing or create new
-                student = Student.objects.filter(student_id=s["id"]).first()
-                if not student:
-                    student = Student(student_id=s["id"])
-                
-                # Always update fields to match latest seed data
-                student.name = s["name"]
-                student.course = "BSIT"
-                student.department = "CITC"
-                student.contact_number = s.get("contact", "")
-                student.email = s.get("email", "")
-                student.save()
-
-        user = SystemUser.objects.get(username=username)
+    # Check SystemUser first (admin, guard, staff)
+    user = SystemUser.objects.filter(username__iexact=username).first()
+    if user:
         if user.password == password:
             return Response({
                 "success": True,
@@ -62,31 +33,22 @@ def login_view(request):
                 "full_name": user.full_name,
                 "bio": user.bio
             })
-        else:
-            return Response({"error": "Invalid credentials"}, status=status.HTTP_401_UNAUTHORIZED)
-    except SystemUser.DoesNotExist:
-        pass
-    
-    # Then check Student collection
-    try:
-        # Support login by Student ID or Email
-        student = Student.objects.filter(student_id=username).first()
-        if not student:
-            student = Student.objects.filter(email__iexact=username).first()
 
-        if not student:
-            return Response({"error": "User not found"}, status=status.HTTP_404_NOT_FOUND)
+    # Check Student collection (by ID or Email)
+    student = Student.objects.filter(student_id=username).first()
+    if not student:
+        student = Student.objects.filter(email__iexact=username).first()
 
-        # Get the current password record
-        stored_password = getattr(student, 'password', None)
+    if student:
+        # Get custom password if set
+        stored_pw = getattr(student, 'password', None)
         
-        # Determine if we are using the fallback (ID) or custom password
         is_valid = False
-        if stored_password and str(stored_password).strip():
-            # If a custom password exists, ONLY it can be used
-            is_valid = (str(stored_password) == str(password))
+        if stored_pw and str(stored_pw).strip():
+            # Match against custom password
+            is_valid = (str(stored_pw) == str(password))
         else:
-            # First-time login: Student ID is the password
+            # Match against fallback Student ID
             is_valid = (str(student.student_id) == str(password))
 
         if is_valid:
@@ -97,12 +59,9 @@ def login_view(request):
                 "student_id": student.student_id,
                 "name": student.name
             })
-        else:
-            # For security, we don't tell them which part was wrong, 
-            # but internally we know it was a password mismatch
-            return Response({"error": "Invalid credentials"}, status=status.HTTP_401_UNAUTHORIZED)
-    except Exception as e:
-        return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    # Default rejection
+    return Response({"error": "Invalid credentials"}, status=status.HTTP_401_UNAUTHORIZED)
 
 class StudentViewSet(viewsets.ModelViewSet):
     lookup_field = 'student_id'
