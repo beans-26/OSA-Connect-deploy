@@ -1,6 +1,7 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import Login from './pages/Login';
+import ForgotPassword from './pages/ForgotPassword';
 import StudentRegistration from './pages/StudentRegistration';
 import ReportViolation from './pages/guard/ReportViolation';
 import GuardHistory from './pages/guard/GuardHistory';
@@ -65,6 +66,7 @@ function App() {
         <Routes>
           <Route path="/login" element={<Login />} />
           <Route path="/login/admin" element={<AdminLogin />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/register" element={<StudentRegistration />} />
 
           <Route path="/guard/report" element={<ProtectedRoute element={<ReportViolation />} allowedRoles={['guard', 'admin']} />} />

@@ -70,8 +70,10 @@ def login_view(request):
     # Then check Student collection
     try:
         student = Student.objects.get(student_id=username)
-        # For students, use a simple password check (in production, use proper hashing)
-        if student.student_id == password or password == student.student_id:
+        # Use student.password if it exists, otherwise fallback to student_id as initial password
+        stored_password = student.password if hasattr(student, 'password') and student.password else student.student_id
+        
+        if stored_password == password:
             return Response({
                 "success": True,
                 "role": "student",
@@ -180,6 +182,87 @@ class StudentViewSet(viewsets.ModelViewSet):
         ).save()
         
         return Response(StudentSerializer(student).data, status=status.HTTP_201_CREATED)
+
+    @action(detail=False, methods=['post'])
+    def request_password_reset(self, request):
+        import random
+        from django.core.mail import send_mail
+        from django.conf import settings
+        from .models import OTPVerification
+        
+        email = request.data.get('email', '').strip()
+        if not email:
+            return Response({"error": "Email is required"}, status=status.HTTP_400_BAD_REQUEST)
+            
+        student = Student.objects.filter(email=email).first()
+        if not student:
+            return Response({"error": "No account found with this email address."}, status=status.HTTP_404_NOT_FOUND)
+            
+        otp = str(random.randint(100000, 999999))
+        OTPVerification.objects.filter(email=email).delete()
+        OTPVerification(email=email, otp=otp).save()
+        
+        try:
+            send_mail(
+                subject="OSAConnect: Password Reset Code",
+                message=f"Your password reset code is: {otp}\n\nIf you did not request this, please ignore this email.",
+                from_email=settings.DEFAULT_FROM_EMAIL,
+                recipient_list=[email],
+                fail_silently=False,
+            )
+            return Response({"message": "Reset code sent to your email."})
+        except Exception as e:
+            return Response({"error": "Failed to send email."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    @action(detail=False, methods=['post'])
+    def reset_password(self, request):
+        from .models import OTPVerification
+        import datetime
+        data = request.data
+        email = data.get('email', '').strip()
+        otp_input = data.get('otp', '').strip()
+        new_password = data.get('password', '').strip()
+        
+        if not email or not otp_input or not new_password:
+            return Response({"error": "All fields are required"}, status=status.HTTP_400_BAD_REQUEST)
+            
+        verification = OTPVerification.objects.filter(email=email).first()
+        if not verification or verification.otp != otp_input:
+            return Response({"error": "Invalid or expired reset code."}, status=status.HTTP_400_BAD_REQUEST)
+            
+        # Check expiration (5 minutes)
+        if (datetime.datetime.now() - verification.created_at).total_seconds() > 300:
+            verification.delete()
+            return Response({"error": "Reset code has expired."}, status=status.HTTP_400_BAD_REQUEST)
+            
+        student = Student.objects.get(email=email)
+        student.password = new_password
+        student.save()
+        verification.delete()
+        
+        return Response({"message": "Password reset successful. You can now log in."})
+
+    @action(detail=False, methods=['post'])
+    def change_password(self, request):
+        data = request.data
+        student_id = data.get('student_id')
+        current_password = data.get('current_password')
+        new_password = data.get('new_password')
+        
+        if not student_id or not current_password or not new_password:
+            return Response({"error": "All fields are required"}, status=status.HTTP_400_BAD_REQUEST)
+            
+        student = Student.objects.filter(student_id=student_id).first()
+        if not student:
+            return Response({"error": "Student not found"}, status=status.HTTP_404_NOT_FOUND)
+            
+        stored_password = student.password if hasattr(student, 'password') and student.password else student.student_id
+        if stored_password != current_password:
+            return Response({"error": "Incorrect current password"}, status=status.HTTP_400_BAD_REQUEST)
+            
+        student.password = new_password
+        student.save()
+        return Response({"message": "Password updated successfully"})
 
     def create(self, request, *args, **kwargs):
         data = request.data

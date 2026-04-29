@@ -118,8 +118,89 @@ const Settings = () => {
                             </div>
                         </div>
                     </div>
+
+                    {/* Change Password Card */}
+                    <div className="lg:col-span-2">
+                        <PasswordChangeSection studentId={studentInfo.student_id} />
+                    </div>
                 </div>
             </main>
+        </div>
+    );
+};
+
+const PasswordChangeSection = ({ studentId }) => {
+    const [passwords, setPasswords] = useState({
+        current: '',
+        new: '',
+        confirm: ''
+    });
+    const [loading, setLoading] = useState(false);
+    const [message, setMessage] = useState({ type: '', text: '' });
+
+    const handleChangePassword = async (e) => {
+        e.preventDefault();
+        if (passwords.new !== passwords.confirm) {
+            setMessage({ type: 'error', text: 'New passwords do not match' });
+            return;
+        }
+        setLoading(true);
+        setMessage({ type: '', text: '' });
+        try {
+            const response = await fetch('/api/students/change_password/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    student_id: studentId,
+                    current_password: passwords.current,
+                    new_password: passwords.new
+                })
+            });
+            const data = await response.json();
+            if (response.ok) {
+                setMessage({ type: 'success', text: 'Password updated successfully!' });
+                setPasswords({ current: '', new: '', confirm: '' });
+            } else {
+                setMessage({ type: 'error', text: data.error || 'Failed to update password' });
+            }
+        } catch (err) {
+            setMessage({ type: 'error', text: 'Connection failure' });
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    return (
+        <div className="card-premium bg-white p-6 sm:p-8 border-2 border-slate-100 shadow-sm mt-6">
+            <h4 className="font-black text-xs sm:text-sm uppercase tracking-[0.2em] text-slate-800 mb-6 flex items-center gap-3">
+                <Lock size={18} className="text-blue-600" /> Security Settings
+            </h4>
+
+            {message.text && (
+                <div className={`mb-6 p-4 rounded-lg border text-center font-bold text-[10px] uppercase tracking-widest ${message.type === 'success' ? 'bg-emerald-50 border-emerald-100 text-emerald-600' : 'bg-red-50 border-red-100 text-red-600'}`}>
+                    {message.text}
+                </div>
+            )}
+
+            <form onSubmit={handleChangePassword} className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Current Password</label>
+                    <input required type="password" value={passwords.current} onChange={(e) => setPasswords({...passwords, current: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-lg p-3 outline-none font-semibold text-slate-700 focus:bg-white focus:border-blue-600 transition-none text-sm" placeholder="••••••••" />
+                </div>
+                <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">New Password</label>
+                    <input required type="password" value={passwords.new} onChange={(e) => setPasswords({...passwords, new: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-lg p-3 outline-none font-semibold text-slate-700 focus:bg-white focus:border-blue-600 transition-none text-sm" placeholder="••••••••" />
+                </div>
+                <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Confirm New Password</label>
+                    <div className="flex gap-4">
+                        <input required type="password" value={passwords.confirm} onChange={(e) => setPasswords({...passwords, confirm: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-lg p-3 outline-none font-semibold text-slate-700 focus:bg-white focus:border-blue-600 transition-none text-sm" placeholder="••••••••" />
+                        <button type="submit" disabled={loading} className="bg-blue-900 text-white px-6 rounded-lg font-bold text-[10px] uppercase tracking-widest hover:bg-slate-800 transition-colors whitespace-nowrap shadow-lg shadow-blue-900/10">
+                            {loading ? 'Updating...' : 'Update'}
+                        </button>
+                    </div>
+                </div>
+            </form>
         </div>
     );
 };

@@ -29,6 +29,7 @@ class Student(Document):
     year_level = StringField()
     contact_number = StringField()
     email = StringField()
+    password = StringField()
     qr_data = StringField()
     meta = {'collection': 'students'}
 
