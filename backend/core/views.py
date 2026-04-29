@@ -69,11 +69,21 @@ def login_view(request):
     
     # Then check Student collection
     try:
-        student = Student.objects.get(student_id=username)
-        # Use student.password if it exists, otherwise fallback to student_id as initial password
-        stored_password = student.password if hasattr(student, 'password') and student.password else student.student_id
+        student = Student.objects.filter(student_id=username).first()
+        if not student:
+            return Response({"error": "User not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        # SECURITY: If student has set a custom password, we MUST use it.
+        # Otherwise, fallback to their Student ID for first-time login.
+        has_custom_password = hasattr(student, 'password') and student.password
         
-        if stored_password == password:
+        is_valid = False
+        if has_custom_password:
+            is_valid = (student.password == password)
+        else:
+            is_valid = (student.student_id == password)
+
+        if is_valid:
             return Response({
                 "success": True,
                 "role": "student",
@@ -83,8 +93,8 @@ def login_view(request):
             })
         else:
             return Response({"error": "Invalid credentials"}, status=status.HTTP_401_UNAUTHORIZED)
-    except Student.DoesNotExist:
-        return Response({"error": "User not found"}, status=status.HTTP_404_NOT_FOUND)
+    except Exception as e:
+        return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 class StudentViewSet(viewsets.ModelViewSet):
     lookup_field = 'student_id'
@@ -179,6 +189,7 @@ class StudentViewSet(viewsets.ModelViewSet):
             year_level=data.get('year_level', ''),
             email=email,
             contact_number=data.get('contact_number', ''),
+            password=data.get('password', '')
         ).save()
         
         return Response(StudentSerializer(student).data, status=status.HTTP_201_CREATED)
