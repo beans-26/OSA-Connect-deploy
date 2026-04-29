@@ -420,68 +420,52 @@ class ViolationViewSet(viewsets.ModelViewSet):
     def bulk_create(self, request):
         data = request.data
         student_ids = data.get('student_ids', [])
-        violation_type = data.get('violation', 'Other')
-        custom_hours = data.get('hours')
+        # Rules: Predefined violation type for bulk reports
+        violation_type = "Failure to attend mandatory campus event"
+        assigned_building = data.get('assigned_building')
         reporter = data.get('reporter', 'OSA Administrator')
         
         if not student_ids:
             return Response({"error": "No students selected"}, status=status.HTTP_400_BAD_REQUEST)
+            
+        if not assigned_building:
+            return Response({"error": "Please assign a building for the bulk report"}, status=status.HTTP_400_BAD_REQUEST)
             
         results = []
         for sid in student_ids:
             try:
                 student = Student.objects.get(student_id=sid)
                 offense_count = get_offense_count(student, violation_type)
-                
-                # Robust hour parsing
-                hours = 0
-                custom_hours_raw = data.get('hours', '')
-                try:
-                    if custom_hours_raw is not None and str(custom_hours_raw).strip():
-                        hours = float(custom_hours_raw)
-                except (ValueError, TypeError):
-                    hours = 0
-                
-                # If hours is still 0 (or empty), use the standard system punishment
-                if hours <= 0:
-                    punishment_info = get_punishment(violation_type, offense_count)
-                    punishment = punishment_info["punishment"]
-                    hours = punishment_info["hours"]
-                else:
-                    punishment = f"{hours} hours community service (Bulk Report)"
-                
-                print(f"--- BULK REPORT DEBUG ---")
-                print(f"Student: {sid} | Violation: {violation_type} | Count: {offense_count}")
-                print(f"Raw Hours Input: '{custom_hours_raw}'")
-                print(f"Final Hours Calculated: {hours}")
-                print(f"Final Punishment: {punishment}")
-                print(f"--------------------------")
+                punishment_info = get_punishment(violation_type, offense_count)
+                punishment = punishment_info["punishment"]
+                hours = punishment_info["hours"]
 
                 report = ViolationReport(
                     student=student,
                     violation_type=violation_type,
-                    description=data.get('description', f"Bulk report for {violation_type}"),
+                    description=f"Bulk report: {violation_type}",
                     reporting_guard=reporter,
-                    status="Approved", # Bulk admin reports are usually pre-approved
+                    status="Approved", 
+                    assigned_building=assigned_building,
                     offense_count=offense_count,
                     punishment=punishment,
                     created_at=datetime.datetime.now()
                 ).save()
                 
                 # Send Email Notification
-                send_violation_email(report)
+                try:
+                    send_violation_email(report)
+                except:
+                    pass
                 
                 # Create ETicket automatically for bulk reports if hours > 0
                 if hours > 0:
                     ETicket(
                         violation=report,
-                        assigned_location="Campus Grounds / Events",
+                        assigned_location=assigned_building,
                         total_hours_required=hours,
                         remaining_hours=hours,
-                        status="Active",
-                        lat=data.get('lat'),
-                        lng=data.get('lng'),
-                        radius=data.get('radius', 100.0)
+                        status="Active"
                     ).save()
                     
                 results.append({"student_id": sid, "status": "success"})
@@ -490,7 +474,10 @@ class ViolationViewSet(viewsets.ModelViewSet):
             except Exception as e:
                 results.append({"student_id": sid, "status": "failed", "error": str(e)})
                 
-        return Response({"results": results}, status=status.HTTP_201_CREATED)
+        return Response({
+            "message": f"Bulk report processed. {len([r for r in results if r['status'] == 'success'])} students reported.",
+            "results": results
+        }, status=status.HTTP_201_CREATED)
 
     def create(self, request, *args, **kwargs):
         data = request.data

@@ -298,6 +298,13 @@ const AdminDashboard = () => {
                                     <span className="text-xs font-bold uppercase tracking-wider">Analytics</span>
                                 </a>
                                 <a
+                                    href="/admin/students?bulk=true"
+                                    className="flex flex-col items-center gap-2 p-4 bg-red-600/20 rounded-xl hover:bg-red-600/40 border border-red-500/20 transition-colors"
+                                >
+                                    <Shield size={24} className="text-red-500" />
+                                    <span className="text-xs font-bold uppercase tracking-wider text-red-500">Bulk Reporting</span>
+                                </a>
+                                <a
                                     href="/admin/settings"
                                     className="flex flex-col items-center gap-2 p-4 bg-white/10 rounded-xl hover:bg-white/20 transition-colors"
                                 >
