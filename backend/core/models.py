@@ -41,6 +41,7 @@ class ViolationReport(Document):
     status = StringField(default=ViolationStatus.PENDING.value)
     offense_count = IntField(default=1)
     punishment = StringField()
+    assigned_building = StringField() # New field for OSA review
     created_at = DateTimeField(default=datetime.datetime.now)
     meta = {'collection': 'violation_reports'}
 

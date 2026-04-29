@@ -579,10 +579,16 @@ class ViolationViewSet(viewsets.ModelViewSet):
             violation_id = kwargs.get('id') or kwargs.get('pk')
             violation = ViolationReport.objects.get(id=violation_id)
             
+            # REQUIRE BUILDING ASSIGNMENT
+            assigned_building = request.data.get('assigned_building')
+            if not assigned_building:
+                return Response({"error": "Please assign a building before approval"}, status=status.HTTP_400_BAD_REQUEST)
+            
             if violation.status == "Approved" or violation.status == "Completed":
                 return Response({"error": "Violation is already approved or completed."}, status=status.HTTP_400_BAD_REQUEST)
 
             violation.status = "Approved"
+            violation.assigned_building = assigned_building
             violation.save()
             
             # Get the actual punishment hours from the violation's offense count
@@ -591,22 +597,19 @@ class ViolationViewSet(viewsets.ModelViewSet):
             
             # Only create E-Ticket if there are hours to serve
             if hours > 0:
-                violation.status = "Approved"
-                violation.save()
                 ticket = ETicket(
                     violation=violation,
-                    assigned_location="Campus Grounds / Library",
+                    assigned_location=assigned_building,
                     total_hours_required=hours,
                     remaining_hours=hours,
                     status="Active"
                 ).save()
-                print(f"Violation {violation_id} APPROVED. E-Ticket {ticket.id} created with {hours} hours.")
-                return Response({"message": f"Violation Approved. E-Ticket created with {hours} hours."}, status=status.HTTP_200_OK)
+                print(f"Violation {violation_id} APPROVED. Assigned to {assigned_building}. E-Ticket {ticket.id} created.")
+                return Response({"message": f"Violation approved and assigned to {assigned_building}."}, status=status.HTTP_200_OK)
             
             violation.status = "Completed"
             violation.save()
-            print(f"Violation {violation_id} COMPLETED. No E-Ticket needed.")
-            return Response({"message": f"Violation Marked as Completed. No service hours required."}, status=status.HTTP_200_OK)
+            return Response({"message": f"Violation approved and assigned to {assigned_building}. No service hours required."}, status=status.HTTP_200_OK)
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 

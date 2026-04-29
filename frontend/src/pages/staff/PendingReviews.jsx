@@ -8,6 +8,8 @@ const PendingReviews = () => {
     const [loading, setLoading] = useState(true);
     const [selectedReport, setSelectedReport] = useState(null);
     const [searchTerm, setSearchTerm] = useState('');
+    const [assignedBuildings, setAssignedBuildings] = useState({});
+    const BUILDINGS = ['CITC', 'CEA', 'COT', 'CSEE', 'CSM', 'Library', 'Gymnasium', 'Admin Building', 'Field/Campus'];
 
     useEffect(() => {
         fetchReports();
@@ -27,10 +29,19 @@ const PendingReviews = () => {
     };
 
     const handleAction = async (reportId, newStatus) => {
+        const assigned_building = assignedBuildings[reportId];
+        
+        if (newStatus === 'Approved' && !assigned_building) {
+            alert("Please assign a building before approval");
+            return;
+        }
+
         try {
             const endpoint = newStatus === 'Approved' ? 'approve' : 'dismiss';
             const response = await fetch(`/api/violations/${reportId}/${endpoint}/`, {
                 method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ assigned_building })
             });
             if (response.ok) fetchReports();
         } catch (error) {
@@ -98,11 +109,32 @@ const PendingReviews = () => {
                                                 </div>
                                             </div>
                                         </div>
-                                        <div className="flex gap-3 w-full md:w-auto">
-                                            <button onClick={() => handleAction(report.id, 'Approved')} className="flex-1 md:flex-none px-6 py-4 bg-green-500 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-green-600 shadow-lg shadow-green-100 transition-all">Approve</button>
-                                            <button onClick={() => handleAction(report.id, 'Dismissed')} className="flex-1 md:flex-none px-6 py-4 bg-red-50 text-red-500 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-red-500 hover:text-white transition-all">Dismiss</button>
-                                            <button onClick={() => setSelectedReport(report)} className="px-4 py-4 bg-slate-900 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-slate-800 transition-all"><Eye size={18} /></button>
-                                        </div>
+                                            <div className="flex flex-col gap-1 min-w-[150px]">
+                                                <label className="text-[9px] font-black uppercase text-slate-400 ml-1">Assign Building</label>
+                                                <select 
+                                                    value={assignedBuildings[report.id] || ''} 
+                                                    onChange={(e) => setAssignedBuildings({...assignedBuildings, [report.id]: e.target.value})}
+                                                    className="bg-slate-50 border-2 border-slate-100 rounded-xl px-4 py-3 text-[10px] font-bold text-slate-700 focus:border-ustp-blue outline-none"
+                                                >
+                                                    <option value="">Select Building...</option>
+                                                    {BUILDINGS.map(b => <option key={b} value={b}>{b}</option>)}
+                                                </select>
+                                            </div>
+                                            <div className="flex gap-3 w-full md:w-auto">
+                                                <button 
+                                                    onClick={() => handleAction(report.id, 'Approved')} 
+                                                    disabled={!assignedBuildings[report.id]}
+                                                    className={`flex-1 md:flex-none px-6 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all shadow-lg ${
+                                                        assignedBuildings[report.id] 
+                                                        ? 'bg-green-500 text-white hover:bg-green-600 shadow-green-100' 
+                                                        : 'bg-slate-100 text-slate-300 cursor-not-allowed shadow-none'
+                                                    }`}
+                                                >
+                                                    Approve
+                                                </button>
+                                                <button onClick={() => handleAction(report.id, 'Dismissed')} className="flex-1 md:flex-none px-6 py-4 bg-red-50 text-red-500 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-red-500 hover:text-white transition-all">Dismiss</button>
+                                                <button onClick={() => setSelectedReport(report)} className="px-4 py-4 bg-slate-900 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-slate-800 transition-all"><Eye size={18} /></button>
+                                            </div>
                                     </div>
                                 </div>
                             ))}
@@ -131,10 +163,31 @@ const PendingReviews = () => {
                                     <div className="bg-slate-50 p-5 rounded-3xl"><p className="text-[9px] font-black uppercase text-slate-400 mb-1">Course</p><p className="font-bold text-slate-700 text-xs">{selectedReport.student_details?.course}</p></div>
                                     <div className="bg-slate-50 p-5 rounded-3xl"><p className="text-[9px] font-black uppercase text-slate-400 mb-1">Dept</p><p className="font-bold text-slate-700 text-xs">{selectedReport.student_details?.department}</p></div>
                                 </div>
+                                <div className="bg-slate-50 p-5 rounded-3xl">
+                                    <p className="text-[9px] font-black uppercase text-slate-400 mb-2">Assign Building (Required for Approval)</p>
+                                    <select 
+                                        value={assignedBuildings[selectedReport.id] || ''} 
+                                        onChange={(e) => setAssignedBuildings({...assignedBuildings, [selectedReport.id]: e.target.value})}
+                                        className="w-full bg-white border-2 border-slate-100 rounded-xl px-4 py-3 text-xs font-bold text-slate-700 focus:border-ustp-blue outline-none transition-all"
+                                    >
+                                        <option value="">Choose Building...</option>
+                                        {BUILDINGS.map(b => <option key={b} value={b}>{b}</option>)}
+                                    </select>
+                                </div>
                             </div>
                             <div className="p-8 pt-0 flex gap-4">
                                 <button onClick={() => { handleAction(selectedReport.id, 'Dismissed'); setSelectedReport(null); }} className="flex-1 py-5 bg-red-50 text-red-500 rounded-[24px] font-black text-[10px] uppercase tracking-widest hover:bg-red-500 hover:text-white transition-all">Dismiss Case</button>
-                                <button onClick={() => { handleAction(selectedReport.id, 'Approved'); setSelectedReport(null); }} className="flex-1 py-5 bg-green-500 text-white rounded-[24px] font-black text-[10px] uppercase tracking-widest hover:bg-green-600 shadow-xl shadow-green-100 transition-all">Approve Case</button>
+                                <button 
+                                    onClick={() => { handleAction(selectedReport.id, 'Approved'); if (assignedBuildings[selectedReport.id]) setSelectedReport(null); }} 
+                                    disabled={!assignedBuildings[selectedReport.id]}
+                                    className={`flex-1 py-5 rounded-[24px] font-black text-[10px] uppercase tracking-widest transition-all ${
+                                        assignedBuildings[selectedReport.id]
+                                        ? 'bg-green-500 text-white hover:bg-green-600 shadow-xl shadow-green-100'
+                                        : 'bg-slate-100 text-slate-300 cursor-not-allowed'
+                                    }`}
+                                >
+                                    Approve Case
+                                </button>
                             </div>
                         </div>
                     </div>
