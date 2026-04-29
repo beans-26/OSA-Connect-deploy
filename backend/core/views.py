@@ -6,7 +6,8 @@ from rest_framework.permissions import AllowAny
 from .models import Student, ViolationReport, ETicket, TimeLog, SystemUser
 from .serializers import StudentSerializer, ViolationReportSerializer, ETicketSerializer, TimeLogSerializer
 import datetime
-
+from django.core.mail import send_mail
+from django.conf import settings
 import os
 
 
@@ -199,6 +200,51 @@ def get_punishment(violation_type, offense_count):
     # Default punishment for undefined violations
     return {"punishment": "To be determined", "hours": 4}
 
+def send_violation_email(report):
+    """Sends an email notification to the student about their violation report"""
+    student = report.student
+    if not student.email:
+        print(f"EMAIL NOT SENT: No email registered for student {student.student_id}")
+        return False
+        
+    subject = f"OSAConnect: Notice of Campus Incident Report"
+    
+    date_str = report.created_at.strftime("%B %d, %Y at %I:%M %p") if report.created_at else "Unknown"
+    location = report.location if hasattr(report, 'location') and report.location else "Campus Premises"
+    
+    message = f"""Dear {student.name},
+
+You are receiving this official notification because an incident report has been filed under your name by a campus security guard or staff member.
+
+Incident Details:
+- Violation Type: {report.violation_type}
+- Date & Time: {date_str}
+- Location: {location}
+- Description: {report.description or 'No additional description provided.'}
+- Reported By: {report.reporting_guard}
+
+Your report has been forwarded to the Office of Student Affairs (OSA) for review. 
+Please log in to the OSAConnect portal to view your status, respond to the report, and check if any community service obligations or disciplinary actions are required.
+
+This is an automated message. Please do not reply to this email.
+
+Regards,
+Office of Student Affairs
+"""
+    try:
+        send_mail(
+            subject=subject,
+            message=message,
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            recipient_list=[student.email],
+            fail_silently=False,
+        )
+        print(f"EMAIL SUCCESS: Notification sent to {student.email}")
+        return True
+    except Exception as e:
+        print(f"EMAIL ERROR: Failed to send to {student.email}. Error: {str(e)}")
+        return False
+
 class ViolationViewSet(viewsets.ModelViewSet):
     queryset = ViolationReport.objects.all()
     serializer_class = ViolationReportSerializer
@@ -267,6 +313,9 @@ class ViolationViewSet(viewsets.ModelViewSet):
                     punishment=punishment,
                     created_at=datetime.datetime.now()
                 ).save()
+                
+                # Send Email Notification
+                send_violation_email(report)
                 
                 # Create ETicket automatically for bulk reports if hours > 0
                 if hours > 0:
@@ -352,6 +401,9 @@ class ViolationViewSet(viewsets.ModelViewSet):
                 created_at=datetime.datetime.now()
             )
             report.save()
+            
+            # Send Email Notification
+            send_violation_email(report)
             
             print(f"DB SYNC SUCCESS: Violation {report.id} committed to collection 'violation_reports'")
             print(f"Offense #{offense_count} for {violation_type}: {punishment_info['punishment']}")
