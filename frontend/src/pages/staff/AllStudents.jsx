@@ -385,12 +385,16 @@ const AllStudents = () => {
                             <thead>
                                 <tr className="text-left bg-slate-50 border-b-2 border-slate-200">
                                     <th className="py-3 px-4">
-                                        <input
-                                            type="checkbox"
-                                            checked={selectedIds.length === filteredStudents.length && filteredStudents.length > 0}
-                                            onChange={toggleSelectAll}
-                                            className="w-4 h-4 rounded border-slate-300 text-ustp-blue focus:ring-ustp-blue"
-                                        />
+                                        <button 
+                                            onClick={toggleSelectAll}
+                                            className={`text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg border-2 transition-all ${
+                                                selectedIds.length === filteredStudents.length && filteredStudents.length > 0
+                                                ? 'bg-ustp-blue border-ustp-blue text-white shadow-md'
+                                                : 'bg-white border-slate-200 text-slate-400 hover:border-ustp-blue hover:text-ustp-blue'
+                                            }`}
+                                        >
+                                            {selectedIds.length === filteredStudents.length && filteredStudents.length > 0 ? 'Deselect' : 'Select All'}
+                                        </button>
                                     </th>
                                     <th className="py-3 px-3 font-bold text-slate-600 uppercase tracking-wider text-xs">Student ID</th>
                                     <th className="py-3 px-3 font-bold text-slate-600 uppercase tracking-wider text-xs">Name</th>
