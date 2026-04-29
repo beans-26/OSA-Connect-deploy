@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import Sidebar from '../../components/Sidebar';
 import QRCode from 'react-qr-code';
-import { User, Mail, Phone, BookOpen, Building2 } from 'lucide-react';
+import { User, Mail, Phone, BookOpen, Building2, Lock } from 'lucide-react';
 
 const Settings = () => {
     const [studentInfo, setStudentInfo] = useState(null);
