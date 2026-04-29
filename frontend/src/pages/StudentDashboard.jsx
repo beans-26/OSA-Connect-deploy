@@ -104,11 +104,16 @@ const StudentDashboard = () => {
         if (videoRef.current && canvasRef.current) {
             const video = videoRef.current;
             const canvas = canvasRef.current;
-            canvas.width = video.videoWidth;
-            canvas.height = video.videoHeight;
+            
+            // Scale down to prevent payload too large errors
+            const MAX_WIDTH = 640;
+            const scaleSize = MAX_WIDTH / video.videoWidth;
+            canvas.width = MAX_WIDTH;
+            canvas.height = video.videoHeight * scaleSize;
+            
             const ctx = canvas.getContext('2d');
             ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-            const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
+            const dataUrl = canvas.toDataURL('image/jpeg', 0.6); // Compress to 60% quality
             setPhotoProof(dataUrl);
             stopCamera(); 
             setCameraActive(true); // Keep modal open to show preview
@@ -145,7 +150,12 @@ const StudentDashboard = () => {
                 setAdminCode('');
                 fetchStudentData();
             } else {
-                alert("Server error. Check if the backend is running.");
+                let errorMsg = "Server error. Check if the backend is running.";
+                try {
+                    const errorData = await response.json();
+                    if (errorData.error) errorMsg = errorData.error;
+                } catch(e) {}
+                alert(errorMsg);
             }
         } catch (err) {
             alert("Network failure processing action.");
