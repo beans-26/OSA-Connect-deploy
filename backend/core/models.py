@@ -2,6 +2,13 @@ from mongoengine import Document, StringField, DateTimeField, IntField, Referenc
 import datetime
 from enum import Enum
 
+class OTPVerification(Document):
+    email = StringField(required=True, unique=True)
+    otp = StringField(required=True)
+    created_at = DateTimeField(default=datetime.datetime.now)
+    attempts = IntField(default=0)
+    meta = {'collection': 'otp_verifications'}
+
 class ViolationStatus(Enum):
     PENDING = "Pending OSA Review"
     APPROVED = "Approved"

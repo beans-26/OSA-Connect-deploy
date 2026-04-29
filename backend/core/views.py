@@ -90,6 +90,97 @@ class StudentViewSet(viewsets.ModelViewSet):
     serializer_class = StudentSerializer
     permission_classes = [AllowAny]
 
+    @action(detail=False, methods=['post'])
+    def request_otp(self, request):
+        import random
+        from django.core.mail import send_mail
+        from django.conf import settings
+        from .models import OTPVerification
+        
+        email = request.data.get('email', '').strip()
+        if not email:
+            return Response({"error": "Email is required"}, status=status.HTTP_400_BAD_REQUEST)
+            
+        if Student.objects.filter(email=email).first():
+            return Response({"error": "This email is already registered to another student."}, status=status.HTTP_400_BAD_REQUEST)
+            
+        otp = str(random.randint(100000, 999999))
+        
+        # Invalidate old OTPs for this email
+        OTPVerification.objects.filter(email=email).delete()
+        
+        OTPVerification(email=email, otp=otp).save()
+        
+        message = f"Your OSAConnect registration verification code is: {otp}\n\nThis code will expire in 5 minutes."
+        
+        try:
+            send_mail(
+                subject="OSAConnect: Email Verification Code",
+                message=message,
+                from_email=settings.DEFAULT_FROM_EMAIL,
+                recipient_list=[email],
+                fail_silently=False,
+            )
+            return Response({"message": "OTP sent successfully"})
+        except Exception as e:
+            return Response({"error": "Failed to send email. Check your backend settings."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    @action(detail=False, methods=['post'])
+    def register_with_otp(self, request):
+        from .models import OTPVerification
+        import datetime
+        data = request.data
+        email = data.get('email', '').strip()
+        otp_input = data.get('otp', '').strip()
+        
+        if not email or not otp_input:
+            return Response({"error": "Email and OTP are required"}, status=status.HTTP_400_BAD_REQUEST)
+            
+        verification = OTPVerification.objects.filter(email=email).first()
+        if not verification:
+            return Response({"error": "No OTP requested for this email or it has expired"}, status=status.HTTP_400_BAD_REQUEST)
+            
+        # Check expiration (5 minutes)
+        time_elapsed = (datetime.datetime.now() - verification.created_at).total_seconds()
+        if time_elapsed > 300:
+            verification.delete()
+            return Response({"error": "OTP has expired. Please request a new one."}, status=status.HTTP_400_BAD_REQUEST)
+            
+        # Check attempts
+        if verification.attempts >= 5:
+            verification.delete()
+            return Response({"error": "Too many failed attempts. Please request a new OTP."}, status=status.HTTP_400_BAD_REQUEST)
+            
+        if verification.otp != otp_input:
+            verification.attempts += 1
+            verification.save()
+            return Response({"error": "Invalid OTP"}, status=status.HTTP_400_BAD_REQUEST)
+            
+        # Valid OTP! Clean up
+        verification.delete()
+        
+        # Proceed with registration
+        sid = data.get('student_id', '').strip()
+        name = data.get('name', '').strip()
+
+        if sid and Student.objects.filter(student_id=sid).first():
+            return Response({"error": f"Student ID '{sid}' is already in use."}, status=status.HTTP_400_BAD_REQUEST)
+        
+        if name and Student.objects.filter(name__iexact=name).first():
+            return Response({"error": f"A student named '{name}' is already registered."}, status=status.HTTP_400_BAD_REQUEST)
+            
+        student = Student(
+            student_id=sid,
+            name=name,
+            course=data.get('course', ''),
+            department=data.get('department', ''),
+            year_level=data.get('year_level', ''),
+            email=email,
+            contact_number=data.get('contact_number', ''),
+        ).save()
+        
+        return Response(StudentSerializer(student).data, status=status.HTTP_201_CREATED)
+
     def create(self, request, *args, **kwargs):
         data = request.data
         sid = data.get('student_id', '').strip()

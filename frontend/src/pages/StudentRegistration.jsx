@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
     UserPlus, 
     CheckCircle2, 
@@ -12,7 +12,8 @@ import {
     Building2, 
     Layers, 
     Lock,
-    Loader2
+    Loader2,
+    KeyRound
 } from 'lucide-react';
 import QRCode from 'react-qr-code';
 import { Link } from 'react-router-dom';
@@ -37,6 +38,8 @@ const DEPARTMENTS = [
 const StudentRegistration = () => {
     const [step, setStep] = useState(1);
     const [saving, setSaving] = useState(false);
+    const [otp, setOtp] = useState('');
+    const [otpCooldown, setOtpCooldown] = useState(0);
     const [studentData, setStudentData] = useState({
         student_id: '',
         name: '',
@@ -79,24 +82,61 @@ const StudentRegistration = () => {
         return `${student.student_id} ${formattedName} ${course}`.trim();
     };
 
-    const handleRegister = async (e) => {
+    const startCooldown = () => {
+        setOtpCooldown(60);
+        const interval = setInterval(() => {
+            setOtpCooldown((prev) => {
+                if (prev <= 1) {
+                    clearInterval(interval);
+                    return 0;
+                }
+                return prev - 1;
+            });
+        }, 1000);
+    };
+
+    const requestOTP = async (e) => {
+        if (e) e.preventDefault();
+        setSaving(true);
+        try {
+            const response = await fetch('/api/students/request_otp/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email: studentData.email })
+            });
+            if (response.ok) {
+                setStep(2);
+                startCooldown();
+            } else {
+                const data = await response.json();
+                alert(`OTP Request failed: ${data.error || 'Check your email'}`);
+            }
+        } catch (error) {
+            alert('Server connection error');
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    const verifyAndRegister = async (e) => {
         e.preventDefault();
         setSaving(true);
         try {
             const payload = {
                 ...studentData,
-                password: studentData.password || studentData.student_id
+                password: studentData.password || studentData.student_id,
+                otp: otp
             };
-            const response = await fetch('/api/students/', {
+            const response = await fetch('/api/students/register_with_otp/', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
             });
             if (response.ok) {
-                setStep(2);
+                setStep(3);
             } else {
                 const data = await response.json();
-                alert(`Registration failed: ${data.error || data.message || 'Check your details'}`);
+                alert(`Verification failed: ${data.error || data.message || 'Check your details'}`);
             }
         } catch (error) {
             alert('Server connection error');
@@ -149,7 +189,7 @@ const StudentRegistration = () => {
                                 <p className="text-slate-400 font-bold text-[10px] uppercase tracking-widest">Step 01: Personal Information</p>
                             </div>
 
-                            <form onSubmit={handleRegister} className="space-y-8">
+                            <form onSubmit={requestOTP} className="space-y-8">
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                                     {[
                                         { label: 'Student ID', key: 'student_id', icon: IdCard, placeholder: '2023303188' },
@@ -185,12 +225,56 @@ const StudentRegistration = () => {
                                 </div>
 
                                 <button type="submit" disabled={saving} className="w-full h-14 bg-blue-900 text-white rounded-lg font-bold text-xs uppercase tracking-[0.2em] shadow-sm flex items-center justify-center gap-3 hover:bg-slate-800 transition-colors">
-                                    {saving ? <Loader2 className="animate-spin" size={20} /> : <>Complete Registration <ChevronRight size={18} /></>}
+                                    {saving ? <Loader2 className="animate-spin" size={20} /> : <>Verify Email <ChevronRight size={18} /></>}
                                 </button>
                             </form>
 
                             <div className="mt-10 text-center pt-8 border-t border-slate-100/50">
                                 <p className="text-slate-400 font-bold text-[10px] uppercase tracking-widest">Already have an account? <Link to="/login" className="text-blue-900 font-bold underline underline-offset-4">Log in</Link></p>
+                            </div>
+                        </div>
+                    ) : step === 2 ? (
+                        <div className="space-y-8 animate-in fade-in duration-300">
+                            <div className="border-b border-slate-50 pb-6 text-center">
+                                <div className="w-16 h-16 bg-blue-50 text-blue-900 rounded-2xl flex items-center justify-center mx-auto mb-6 border border-blue-100">
+                                    <Mail size={32} />
+                                </div>
+                                <h2 className="text-xl font-bold text-slate-800 tracking-tight">Verify Your Email</h2>
+                                <p className="text-slate-400 font-bold text-[10px] uppercase tracking-widest mt-2">Step 02: Verification Code</p>
+                                <p className="text-slate-500 text-sm mt-4">We sent a 6-digit code to <span className="font-semibold text-slate-800">{studentData.email}</span></p>
+                            </div>
+
+                            <form onSubmit={verifyAndRegister} className="space-y-6">
+                                <div className="space-y-1.5 max-w-sm mx-auto">
+                                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">6-Digit Code</label>
+                                    <div className="relative">
+                                        <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                                            <KeyRound className="text-slate-400" size={18} />
+                                        </div>
+                                        <input required type="text" maxLength={6} value={otp} onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))} className="w-full bg-slate-50 border border-slate-200 rounded-lg pl-12 p-3.5 outline-none font-bold tracking-widest text-center text-xl text-slate-700 placeholder:text-slate-300 focus:bg-white focus:border-blue-600 transition-none" placeholder="000000" />
+                                    </div>
+                                </div>
+
+                                <div className="max-w-sm mx-auto space-y-4">
+                                    <button type="submit" disabled={saving || otp.length < 6} className="w-full h-14 bg-blue-900 text-white rounded-lg font-bold text-xs uppercase tracking-[0.2em] shadow-sm flex items-center justify-center gap-3 hover:bg-slate-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                                        {saving ? <Loader2 className="animate-spin" size={20} /> : <>Complete Registration <ChevronRight size={18} /></>}
+                                    </button>
+                                    
+                                    <div className="text-center">
+                                        {otpCooldown > 0 ? (
+                                            <p className="text-slate-400 font-bold text-[10px] uppercase tracking-widest">Resend code in {otpCooldown}s</p>
+                                        ) : (
+                                            <button type="button" onClick={requestOTP} disabled={saving} className="text-blue-900 font-bold text-[10px] uppercase tracking-widest underline underline-offset-4 hover:text-blue-700">
+                                                Resend Code
+                                            </button>
+                                        )}
+                                    </div>
+                                </div>
+                            </form>
+                            <div className="mt-6 text-center pt-6 border-t border-slate-100/50">
+                                <button onClick={() => setStep(1)} className="text-slate-400 font-bold text-[10px] uppercase tracking-widest hover:text-slate-600">
+                                    ← Back to Details
+                                </button>
                             </div>
                         </div>
                     ) : (
