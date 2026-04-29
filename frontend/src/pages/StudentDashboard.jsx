@@ -63,6 +63,100 @@ const StudentDashboard = () => {
     const [circleInstance, setCircleInstance] = useState(null);
     const watchIdRef = React.useRef(null);
 
+    const [pendingActionData, setPendingActionData] = useState(null);
+    const [cameraActive, setCameraActive] = useState(false);
+    const [photoProof, setPhotoProof] = useState(null);
+    const videoRef = React.useRef(null);
+    const streamRef = React.useRef(null);
+    const canvasRef = React.useRef(null);
+
+    const startCamera = async () => {
+        setCameraActive(true);
+        setPhotoProof(null);
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ 
+                video: { facingMode: 'environment' } 
+            });
+            streamRef.current = stream;
+            // Need a slight delay to ensure videoRef is mounted
+            setTimeout(() => {
+                if (videoRef.current) {
+                    videoRef.current.srcObject = stream;
+                }
+            }, 100);
+        } catch (err) {
+            console.error("Camera access error:", err);
+            alert("Unable to access the camera. Please allow camera permissions to continue.");
+            setCameraActive(false);
+            setPendingActionData(null);
+        }
+    };
+
+    const stopCamera = () => {
+        if (streamRef.current) {
+            streamRef.current.getTracks().forEach(track => track.stop());
+            streamRef.current = null;
+        }
+        setCameraActive(false);
+    };
+
+    const capturePhoto = () => {
+        if (videoRef.current && canvasRef.current) {
+            const video = videoRef.current;
+            const canvas = canvasRef.current;
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
+            setPhotoProof(dataUrl);
+            stopCamera(); 
+            setCameraActive(true); // Keep modal open to show preview
+        }
+    };
+
+    const submitActionWithProof = async () => {
+        if (!pendingActionData) return;
+        
+        try {
+            const response = await fetch('/api/timelogs/log_time/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    eticket_id: pendingActionData.ticketId,
+                    action: pendingActionData.actionType,
+                    lat: pendingActionData.forcedLat,
+                    lng: pendingActionData.forcedLng,
+                    radius: pendingActionData.forcedRadius,
+                    photo_proof: photoProof
+                }),
+            });
+
+            if (response.ok) {
+                if (pendingActionData.actionType === 'in') {
+                    setStartTime(Date.now());
+                    setTimerActive(true);
+                } else {
+                    setTimerActive(false);
+                    setStartTime(null);
+                    setElapsed(0);
+                }
+                setShowAdminCode(false);
+                setAdminCode('');
+                fetchStudentData();
+            } else {
+                alert("Server error. Check if the backend is running.");
+            }
+        } catch (err) {
+            alert("Network failure processing action.");
+        } finally {
+            setCameraActive(false);
+            setPhotoProof(null);
+            setPendingActionData(null);
+        }
+    };
+
+
     // Leaflet Map Setup
     useEffect(() => {
         if (!location || !timerActive || mapRef.current) return;
@@ -479,27 +573,15 @@ const StudentDashboard = () => {
             }
 
             const ticketId = tickets[0].id;
-            const response = await fetch('/api/timelogs/log_time/', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    eticket_id: ticketId,
-                    action: actionType,
-                    lat: forcedLat,
-                    lng: forcedLng,
-                    radius: forcedRadius
-                }),
+            setPendingActionData({
+                ticketId,
+                actionType,
+                forcedLat,
+                forcedLng,
+                forcedRadius
             });
-
-            if (response.ok) {
-                setStartTime(Date.now());
-                setTimerActive(true);
-                setShowAdminCode(false);
-                setAdminCode('');
-                fetchStudentData();
-            } else {
-                alert("Server error. Check if the backend is running.");
-            }
+            setShowAdminCode(false);
+            startCamera();
         } catch (err) {
             console.error(err);
             if (err.code === 1) alert("PERMISSION DENIED: Please reset location permissions in your browser settings.");
@@ -522,21 +604,14 @@ const StudentDashboard = () => {
 
         try {
             const ticketId = tickets[0].id;
-            const response = await fetch('/api/timelogs/log_time/', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    eticket_id: ticketId,
-                    action: 'out'
-                }),
+            setPendingActionData({
+                ticketId,
+                actionType: 'out',
+                forcedLat: null,
+                forcedLng: null,
+                forcedRadius: null
             });
-
-            if (response.ok) {
-                setTimerActive(false);
-                setStartTime(null);
-                setElapsed(0);
-                fetchStudentData();
-            }
+            startCamera();
         } catch (err) {
             alert("Network failure processing action code.");
         }
@@ -587,6 +662,63 @@ const StudentDashboard = () => {
                             <p className="text-xs font-medium text-slate-400 mt-2">Scan QR code to pause your timer</p>
                         </div>
                         <div id="stop-qr-reader" className="w-full rounded-2xl overflow-hidden border-4 border-red-100"></div>
+                    </div>
+                </div>
+            )}
+
+            {cameraActive && (
+                <div className="fixed inset-0 z-[60] bg-slate-900/95 flex flex-col items-center justify-center p-4">
+                    <div className="w-full max-w-md bg-white rounded-3xl overflow-hidden shadow-2xl relative">
+                        <div className="p-4 bg-slate-900 text-center relative border-b border-slate-800">
+                            <h3 className="text-white font-black uppercase tracking-widest text-sm">Capture Proof</h3>
+                            <button onClick={() => { stopCamera(); setCameraActive(false); setPendingActionData(null); setPhotoProof(null); }} className="absolute top-1/2 -translate-y-1/2 right-4 text-slate-400 hover:text-white">
+                                <X size={20} />
+                            </button>
+                        </div>
+                        
+                        <div className="relative aspect-[3/4] bg-black">
+                            {!photoProof ? (
+                                <video 
+                                    ref={videoRef} 
+                                    autoPlay 
+                                    playsInline 
+                                    className="w-full h-full object-cover"
+                                />
+                            ) : (
+                                <img 
+                                    src={photoProof} 
+                                    alt="Proof" 
+                                    className="w-full h-full object-cover"
+                                />
+                            )}
+                            <canvas ref={canvasRef} className="hidden" />
+                        </div>
+                        
+                        <div className="p-6 bg-white flex justify-center">
+                            {!photoProof ? (
+                                <button 
+                                    onClick={capturePhoto}
+                                    className="w-16 h-16 rounded-full bg-slate-200 border-4 border-slate-400 flex items-center justify-center hover:bg-slate-300 transition-colors"
+                                >
+                                    <div className="w-12 h-12 rounded-full bg-white border-2 border-slate-300 shadow-sm" />
+                                </button>
+                            ) : (
+                                <div className="flex gap-4 w-full">
+                                    <button 
+                                        onClick={() => { setPhotoProof(null); startCamera(); }}
+                                        className="flex-1 py-3 font-black text-[10px] uppercase tracking-widest text-slate-500 bg-slate-100 rounded-xl hover:bg-slate-200 transition-colors"
+                                    >
+                                        Retake
+                                    </button>
+                                    <button 
+                                        onClick={submitActionWithProof}
+                                        className="flex-1 py-3 font-black text-[10px] uppercase tracking-widest text-white bg-blue-600 rounded-xl shadow-lg hover:bg-blue-700 transition-colors"
+                                    >
+                                        Submit
+                                    </button>
+                                </div>
+                            )}
+                        </div>
                     </div>
                 </div>
             )}

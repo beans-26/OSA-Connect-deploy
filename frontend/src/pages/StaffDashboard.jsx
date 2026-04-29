@@ -143,6 +143,25 @@ const ViolationModal = ({ report, ticket, activeLog, onClose, onAction }) => {
                                     accent={remainingHours > 0 ? "text-green-600" : "text-slate-800"}
                                 />
                             )}
+                            {activeLog && (activeLog.photo_proof_in || activeLog.photo_proof_out) && (
+                                <div className="mt-4">
+                                    <p className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-400 mb-2">Proof of Action</p>
+                                    <div className="flex gap-4">
+                                        {activeLog.photo_proof_in && (
+                                            <div className="flex-1">
+                                                <p className="text-[10px] font-bold text-slate-500 mb-1">Time In</p>
+                                                <img src={activeLog.photo_proof_in} alt="Time In Proof" className="w-full rounded-xl border-2 border-slate-100 object-cover aspect-[3/4]" />
+                                            </div>
+                                        )}
+                                        {activeLog.photo_proof_out && (
+                                            <div className="flex-1">
+                                                <p className="text-[10px] font-bold text-slate-500 mb-1">Time Out</p>
+                                                <img src={activeLog.photo_proof_out} alt="Time Out Proof" className="w-full rounded-xl border-2 border-slate-100 object-cover aspect-[3/4]" />
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
                         </>
                     )}
                 </div>

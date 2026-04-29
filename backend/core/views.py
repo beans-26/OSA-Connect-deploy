@@ -597,6 +597,7 @@ class TimeLogViewSet(viewsets.ModelViewSet):
                 lat = request.data.get('lat')
                 lng = request.data.get('lng')
                 radius = request.data.get('radius')
+                photo_proof = request.data.get('photo_proof')
                 
                 if lat is not None and lng is not None:
                     eticket.lat = float(lat)
@@ -611,16 +612,19 @@ class TimeLogViewSet(viewsets.ModelViewSet):
                     return Response(TimeLogSerializer(existing_log).data)
                 
                 # Create new session only if none exists
-                log = TimeLog(eticket=eticket).save()
+                log = TimeLog(eticket=eticket, photo_proof_in=photo_proof).save()
                 eticket.status = "Ongoing"
                 eticket.save()
                 return Response(TimeLogSerializer(log).data)
             else:
+                photo_proof = request.data.get('photo_proof')
                 log = TimeLog.objects.filter(eticket=eticket, time_out=None).order_by('-time_in').first()
                 if log:
                     log.time_out = datetime.datetime.now()
                     duration = (log.time_out - log.time_in).total_seconds()
                     log.duration_seconds = duration
+                    if photo_proof:
+                        log.photo_proof_out = photo_proof
                     log.save()
                     
                     hours_to_deduct = duration / 3600

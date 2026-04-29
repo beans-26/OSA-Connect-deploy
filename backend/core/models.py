@@ -53,6 +53,8 @@ class TimeLog(Document):
     time_in = DateTimeField(default=datetime.datetime.now)
     time_out = DateTimeField()
     duration_seconds = FloatField()
+    photo_proof_in = StringField() # Base64 image when starting
+    photo_proof_out = StringField() # Base64 image when stopping
     meta = {'collection': 'timelogs'}
 
 class SystemUser(Document):
