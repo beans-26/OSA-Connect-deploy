@@ -109,11 +109,11 @@ class StudentViewSet(viewsets.ModelViewSet):
         from django.conf import settings
         from .models import OTPVerification
         
-        email = request.data.get('email', '').strip()
+        email = request.data.get('email', '').strip().lower()
         if not email:
             return Response({"error": "Email is required"}, status=status.HTTP_400_BAD_REQUEST)
             
-        if Student.objects.filter(email=email).first():
+        if Student.objects.filter(email__iexact=email).first():
             return Response({"error": "This email is already registered to another student."}, status=status.HTTP_400_BAD_REQUEST)
             
         otp = str(random.randint(100000, 999999))
@@ -135,7 +135,8 @@ class StudentViewSet(viewsets.ModelViewSet):
             )
             return Response({"message": "OTP sent successfully"})
         except Exception as e:
-            return Response({"error": "Failed to send email. Check your backend settings."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            error_msg = f"Failed to send email: {str(e)}" if settings.DEBUG else "Failed to send email. Check your connection."
+            return Response({"error": error_msg}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     @action(detail=False, methods=['post'])
     def register_with_otp(self, request):
@@ -201,11 +202,11 @@ class StudentViewSet(viewsets.ModelViewSet):
         from django.conf import settings
         from .models import OTPVerification
         
-        email = request.data.get('email', '').strip()
+        email = request.data.get('email', '').strip().lower()
         if not email:
             return Response({"error": "Email is required"}, status=status.HTTP_400_BAD_REQUEST)
             
-        student = Student.objects.filter(email=email).first()
+        student = Student.objects.filter(email__iexact=email).first()
         if not student:
             return Response({"error": "No account found with this email address."}, status=status.HTTP_404_NOT_FOUND)
             
@@ -218,12 +219,13 @@ class StudentViewSet(viewsets.ModelViewSet):
                 subject="OSAConnect: Password Reset Code",
                 message=f"Your password reset code is: {otp}\n\nIf you did not request this, please ignore this email.",
                 from_email=settings.DEFAULT_FROM_EMAIL,
-                recipient_list=[email],
+                recipient_list=[student.email],
                 fail_silently=False,
             )
             return Response({"message": "Reset code sent to your email."})
         except Exception as e:
-            return Response({"error": "Failed to send email."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            error_msg = f"Failed to send email: {str(e)}" if settings.DEBUG else "Failed to send email. Check your connection."
+            return Response({"error": error_msg}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     @action(detail=False, methods=['post'])
     def reset_password(self, request):
