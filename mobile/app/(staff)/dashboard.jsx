@@ -6,55 +6,85 @@ import { User, QrCode, ClipboardList, AlertCircle, Calendar, Clock, X, ChevronDo
 import api from '../../services/api';
 import { useAuth } from '../../components/AuthContext';
 import { Picker } from '@react-native-picker/picker';
+import { useRouter } from 'expo-router';
 
 const VIOLATION_TYPES = [
-    "No ID",
-    "Improper Uniform",
-    "Public Display of Affection (PDA)",
-    "Smoking/Vaping",
+    "Curfew Violation",
+    "ID Violation",
+    "Uniform Violation",
+    "Dress Code Violation",
+    "Verbal Abuse",
+    "Stalking",
+    "Indecent Conduct",
+    "Alcohol Influence",
+    "Alcohol Possession",
+    "Pornographic Materials",
+    "Threats & Coercion",
+    "Gambling",
     "Littering",
-    "Loitering",
-    "Other"
+    "ID Misuse",
+    "Lab Tampering",
+    "Exam Tampering",
+    "Smoking"
 ];
 
 export default function PersonnelDashboard() {
     const { user } = useAuth();
+    const router = useRouter();
     const [permission, requestPermission] = useCameraPermissions();
     const [loading, setLoading] = useState(false);
     const [isScanning, setIsScanning] = useState(false);
+    const [showConfirmModal, setShowConfirmModal] = useState(false);
+    const [alertMessage, setAlertMessage] = useState({ visible: false, title: '', message: '', type: 'info' });
 
     const [form, setForm] = useState({
         student_id: '',
         name: '',
         course: '',
         department: '',
-        violation_type: 'No ID',
-        description: '',
+        violation_type: 'Curfew Violation',
+        guard_name: 'Guard 1',
     });
 
+    const debounceTimer = useRef(null);
+
     const fetchStudentData = async (id) => {
-        if (!id || id.length < 5) return;
+        const cleanId = id?.trim();
+        if (!cleanId || cleanId.length < 5) return;
         
         try {
-            const response = await api.get(`/students/${id}/`);
+            const response = await api.get(`/students/${cleanId}/`);
             if (response.data) {
-                setForm(prev => ({
-                    ...prev,
-                    name: response.data.name || '',
-                    course: response.data.course || '',
-                    department: response.data.department || '',
-                }));
+                setForm(prev => {
+                    // Only update if the form's current student_id matches what we fetched
+                    if (prev.student_id !== cleanId) return prev;
+                    
+                    return {
+                        ...prev,
+                        name: response.data.name || '',
+                        course: response.data.course || '',
+                        department: response.data.department || '',
+                    };
+                });
             }
         } catch (error) {
             // Silently fail if student not found during typing
-            console.log("Student not found yet");
+            console.log("Student not found yet", cleanId);
         }
     };
 
     const handleIdChange = (text) => {
-        setForm(prev => ({ ...prev, student_id: text, name: '', course: '', department: '' }));
-        if (text.length >= 8) {
-            fetchStudentData(text);
+        const cleanText = text.trim();
+        setForm(prev => ({ ...prev, student_id: cleanText, name: '', course: '', department: '' }));
+        
+        if (debounceTimer.current) {
+            clearTimeout(debounceTimer.current);
+        }
+        
+        if (cleanText.length >= 5) {
+            debounceTimer.current = setTimeout(() => {
+                fetchStudentData(cleanText);
+            }, 500);
         }
     };
 
@@ -102,50 +132,40 @@ export default function PersonnelDashboard() {
         setIsScanning(true);
     };
 
-    const submitReport = async () => {
+    const confirmSubmit = () => {
         if (!form.student_id || !form.violation_type) {
-            Alert.alert("Error", "Student ID and Violation Type are required.");
+            setAlertMessage({ visible: true, title: 'Error', message: 'Student ID and Violation Type are required.', type: 'error' });
             return;
         }
+        setShowConfirmModal(true);
+    };
 
-        Alert.alert(
-            "Confirm Submission",
-            `Are you sure you want to report ${form.name || form.student_id} for ${form.violation_type}?`,
-            [
-                { text: "Cancel", style: "cancel" },
-                { 
-                    text: "Submit", 
-                    style: "destructive",
-                    onPress: async () => {
-                        setLoading(true);
-                        try {
-                            await api.post('/violations/', {
-                                student_id: form.student_id,
-                                violation_type: form.violation_type,
-                                description: form.description,
-                                reporting_guard: user?.name || user?.username || 'Personnel',
-                                status: 'Pending OSA Review'
-                            });
+    const processSubmission = async () => {
+        setShowConfirmModal(false);
+        setLoading(true);
+        try {
+            await api.post('/violations/', {
+                student_id: form.student_id,
+                violation: form.violation_type,
+                reporting_guard: form.guard_name,
+                status: 'Pending OSA Review'
+            });
 
-                            Alert.alert("Success", "Violation report submitted successfully.");
-                            setForm({
-                                student_id: '',
-                                name: '',
-                                course: '',
-                                department: '',
-                                violation_type: 'No ID',
-                                description: '',
-                            });
-                        } catch (error) {
-                            console.error("Report submission failed:", error);
-                            Alert.alert('Error', error.response?.data?.error || 'Failed to submit report. Please check student ID.');
-                        } finally {
-                            setLoading(false);
-                        }
-                    }
-                }
-            ]
-        );
+            setAlertMessage({ visible: true, title: 'Success', message: 'Violation report submitted successfully.', type: 'success' });
+            setForm({
+                student_id: '',
+                name: '',
+                course: '',
+                department: '',
+                violation_type: 'Curfew Violation',
+                guard_name: 'Guard 1',
+            });
+        } catch (error) {
+            console.error("Report submission failed:", error);
+            setAlertMessage({ visible: true, title: 'Error', message: error.response?.data?.error || 'Failed to submit report. Please check student ID.', type: 'error' });
+        } finally {
+            setLoading(false);
+        }
     };
 
     return (
@@ -226,23 +246,23 @@ export default function PersonnelDashboard() {
                     </View>
 
                     <View style={styles.inputGroup}>
-                        <Text style={styles.label}>Description (Optional)</Text>
-                        <View style={[styles.inputContainer, styles.textAreaContainer]}>
-                            <TextInput
-                                style={[styles.input, styles.textArea]}
-                                placeholder="Add specific details about the incident..."
-                                value={form.description}
-                                onChangeText={text => setForm(prev => ({ ...prev, description: text }))}
-                                multiline
-                                numberOfLines={4}
-                                textAlignVertical="top"
-                            />
+                        <Text style={styles.label}>Guard Name *</Text>
+                        <View style={styles.pickerContainer}>
+                            <Picker
+                                selectedValue={form.guard_name}
+                                onValueChange={(itemValue) => setForm(prev => ({ ...prev, guard_name: itemValue }))}
+                                style={styles.picker}
+                            >
+                                {["Guard 1", "Guard 2", "Guard 3", "Guard 4", "Guard 5"].map(guard => (
+                                    <Picker.Item key={guard} label={guard} value={guard} />
+                                ))}
+                            </Picker>
                         </View>
                     </View>
 
                     <TouchableOpacity 
                         style={[styles.submitButton, loading && styles.submitButtonDisabled]} 
-                        onPress={submitReport}
+                        onPress={confirmSubmit}
                         disabled={loading}
                     >
                         {loading ? (
@@ -277,6 +297,50 @@ export default function PersonnelDashboard() {
                     </View>
                 </View>
             </Modal>
+
+            {/* Confirmation Modal */}
+            <Modal visible={showConfirmModal} transparent={true} animationType="fade">
+                <View style={styles.modalOverlay}>
+                    <View style={styles.modalContent}>
+                        <View style={styles.modalHeader}>
+                            <AlertCircle size={24} color="#f59e0b" />
+                            <Text style={styles.modalTitle}>Confirm Submission</Text>
+                        </View>
+                        <Text style={styles.modalMessage}>
+                            Are you sure you want to report <Text style={{fontWeight: 'bold'}}>{form.name || form.student_id}</Text> for {form.violation_type}?
+                        </Text>
+                        <View style={styles.modalActions}>
+                            <TouchableOpacity style={styles.modalCancelButton} onPress={() => setShowConfirmModal(false)}>
+                                <Text style={styles.modalCancelText}>Cancel</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity style={styles.modalConfirmButton} onPress={processSubmission}>
+                                <Text style={styles.modalConfirmText}>Submit</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </View>
+            </Modal>
+
+            {/* Alert Modal */}
+            <Modal visible={alertMessage.visible} transparent={true} animationType="fade">
+                <View style={styles.modalOverlay}>
+                    <View style={styles.modalContent}>
+                        <View style={styles.modalHeader}>
+                            <AlertCircle size={24} color={alertMessage.type === 'error' ? Colors.danger : Colors.primary} />
+                            <Text style={styles.modalTitle}>{alertMessage.title}</Text>
+                        </View>
+                        <Text style={styles.modalMessage}>{alertMessage.message}</Text>
+                        <View style={styles.modalActions}>
+                            <TouchableOpacity 
+                                style={[styles.modalConfirmButton, { backgroundColor: alertMessage.type === 'error' ? Colors.danger : Colors.primary }]} 
+                                onPress={() => setAlertMessage({ ...alertMessage, visible: false })}
+                            >
+                                <Text style={styles.modalConfirmText}>OK</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </View>
+            </Modal>
         </View>
     );
 }
@@ -297,6 +361,11 @@ const styles = StyleSheet.create({
     },
     headerIcon: {
         marginBottom: 10,
+    },
+    topRightIcon: {
+        position: 'absolute',
+        top: 20,
+        right: 0,
     },
     headerTitle: {
         fontSize: 24,
@@ -442,5 +511,68 @@ const styles = StyleSheet.create({
         backgroundColor: 'rgba(255, 255, 255, 0.2)',
         alignItems: 'center',
         justifyContent: 'center',
+    },
+    modalOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        justifyContent: 'center',
+        alignItems: 'center',
+        padding: 20,
+    },
+    modalContent: {
+        backgroundColor: Colors.card,
+        borderRadius: 16,
+        padding: 24,
+        width: '100%',
+        maxWidth: 400,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.1,
+        shadowRadius: 12,
+        elevation: 5,
+    },
+    modalHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: 12,
+    },
+    modalTitle: {
+        fontSize: 18,
+        fontWeight: 'bold',
+        color: Colors.text,
+        marginLeft: 8,
+    },
+    modalMessage: {
+        fontSize: 14,
+        color: Colors.textMuted,
+        marginBottom: 24,
+        lineHeight: 20,
+    },
+    modalActions: {
+        flexDirection: 'row',
+        justifyContent: 'flex-end',
+        gap: 12,
+    },
+    modalCancelButton: {
+        paddingVertical: 10,
+        paddingHorizontal: 16,
+        borderRadius: 8,
+        backgroundColor: Colors.background,
+    },
+    modalCancelText: {
+        fontSize: 14,
+        fontWeight: 'bold',
+        color: Colors.textMuted,
+    },
+    modalConfirmButton: {
+        paddingVertical: 10,
+        paddingHorizontal: 16,
+        borderRadius: 8,
+        backgroundColor: Colors.danger,
+    },
+    modalConfirmText: {
+        fontSize: 14,
+        fontWeight: 'bold',
+        color: '#fff',
     },
 });

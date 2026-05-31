@@ -58,14 +58,14 @@ const AdminLogin = () => {
         <div className={`flex items-center gap-2 ${className}`}>
             <div className="relative">
                 <div className="absolute -top-1 -left-1 w-4 h-3 bg-amber-400 rounded-tr-[4px] rounded-tl-[2px]" />
-                <h2 className="text-xl font-bold text-slate-900 tracking-tight relative z-10 leading-none">OSA</h2>
+                <h2 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight relative z-10 leading-none">OSA</h2>
             </div>
             <span className="text-xl font-bold text-blue-900">Connect</span>
         </div>
     );
 
     return (
-        <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
+        <div className="min-h-screen bg-slate-50 dark:bg-slate-900 flex items-center justify-center p-4">
             <div className="w-full max-w-md space-y-8">
                 {/* Simplified Branding Header */}
                 <div className="text-center space-y-6">
@@ -73,13 +73,13 @@ const AdminLogin = () => {
                         <CSSLogo />
                     </div>
                     <div className="space-y-1">
-                        <h1 className="text-2xl font-bold text-slate-800">Admin Portal</h1>
-                        <p className="text-slate-500 text-sm font-medium">Smart student violation management</p>
+                        <h1 className="text-2xl font-bold text-slate-800 dark:text-slate-200">Admin Portal</h1>
+                        <p className="text-slate-500 dark:text-slate-400 text-sm font-medium">Smart student violation management</p>
                     </div>
                 </div>
 
                 {/* Secure Form Card - Minimalist */}
-                <div className="bg-white p-8 rounded-xl shadow-sm border-t-4 border-blue-900 border-x border-b border-slate-200">
+                <div className="bg-white dark:bg-slate-800 p-8 rounded-xl shadow-sm border-t-4 border-blue-900 border-x border-b border-slate-200 dark:border-slate-600">
                     
                     {error && (
                         <div className="mb-6 p-4 bg-red-50 border border-red-100 rounded-lg text-center">
@@ -91,9 +91,9 @@ const AdminLogin = () => {
                         <div className="space-y-4">
                             {/* Input Field */}
                             <div className="space-y-1.5">
-                                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Account ID</label>
-                                <div className="relative border border-slate-200 rounded-lg bg-slate-50 overflow-hidden focus-within:bg-white focus-within:border-blue-900 transition-none">
-                                    <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-900 transition-colors">
+                                <label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-1">Account ID</label>
+                                <div className="relative border border-slate-200 dark:border-slate-600 rounded-lg bg-slate-50 dark:bg-slate-900 overflow-hidden focus-within:bg-white dark:bg-slate-800 focus-within:border-blue-900 transition-none">
+                                    <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500 group-focus-within:text-blue-900 transition-colors">
                                         <User size={18} />
                                     </div>
                                     <input
@@ -101,7 +101,7 @@ const AdminLogin = () => {
                                         value={username}
                                         onChange={(e) => setUsername(e.target.value)}
                                         placeholder="Admin ID"
-                                        className="w-full bg-transparent p-3.5 pl-11 outline-none font-bold text-slate-700 placeholder:text-slate-200 text-sm"
+                                        className="w-full bg-transparent p-3.5 pl-11 outline-none font-bold text-slate-700 dark:text-slate-300 placeholder:text-slate-200 text-sm"
                                         required
                                     />
                                 </div>
@@ -109,9 +109,9 @@ const AdminLogin = () => {
 
                             {/* Password Field */}
                             <div className="space-y-1.5">
-                                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Password</label>
-                                <div className="relative border border-slate-200 rounded-lg bg-slate-50 overflow-hidden focus-within:bg-white focus-within:border-blue-900 transition-none">
-                                    <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
+                                <label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-1">Password</label>
+                                <div className="relative border border-slate-200 dark:border-slate-600 rounded-lg bg-slate-50 dark:bg-slate-900 overflow-hidden focus-within:bg-white dark:bg-slate-800 focus-within:border-blue-900 transition-none">
+                                    <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500">
                                         <Lock size={18} />
                                     </div>
                                     <input
@@ -119,13 +119,13 @@ const AdminLogin = () => {
                                         value={password}
                                         onChange={(e) => setPassword(e.target.value)}
                                         placeholder="Secure password"
-                                        className="w-full bg-transparent p-3.5 pl-11 pr-11 outline-none font-bold text-slate-700 placeholder:text-slate-300 text-sm"
+                                        className="w-full bg-transparent p-3.5 pl-11 pr-11 outline-none font-bold text-slate-700 dark:text-slate-300 placeholder:text-slate-300 dark:text-slate-600 text-sm"
                                         required
                                     />
                                     <button 
                                         type="button"
                                         onClick={() => setShowPassword(!showPassword)}
-                                        className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-300 hover:text-slate-600 transition-colors"
+                                        className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-300 dark:text-slate-600 hover:text-slate-600 dark:text-slate-400 transition-colors"
                                     >
                                         {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                                     </button>
@@ -149,7 +149,7 @@ const AdminLogin = () => {
 
                 {/* Footer Links */}
                 <div className="text-center pt-2">
-                    <p className="text-slate-400 font-bold text-[9px] uppercase tracking-[0.2em]">
+                    <p className="text-slate-400 dark:text-slate-500 font-bold text-[9px] uppercase tracking-[0.2em]">
                         Admin Interface • <Link to="/login" className="text-blue-900 hover:text-blue-700 font-black underline underline-offset-4">Return</Link>
                     </p>
                 </div>

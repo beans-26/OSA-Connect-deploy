@@ -75,7 +75,7 @@ const RotatingDeviceStack = ({ laptop, tablet, phone }) => {
             {/* Active Device Info Overlay */}
             <div className="text-center mt-10 space-y-2 animate-in fade-in slide-in-from-bottom-2 duration-500" key={index}>
                 <div className="inline-block px-3 py-1 bg-blue-50 text-blue-900 text-[10px] font-black rounded-full uppercase tracking-widest">{devices[index].device}</div>
-                <h3 className="text-2xl font-black text-slate-900 italic tracking-tighter uppercase">{devices[index].title}</h3>
+                <h3 className="text-2xl font-black text-slate-900 dark:text-white italic tracking-tighter uppercase">{devices[index].title}</h3>
                 <div className="flex justify-center gap-1.5 pt-2">
                     {devices.map((_, i) => (
                         <div key={i} className={`h-1 rounded-full transition-all duration-500 ${i === index ? 'w-6 bg-blue-900' : 'w-1.5 bg-slate-200'}`} />
@@ -100,7 +100,7 @@ const LandingPage = () => {
         <div className={`flex items-center gap-2 ${className}`}>
             <div className="relative">
                 <div className="absolute -top-1 -left-1 w-4 h-3 bg-amber-400 rounded-tr-[8px] rounded-tl-[4px] rotate-[-10deg]" />
-                <h2 className={`text-lg font-bold ${light ? 'text-white' : 'text-slate-900'} tracking-tight relative z-10 leading-none uppercase`}>OSA</h2>
+                <h2 className={`text-lg font-bold ${light ? 'text-white' : 'text-slate-900 dark:text-white'} tracking-tight relative z-10 leading-none uppercase`}>OSA</h2>
             </div>
             <span className={`text-lg font-bold ${light ? 'text-blue-300' : 'text-blue-900'}`}>Connect</span>
         </div>
@@ -113,9 +113,9 @@ const LandingPage = () => {
     ];
 
     return (
-        <div className="min-h-screen bg-white font-sans text-slate-700 selection:bg-blue-50 selection:text-blue-900">
+        <div className="min-h-screen bg-white dark:bg-slate-800 font-sans text-slate-700 dark:text-slate-300 selection:bg-blue-50 selection:text-blue-900">
             {/* Simple Navigation */}
-            <nav className={`fixed top-0 left-0 right-0 z-[100] transition-all duration-200 ${scrolled ? 'bg-white shadow-sm py-5 border-b border-slate-100' : 'bg-transparent py-8'}`}>
+            <nav className={`fixed top-0 left-0 right-0 z-[100] transition-all duration-200 ${scrolled ? 'bg-white dark:bg-slate-800 shadow-sm py-5 border-b border-slate-100 dark:border-slate-700' : 'bg-transparent py-8'}`}>
                 <div className="max-w-7xl mx-auto px-6 flex items-center justify-between">
                     <CSSLogo className="scale-110 md:scale-125 origin-left" />
                     
@@ -124,7 +124,7 @@ const LandingPage = () => {
                             <a 
                                 key={link.name} 
                                 href={link.href} 
-                                className="text-sm font-black text-slate-500 hover:text-blue-900 transition-colors uppercase tracking-widest"
+                                className="text-sm font-black text-slate-500 dark:text-slate-400 hover:text-blue-900 transition-colors uppercase tracking-widest"
                             >
                                 {link.name}
                             </a>
@@ -134,16 +134,16 @@ const LandingPage = () => {
                         </Link>
                     </div>
 
-                    <button onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className="md:hidden text-slate-900">
+                    <button onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className="md:hidden text-slate-900 dark:text-white">
                         {mobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
                     </button>
                 </div>
 
                 {/* Mobile Menu */}
                 {mobileMenuOpen && (
-                    <div className="absolute top-full left-0 right-0 bg-white border-b border-slate-100 p-6 flex flex-col gap-4 md:hidden shadow-lg animate-in fade-in slide-in-from-top-2">
+                    <div className="absolute top-full left-0 right-0 bg-white dark:bg-slate-800 border-b border-slate-100 dark:border-slate-700 p-6 flex flex-col gap-4 md:hidden shadow-lg animate-in fade-in slide-in-from-top-2">
                         {navLinks.map((link) => (
-                            <a key={link.name} href={link.href} onClick={() => setMobileMenuOpen(false)} className="text-sm font-bold text-slate-700">{link.name}</a>
+                            <a key={link.name} href={link.href} onClick={() => setMobileMenuOpen(false)} className="text-sm font-bold text-slate-700 dark:text-slate-300">{link.name}</a>
                         ))}
                         <Link to="/login" className="px-6 py-3 bg-blue-900 text-white rounded-lg text-center font-bold text-sm">Login</Link>
                     </div>
@@ -151,11 +151,11 @@ const LandingPage = () => {
             </nav>
 
             {/* Hero Section - Clean & Static */}
-            <section id="home" className="pt-48 pb-32 px-6 bg-slate-50">
+            <section id="home" className="pt-48 pb-32 px-6 bg-slate-50 dark:bg-slate-900">
                 <div className="max-w-7xl mx-auto grid md:grid-cols-2 gap-20 items-center">
                     <div className="space-y-12">
                         <div className="space-y-6">
-                            <h1 className="text-6xl md:text-8xl font-black text-slate-900 lg:leading-[0.9] tracking-tighter uppercase italic">
+                            <h1 className="text-6xl md:text-8xl font-black text-slate-900 dark:text-white lg:leading-[0.9] tracking-tighter uppercase italic">
                                 Integrated <br/>
                                 <span className="text-blue-900">OSA Connect</span>
                             </h1>
@@ -164,7 +164,7 @@ const LandingPage = () => {
                             </div>
                         </div>
                         
-                        <p className="text-xl md:text-2xl text-slate-600 font-medium leading-relaxed max-w-xl">
+                        <p className="text-xl md:text-2xl text-slate-600 dark:text-slate-400 font-medium leading-relaxed max-w-xl">
                             A smart and efficient student violation management system. Record violations, verify identities, and track community service in real time.
                         </p>
 
@@ -172,7 +172,7 @@ const LandingPage = () => {
                             <Link to="/register" className="px-8 py-3 bg-blue-900 text-white rounded-lg font-bold text-sm hover:bg-slate-800 transition-colors flex items-center gap-2">
                                 Get Started <ArrowRight size={16} />
                             </Link>
-                            <Link to="/login" className="px-8 py-3 bg-white border border-slate-200 text-slate-600 rounded-lg font-bold text-sm hover:bg-slate-50 transition-colors">
+                            <Link to="/login" className="px-8 py-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-400 rounded-lg font-bold text-sm hover:bg-slate-50 dark:bg-slate-900 transition-colors">
                                 Login Portal
                             </Link>
                         </div>
@@ -186,10 +186,10 @@ const LandingPage = () => {
             </section>
 
             {/* Features - Pure Grid */}
-            <section id="features" className="py-32 px-6 bg-white border-t border-slate-50">
+            <section id="features" className="py-32 px-6 bg-white dark:bg-slate-800 border-t border-slate-50">
                 <div className="max-w-7xl mx-auto">
                     <div className="mb-20">
-                        <h2 className="text-4xl font-black text-slate-900 tracking-tight uppercase italic">System Features</h2>
+                        <h2 className="text-4xl font-black text-slate-900 dark:text-white tracking-tight uppercase italic">System Features</h2>
                         <div className="w-16 h-1.5 bg-amber-400 mt-3" />
                     </div>
 
@@ -202,12 +202,12 @@ const LandingPage = () => {
                             { title: 'Comprehensive Dashboard', icon: LayoutDashboard, desc: 'Admin reporting hub for status monitoring and data analysis.' }
                         ].map((f, i) => (
                             <div key={i} className="flex gap-6">
-                                <div className="w-12 h-12 bg-slate-50 text-blue-900 rounded-lg flex items-center justify-center shrink-0 border border-slate-100 shadow-sm">
+                                <div className="w-12 h-12 bg-slate-50 dark:bg-slate-900 text-blue-900 rounded-lg flex items-center justify-center shrink-0 border border-slate-100 dark:border-slate-700 shadow-sm">
                                     <f.icon size={20} />
                                 </div>
                                 <div className="space-y-2">
-                                    <h3 className="font-bold text-slate-900 text-base">{f.title}</h3>
-                                    <p className="text-slate-500 text-sm leading-relaxed">{f.desc}</p>
+                                    <h3 className="font-bold text-slate-900 dark:text-white text-base">{f.title}</h3>
+                                    <p className="text-slate-500 dark:text-slate-400 text-sm leading-relaxed">{f.desc}</p>
                                 </div>
                             </div>
                         ))}
@@ -227,22 +227,22 @@ const LandingPage = () => {
                             <div className="space-y-6">
                                 <div className="flex gap-5">
                                     <CheckCircle size={20} className="text-blue-300 shrink-0" />
-                                    <p className="text-slate-400 text-sm font-medium">Manage student violations faster and more accurately.</p>
+                                    <p className="text-slate-400 dark:text-slate-500 text-sm font-medium">Manage student violations faster and more accurately.</p>
                                 </div>
                                 <div className="flex gap-5">
                                     <CheckCircle size={20} className="text-blue-300 shrink-0" />
-                                    <p className="text-slate-400 text-sm font-medium">Reduces manual paperwork and streamlines administrative effort.</p>
+                                    <p className="text-slate-400 dark:text-slate-500 text-sm font-medium">Reduces manual paperwork and streamlines administrative effort.</p>
                                 </div>
                                 <div className="flex gap-5">
                                     <CheckCircle size={20} className="text-blue-300 shrink-0" />
-                                    <p className="text-slate-400 text-sm font-medium">Improves transparency between students and administrators.</p>
+                                    <p className="text-slate-400 dark:text-slate-500 text-sm font-medium">Improves transparency between students and administrators.</p>
                                 </div>
                             </div>
                         </div>
 
-                        <div className="p-8 bg-white/5 rounded-2xl border border-white/10">
+                        <div className="p-8 bg-white dark:bg-slate-800/5 rounded-2xl border border-white/10">
                             <h3 className="text-xl font-bold mb-4">Integrated Ecosystem</h3>
-                            <p className="text-slate-400 text-sm leading-relaxed">
+                            <p className="text-slate-400 dark:text-slate-500 text-sm leading-relaxed">
                                 Our platform provides a unified environment for student violation processing, QR-based verification, and real-time service monitoring, designed for university-wide stability.
                             </p>
                         </div>
@@ -251,31 +251,31 @@ const LandingPage = () => {
             </section>
 
             {/* Footer */}
-            <footer className="py-16 px-6 bg-white border-t border-slate-100">
+            <footer className="py-16 px-6 bg-white dark:bg-slate-800 border-t border-slate-100 dark:border-slate-700">
                 <div className="max-w-6xl mx-auto flex flex-col md:flex-row justify-between items-center gap-10">
                     <div className="space-y-4 text-center md:text-left">
                         <CSSLogo />
-                        <p className="text-slate-400 text-[10px] font-bold uppercase tracking-widest max-w-xs leading-relaxed">
+                        <p className="text-slate-400 dark:text-slate-500 text-[10px] font-bold uppercase tracking-widest max-w-xs leading-relaxed">
                             A professional ecosystem for student violation processing and campus monitoring.
                         </p>
                     </div>
                     
                     <div className="flex gap-12 text-center md:text-left">
                         <div className="flex flex-col gap-3">
-                            <p className="text-[10px] font-bold uppercase tracking-widest text-slate-300">Sections</p>
-                            <a href="#home" className="text-xs font-medium text-slate-500 hover:text-blue-900">Home</a>
-                            <a href="#features" className="text-xs font-medium text-slate-500 hover:text-blue-900">Features</a>
-                            <a href="#about" className="text-xs font-medium text-slate-500 hover:text-blue-900">About</a>
+                            <p className="text-[10px] font-bold uppercase tracking-widest text-slate-300 dark:text-slate-600">Sections</p>
+                            <a href="#home" className="text-xs font-medium text-slate-500 dark:text-slate-400 hover:text-blue-900">Home</a>
+                            <a href="#features" className="text-xs font-medium text-slate-500 dark:text-slate-400 hover:text-blue-900">Features</a>
+                            <a href="#about" className="text-xs font-medium text-slate-500 dark:text-slate-400 hover:text-blue-900">About</a>
                         </div>
                         <div className="flex flex-col gap-3">
-                            <p className="text-[10px] font-bold uppercase tracking-widest text-slate-300">Account</p>
-                            <Link to="/login" className="text-xs font-medium text-slate-500 hover:text-blue-900">Login</Link>
-                            <Link to="/register" className="text-xs font-medium text-slate-500 hover:text-blue-900">Register</Link>
+                            <p className="text-[10px] font-bold uppercase tracking-widest text-slate-300 dark:text-slate-600">Account</p>
+                            <Link to="/login" className="text-xs font-medium text-slate-500 dark:text-slate-400 hover:text-blue-900">Login</Link>
+                            <Link to="/register" className="text-xs font-medium text-slate-500 dark:text-slate-400 hover:text-blue-900">Register</Link>
                         </div>
                     </div>
                 </div>
                 <div className="max-w-6xl mx-auto border-t border-slate-50 mt-16 pt-8 text-center md:text-left">
-                    <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-300">
+                    <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-300 dark:text-slate-600">
                         © 2026 OSA CONNECT • ONE SCAN AT A TIME
                     </p>
                 </div>

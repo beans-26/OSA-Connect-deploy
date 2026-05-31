@@ -57,7 +57,7 @@ const StudentRegistration = () => {
         <div className={`flex items-center gap-2 ${className}`}>
             <div className="relative">
                 <div className="absolute -top-1 -left-1 w-4 h-3 bg-amber-400 rounded-tr-[4px] rounded-tl-[2px]" />
-                <h2 className="text-xl font-bold text-slate-800 tracking-tight relative z-10 leading-none">OSA</h2>
+                <h2 className="text-xl font-bold text-slate-800 dark:text-slate-200 tracking-tight relative z-10 leading-none">OSA</h2>
             </div>
             <span className="text-xl font-bold text-blue-900">Connect</span>
         </div>
@@ -172,25 +172,25 @@ const StudentRegistration = () => {
     };
 
     return (
-        <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-6 sm:p-12">
+        <div className="min-h-screen bg-slate-50 dark:bg-slate-900 flex flex-col items-center justify-center p-6 sm:p-12">
             <div className="w-full max-w-2xl space-y-10">
                 
                 {/* Clean Header */}
                 <div className="text-center space-y-4">
                     <CSSLogo className="justify-center" />
                     <div className="space-y-1">
-                        <h1 className="text-2xl font-bold text-slate-900 uppercase tracking-tight">Student Identity Proxy</h1>
-                        <p className="text-slate-500 font-bold text-[10px] uppercase tracking-widest text-blue-900/60">Registry Portal</p>
+                        <h1 className="text-2xl font-bold text-slate-900 dark:text-white uppercase tracking-tight">Student Identity Proxy</h1>
+                        <p className="text-slate-500 dark:text-slate-400 font-bold text-[10px] uppercase tracking-widest text-blue-900/60">Registry Portal</p>
                     </div>
                 </div>
 
                 {/* Stable Registration Card */}
-                <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-8 sm:p-12">
+                <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-600 p-8 sm:p-12">
                     {step === 1 ? (
                         <div className="space-y-8 animate-in fade-in duration-300">
                             <div className="border-b border-slate-50 pb-6">
-                                <h2 className="text-xl font-bold text-slate-800 tracking-tight">Account Details</h2>
-                                <p className="text-slate-400 font-bold text-[10px] uppercase tracking-widest">Step 01: Personal Information</p>
+                                <h2 className="text-xl font-bold text-slate-800 dark:text-slate-200 tracking-tight">Account Details</h2>
+                                <p className="text-slate-400 dark:text-slate-500 font-bold text-[10px] uppercase tracking-widest">Step 01: Personal Information</p>
                             </div>
 
                             <form onSubmit={requestOTP} className="space-y-8">
@@ -206,27 +206,27 @@ const StudentRegistration = () => {
                                         { label: 'Contact', key: 'contact_number', icon: Phone, placeholder: '09XXX' }
                                     ].map((f) => (
                                         <div key={f.key} className="space-y-1.5">
-                                            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">{f.label}</label>
+                                            <label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-1">{f.label}</label>
                                             {f.type === 'select' ? (
-                                                <select required value={studentData[f.key]} onChange={(e) => setStudentData({...studentData, [f.key]: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-lg p-3 font-semibold text-slate-700 outline-none focus:bg-white focus:border-blue-600 appearance-none text-sm transition-none">
+                                                <select required value={studentData[f.key]} onChange={(e) => setStudentData({...studentData, [f.key]: e.target.value})} className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-600 rounded-lg p-3 font-semibold text-slate-700 dark:text-slate-300 outline-none focus:bg-white dark:bg-slate-800 focus:border-blue-600 appearance-none text-sm transition-none">
                                                     <option value="">Select {f.label}</option>
                                                     {f.options.map(o => <option key={o} value={o}>{f.key === 'year_level' ? `Year ${o}` : o}</option>)}
                                                 </select>
                                             ) : (
-                                                <input required={f.required !== false} type="text" value={studentData[f.key]} onChange={(e) => setStudentData({...studentData, [f.key]: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-lg p-3 outline-none font-semibold text-slate-700 placeholder:text-slate-200 focus:bg-white focus:border-blue-600 text-sm transition-none" placeholder={f.placeholder} />
+                                                <input required={f.required !== false} type="text" value={studentData[f.key]} onChange={(e) => setStudentData({...studentData, [f.key]: e.target.value})} className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-600 rounded-lg p-3 outline-none font-semibold text-slate-700 dark:text-slate-300 placeholder:text-slate-200 focus:bg-white dark:bg-slate-800 focus:border-blue-600 text-sm transition-none" placeholder={f.placeholder} />
                                             )}
                                         </div>
                                     ))}
                                 </div>
 
-                                <div className="space-y-6 pt-6 border-t border-slate-100">
+                                <div className="space-y-6 pt-6 border-t border-slate-100 dark:border-slate-700">
                                     <div className="space-y-1.5">
-                                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Email Address</label>
-                                        <input required type="email" value={studentData.email} onChange={(e) => setStudentData({...studentData, email: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-lg p-3.5 outline-none font-semibold text-slate-700 focus:bg-white focus:border-blue-600 transition-none text-sm" placeholder="student@example.edu" />
+                                        <label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-1">Email Address</label>
+                                        <input required type="email" value={studentData.email} onChange={(e) => setStudentData({...studentData, email: e.target.value})} className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-600 rounded-lg p-3.5 outline-none font-semibold text-slate-700 dark:text-slate-300 focus:bg-white dark:bg-slate-800 focus:border-blue-600 transition-none text-sm" placeholder="student@example.edu" />
                                     </div>
                                     <div className="space-y-1.5">
-                                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Password</label>
-                                        <input type="password" value={studentData.password} onChange={(e) => setStudentData({...studentData, password: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-lg p-3.5 outline-none font-semibold text-slate-700 focus:bg-white focus:border-blue-600 transition-none text-sm" placeholder="ID as default if blank" />
+                                        <label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-1">Password</label>
+                                        <input type="password" value={studentData.password} onChange={(e) => setStudentData({...studentData, password: e.target.value})} className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-600 rounded-lg p-3.5 outline-none font-semibold text-slate-700 dark:text-slate-300 focus:bg-white dark:bg-slate-800 focus:border-blue-600 transition-none text-sm" placeholder="ID as default if blank" />
                                     </div>
                                 </div>
 
@@ -235,8 +235,8 @@ const StudentRegistration = () => {
                                 </button>
                             </form>
 
-                            <div className="mt-10 text-center pt-8 border-t border-slate-100/50">
-                                <p className="text-slate-400 font-bold text-[10px] uppercase tracking-widest">Already have an account? <Link to="/login" className="text-blue-900 font-bold underline underline-offset-4">Log in</Link></p>
+                            <div className="mt-10 text-center pt-8 border-t border-slate-100 dark:border-slate-700/50">
+                                <p className="text-slate-400 dark:text-slate-500 font-bold text-[10px] uppercase tracking-widest">Already have an account? <Link to="/login" className="text-blue-900 font-bold underline underline-offset-4">Log in</Link></p>
                             </div>
                         </div>
                     ) : step === 2 ? (
@@ -245,19 +245,19 @@ const StudentRegistration = () => {
                                 <div className="w-16 h-16 bg-blue-50 text-blue-900 rounded-2xl flex items-center justify-center mx-auto mb-6 border border-blue-100">
                                     <Mail size={32} />
                                 </div>
-                                <h2 className="text-xl font-bold text-slate-800 tracking-tight">Verify Your Email</h2>
-                                <p className="text-slate-400 font-bold text-[10px] uppercase tracking-widest mt-2">Step 02: Verification Code</p>
-                                <p className="text-slate-500 text-sm mt-4">We sent a 6-digit code to <span className="font-semibold text-slate-800">{studentData.email}</span></p>
+                                <h2 className="text-xl font-bold text-slate-800 dark:text-slate-200 tracking-tight">Verify Your Email</h2>
+                                <p className="text-slate-400 dark:text-slate-500 font-bold text-[10px] uppercase tracking-widest mt-2">Step 02: Verification Code</p>
+                                <p className="text-slate-500 dark:text-slate-400 text-sm mt-4">We sent a 6-digit code to <span className="font-semibold text-slate-800 dark:text-slate-200">{studentData.email}</span></p>
                             </div>
 
                             <form onSubmit={verifyAndRegister} className="space-y-6">
                                 <div className="space-y-1.5 max-w-sm mx-auto">
-                                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">6-Digit Code</label>
+                                    <label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-1">6-Digit Code</label>
                                     <div className="relative">
                                         <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                                            <KeyRound className="text-slate-400" size={18} />
+                                            <KeyRound className="text-slate-400 dark:text-slate-500" size={18} />
                                         </div>
-                                        <input required type="text" maxLength={6} value={otp} onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))} className="w-full bg-slate-50 border border-slate-200 rounded-lg pl-12 p-3.5 outline-none font-bold tracking-widest text-center text-xl text-slate-700 placeholder:text-slate-300 focus:bg-white focus:border-blue-600 transition-none" placeholder="000000" />
+                                        <input required type="text" maxLength={6} value={otp} onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))} className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-600 rounded-lg pl-12 p-3.5 outline-none font-bold tracking-widest text-center text-xl text-slate-700 dark:text-slate-300 placeholder:text-slate-300 dark:text-slate-600 focus:bg-white dark:bg-slate-800 focus:border-blue-600 transition-none" placeholder="000000" />
                                     </div>
                                 </div>
 
@@ -268,7 +268,7 @@ const StudentRegistration = () => {
                                     
                                     <div className="text-center">
                                         {otpCooldown > 0 ? (
-                                            <p className="text-slate-400 font-bold text-[10px] uppercase tracking-widest">Resend code in {otpCooldown}s</p>
+                                            <p className="text-slate-400 dark:text-slate-500 font-bold text-[10px] uppercase tracking-widest">Resend code in {otpCooldown}s</p>
                                         ) : (
                                             <button type="button" onClick={requestOTP} disabled={saving} className="text-blue-900 font-bold text-[10px] uppercase tracking-widest underline underline-offset-4 hover:text-blue-700">
                                                 Resend Code
@@ -277,8 +277,8 @@ const StudentRegistration = () => {
                                     </div>
                                 </div>
                             </form>
-                            <div className="mt-6 text-center pt-6 border-t border-slate-100/50">
-                                <button onClick={() => setStep(1)} className="text-slate-400 font-bold text-[10px] uppercase tracking-widest hover:text-slate-600">
+                            <div className="mt-6 text-center pt-6 border-t border-slate-100 dark:border-slate-700/50">
+                                <button onClick={() => setStep(1)} className="text-slate-400 dark:text-slate-500 font-bold text-[10px] uppercase tracking-widest hover:text-slate-600 dark:text-slate-400">
                                     ← Back to Details
                                 </button>
                             </div>
@@ -288,10 +288,10 @@ const StudentRegistration = () => {
                             <div className="w-16 h-16 bg-blue-50 text-blue-900 rounded-2xl flex items-center justify-center mx-auto mb-10 border border-blue-100">
                                 <CheckCircle2 size={32} />
                             </div>
-                            <h2 className="text-2xl font-bold text-slate-900 uppercase tracking-tight mb-2">Registration Success</h2>
-                            <p className="text-slate-500 font-bold text-sm max-w-sm mx-auto mb-10">Verification complete. Save your official QR credentials below for campus entry.</p>
+                            <h2 className="text-2xl font-bold text-slate-900 dark:text-white uppercase tracking-tight mb-2">Registration Success</h2>
+                            <p className="text-slate-500 dark:text-slate-400 font-bold text-sm max-w-sm mx-auto mb-10">Verification complete. Save your official QR credentials below for campus entry.</p>
 
-                            <div className="bg-white p-10 rounded-2xl shadow-sm border border-slate-100 inline-block mb-10">
+                            <div className="bg-white dark:bg-slate-800 p-10 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 inline-block mb-10">
                                 <QRCode id="qr-code-svg" value={formatQRData(studentData)} size={200} level={"H"} />
                             </div>
 
@@ -299,7 +299,7 @@ const StudentRegistration = () => {
                                 <button onClick={downloadQR} className="h-14 flex-1 bg-blue-900 text-white rounded-lg font-bold text-[10px] uppercase tracking-widest shadow-sm flex items-center justify-center gap-3 hover:bg-slate-800 transition-colors">
                                     <Download size={18} /> Download QR ID
                                 </button>
-                                <Link to="/login" className="h-14 flex-1 bg-slate-100 text-slate-500 rounded-lg font-bold text-[10px] uppercase tracking-widest flex items-center justify-center gap-3 hover:bg-slate-200 transition-colors">
+                                <Link to="/login" className="h-14 flex-1 bg-slate-100 text-slate-500 dark:text-slate-400 rounded-lg font-bold text-[10px] uppercase tracking-widest flex items-center justify-center gap-3 hover:bg-slate-200 transition-colors">
                                     Continue to Login
                                 </Link>
                             </div>
@@ -308,7 +308,7 @@ const StudentRegistration = () => {
                 </div>
             </div>
 
-            <p className="mt-12 text-[10px] font-bold text-slate-300 uppercase tracking-widest">OSA CONNECT SECURITY © 2026</p>
+            <p className="mt-12 text-[10px] font-bold text-slate-300 dark:text-slate-600 uppercase tracking-widest">OSA CONNECT SECURITY © 2026</p>
         </div>
     );
 };

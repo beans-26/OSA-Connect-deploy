@@ -109,30 +109,30 @@ const AdminDashboard = () => {
     };
 
     const StatCard = ({ icon: Icon, label, value, color, bgColor }) => (
-        <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 hover:shadow-md transition-shadow">
+        <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-sm border border-slate-100 dark:border-slate-700 hover:shadow-md transition-shadow">
             <div className="flex items-center gap-4">
                 <div className={`w-14 h-14 rounded-2xl ${bgColor} flex items-center justify-center shadow-lg`}>
                     <Icon className={color} size={28} />
                 </div>
                 <div>
-                    <p className="text-3xl font-black text-slate-900">{loading ? '...' : value}</p>
-                    <p className="text-sm font-semibold text-slate-500 uppercase tracking-wider">{label}</p>
+                    <p className="text-3xl font-black text-slate-900 dark:text-white">{loading ? '...' : value}</p>
+                    <p className="text-sm font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">{label}</p>
                 </div>
             </div>
         </div>
     );
 
     return (
-        <div className="flex bg-slate-50 min-h-screen relative">
+        <div className="flex bg-slate-50 dark:bg-slate-900 min-h-screen relative">
             <Sidebar role="admin" />
             <div className="flex-1 flex flex-col lg:flex-row">
-                <main className="flex-1 p-4 md:p-10 pt-24 md:pt-10 max-w-7xl mx-auto overflow-y-auto">
+                <main className="flex-1 p-4 md:p-10 pt-24 md:pt-10 w-full max-w-full overflow-y-auto">
                     <header className="mb-8 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                         <div>
-                            <h1 className="text-3xl md:text-4xl font-extrabold text-slate-900 tracking-tight uppercase italic">
+                            <h1 className="text-3xl md:text-4xl font-extrabold text-slate-900 dark:text-white tracking-tight uppercase italic">
                                 Admin Command Center
                             </h1>
-                            <p className="text-slate-500 mt-2 font-medium">
+                            <p className="text-slate-500 dark:text-slate-400 mt-2 font-medium">
                                 {loading ? 'Loading system data...' : 'System overview and management'}
                             </p>
                         </div>
@@ -196,14 +196,14 @@ const AdminDashboard = () => {
                                 icon={Calendar}
                                 label="Last Sync"
                                 value={formatTimeAgo(systemHealth.lastSync)}
-                                color="text-slate-600"
-                                bgColor="bg-slate-50"
+                                color="text-slate-600 dark:text-slate-400"
+                                bgColor="bg-slate-50 dark:bg-slate-900"
                             />
                         </div>
 
-                        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
+                        <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 p-6">
                             <div className="flex items-center justify-between mb-6">
-                                <h3 className="font-bold text-slate-800 uppercase tracking-wider text-lg">User Roles Overview</h3>
+                                <h3 className="font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider text-lg">User Roles Overview</h3>
                             </div>
                             <div className="grid grid-cols-3 gap-4">
                                 <div className="text-center p-4 bg-blue-50 rounded-2xl">
@@ -224,10 +224,10 @@ const AdminDashboard = () => {
                             </div>
                         </div>
 
-                        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
+                        <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 p-6">
                             <div className="flex items-center justify-between mb-6">
-                                <h3 className="font-bold text-slate-800 uppercase tracking-wider text-lg">Recent Activity</h3>
-                                <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
+                                <h3 className="font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider text-lg">Recent Activity</h3>
+                                <span className="text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
                                     {recentActivity.length} events
                                 </span>
                             </div>
@@ -235,13 +235,13 @@ const AdminDashboard = () => {
                                 {recentActivity.length === 0 ? (
                                     <div className="text-center py-12">
                                         <Activity className="mx-auto text-slate-200 mb-3" size={48} />
-                                        <p className="text-slate-400 font-semibold">No recent activity</p>
+                                        <p className="text-slate-400 dark:text-slate-500 font-semibold">No recent activity</p>
                                     </div>
                                 ) : (
                                     recentActivity.map((activity) => (
                                         <div
                                             key={activity.id}
-                                            className="flex items-center gap-4 p-4 bg-slate-50 rounded-2xl hover:bg-slate-100 transition-colors"
+                                            className="flex items-center gap-4 p-4 bg-slate-50 dark:bg-slate-900 rounded-2xl hover:bg-slate-100 transition-colors"
                                         >
                                             <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
                                                 activity.type === 'violation' ? 'bg-red-100' : 'bg-blue-100'
@@ -253,14 +253,14 @@ const AdminDashboard = () => {
                                                 )}
                                             </div>
                                             <div className="flex-1">
-                                                <p className="font-semibold text-slate-800 text-sm">{activity.message}</p>
-                                                <p className="text-xs text-slate-500 mt-1">{formatTimeAgo(activity.time)}</p>
+                                                <p className="font-semibold text-slate-800 dark:text-slate-200 text-sm">{activity.message}</p>
+                                                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">{formatTimeAgo(activity.time)}</p>
                                             </div>
                                             <span className={`text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full ${
                                                 activity.status?.toLowerCase().includes('pending') ? 'bg-orange-100 text-orange-700' :
                                                 activity.status === 'Completed' ? 'bg-green-100 text-green-700' :
                                                 activity.status === 'Ongoing' ? 'bg-blue-100 text-blue-700' :
-                                                'bg-slate-100 text-slate-700'
+                                                'bg-slate-100 text-slate-700 dark:text-slate-300'
                                             }`}>
                                                 {activity.status}
                                             </span>
@@ -278,21 +278,21 @@ const AdminDashboard = () => {
                             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                                 <a
                                     href="/admin/students"
-                                    className="flex flex-col items-center gap-2 p-4 bg-white/10 rounded-xl hover:bg-white/20 transition-colors"
+                                    className="flex flex-col items-center gap-2 p-4 bg-white dark:bg-slate-800/10 rounded-xl hover:bg-white dark:bg-slate-800/20 transition-colors"
                                 >
                                     <Users size={24} />
                                     <span className="text-xs font-bold uppercase tracking-wider">Manage Students</span>
                                 </a>
                                 <a
                                     href="/admin/pending"
-                                    className="flex flex-col items-center gap-2 p-4 bg-white/10 rounded-xl hover:bg-white/20 transition-colors"
+                                    className="flex flex-col items-center gap-2 p-4 bg-white dark:bg-slate-800/10 rounded-xl hover:bg-white dark:bg-slate-800/20 transition-colors"
                                 >
                                     <AlertTriangle size={24} />
                                     <span className="text-xs font-bold uppercase tracking-wider">Pending Reviews</span>
                                 </a>
                                 <a
                                     href="/admin/analytics"
-                                    className="flex flex-col items-center gap-2 p-4 bg-white/10 rounded-xl hover:bg-white/20 transition-colors"
+                                    className="flex flex-col items-center gap-2 p-4 bg-white dark:bg-slate-800/10 rounded-xl hover:bg-white dark:bg-slate-800/20 transition-colors"
                                 >
                                     <Activity size={24} />
                                     <span className="text-xs font-bold uppercase tracking-wider">Analytics</span>
@@ -306,7 +306,7 @@ const AdminDashboard = () => {
                                 </a>
                                 <a
                                     href="/admin/settings"
-                                    className="flex flex-col items-center gap-2 p-4 bg-white/10 rounded-xl hover:bg-white/20 transition-colors"
+                                    className="flex flex-col items-center gap-2 p-4 bg-white dark:bg-slate-800/10 rounded-xl hover:bg-white dark:bg-slate-800/20 transition-colors"
                                 >
                                     <Settings size={24} />
                                     <span className="text-xs font-bold uppercase tracking-wider">Settings</span>

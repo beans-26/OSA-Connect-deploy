@@ -63,17 +63,17 @@ const GuardDashboard = () => {
     };
 
     return (
-        <div className="flex bg-slate-50 min-h-screen">
+        <div className="flex bg-slate-50 dark:bg-slate-900 min-h-screen">
             <Sidebar role="guard" />
-            <main className="flex-1 p-4 sm:p-6 lg:p-10 max-w-7xl mx-auto overflow-y-auto mobile-top-spacer">
+            <main className="flex-1 p-4 sm:p-6 lg:p-10 w-full max-w-full overflow-y-auto mobile-top-spacer">
                 <header className="mb-8 lg:mb-12 flex flex-col sm:flex-row justify-between sm:items-end gap-4">
                     <div>
-                        <h1 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-slate-900 tracking-tight">Security Portal</h1>
-                        <p className="text-slate-500 mt-1 sm:mt-2 font-medium text-sm sm:text-base">Laguindingan Campus Gate 1</p>
+                        <h1 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-slate-900 dark:text-white tracking-tight">Security Portal</h1>
+                        <p className="text-slate-500 dark:text-slate-400 mt-1 sm:mt-2 font-medium text-sm sm:text-base">Laguindingan Campus Gate 1</p>
                     </div>
                     <div className="glass px-4 sm:px-6 py-2 sm:py-3 rounded-2xl flex items-center gap-3 self-start sm:self-auto">
                         <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse" />
-                        <span className="text-xs sm:text-sm font-bold text-slate-700">Gate Active</span>
+                        <span className="text-xs sm:text-sm font-bold text-slate-700 dark:text-slate-300">Gate Active</span>
                     </div>
                 </header>
 
@@ -82,7 +82,7 @@ const GuardDashboard = () => {
                         {step === 1 && (
                             <div className="card-premium">
                                 <div className="flex items-center justify-between mb-6 lg:mb-8 pb-4 border-b border-slate-50">
-                                    <h3 className="font-extrabold text-lg lg:text-xl text-slate-800 flex items-center gap-3">
+                                    <h3 className="font-extrabold text-lg lg:text-xl text-slate-800 dark:text-slate-200 flex items-center gap-3">
                                         <ClipboardList className="text-blue-600" size={24} />
                                         Violation Report Form
                                     </h3>
@@ -98,14 +98,14 @@ const GuardDashboard = () => {
                                                     type="text"
                                                     placeholder="Student ID Number"
                                                     value={form.studentId}
-                                                    className="w-full bg-slate-50 border-2 border-slate-200 rounded-2xl p-3 sm:p-4 pr-14 sm:pr-16 font-black text-slate-800 outline-none focus:border-blue-600 transition-all placeholder:text-slate-400 text-sm sm:text-base"
+                                                    className="w-full bg-slate-50 dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-600 rounded-2xl p-3 sm:p-4 pr-14 sm:pr-16 font-black text-slate-800 dark:text-slate-200 outline-none focus:border-blue-600 transition-all placeholder:text-slate-400 dark:text-slate-500 text-sm sm:text-base"
                                                     onChange={handleIdChange}
                                                 />
                                                 <button
                                                     type="button"
                                                     onClick={handleScan}
                                                     title="Optional ID Scanner"
-                                                    className="absolute right-2 top-2 bottom-2 aspect-square bg-slate-200 hover:bg-slate-300 rounded-xl flex items-center justify-center text-slate-600 transition-colors"
+                                                    className="absolute right-2 top-2 bottom-2 aspect-square bg-slate-200 hover:bg-slate-300 rounded-xl flex items-center justify-center text-slate-600 dark:text-slate-400 transition-colors"
                                                 >
                                                     <Scan size={20} />
                                                 </button>
@@ -117,7 +117,7 @@ const GuardDashboard = () => {
                                                     readOnly={form.name !== ''}
                                                     placeholder="Full Student Name"
                                                     value={form.name}
-                                                    className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl p-3 sm:p-4 font-bold text-slate-700 outline-none focus:border-blue-600 transition-all opacity-80 text-sm sm:text-base"
+                                                    className="w-full bg-slate-50 dark:bg-slate-900 border-2 border-slate-100 dark:border-slate-700 rounded-2xl p-3 sm:p-4 font-bold text-slate-700 dark:text-slate-300 outline-none focus:border-blue-600 transition-all opacity-80 text-sm sm:text-base"
                                                     onChange={(e) => setForm({ ...form, name: e.target.value })}
                                                 />
                                             </div>
@@ -127,7 +127,7 @@ const GuardDashboard = () => {
                                                     readOnly={form.course !== ''}
                                                     placeholder="Course"
                                                     value={form.course}
-                                                    className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl p-3 sm:p-4 font-bold text-slate-700 outline-none focus:border-blue-600 transition-all text-sm opacity-80"
+                                                    className="w-full bg-slate-50 dark:bg-slate-900 border-2 border-slate-100 dark:border-slate-700 rounded-2xl p-3 sm:p-4 font-bold text-slate-700 dark:text-slate-300 outline-none focus:border-blue-600 transition-all text-sm opacity-80"
                                                     onChange={(e) => setForm({ ...form, course: e.target.value })}
                                                 />
                                                 <input
@@ -135,7 +135,7 @@ const GuardDashboard = () => {
                                                     readOnly={form.department !== ''}
                                                     placeholder="Department"
                                                     value={form.department}
-                                                    className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl p-3 sm:p-4 font-bold text-slate-700 outline-none focus:border-blue-600 transition-all text-sm opacity-80"
+                                                    className="w-full bg-slate-50 dark:bg-slate-900 border-2 border-slate-100 dark:border-slate-700 rounded-2xl p-3 sm:p-4 font-bold text-slate-700 dark:text-slate-300 outline-none focus:border-blue-600 transition-all text-sm opacity-80"
                                                     onChange={(e) => setForm({ ...form, department: e.target.value })}
                                                 />
                                             </div>
@@ -149,7 +149,7 @@ const GuardDashboard = () => {
                                                     readOnly={form.contact !== ''}
                                                     placeholder="Contact Number"
                                                     value={form.contact}
-                                                    className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl p-3 sm:p-4 font-bold text-slate-700 outline-none focus:border-blue-600 transition-all opacity-80 text-sm sm:text-base"
+                                                    className="w-full bg-slate-50 dark:bg-slate-900 border-2 border-slate-100 dark:border-slate-700 rounded-2xl p-3 sm:p-4 font-bold text-slate-700 dark:text-slate-300 outline-none focus:border-blue-600 transition-all opacity-80 text-sm sm:text-base"
                                                     onChange={(e) => setForm({ ...form, contact: e.target.value })}
                                                 />
                                             </div>
@@ -160,7 +160,7 @@ const GuardDashboard = () => {
                                                     type="email"
                                                     placeholder="Email Address"
                                                     value={form.email}
-                                                    className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl p-3 sm:p-4 font-bold text-slate-700 outline-none focus:border-blue-600 transition-all opacity-80 text-sm sm:text-base"
+                                                    className="w-full bg-slate-50 dark:bg-slate-900 border-2 border-slate-100 dark:border-slate-700 rounded-2xl p-3 sm:p-4 font-bold text-slate-700 dark:text-slate-300 outline-none focus:border-blue-600 transition-all opacity-80 text-sm sm:text-base"
                                                     onChange={(e) => setForm({ ...form, email: e.target.value })}
                                                 />
                                             </div>
@@ -172,7 +172,7 @@ const GuardDashboard = () => {
                                         <div className="w-full">
                                             <select
                                                 required
-                                                className="w-full bg-red-50/30 border-2 border-red-50 rounded-2xl p-3 sm:p-4 font-bold text-slate-700 outline-none focus:border-red-500 transition-all appearance-none cursor-pointer text-sm sm:text-base"
+                                                className="w-full bg-red-50/30 border-2 border-red-50 rounded-2xl p-3 sm:p-4 font-bold text-slate-700 dark:text-slate-300 outline-none focus:border-red-500 transition-all appearance-none cursor-pointer text-sm sm:text-base"
                                                 onChange={(e) => setForm({ ...form, violation: e.target.value })}
                                                 value={form.violation}
                                             >
@@ -200,8 +200,8 @@ const GuardDashboard = () => {
                                 <div className="w-20 h-20 sm:w-24 sm:h-24 bg-green-500 rounded-full flex items-center justify-center mx-auto mb-6 sm:mb-8 shadow-xl shadow-green-200">
                                     <CheckCircle2 className="text-white" size={40} />
                                 </div>
-                                <h2 className="text-2xl sm:text-3xl font-black text-slate-900">Report In Flight</h2>
-                                <p className="text-slate-500 mt-3 sm:mt-4 max-w-sm mx-auto text-base sm:text-lg leading-relaxed font-medium px-4">
+                                <h2 className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white">Report In Flight</h2>
+                                <p className="text-slate-500 dark:text-slate-400 mt-3 sm:mt-4 max-w-sm mx-auto text-base sm:text-lg leading-relaxed font-medium px-4">
                                     Violation report for <span className="text-blue-600 font-bold">{form.name}</span> has been dispatched for OSA Review.
                                 </p>
                                 <button
@@ -226,26 +226,26 @@ const GuardDashboard = () => {
                                 </h4>
                                 <div className="space-y-6 lg:space-y-8">
                                     <div className="flex gap-4">
-                                        <div className="w-8 h-8 rounded-xl bg-white/10 flex items-center justify-center font-black text-ustp-gold text-xs shrink-0">01</div>
-                                        <p className="text-sm text-slate-300 font-medium leading-relaxed">Fetch data using Scanner OR enter ID manually.</p>
+                                        <div className="w-8 h-8 rounded-xl bg-white dark:bg-slate-800/10 flex items-center justify-center font-black text-ustp-gold text-xs shrink-0">01</div>
+                                        <p className="text-sm text-slate-300 dark:text-slate-600 font-medium leading-relaxed">Fetch data using Scanner OR enter ID manually.</p>
                                     </div>
                                     <div className="flex gap-4">
-                                        <div className="w-8 h-8 rounded-xl bg-white/10 flex items-center justify-center font-black text-ustp-gold text-xs shrink-0">02</div>
-                                        <p className="text-sm text-slate-300 font-medium leading-relaxed">Ensure all contact details are accurate for OSA follow-up.</p>
+                                        <div className="w-8 h-8 rounded-xl bg-white dark:bg-slate-800/10 flex items-center justify-center font-black text-ustp-gold text-xs shrink-0">02</div>
+                                        <p className="text-sm text-slate-300 dark:text-slate-600 font-medium leading-relaxed">Ensure all contact details are accurate for OSA follow-up.</p>
                                     </div>
                                     <div className="flex gap-4">
-                                        <div className="w-8 h-8 rounded-xl bg-white/10 flex items-center justify-center font-black text-ustp-gold text-xs shrink-0">03</div>
-                                        <p className="text-sm text-slate-300 font-medium leading-relaxed">Clearly specify the violation category to speed up review.</p>
+                                        <div className="w-8 h-8 rounded-xl bg-white dark:bg-slate-800/10 flex items-center justify-center font-black text-ustp-gold text-xs shrink-0">03</div>
+                                        <p className="text-sm text-slate-300 dark:text-slate-600 font-medium leading-relaxed">Clearly specify the violation category to speed up review.</p>
                                     </div>
                                 </div>
                             </div>
-                            <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full blur-3xl -mr-32 -mt-32" />
+                            <div className="absolute top-0 right-0 w-64 h-64 bg-white dark:bg-slate-800/5 rounded-full blur-3xl -mr-32 -mt-32" />
                         </div>
 
                         <div className="card-premium">
-                            <h4 className="font-extrabold text-slate-800 text-sm mb-6 lg:mb-8 uppercase tracking-widest text-center">Duty History</h4>
-                            <div className="py-16 sm:py-20 text-center bg-slate-50/50 rounded-[32px] border-2 border-dashed border-slate-100">
-                                <p className="text-slate-300 font-black uppercase tracking-[0.2em] text-[10px]">Clean Duty Log</p>
+                            <h4 className="font-extrabold text-slate-800 dark:text-slate-200 text-sm mb-6 lg:mb-8 uppercase tracking-widest text-center">Duty History</h4>
+                            <div className="py-16 sm:py-20 text-center bg-slate-50 dark:bg-slate-900/50 rounded-[32px] border-2 border-dashed border-slate-100 dark:border-slate-700">
+                                <p className="text-slate-300 dark:text-slate-600 font-black uppercase tracking-[0.2em] text-[10px]">Clean Duty Log</p>
                             </div>
                         </div>
                     </div>

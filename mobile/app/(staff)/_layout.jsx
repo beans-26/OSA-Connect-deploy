@@ -1,11 +1,11 @@
-import { Stack } from 'expo-router';
+import { Stack, useRouter } from 'expo-router';
 import { Colors } from '../../constants/Colors';
 import { TouchableOpacity, Text } from 'react-native';
 import { useAuth } from '../../components/AuthContext';
-import { LogOut } from 'lucide-react-native';
+import { User } from 'lucide-react-native';
 
 export default function StaffLayout() {
-    const { logout } = useAuth();
+    const router = useRouter();
 
     return (
         <Stack
@@ -18,12 +18,8 @@ export default function StaffLayout() {
                     fontWeight: 'bold',
                 },
                 headerRight: () => (
-                    <TouchableOpacity 
-                        onPress={logout}
-                        style={{ flexDirection: 'row', alignItems: 'center', marginRight: 15 }}
-                    >
-                        <LogOut size={18} color={Colors.danger} style={{ marginRight: 4 }} />
-                        <Text style={{ color: Colors.danger, fontWeight: 'bold' }}>Logout</Text>
+                    <TouchableOpacity onPress={() => router.push('/settings')} style={{ marginRight: 15 }}>
+                        <User size={24} color={Colors.text} />
                     </TouchableOpacity>
                 ),
             }}
@@ -32,6 +28,12 @@ export default function StaffLayout() {
                 name="dashboard" 
                 options={{ 
                     title: 'Personnel Dashboard',
+                }} 
+            />
+            <Stack.Screen 
+                name="settings" 
+                options={{ 
+                    headerShown: false,
                 }} 
             />
         </Stack>

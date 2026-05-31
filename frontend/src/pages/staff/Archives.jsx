@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import Sidebar from '../../components/Sidebar';
 import { Archive, User, CheckCircle, Clock, Search, ChevronDown, XCircle, Download, Printer } from 'lucide-react';
+import GlobalSearch from '../../components/GlobalSearch';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
@@ -193,16 +194,20 @@ const Archives = () => {
     };
 
     return (
-        <div className="flex bg-slate-50 min-h-screen relative">
+        <div className="flex bg-slate-50 dark:bg-slate-900 min-h-screen">
             <Sidebar role={userRole} />
-            <main className="flex-1 p-10 max-w-7xl mx-auto overflow-y-auto">
+            <div className="flex-1 h-screen overflow-y-auto custom-scrollbar w-full">
+                <div className="sticky top-0 z-40 bg-slate-50 dark:bg-slate-900 px-6 md:px-10 pt-24 md:pt-10 pb-2 border-b border-transparent">
+                    <GlobalSearch />
+                </div>
+                <main className="flex-1 p-4 md:p-10 pt-0 md:pt-0 w-full max-w-full">
                 <header className="mb-8">
                     <div className="flex justify-between items-end">
                         <div className="print:hidden">
-                            <h1 className="text-4xl font-extrabold text-slate-900 tracking-tight flex items-center gap-4">
-                                <Archive className="text-ustp-blue" size={36} /> Archives
+                            <h1 className="text-3xl md:text-4xl font-extrabold text-slate-900 dark:text-white tracking-tight flex items-center gap-3">
+                                Violation Archives
                             </h1>
-                            <p className="text-slate-500 mt-2 font-medium italic">Completed violations, dismissed cases, and service records.</p>
+                            <p className="text-slate-500 dark:text-slate-400 mt-2 font-medium text-sm">Immutable historical record of completed and dismissed violations.</p>
                         </div>
                         <div className="flex gap-3 print:hidden">
                             <button
@@ -218,23 +223,23 @@ const Archives = () => {
                 <div className="flex gap-4 mb-6 print:hidden">
                     <button
                         onClick={() => setShowDismissed(false)}
-                        className={`px-6 py-3 rounded-2xl font-bold text-sm transition-all ${!showDismissed ? 'bg-ustp-blue text-white shadow-lg' : 'bg-white text-slate-500 border border-slate-200'}`}
+                        className={`px-6 py-3 rounded-xl font-semibold text-sm ${!showDismissed ? 'bg-ustp-blue text-white shadow-lg' : 'bg-slate-50 dark:bg-slate-900 text-slate-600 dark:text-slate-400 border-2 border-slate-100 dark:border-slate-700'}`}
                     >
                         Completed
                     </button>
                     <button
                         onClick={() => setShowDismissed(true)}
-                        className={`px-6 py-3 rounded-2xl font-bold text-sm transition-all ${showDismissed ? 'bg-red-500 text-white shadow-lg' : 'bg-white text-slate-500 border border-slate-200'}`}
+                        className={`px-6 py-3 rounded-xl font-semibold text-sm ${showDismissed ? 'bg-red-500 text-white shadow-lg' : 'bg-slate-50 dark:bg-slate-900 text-slate-600 dark:text-slate-400 border-2 border-slate-100 dark:border-slate-700'}`}
                     >
                         Dismissed
                     </button>
                 </div>
 
-                <div className="flex gap-4 mb-10 print:hidden">
+                <div className="flex gap-4 mb-4 print:hidden">
                     <div className="flex-1 relative">
-                        <Search size={18} className="absolute top-1/2 left-5 -translate-y-1/2 text-slate-300" />
+                        <Search size={18} className="absolute top-1/2 left-5 -translate-y-1/2 text-slate-300 dark:text-slate-600" />
                         <input
-                            className="w-full bg-white border-2 border-slate-100 rounded-2xl py-4 pl-14 pr-6 font-bold outline-none focus:border-ustp-blue transition-colors"
+                            className="w-full bg-slate-50 dark:bg-slate-900 border-2 border-slate-100 dark:border-slate-700 rounded-xl py-4 pl-14 pr-6 text-sm font-semibold text-slate-600 dark:text-slate-400 placeholder:text-slate-400 dark:placeholder:text-slate-500 outline-none focus:border-ustp-blue"
                             placeholder="Search by name or student ID..."
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
@@ -242,7 +247,7 @@ const Archives = () => {
                     </div>
                     <div className="relative">
                         <select
-                            className="appearance-none bg-white border-2 border-slate-100 rounded-2xl py-4 pl-6 pr-12 font-bold outline-none focus:border-ustp-blue cursor-pointer"
+                            className="appearance-none bg-slate-50 dark:bg-slate-900 border-2 border-slate-100 dark:border-slate-700 rounded-xl py-4 pl-6 pr-12 text-sm font-semibold text-slate-600 dark:text-slate-400 outline-none focus:border-ustp-blue cursor-pointer"
                             value={filterType}
                             onChange={(e) => setFilterType(e.target.value)}
                         >
@@ -251,20 +256,20 @@ const Archives = () => {
                                 <option key={type} value={type}>{type}</option>
                             ))}
                         </select>
-                        <ChevronDown size={16} className="absolute top-1/2 right-4 -translate-y-1/2 text-slate-300 pointer-events-none" />
+                        <ChevronDown size={16} className="absolute top-1/2 right-4 -translate-y-1/2 text-slate-300 dark:text-slate-600 pointer-events-none" />
                     </div>
                 </div>
 
                 {filtered.length === 0 ? (
                     <div className="py-32 text-center print:hidden">
                         <Archive className="mx-auto text-slate-200 mb-6" size={64} />
-                        <h4 className="font-black text-slate-300 text-xl uppercase tracking-widest">No Archived Records</h4>
-                        <p className="text-slate-400 mt-3 font-medium max-w-md mx-auto">
+                        <h4 className="font-black text-slate-300 dark:text-slate-600 text-xl uppercase tracking-widest">No Archived Records</h4>
+                        <p className="text-slate-400 dark:text-slate-500 mt-3 font-medium max-w-md mx-auto">
                             Completed violations will appear here once their service obligation hours have been fully served.
                         </p>
                     </div>
                 ) : (
-                    <div className="space-y-4 print:hidden">
+                    <div className="space-y-2 print:hidden">
                         {filtered.map(violation => {
                             const isDismissed = violation.status?.toLowerCase() === 'dismissed';
                             const ticket = tickets.find(t => t.violation_details?.id === violation.id || t.violation === violation.id);
@@ -272,22 +277,22 @@ const Archives = () => {
                             const totalServedSeconds = ticketLogs.reduce((sum, l) => sum + (l.duration_seconds || 0), 0);
 
                             return (
-                                <div key={violation.id} className={`bg-white border-2 border-slate-100 rounded-[28px] p-6 shadow-sm hover:shadow-lg hover:border-slate-200 transition-all group ${isDismissed ? 'opacity-75' : ''}`}>
-                                    <div className="flex items-center gap-6">
-                                        <div className={`w-14 h-14 rounded-2xl flex items-center justify-center border-2 ${isDismissed ? 'bg-red-50 border-red-100' : 'bg-emerald-50 border-emerald-100'} group-hover:${isDismissed ? 'bg-red-100' : 'bg-emerald-100'} transition-colors`}>
-                                            {isDismissed ? <XCircle className="text-red-500" size={28} /> : <CheckCircle className="text-emerald-500" size={28} />}
+                                <div key={violation.id} className={`bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-xl p-3 md:p-4 shadow-sm hover:shadow-md hover:border-slate-200 dark:border-slate-600 transition-all group ${isDismissed ? 'opacity-75' : ''}`}>
+                                    <div className="flex items-center gap-4">
+                                        <div className={`w-10 h-10 rounded-lg flex items-center justify-center border ${isDismissed ? 'bg-red-50 border-red-100' : 'bg-emerald-50 border-emerald-100'} group-hover:${isDismissed ? 'bg-red-100' : 'bg-emerald-100'} transition-colors`}>
+                                            {isDismissed ? <XCircle className="text-red-500" size={20} /> : <CheckCircle className="text-emerald-500" size={20} />}
                                         </div>
 
                                         <div className="flex-1 min-w-0">
-                                            <div className="flex items-center gap-3 mb-1">
-                                                <h3 className="font-black text-slate-900 text-lg tracking-tight truncate">
+                                            <div className="flex items-center gap-2 mb-0.5">
+                                                <h3 className="font-bold text-slate-900 dark:text-white text-sm tracking-tight truncate">
                                                     {violation.student_details?.name || 'Unknown Student'}
                                                 </h3>
-                                                <span className={`${isDismissed ? 'bg-red-100 text-red-700' : 'bg-emerald-100 text-emerald-700'} text-[9px] font-black uppercase tracking-widest px-3 py-1 rounded-full whitespace-nowrap`}>
+                                                <span className={`${isDismissed ? 'bg-red-100 text-red-700' : 'bg-emerald-100 text-emerald-700'} text-[9px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full whitespace-nowrap`}>
                                                     {isDismissed ? 'Dismissed' : 'Completed'}
                                                 </span>
                                             </div>
-                                            <div className="flex items-center gap-4 text-sm text-slate-400 font-medium">
+                                            <div className="flex items-center gap-3 text-xs text-slate-400 dark:text-slate-500 font-medium truncate">
                                                 <span>{violation.student_details?.student_id}</span>
                                                 <span>•</span>
                                                 <span>{violation.violation_type}</span>
@@ -296,22 +301,22 @@ const Archives = () => {
                                             </div>
                                         </div>
 
-                                        <div className="flex gap-6 items-center">
+                                        <div className="flex gap-4 items-center">
                                             {!isDismissed && (
                                                 <>
-                                                    <div className="text-center px-4">
-                                                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">Required</p>
-                                                        <p className="text-xl font-black text-slate-800 tracking-tighter">{ticket?.total_hours_required || 0}h</p>
+                                                    <div className="text-center px-2 md:px-3 min-w-[70px]">
+                                                        <p className="text-[9px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-0.5">Required</p>
+                                                        <p className="text-sm font-black text-slate-800 dark:text-slate-200 tracking-tighter">{ticket?.total_hours_required || 0}h</p>
                                                     </div>
-                                                    <div className="text-center px-4 border-l border-slate-100">
-                                                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">Served</p>
-                                                        <p className="text-xl font-black text-emerald-600 tracking-tighter">{ticket ? formatDuration(totalServedSeconds) : 'N/A'}</p>
+                                                    <div className="text-center px-2 md:px-3 border-l border-slate-100 dark:border-slate-700 min-w-[80px]">
+                                                        <p className="text-[9px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-0.5">Served</p>
+                                                        <p className="text-sm font-black text-emerald-600 tracking-tighter">{ticket ? formatDuration(totalServedSeconds) : 'N/A'}</p>
                                                     </div>
                                                 </>
                                             )}
-                                            <div className={`text-center ${!isDismissed ? 'px-4 border-l border-slate-100' : ''}`}>
-                                                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">Date</p>
-                                                <p className="text-sm font-bold text-slate-600">{formatDate(violation.created_at)}</p>
+                                            <div className={`text-center ${!isDismissed ? 'px-2 md:px-3 border-l border-slate-100 dark:border-slate-700' : ''}`}>
+                                                <p className="text-[9px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-0.5">Date</p>
+                                                <p className="text-xs font-bold text-slate-600 dark:text-slate-400">{formatDate(violation.created_at)}</p>
                                             </div>
                                         </div>
                                     </div>
@@ -339,7 +344,7 @@ const Archives = () => {
 
                     <table className="w-full border-collapse border border-black text-[7px]" style={{ width: '100%' }}>
                         <thead>
-                            <tr className="bg-white text-black">
+                            <tr className="bg-white dark:bg-slate-800 text-black">
                                 <th className="border border-black px-0.5 py-1 text-center font-bold text-[6.5px]">ID NUMBER</th>
                                 <th className="border border-black px-0.5 py-1 text-center font-bold text-[6.5px]">FIRST NAME</th>
                                 <th className="border border-black px-0.5 py-1 text-center font-bold text-[6.5px]">LAST NAME</th>
@@ -429,6 +434,7 @@ const Archives = () => {
                     }
                 `}</style>
             </main>
+            </div>
         </div>
     );
 };

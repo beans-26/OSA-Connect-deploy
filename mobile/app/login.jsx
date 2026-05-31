@@ -84,7 +84,7 @@ export default function Login() {
                     ) : null}
 
                     <View style={styles.inputGroup}>
-                        <Text style={styles.label}>Account ID / Username</Text>
+                        <Text style={styles.label}>Student ID</Text>
                         <View style={styles.inputContainer}>
                             <User size={18} color={Colors.textMuted} style={styles.inputIcon} />
                             <TextInput
@@ -123,7 +123,7 @@ export default function Login() {
                     <View style={styles.forgotPasswordContainer}>
                         <Link href="/forgot-password" asChild>
                             <TouchableOpacity>
-                                <Text style={styles.forgotPasswordText}>Recover Security Code?</Text>
+                                <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
                             </TouchableOpacity>
                         </Link>
                     </View>
@@ -137,7 +137,7 @@ export default function Login() {
                             <ActivityIndicator color="#ffffff" />
                         ) : (
                             <>
-                                <Text style={styles.loginButtonText}>Access Identity</Text>
+                                <Text style={styles.loginButtonText}>Login</Text>
                                 <ChevronRight size={16} color="#ffffff" />
                             </>
                         )}

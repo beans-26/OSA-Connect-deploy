@@ -25,6 +25,7 @@ import {
     QrCode,
     CheckCircle
 } from 'lucide-react';
+import GlobalSearch from '../components/GlobalSearch';
 
 /* ─── Violation Detail Modal ──────────────────────────────────────── */
 const ViolationModal = ({ report, ticket, activeLog, onClose, onAction }) => {
@@ -56,7 +57,7 @@ const ViolationModal = ({ report, ticket, activeLog, onClose, onAction }) => {
         if (sl === 'finished') return 'bg-blue-100 text-blue-800';
         if (sl.includes('dismissed')) return 'bg-red-100 text-red-800';
         if (sl === 'completed') return 'bg-blue-100 text-blue-800';
-        return 'bg-slate-100 text-slate-700';
+        return 'bg-slate-100 text-slate-700 dark:text-slate-300';
     };
 
     const currentStatus = ticket ? ticket.status : report.status;
@@ -65,104 +66,124 @@ const ViolationModal = ({ report, ticket, activeLog, onClose, onAction }) => {
     const isPending = (report.status || '').toLowerCase().includes('pending');
 
     const Row = ({ icon: Icon, label, value, accent }) => (
-        <div className="flex items-start gap-3 py-3 border-b border-slate-50 last:border-0">
-            <div className="w-8 h-8 rounded-xl bg-slate-50 flex items-center justify-center flex-shrink-0 mt-0.5">
-                <Icon size={15} className="text-slate-400" />
+        <div className="flex items-center gap-4 p-4 border-b border-slate-200/60 dark:border-slate-800/60 last:border-0 hover:bg-slate-100/50 dark:hover:bg-slate-800/30 transition-colors">
+            <div className="w-10 h-10 rounded-xl bg-white dark:bg-slate-800 flex items-center justify-center flex-shrink-0 shadow-sm border border-slate-100 dark:border-slate-700">
+                <Icon size={18} className="text-ustp-blue dark:text-blue-400" />
             </div>
-            <div>
-                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">{label}</p>
-                <p className={`text-sm font-bold mt-0.5 ${accent || 'text-slate-800'}`}>{value || '—'}</p>
+            <div className="flex-1">
+                <p className="text-[10px] font-black uppercase tracking-[0.15em] text-slate-400 dark:text-slate-500">{label}</p>
+                <p className={`text-sm font-bold mt-0.5 ${accent || 'text-slate-800 dark:text-slate-200'}`}>{value || '—'}</p>
             </div>
         </div>
     );
 
     return (
         <div
-            className="fixed inset-0 z-50 flex items-center justify-center p-4"
-            style={{ background: 'rgba(15,23,42,0.55)', backdropFilter: 'blur(4px)' }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-slate-900/80 backdrop-blur-md"
             onClick={onClose}
         >
             <div
-                className="bg-white rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden"
+                className="bg-white dark:bg-slate-800 rounded-[28px] shadow-2xl w-full max-w-lg overflow-hidden animate-in zoom-in duration-300"
                 onClick={e => e.stopPropagation()}
             >
                 {/* Header */}
-                <div className="bg-gradient-to-br from-slate-800 to-slate-900 p-6 relative">
-                    <button
-                        onClick={onClose}
-                        className="absolute top-4 right-4 w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-all text-white"
-                    >
-                        <X size={16} />
-                    </button>
-                    <div className="flex items-center gap-4">
-                        <div className="w-14 h-14 rounded-2xl bg-white/10 flex items-center justify-center">
-                            <User size={26} className="text-white" />
+                <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-slate-900 dark:to-slate-800 border-b border-blue-100 dark:border-slate-700/50 p-6 md:p-8 relative">
+                    <div className="flex items-center gap-5">
+                        <div className="w-14 h-14 rounded-[18px] bg-white dark:bg-slate-800 flex items-center justify-center shadow-md border border-blue-100 dark:border-slate-700">
+                            <User size={26} className="text-blue-600 dark:text-blue-400" />
                         </div>
                         <div>
-                            <h2 className="text-lg font-extrabold text-white leading-tight">
+                            <h2 className="text-xl font-black text-slate-900 dark:text-white uppercase italic leading-tight tracking-tight">
                                 {student.name || 'Unknown Student'}
                             </h2>
-                            <p className="text-slate-300 text-xs font-bold tracking-widest uppercase mt-0.5">
-                                {student.student_id || 'No ID'}
-                            </p>
-                            <span className={`inline-block mt-2 text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full ${statusColor(currentStatus)}`}>
-                                {currentStatus}
-                            </span>
+                            <div className="flex items-center gap-3 mt-1.5">
+                                <p className="text-slate-500 dark:text-slate-400 text-[10px] font-black tracking-[0.15em] uppercase">
+                                    {student.student_id || 'No ID'}
+                                </p>
+                                <span className={`text-[9px] font-black uppercase tracking-widest px-2.5 py-0.5 rounded-full ${statusColor(currentStatus)} shadow-sm`}>
+                                    {currentStatus}
+                                </span>
+                            </div>
                         </div>
                     </div>
                 </div>
 
                 {/* Body */}
-                <div className="p-6 max-h-[65vh] overflow-y-auto">
-                    <p className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-400 mb-2">Student Information</p>
-                    <Row icon={BookOpen} label="Course" value={student.course} />
-                    <Row icon={MapPin} label="Department" value={student.department} />
-                    <Row icon={Hash} label="Year Level" value={student.year_level} />
+                <div className="p-6 md:p-8 max-h-[60vh] overflow-y-auto custom-scrollbar space-y-6">
+                    <div>
+                        <h4 className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 dark:text-slate-500 mb-3 ml-2">
+                            <User size={12} /> Student Profile
+                        </h4>
+                        <div className="bg-slate-50 dark:bg-slate-900/40 rounded-[24px] border border-slate-200/80 dark:border-slate-700/60 overflow-hidden shadow-sm">
+                            <Row icon={BookOpen} label="Course" value={student.course} />
+                            <Row icon={MapPin} label="Department" value={student.department} />
+                            <Row icon={Hash} label="Year Level" value={student.year_level} />
+                        </div>
+                    </div>
 
-                    <p className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-400 mb-2 mt-5">Incident Report</p>
-                    <Row icon={AlertTriangle} label="Violation Type" value={report.violation_type} accent="text-red-600" />
-                    <Row icon={FileText} label="Description" value={report.description || 'No description provided'} />
-                    <Row icon={Hash} label="Offense Count" value={report.offense_count ? `#${report.offense_count} Offense` : '—'} />
-                    <Row icon={Shield} label="Reported By" value={report.reporting_guard} />
+                    <div>
+                        <h4 className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 dark:text-slate-500 mb-3 ml-2">
+                            <AlertTriangle size={12} /> Incident Details
+                        </h4>
+                        <div className="bg-slate-50 dark:bg-slate-900/40 rounded-[24px] border border-slate-200/80 dark:border-slate-700/60 overflow-hidden shadow-sm">
+                            <Row icon={AlertTriangle} label="Violation Type" value={report.violation_type} accent="text-red-600 dark:text-red-400" />
+                            <Row icon={FileText} label="Description" value={report.description || 'No description provided'} />
+                            <Row icon={Hash} label="Offense Count" value={report.offense_count ? `#${report.offense_count} Offense` : '—'} />
+                            <Row icon={Shield} label="Reported By" value={report.reporting_guard} />
+                        </div>
+                    </div>
 
-                    <p className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-400 mb-2 mt-5">Date & Time Caught</p>
-                    <Row icon={Calendar} label="Date" value={caught.date} />
-                    <Row icon={Clock} label="Time" value={caught.time} />
+                    <div>
+                        <h4 className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 dark:text-slate-500 mb-3 ml-2">
+                            <Clock size={12} /> Time Log
+                        </h4>
+                        <div className="bg-slate-50 dark:bg-slate-900/40 rounded-[24px] border border-slate-200/80 dark:border-slate-700/60 overflow-hidden shadow-sm">
+                            <Row icon={Calendar} label="Date Caught" value={caught.date} />
+                            <Row icon={Clock} label="Time Caught" value={caught.time} />
+                        </div>
+                    </div>
 
                     {(report.punishment || isOngoing) && (
-                        <>
-                            <p className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-400 mb-2 mt-5">Sanction</p>
-                            {report.punishment && (
-                                <Row icon={Award} label="Required Sanction" value={report.punishment} accent="text-blue-700" />
-                            )}
-                            {isOngoing && remainingHours !== undefined && remainingHours !== null && (
-                                <Row
-                                    icon={Timer}
-                                    label="Time Remaining"
-                                    value={formatRemainingTime(remainingHours)}
-                                    accent={remainingHours > 0 ? "text-green-600" : "text-slate-800"}
-                                />
-                            )}
+                        <div>
+                            <h4 className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 dark:text-slate-500 mb-3 ml-2">
+                                <Award size={12} /> Required Action
+                            </h4>
+                            <div className="bg-slate-50 dark:bg-slate-900/40 rounded-[24px] border border-slate-200/80 dark:border-slate-700/60 overflow-hidden shadow-sm">
+                                {report.punishment && (
+                                    <Row icon={Award} label="Sanction" value={report.punishment} accent="text-blue-600 dark:text-blue-400" />
+                                )}
+                                {isOngoing && remainingHours !== undefined && remainingHours !== null && (
+                                    <Row
+                                        icon={Timer}
+                                        label="Time Remaining"
+                                        value={formatRemainingTime(remainingHours)}
+                                        accent={remainingHours > 0 ? "text-emerald-600 dark:text-emerald-400" : "text-slate-800 dark:text-slate-200"}
+                                    />
+                                )}
+                            </div>
+                            
                             {activeLog && (activeLog.photo_proof_in || activeLog.photo_proof_out) && (
-                                <div className="mt-4">
-                                    <p className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-400 mb-2">Proof of Action</p>
+                                <div className="mt-6">
+                                    <h4 className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 dark:text-slate-500 mb-3 ml-2">
+                                        <QrCode size={12} /> Proof of Action
+                                    </h4>
                                     <div className="flex gap-4">
                                         {activeLog.photo_proof_in && (
-                                            <div className="flex-1">
-                                                <p className="text-[10px] font-bold text-slate-500 mb-1">Time In</p>
-                                                <img src={activeLog.photo_proof_in} alt="Time In Proof" className="w-full rounded-xl border-2 border-slate-100 object-cover aspect-[3/4]" />
+                                            <div className="flex-1 bg-slate-50 dark:bg-slate-900/40 p-3 rounded-[24px] border border-slate-200/80 dark:border-slate-700/60 shadow-sm">
+                                                <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-2 text-center">Time In</p>
+                                                <img src={activeLog.photo_proof_in} alt="Time In Proof" className="w-full rounded-[16px] border border-slate-200 dark:border-slate-700 object-cover aspect-[3/4]" />
                                             </div>
                                         )}
                                         {activeLog.photo_proof_out && (
-                                            <div className="flex-1">
-                                                <p className="text-[10px] font-bold text-slate-500 mb-1">Time Out</p>
-                                                <img src={activeLog.photo_proof_out} alt="Time Out Proof" className="w-full rounded-xl border-2 border-slate-100 object-cover aspect-[3/4]" />
+                                            <div className="flex-1 bg-slate-50 dark:bg-slate-900/40 p-3 rounded-[24px] border border-slate-200/80 dark:border-slate-700/60 shadow-sm">
+                                                <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-2 text-center">Time Out</p>
+                                                <img src={activeLog.photo_proof_out} alt="Time Out Proof" className="w-full rounded-[16px] border border-slate-200 dark:border-slate-700 object-cover aspect-[3/4]" />
                                             </div>
                                         )}
                                     </div>
                                 </div>
                             )}
-                        </>
+                        </div>
                     )}
                 </div>
 
@@ -207,7 +228,7 @@ const ViolationModal = ({ report, ticket, activeLog, onClose, onAction }) => {
 
                     <button
                         onClick={onClose}
-                        className="w-full py-3 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all"
+                        className="w-full py-3 bg-slate-100 hover:bg-slate-200 text-slate-600 dark:bg-red-900/20 dark:hover:bg-red-900/40 dark:text-red-400 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all"
                     >
                         Close Details
                     </button>
@@ -219,6 +240,52 @@ const ViolationModal = ({ report, ticket, activeLog, onClose, onAction }) => {
 
 /* ─── Staff Dashboard ─────────────────────────────────────────────── */
 const StaffDashboard = () => {
+    const getGreeting = () => {
+        const hour = new Date().getHours();
+        if (hour < 5) return 'Late Night';
+        if (hour < 12) return 'Good Morning';
+        if (hour < 17) return 'Good Afternoon';
+        if (hour < 21) return 'Good Evening';
+        return 'Late Night';
+    };
+
+    const getSubGreeting = () => {
+        const hour = new Date().getHours();
+        if (hour >= 5 && hour < 12) {
+            const opts = [
+                "Good morning! Ready to make today productive?",
+                "Early start, nice! Let's keep things running smoothly.",
+                "A new day, a new opportunity to serve."
+            ];
+            return opts[Math.floor(Math.random() * opts.length)];
+        }
+        if (hour >= 12 && hour < 17) {
+            const opts = [
+                "Good afternoon! How's everything going?",
+                "Keep up the great work today.",
+                "Staying on top of it all — that's the spirit."
+            ];
+            return opts[Math.floor(Math.random() * opts.length)];
+        }
+        if (hour >= 17 && hour < 22) {
+            const opts = [
+                "Good evening! Still keeping watch?",
+                "The day isn't over yet. Keep going!",
+                "Finishing strong today?"
+            ];
+            return opts[Math.floor(Math.random() * opts.length)];
+        }
+        const opts = [
+            "Working late? Your dedication is showing.",
+            "Burning the midnight oil, huh?",
+            "Late-night shift detected. Stay sharp!",
+            "Most people are asleep. You're still at it.",
+            "Don't forget to rest after your shift."
+        ];
+        return opts[Math.floor(Math.random() * opts.length)];
+    };
+
+    const [subGreeting] = useState(() => getSubGreeting());
     const [stats, setStats] = useState({ pending: 0, active: 0, completed: 0, warnings: 0 });
     const [violators, setViolators] = useState([]);
     const [allTickets, setAllTickets] = useState([]);
@@ -364,39 +431,40 @@ const StaffDashboard = () => {
         return 'Just now';
     };
 
-    const userRole = JSON.parse(localStorage.getItem('user') || '{}').role || 'staff';
+const userRole = JSON.parse(localStorage.getItem('user') || '{}').role || 'staff';
 
     return (
-        <div className="flex bg-slate-50 min-h-screen h-screen overflow-hidden relative">
+        <div className="flex bg-slate-50 dark:bg-slate-900 min-h-screen relative font-sans">
             <Sidebar role={userRole} />
-            <div className="flex-1 flex flex-col lg:flex-row h-full overflow-hidden">
-                <main className="flex-1 p-4 md:p-8 pt-20 md:pt-8 max-w-8xl mx-auto w-full flex flex-col overflow-hidden">
-                    <header className="mb-6 text-center md:text-left shrink-0">
-                        <h1 className="text-3xl md:text-4xl font-black text-slate-900 tracking-tight uppercase italic">Admin Dashboard</h1>
-                        <p className="text-slate-500 mt-1 font-medium italic text-xs">
-                            {loading
-                                ? 'Syncing cloud databases...'
-                                : 'Awaiting compliance updates from field units'}
-                        </p>
-                    </header>
+            <div className="flex-1 h-screen overflow-y-auto custom-scrollbar w-full">
+                <div className="sticky top-0 z-40 bg-slate-50 dark:bg-slate-900 px-6 md:px-10 pt-24 md:pt-10 pb-2 border-b border-transparent">
+                    <GlobalSearch />
+                </div>
+                
+                <div className="flex flex-col xl:flex-row w-full min-h-full">
+                    {/* Main Content Area */}
+                    <main className="flex-1 p-6 md:p-10 pt-0 md:pt-0 pb-10">
+                        <header className="mb-6 text-center md:text-left shrink-0">
+                            <h1 className="text-3xl md:text-4xl font-extrabold text-slate-900 dark:text-white tracking-tight">{getGreeting()}, Admin!</h1>
+                            <p className="text-slate-400 dark:text-slate-500 mt-1 font-medium text-sm italic">{subGreeting}</p>
+                        </header>
  
-                    <div className="flex-1 overflow-y-auto custom-scrollbar pb-10">
                         <div className="space-y-6">
                             {/* ── Violators Feed ── */}
                             <div className="card-premium p-4 md:p-6">
                                 <div className="flex justify-between items-center mb-4 pb-4 border-b border-slate-50">
-                                    <h4 className="font-bold text-slate-800 uppercase tracking-widest text-[10px] text-blue-900">Violators Feed</h4>
+                                    <h4 className="font-bold text-slate-800 dark:text-slate-200 uppercase tracking-widest text-[10px] text-blue-900">Violators Feed</h4>
                                 </div>
 
                             <div className="mb-4">
                                 <div className="relative">
-                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500" size={18} />
                                     <input
                                         type="text"
                                         placeholder="Search by name or student ID..."
                                         value={searchTerm}
                                         onChange={(e) => setSearchTerm(e.target.value)}
-                                        className="w-full pl-10 pr-4 py-2 bg-slate-50 border-2 border-slate-100 rounded-xl focus:border-ustp-blue focus:outline-none text-sm"
+                                        className="w-full pl-10 pr-4 py-2 bg-slate-50 dark:bg-slate-900 border-2 border-slate-100 dark:border-slate-800 rounded-xl focus:border-ustp-blue focus:outline-none text-sm font-semibold text-slate-600 dark:text-slate-400 placeholder:text-slate-400 dark:placeholder:text-slate-500"
                                     />
                                 </div>
                             </div>
@@ -425,9 +493,9 @@ const StaffDashboard = () => {
 
                                     if (activeViolators.length === 0) {
                                         return (
-                                            <div className="py-16 text-center bg-slate-50/50 rounded-2xl border-2 border-dashed border-slate-100">
-                                                <Inbox className="mx-auto text-slate-200 mb-3" size={40} />
-                                                <h5 className="font-bold text-slate-400 uppercase tracking-[0.2em] text-xs">No Active Violators</h5>
+                                            <div className="py-16 text-center bg-slate-50 dark:bg-slate-900/50 rounded-2xl border-2 border-dashed border-slate-100 dark:border-slate-800">
+                                                <Inbox className="mx-auto text-slate-200 dark:text-slate-700 mb-3" size={40} />
+                                                <h5 className="font-bold text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em] text-xs">No Active Violators</h5>
                                             </div>
                                         );
                                     }
@@ -440,37 +508,39 @@ const StaffDashboard = () => {
                                         return (
                                             <div
                                                 key={report.id}
-                                                className={`p-4 border shadow-sm rounded-3xl transition-all ${isOngoing ? 'bg-green-50/50 border-green-200' : 'bg-white border-slate-100'}`}
+                                                className={`p-4 border shadow-sm rounded-3xl transition-all ${isOngoing ? 'bg-green-50/50 dark:bg-green-900/10 border-green-200 dark:border-green-500/20' : 'bg-white dark:bg-slate-900 border-slate-100 dark:border-slate-800'}`}
                                             >
                                                 <div className="flex gap-4 items-center">
-                                                    <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shadow-sm flex-shrink-0 ${isOngoing ? 'bg-green-500 text-white shadow-green-200/50' : 'bg-slate-50 text-slate-400'}`}>
+                                                    <div className={`w-12 h-12 rounded-full flex items-center justify-center shadow-sm flex-shrink-0 ${isOngoing ? 'bg-green-100 text-green-600 dark:bg-green-500/20 dark:text-green-400' : 'bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-400'}`}>
                                                         {isOngoing ? <Clock size={20} className="animate-spin-slow" /> : <User size={20} />}
                                                     </div>
 
                                                     <div className="flex-1 overflow-hidden">
-                                                        <p className="font-bold text-slate-800 text-sm truncate">{report.student_details?.name || 'New Student Report'}</p>
-                                                        <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-0.5">{report.violation_type}</p>
+                                                        <p className="font-bold text-slate-800 dark:text-slate-200 text-sm truncate">{report.student_details?.name || 'New Student Report'}</p>
+                                                        <p className="text-[10px] text-slate-500 dark:text-slate-400 font-bold uppercase tracking-widest mt-0.5">{report.violation_type}</p>
                                                         <div className="flex items-center gap-2 mt-2">
-                                                            <span className={`text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-md ${isOngoing ? 'bg-green-200 text-green-800' : isPending ? 'bg-orange-100 text-orange-800' : 'bg-blue-50 text-blue-900'}`}>
+                                                            <span className={`text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-md ${isOngoing ? 'bg-green-200 text-green-800 dark:bg-green-500/20 dark:text-green-400' : isPending ? 'bg-orange-100 text-orange-800 dark:bg-orange-500/20 dark:text-orange-400' : 'bg-blue-50 text-blue-900 dark:bg-blue-500/20 dark:text-blue-400'}`}>
                                                                 {ticket ? ticket.status : report.status}
                                                             </span>
                                                          </div>
                                                     </div>
 
-                                                    <div className="flex gap-2 flex-shrink-0 relative z-10">
+                                                    <div className="flex gap-4 flex-shrink-0 relative z-10 items-center">
                                                         {isPending && (
                                                             <>
                                                                 <button
                                                                     onClick={() => handleAction(report.id, 'Approved')}
-                                                                    className="flex items-center gap-1 p-2 bg-green-50 hover:bg-green-500 hover:text-white text-green-600 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all"
+                                                                    title="Approve"
+                                                                    className="flex items-center justify-center text-emerald-500 hover:text-emerald-600 transition-colors"
                                                                 >
-                                                                    <Check size={14} /> Approve
+                                                                    <Check size={18} />
                                                                 </button>
                                                                 <button
                                                                     onClick={() => handleAction(report.id, 'Dismissed')}
-                                                                    className="flex items-center gap-1 p-2 bg-red-50 hover:bg-red-500 hover:text-white text-red-600 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all"
+                                                                    title="Dismiss"
+                                                                    className="flex items-center justify-center text-red-500 hover:text-red-600 transition-colors"
                                                                 >
-                                                                    <X size={14} /> Dismiss
+                                                                    <X size={18} />
                                                                 </button>
                                                             </>
                                                         )}
@@ -481,9 +551,10 @@ const StaffDashboard = () => {
                                                                 );
                                                                 setSelectedViolation({ report, ticket, activeLog });
                                                             }}
-                                                            className="flex items-center gap-1 p-2 bg-slate-50 hover:bg-slate-800 hover:text-white text-slate-600 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all cursor-pointer"
+                                                            title="Details"
+                                                            className="flex items-center justify-center text-slate-700 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors cursor-pointer"
                                                         >
-                                                            <Eye size={14} className="pointer-events-none" /> Details
+                                                            <Eye size={18} />
                                                         </button>
                                                     </div>
                                                 </div>
@@ -494,81 +565,80 @@ const StaffDashboard = () => {
                             </div>
                         </div>
                     </div>
-                </div>
                 </main>
 
                 {/* Right Sidebar */}
-                <aside className="w-96 p-6 border-l border-slate-100 bg-white hidden xl:block">
-                    <div className="sticky top-10 space-y-6">
+                <aside className="w-96 p-6 pt-0 border-l border-transparent dark:border-transparent bg-transparent hidden xl:block">
+                    <div className="sticky top-6 space-y-6">
                         {/* Today's Activity Card */}
-                        <div className="bg-white rounded-2xl shadow-md border border-slate-100 p-6">
+                        <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-md border border-slate-100 dark:border-slate-700 p-6">
                             <div className="flex items-center gap-4 mb-6">
-                                <div className="w-12 h-12 rounded-2xl bg-blue-50 flex items-center justify-center">
-                                    <Calendar size={24} className="text-blue-600" />
+                                <div className="w-12 h-12 rounded-2xl bg-blue-50 dark:bg-blue-500/10 flex items-center justify-center">
+                                    <Calendar size={24} className="text-blue-600 dark:text-blue-400" />
                                 </div>
                                 <div>
-                                    <h3 className="font-bold text-slate-800 text-base uppercase tracking-wider">Today's Activity</h3>
-                                    <p className="text-xs text-slate-400 font-semibold">{new Date().toLocaleDateString('en-PH', { weekday: 'long', month: 'short', day: 'numeric' })}</p>
+                                    <h3 className="font-bold text-slate-800 dark:text-slate-200 text-base uppercase tracking-wider">Today's Activity</h3>
+                                    <p className="text-xs text-slate-400 dark:text-slate-500 font-semibold">{new Date().toLocaleDateString('en-PH', { weekday: 'long', month: 'short', day: 'numeric' })}</p>
                                 </div>
                             </div>
                             <div className="space-y-4">
-                                <div className="flex items-center justify-between p-4 bg-red-50 rounded-2xl">
+                                <div className="flex items-center justify-between p-4 bg-red-50 dark:bg-red-500/10 rounded-2xl">
                                     <div className="flex items-center gap-3">
-                                        <AlertTriangle size={20} className="text-red-500" />
-                                        <span className="text-sm font-semibold text-slate-700">Violations Today</span>
+                                        <AlertTriangle size={20} className="text-red-500 dark:text-red-400" />
+                                        <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">Violations Today</span>
                                     </div>
-                                    <span className="text-2xl font-black text-red-600">{todayStats.violations}</span>
+                                    <span className="text-2xl font-black text-red-600 dark:text-red-400">{todayStats.violations}</span>
                                 </div>
-                                <div className="flex items-center justify-between p-4 bg-amber-50 rounded-2xl">
+                                <div className="flex items-center justify-between p-4 bg-amber-50 dark:bg-amber-500/10 rounded-2xl">
                                     <div className="flex items-center gap-3">
-                                        <ClipboardList size={20} className="text-amber-600" />
-                                        <span className="text-sm font-semibold text-slate-700">Services Assigned</span>
+                                        <ClipboardList size={20} className="text-amber-600 dark:text-amber-400" />
+                                        <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">Services Assigned</span>
                                     </div>
-                                    <span className="text-2xl font-black text-amber-600">{todayStats.assigned}</span>
+                                    <span className="text-2xl font-black text-amber-600 dark:text-amber-400">{todayStats.assigned}</span>
                                 </div>
-                                <div className="flex items-center justify-between p-4 bg-green-50 rounded-2xl">
+                                <div className="flex items-center justify-between p-4 bg-green-50 dark:bg-green-500/10 rounded-2xl">
                                     <div className="flex items-center gap-3">
-                                        <UserCheck size={20} className="text-green-600" />
-                                        <span className="text-sm font-semibold text-slate-700">Completed Service</span>
+                                        <UserCheck size={20} className="text-green-600 dark:text-green-400" />
+                                        <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">Completed Service</span>
                                     </div>
-                                    <span className="text-2xl font-black text-green-600">{todayStats.completed}</span>
+                                    <span className="text-2xl font-black text-green-600 dark:text-green-400">{todayStats.completed}</span>
                                 </div>
                             </div>
                         </div>
 
                         {/* System Notifications Card */}
-                        <div className="bg-white rounded-2xl shadow-md border border-slate-100 p-6">
+                        <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-md border border-slate-100 dark:border-slate-700 p-6">
                             <div className="flex items-center gap-4 mb-6">
-                                <div className="w-12 h-12 rounded-2xl bg-slate-100 flex items-center justify-center">
-                                    <Bell size={24} className="text-slate-600" />
+                                <div className="w-12 h-12 rounded-2xl bg-slate-100 dark:bg-slate-900 flex items-center justify-center">
+                                    <Bell size={24} className="text-slate-600 dark:text-slate-400" />
                                 </div>
                                 <div>
-                                    <h3 className="font-bold text-slate-800 text-base uppercase tracking-wider">System Notifications</h3>
-                                    <p className="text-xs text-slate-400 font-semibold">{notifications.length} alerts</p>
+                                    <h3 className="font-bold text-slate-800 dark:text-slate-200 text-base uppercase tracking-wider">System Notifications</h3>
+                                    <p className="text-xs text-slate-400 dark:text-slate-500 font-semibold">{notifications.length} alerts</p>
                                 </div>
                             </div>
                             <div className="space-y-3 max-h-[350px] overflow-y-auto pr-2 custom-scrollbar">
                                 {notifications.length === 0 ? (
                                     <div className="text-center py-10">
                                         <Bell size={40} className="mx-auto text-slate-200 mb-3" />
-                                        <p className="text-sm text-slate-400 font-medium">No notifications</p>
+                                        <p className="text-sm text-slate-400 dark:text-slate-500 font-medium">No notifications</p>
                                     </div>
                                 ) : (
                                     notifications.map((notif) => (
                                         <div
                                             key={notif.id}
-                                            className={`p-4 rounded-2xl border transition-all hover:shadow-md ${notif.type === 'warning' ? 'bg-orange-50 border-orange-100' :
-                                                notif.type === 'error' ? 'bg-red-50 border-red-100' :
-                                                    'bg-green-50 border-green-100'
+                                            className={`p-4 rounded-2xl border transition-all hover:shadow-md ${notif.type === 'warning' ? 'bg-orange-50 dark:bg-orange-500/10 border-orange-100 dark:border-orange-500/20' :
+                                                notif.type === 'error' ? 'bg-red-50 dark:bg-red-500/10 border-red-100 dark:border-red-500/20' :
+                                                    'bg-green-50 dark:bg-green-500/10 border-green-100 dark:border-green-500/20'
                                                 }`}
                                         >
-                                            <p className={`text-sm font-semibold ${notif.type === 'warning' ? 'text-orange-800' :
-                                                notif.type === 'error' ? 'text-red-800' :
-                                                    'text-green-800'
+                                            <p className={`text-sm font-semibold ${notif.type === 'warning' ? 'text-orange-800 dark:text-orange-400' :
+                                                notif.type === 'error' ? 'text-red-800 dark:text-red-400' :
+                                                    'text-green-800 dark:text-green-400'
                                                 }`}>
                                                 {notif.message}
                                             </p>
-                                            <p className="text-xs text-slate-400 mt-2">{notif.time}</p>
+                                            <p className="text-xs text-slate-400 dark:text-slate-500 mt-2">{notif.time}</p>
                                         </div>
                                     ))
                                 )}
@@ -577,6 +647,7 @@ const StaffDashboard = () => {
                     </div>
                 </aside>
             </div>
+        </div>
 
             {/* Violation Detail Modal */}
             {selectedViolation && (

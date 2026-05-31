@@ -520,7 +520,7 @@ class ViolationViewSet(viewsets.ModelViewSet):
                 print(f"DB SUCCESS: New student registered: {student.name}")
             
         # 2. Calculate offense count and punishment
-        violation_type = data.get('violation', 'Other')
+        violation_type = data.get('violation_type', data.get('violation', 'Other'))
         offense_count = get_offense_count(student, violation_type)
         punishment_info = get_punishment(violation_type, offense_count)
         
@@ -576,11 +576,18 @@ class ViolationViewSet(viewsets.ModelViewSet):
 
             violation.status = "Approved"
             violation.assigned_building = assigned_building
-            violation.save()
             
-            # Get the actual punishment hours from the violation's offense count
-            punishment_info = get_punishment(violation.violation_type, violation.offense_count)
-            hours = punishment_info["hours"]
+            # Get custom hours if provided
+            custom_hours = request.data.get('custom_hours')
+            if custom_hours is not None and str(custom_hours).strip() != '':
+                hours = float(custom_hours)
+                violation.punishment = f"{hours} hours community service"
+            else:
+                punishment_info = get_punishment(violation.violation_type, violation.offense_count)
+                hours = punishment_info["hours"]
+                violation.punishment = punishment_info["punishment"]
+            
+            violation.save()
             
             # Only create E-Ticket if there are hours to serve
             if hours > 0:

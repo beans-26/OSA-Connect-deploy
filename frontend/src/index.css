@@ -1,9 +1,12 @@
 @import "tailwindcss";
+@custom-variant dark (&:is(.dark *));
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
 
 @theme {
   --color-ustp-blue: #1e3a8a;
   --color-ustp-gold: #facc15;
   --color-ustp-navy: #172554;
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
 }
 
 body {
@@ -12,12 +15,36 @@ body {
   font-family: var(--font-sans);
 }
 
+/* Global smooth transition for colors (makes dark mode toggle buttery smooth) */
+*, *::before, *::after {
+  transition-property: background-color, border-color, color, fill, stroke, box-shadow;
+  transition-duration: 300ms;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.dark body {
+  background-color: var(--color-slate-900);
+  color: var(--color-slate-50);
+}
+
+.dark {
+  /* True Black Theme Overrides */
+  --color-slate-50: #ffffff;
+  --color-slate-900: #050505; /* True black background */
+  --color-slate-800: #141414; /* Subtle elevated boxes */
+  --color-slate-700: #1f1f1f; /* Extremely faint borders */
+  
+  /* Accent Color Override (Blue to Orange) */
+  --color-ustp-blue: #f97316; /* Tailwind orange-500 */
+  --color-ustp-navy: #ffffff; /* Titles */
+}
+
 
 .glass {
   background-color: rgb(255 255 255 / 0.7);
   backdrop-filter: blur(12px);
   border: 1px solid rgb(255 255 255 / 0.2);
-  box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+  box-shadow: 0 4px 20px rgb(0 0 0 / 0.04);
 }
 
 .btn-premium {
@@ -33,8 +60,14 @@ body {
   background-color: white;
   border-radius: 1.5rem;
   padding: 1.5rem;
-  box-shadow: 0 25px 50px -12px rgb(0 0 0 / 0.25);
+  box-shadow: 0 4px 15px rgb(0 0 0 / 0.03);
   border: 1px solid #f1f5f9;
+}
+
+.dark .card-premium {
+  background-color: var(--color-slate-800);
+  border-color: var(--color-slate-700);
+  box-shadow: 0 4px 15px rgb(0 0 0 / 0.2);
 }
 
 /* Mobile top-bar spacer: push main content down on small screens */

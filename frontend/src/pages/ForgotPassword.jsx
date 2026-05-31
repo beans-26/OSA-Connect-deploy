@@ -98,21 +98,21 @@ const ForgotPassword = () => {
         <div className={`flex items-center gap-2 ${className}`}>
             <div className="relative">
                 <div className="absolute -top-1 -left-1 w-4 h-3 bg-amber-400 rounded-tr-[4px] rounded-tl-[2px]" />
-                <h2 className="text-xl font-bold text-slate-800 tracking-tight relative z-10 leading-none">OSA</h2>
+                <h2 className="text-xl font-bold text-slate-800 dark:text-slate-200 tracking-tight relative z-10 leading-none">OSA</h2>
             </div>
             <span className="text-xl font-bold text-blue-900">Connect</span>
         </div>
     );
 
     return (
-        <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
+        <div className="min-h-screen bg-slate-50 dark:bg-slate-900 flex items-center justify-center p-4">
             <div className="w-full max-w-md space-y-8">
                 <div className="text-center space-y-4">
                     <CSSLogo className="justify-center" />
-                    <h1 className="text-2xl font-bold text-slate-900 uppercase tracking-tight">Security Recovery</h1>
+                    <h1 className="text-2xl font-bold text-slate-900 dark:text-white uppercase tracking-tight">Security Recovery</h1>
                 </div>
 
-                <div className="bg-white p-8 rounded-xl shadow-sm border border-slate-200">
+                <div className="bg-white dark:bg-slate-800 p-8 rounded-xl shadow-sm border border-slate-200 dark:border-slate-600">
                     {error && (
                         <div className="mb-6 p-4 bg-red-50 border border-red-100 rounded-lg">
                             <p className="text-red-600 font-bold text-[10px] uppercase tracking-widest text-center">{error}</p>
@@ -122,12 +122,12 @@ const ForgotPassword = () => {
                     {step === 1 && (
                         <form onSubmit={handleRequestOTP} className="space-y-6 animate-in fade-in duration-300">
                             <div className="space-y-1.5">
-                                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Account Email</label>
-                                <div className="relative border border-slate-200 rounded-lg bg-slate-50 overflow-hidden focus-within:bg-white focus-within:border-blue-600 transition-none">
-                                    <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
+                                <label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-1">Account Email</label>
+                                <div className="relative border border-slate-200 dark:border-slate-600 rounded-lg bg-slate-50 dark:bg-slate-900 overflow-hidden focus-within:bg-white dark:bg-slate-800 focus-within:border-blue-600 transition-none">
+                                    <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500">
                                         <Mail size={18} />
                                     </div>
-                                    <input required type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Enter registered email" className="w-full bg-transparent p-3.5 pl-11 outline-none font-semibold text-slate-700 placeholder:text-slate-300 text-sm" />
+                                    <input required type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Enter registered email" className="w-full bg-transparent p-3.5 pl-11 outline-none font-semibold text-slate-700 dark:text-slate-300 placeholder:text-slate-300 dark:text-slate-600 text-sm" />
                                 </div>
                             </div>
                             <button type="submit" disabled={loading} className="w-full h-12 bg-blue-900 text-white rounded-lg font-bold text-xs uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-slate-800 transition-colors">
@@ -139,18 +139,18 @@ const ForgotPassword = () => {
                     {step === 2 && (
                         <form onSubmit={handleVerifyOTP} className="space-y-6 animate-in fade-in duration-300">
                             <div className="text-center space-y-2 mb-6">
-                                <p className="text-slate-500 text-sm">We sent a verification code to <br/><span className="font-bold text-slate-800">{email}</span></p>
+                                <p className="text-slate-500 dark:text-slate-400 text-sm">We sent a verification code to <br/><span className="font-bold text-slate-800 dark:text-slate-200">{email}</span></p>
                             </div>
                             <div className="space-y-1.5">
-                                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1 text-center block w-full">6-Digit Code</label>
-                                <input required type="text" maxLength={6} value={otp} onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))} className="w-full bg-slate-50 border border-slate-200 rounded-lg p-3.5 outline-none font-bold tracking-[0.5em] text-center text-xl text-slate-700 focus:bg-white focus:border-blue-600 transition-none" placeholder="000000" />
+                                <label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-1 text-center block w-full">6-Digit Code</label>
+                                <input required type="text" maxLength={6} value={otp} onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))} className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-600 rounded-lg p-3.5 outline-none font-bold tracking-[0.5em] text-center text-xl text-slate-700 dark:text-slate-300 focus:bg-white dark:bg-slate-800 focus:border-blue-600 transition-none" placeholder="000000" />
                             </div>
                             <button type="submit" disabled={otp.length < 6} className="w-full h-12 bg-blue-900 text-white rounded-lg font-bold text-xs uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-slate-800 transition-colors disabled:opacity-50">
                                 Verify Code <ChevronRight size={16} />
                             </button>
                             <div className="text-center">
                                 {otpCooldown > 0 ? (
-                                    <p className="text-slate-400 font-bold text-[10px] uppercase tracking-widest">Resend in {otpCooldown}s</p>
+                                    <p className="text-slate-400 dark:text-slate-500 font-bold text-[10px] uppercase tracking-widest">Resend in {otpCooldown}s</p>
                                 ) : (
                                     <button type="button" onClick={handleRequestOTP} className="text-blue-900 font-bold text-[10px] uppercase tracking-widest underline underline-offset-4">Resend Code</button>
                                 )}
@@ -162,21 +162,21 @@ const ForgotPassword = () => {
                         <form onSubmit={handleResetPassword} className="space-y-6 animate-in fade-in duration-300">
                             <div className="space-y-4">
                                 <div className="space-y-1.5">
-                                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">New Password</label>
-                                    <div className="relative border border-slate-200 rounded-lg bg-slate-50 overflow-hidden focus-within:bg-white focus-within:border-blue-600 transition-none">
-                                        <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
+                                    <label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-1">New Password</label>
+                                    <div className="relative border border-slate-200 dark:border-slate-600 rounded-lg bg-slate-50 dark:bg-slate-900 overflow-hidden focus-within:bg-white dark:bg-slate-800 focus-within:border-blue-600 transition-none">
+                                        <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500">
                                             <Lock size={18} />
                                         </div>
-                                        <input required type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="New password" className="w-full bg-transparent p-3.5 pl-11 outline-none font-semibold text-slate-700 placeholder:text-slate-300 text-sm" />
+                                        <input required type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="New password" className="w-full bg-transparent p-3.5 pl-11 outline-none font-semibold text-slate-700 dark:text-slate-300 placeholder:text-slate-300 dark:text-slate-600 text-sm" />
                                     </div>
                                 </div>
                                 <div className="space-y-1.5">
-                                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Confirm Password</label>
-                                    <div className="relative border border-slate-200 rounded-lg bg-slate-50 overflow-hidden focus-within:bg-white focus-within:border-blue-600 transition-none">
-                                        <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
+                                    <label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-1">Confirm Password</label>
+                                    <div className="relative border border-slate-200 dark:border-slate-600 rounded-lg bg-slate-50 dark:bg-slate-900 overflow-hidden focus-within:bg-white dark:bg-slate-800 focus-within:border-blue-600 transition-none">
+                                        <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500">
                                             <Lock size={18} />
                                         </div>
-                                        <input required type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="Confirm password" className="w-full bg-transparent p-3.5 pl-11 outline-none font-semibold text-slate-700 placeholder:text-slate-300 text-sm" />
+                                        <input required type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="Confirm password" className="w-full bg-transparent p-3.5 pl-11 outline-none font-semibold text-slate-700 dark:text-slate-300 placeholder:text-slate-300 dark:text-slate-600 text-sm" />
                                     </div>
                                 </div>
                             </div>
@@ -192,8 +192,8 @@ const ForgotPassword = () => {
                                 <CheckCircle2 size={32} />
                             </div>
                             <div className="space-y-2">
-                                <h3 className="text-xl font-bold text-slate-900">Password Reset Success</h3>
-                                <p className="text-slate-500 text-sm">Your security credentials have been updated successfully.</p>
+                                <h3 className="text-xl font-bold text-slate-900 dark:text-white">Password Reset Success</h3>
+                                <p className="text-slate-500 dark:text-slate-400 text-sm">Your security credentials have been updated successfully.</p>
                             </div>
                             <button onClick={() => navigate('/login')} className="w-full h-12 bg-slate-900 text-white rounded-lg font-bold text-xs uppercase tracking-widest">Back to Login</button>
                         </div>
@@ -202,7 +202,7 @@ const ForgotPassword = () => {
 
                 {step < 4 && (
                     <div className="text-center">
-                        <Link to="/login" className="inline-flex items-center gap-2 text-slate-400 font-bold text-[10px] uppercase tracking-widest hover:text-slate-600">
+                        <Link to="/login" className="inline-flex items-center gap-2 text-slate-400 dark:text-slate-500 font-bold text-[10px] uppercase tracking-widest hover:text-slate-600 dark:text-slate-400">
                             <ArrowLeft size={12} /> Back to Login
                         </Link>
                     </div>

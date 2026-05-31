@@ -523,7 +523,7 @@ const StudentDashboard = () => {
 
         // 2. Specific Building/Dept Codes
         if (!actionType) {
-            if (payloadCode.includes("CITC-BUILDING") || payloadCode.includes("CITC-DEPT")) {
+            if (payloadCode.includes("XKMBPQLVJZWFRCYTNDHSGEUIA") || payloadCode.includes("CITC-DEPT")) {
                 forcedLat = 8.503306;
                 forcedLng = 124.660861;
                 forcedRadius = 15;
@@ -608,7 +608,7 @@ const StudentDashboard = () => {
             return;
         }
 
-        if (payloadCode !== "OSA-PAUSE" && payloadCode !== "CITC-BUILDING-3M" && payloadCode !== "OSA-STOP") {
+        if (payloadCode !== "OSA-PAUSE" && payloadCode !== "VNZMXBCALSKDJFHGQPWIEURYT" && payloadCode !== "OSA-STOP") {
             alert(`INVALID CODE: ${payloadCode}. Please scan a valid STOP QR code.`);
             return;
         }
@@ -645,32 +645,32 @@ const StudentDashboard = () => {
     };
 
     return (
-        <div className="flex bg-slate-50 min-h-screen relative">
+        <div className="flex bg-slate-50 dark:bg-slate-900 min-h-screen relative">
             {/* QR Scanner Modals */}
             {isScanning && (
                 <div className="fixed inset-0 z-50 bg-slate-900/80 backdrop-blur-sm flex items-center justify-center p-4">
-                    <div className="bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl relative overflow-hidden">
+                    <div className="bg-white dark:bg-slate-800 rounded-3xl p-6 max-w-md w-full shadow-2xl relative overflow-hidden">
                         <button onClick={() => setIsScanning(false)} className="absolute top-4 right-4 w-10 h-10 bg-slate-100 rounded-full flex items-center justify-center hover:bg-red-100 hover:text-red-500 transition-colors z-10">
                             <X size={20} />
                         </button>
                         <div className="text-center mb-6">
-                            <h3 className="font-black text-xl text-slate-800 tracking-tight">Staff Code Scanner</h3>
-                            <p className="text-xs font-medium text-slate-400 mt-2">Scan OSA Staff Action Codes</p>
+                            <h3 className="font-black text-xl text-slate-800 dark:text-slate-200 tracking-tight">Staff Code Scanner</h3>
+                            <p className="text-xs font-medium text-slate-400 dark:text-slate-500 mt-2">Scan OSA Staff Action Codes</p>
                         </div>
-                        <div id="student-qr-reader" className="w-full rounded-2xl overflow-hidden border-4 border-slate-100"></div>
+                        <div id="student-qr-reader" className="w-full rounded-2xl overflow-hidden border-4 border-slate-100 dark:border-slate-700"></div>
                     </div>
                 </div>
             )}
 
             {showStopScanner && (
                 <div className="fixed inset-0 z-50 bg-slate-900/80 backdrop-blur-sm flex items-center justify-center p-4">
-                    <div className="bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl relative overflow-hidden">
+                    <div className="bg-white dark:bg-slate-800 rounded-3xl p-6 max-w-md w-full shadow-2xl relative overflow-hidden">
                         <button onClick={() => setShowStopScanner(false)} className="absolute top-4 right-4 w-10 h-10 bg-slate-100 rounded-full flex items-center justify-center hover:bg-red-100 hover:text-red-500 transition-colors z-10">
                             <X size={20} />
                         </button>
                         <div className="text-center mb-6">
                             <h3 className="font-black text-xl text-red-600 tracking-tight">Stop Timer</h3>
-                            <p className="text-xs font-medium text-slate-400 mt-2">Scan QR code to pause your timer</p>
+                            <p className="text-xs font-medium text-slate-400 dark:text-slate-500 mt-2">Scan QR code to pause your timer</p>
                         </div>
                         <div id="stop-qr-reader" className="w-full rounded-2xl overflow-hidden border-4 border-red-100"></div>
                     </div>
@@ -679,10 +679,10 @@ const StudentDashboard = () => {
 
             {cameraActive && (
                 <div className="fixed inset-0 z-[60] bg-slate-900/95 flex flex-col items-center justify-center p-4">
-                    <div className="w-full max-w-md bg-white rounded-3xl overflow-hidden shadow-2xl relative">
+                    <div className="w-full max-w-md bg-white dark:bg-slate-800 rounded-3xl overflow-hidden shadow-2xl relative">
                         <div className="p-4 bg-slate-900 text-center relative border-b border-slate-800">
                             <h3 className="text-white font-black uppercase tracking-widest text-sm">Capture Proof</h3>
-                            <button onClick={() => { stopCamera(); setCameraActive(false); setPendingActionData(null); setPhotoProof(null); }} className="absolute top-1/2 -translate-y-1/2 right-4 text-slate-400 hover:text-white">
+                            <button onClick={() => { stopCamera(); setCameraActive(false); setPendingActionData(null); setPhotoProof(null); }} className="absolute top-1/2 -translate-y-1/2 right-4 text-slate-400 dark:text-slate-500 hover:text-white">
                                 <X size={20} />
                             </button>
                         </div>
@@ -705,19 +705,19 @@ const StudentDashboard = () => {
                             <canvas ref={canvasRef} className="hidden" />
                         </div>
                         
-                        <div className="p-6 bg-white flex justify-center">
+                        <div className="p-6 bg-white dark:bg-slate-800 flex justify-center">
                             {!photoProof ? (
                                 <button 
                                     onClick={capturePhoto}
                                     className="w-16 h-16 rounded-full bg-slate-200 border-4 border-slate-400 flex items-center justify-center hover:bg-slate-300 transition-colors"
                                 >
-                                    <div className="w-12 h-12 rounded-full bg-white border-2 border-slate-300 shadow-sm" />
+                                    <div className="w-12 h-12 rounded-full bg-white dark:bg-slate-800 border-2 border-slate-300 shadow-sm" />
                                 </button>
                             ) : (
                                 <div className="flex gap-4 w-full">
                                     <button 
                                         onClick={() => { setPhotoProof(null); startCamera(); }}
-                                        className="flex-1 py-3 font-black text-[10px] uppercase tracking-widest text-slate-500 bg-slate-100 rounded-xl hover:bg-slate-200 transition-colors"
+                                        className="flex-1 py-3 font-black text-[10px] uppercase tracking-widest text-slate-500 dark:text-slate-400 bg-slate-100 rounded-xl hover:bg-slate-200 transition-colors"
                                     >
                                         Retake
                                     </button>
@@ -735,12 +735,12 @@ const StudentDashboard = () => {
             )}
 
             <Sidebar role="student" />
-            <main className="flex-1 p-4 md:p-10 pt-24 md:pt-10 max-w-7xl mx-auto overflow-y-auto">
+            <main className="flex-1 p-4 md:p-10 pt-24 md:pt-10 w-full max-w-full overflow-y-auto">
                 <header className="mb-6 md:mb-10 flex flex-col md:flex-row justify-between items-center gap-4 text-center md:text-left">
                     <div className="w-full">
                         {/* Debug Bar for ID Verification */}
-                        <h1 className="text-2xl md:text-3xl font-extrabold text-slate-900 tracking-tight uppercase">Service Hub</h1>
-                        <p className="text-slate-500 mt-1 font-medium italic text-sm md:text-base">Welcome back, {user.name || user.username || 'Student'}</p>
+                        <h1 className="text-2xl md:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight uppercase">Service Hub</h1>
+                        <p className="text-slate-500 dark:text-slate-400 mt-1 font-medium italic text-sm md:text-base">Welcome back, {user.name || user.username || 'Student'}</p>
                     </div>
                 </header>
 
@@ -760,12 +760,12 @@ const StudentDashboard = () => {
                         <div className="absolute top-0 left-0 w-full h-1 bg-yellow-400 animate-pulse shadow-[0_0_15px_rgba(255,184,28,0.5)]" />
                     )}
 
-                    <div className={`w-20 h-20 rounded-[28px] flex items-center justify-center transition-all duration-500 ${timerActive ? 'bg-green-500 text-white shadow-2xl rotate-[360deg]' : 'bg-slate-50 text-slate-300'}`}>
+                    <div className={`w-20 h-20 rounded-[28px] flex items-center justify-center transition-all duration-500 ${timerActive ? 'bg-green-500 text-white shadow-2xl rotate-[360deg]' : 'bg-slate-50 dark:bg-slate-900 text-slate-300 dark:text-slate-600'}`}>
                         {timerActive ? <Clock size={32} className="animate-spin-slow" /> : <Scan size={32} />}
                     </div>
 
                     <div className="text-center w-full mt-6">
-                        <h4 className="font-black text-slate-900 text-lg tracking-tight uppercase">
+                        <h4 className="font-black text-slate-900 dark:text-white text-lg tracking-tight uppercase">
                             {timerActive ? "Service in Progress" : "Staff Code Scanner"}
                         </h4>
                         {timerActive ? (
@@ -776,17 +776,17 @@ const StudentDashboard = () => {
 
                                 {/* Live Map Integration */}
                                 <div className="card-premium w-full p-0 border-2 border-white shadow-xl overflow-hidden relative group h-[260px]">
-                                    <div id="geofence-map" className="w-full h-full bg-slate-50 relative z-10" />
+                                    <div id="geofence-map" className="w-full h-full bg-slate-50 dark:bg-slate-900 relative z-10" />
                                     {!timerActive && (
                                         <div className="absolute inset-0 bg-slate-100/80 backdrop-blur-sm z-20 flex flex-col items-center justify-center text-center p-6">
-                                            <div className="w-10 h-10 bg-white rounded-2xl flex items-center justify-center text-slate-400 mb-4 shadow-xl">
+                                            <div className="w-10 h-10 bg-white dark:bg-slate-800 rounded-2xl flex items-center justify-center text-slate-400 dark:text-slate-500 mb-4 shadow-xl">
                                                 <MapPin size={20} />
                                             </div>
-                                            <p className="text-[9px] font-black text-slate-800 uppercase tracking-widest mb-1">Satellite Tracking Inactive</p>
-                                            <p className="text-[8px] text-slate-400 font-bold max-w-[150px]">Scan a Staff QR code to activate live boundary monitoring.</p>
+                                            <p className="text-[9px] font-black text-slate-800 dark:text-slate-200 uppercase tracking-widest mb-1">Satellite Tracking Inactive</p>
+                                            <p className="text-[8px] text-slate-400 dark:text-slate-500 font-bold max-w-[150px]">Scan a Staff QR code to activate live boundary monitoring.</p>
                                         </div>
                                     )}
-                                    <div className="absolute top-4 right-4 z-20 bg-white/90 backdrop-blur p-2 rounded-xl text-[7px] font-black uppercase tracking-widest shadow-xl border border-white">
+                                    <div className="absolute top-4 right-4 z-20 bg-white dark:bg-slate-800/90 backdrop-blur p-2 rounded-xl text-[7px] font-black uppercase tracking-widest shadow-xl border border-white">
                                         Live GPS Feed
                                     </div>
                                 </div>
@@ -803,7 +803,7 @@ const StudentDashboard = () => {
                                                         <p className="text-[10px] font-bold mt-1">Return to area immediately!</p>
                                                     </div>
                                                 </div>
-                                                <div className="bg-white text-red-600 w-10 h-10 rounded-xl flex items-center justify-center font-black text-xl shadow-inner">
+                                                <div className="bg-white dark:bg-slate-800 text-red-600 w-10 h-10 rounded-xl flex items-center justify-center font-black text-xl shadow-inner">
                                                     {warningCountdown}
                                                 </div>
                                             </div>
@@ -811,7 +811,7 @@ const StudentDashboard = () => {
 
                                         <div className={`p-5 rounded-[28px] w-full border-2 transition-all ${isOutOfBounds ? "bg-rose-50 border-rose-200" : "bg-emerald-50 border-emerald-200"}`}>
                                             <div className="flex items-center justify-between mb-4">
-                                                <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Position Status</p>
+                                                <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">Position Status</p>
                                                 <div className={`px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest ${isOutOfBounds ? "bg-rose-600 text-white shadow-lg shadow-rose-200" : "bg-emerald-600 text-white shadow-lg shadow-emerald-200"}`}>
                                                     {isOutOfBounds ? "Outside Area" : "Inside Area"}
                                                 </div>
@@ -824,13 +824,13 @@ const StudentDashboard = () => {
                                                     {currentDistance <= (activeTicket?.radius || 5) ? "Very Near" :
                                                         currentDistance <= 25 ? "Near" : "Far"}
                                                 </div>
-                                                <p className="text-[9px] font-bold text-slate-400 uppercase tracking-[0.2em]">
+                                                <p className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em]">
                                                     Est. Distance: {Math.round(currentDistance)}m
                                                 </p>
                                             </div>
 
                                             <div className={`mt-3 pt-3 border-t flex items-center justify-between ${isOutOfBounds ? "border-rose-100" : "border-emerald-100"}`}>
-                                                <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-2">
+                                                <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 flex items-center gap-2">
                                                     <MapPin size={10} /> Precision
                                                 </p>
                                                 <p className={`text-[9px] font-black tracking-tight ${gpsAccuracy > 15 ? "text-amber-600" : "text-emerald-600"}`}>
@@ -845,7 +845,7 @@ const StudentDashboard = () => {
                                 </button>
                             </div>
                         ) : (
-                            <p className="text-xs text-slate-400 mt-4 font-medium max-w-[200px] leading-relaxed mx-auto text-center">
+                            <p className="text-xs text-slate-400 dark:text-slate-500 mt-4 font-medium max-w-[200px] leading-relaxed mx-auto text-center">
                                 {displayHours > 0 ? "Scan QR from OSA Staff to start your service session." : "No active service requirements at this time."}
                             </p>
                         )}
@@ -864,10 +864,10 @@ const StudentDashboard = () => {
 
                     {showAdminCode && (
                         <div className="w-full space-y-4 mt-6">
-                            <input type="password" placeholder="••••••••" className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl p-4 font-black text-center outline-none focus:border-ustp-blue tracking-widest text-sm" value={adminCode} onChange={(e) => setAdminCode(e.target.value)} onKeyPress={(e) => e.key === 'Enter' && processCode()} />
+                            <input type="password" placeholder="••••••••" className="w-full bg-slate-50 dark:bg-slate-900 border-2 border-slate-100 dark:border-slate-700 rounded-2xl p-4 font-black text-center outline-none focus:border-ustp-blue tracking-widest text-sm" value={adminCode} onChange={(e) => setAdminCode(e.target.value)} onKeyPress={(e) => e.key === 'Enter' && processCode()} />
                             <div className="flex gap-2">
                                 <button onClick={() => processCode()} className="flex-1 bg-ustp-blue text-white font-black py-3 rounded-xl text-[9px] uppercase">Submit</button>
-                                <button onClick={() => { setShowAdminCode(false); setAdminCode(''); }} className="flex-1 bg-slate-100 text-slate-400 font-black py-3 rounded-xl text-[9px] uppercase">Cancel</button>
+                                <button onClick={() => { setShowAdminCode(false); setAdminCode(''); }} className="flex-1 bg-slate-100 text-slate-400 dark:text-slate-500 font-black py-3 rounded-xl text-[9px] uppercase">Cancel</button>
                             </div>
                         </div>
                     )}
@@ -877,22 +877,22 @@ const StudentDashboard = () => {
                     {/* Right Col: Violations */ }
     <div className="lg:col-span-8 space-y-8">
         <div className="card-premium border-2 border-white shadow-xl p-6 md:p-8">
-            <h4 className="font-black text-slate-900 text-lg flex items-center gap-4 mb-8 pb-6 border-b border-slate-50 uppercase tracking-tight">
+            <h4 className="font-black text-slate-900 dark:text-white text-lg flex items-center gap-4 mb-8 pb-6 border-b border-slate-50 uppercase tracking-tight">
                 <AlertTriangle className="text-red-500" size={20} />
                 Violation Records
             </h4>
 
             {loading ? (
-                <div className="py-20 text-center animate-pulse text-slate-300 font-black uppercase tracking-widest text-[10px]">Syncing Data...</div>
+                <div className="py-20 text-center animate-pulse text-slate-300 dark:text-slate-600 font-black uppercase tracking-widest text-[10px]">Syncing Data...</div>
             ) : (() => {
                 const activeViolations = violations;
 
                 if (activeViolations.length === 0) {
                     return (
-                        <div className="bg-slate-50/50 rounded-[32px] p-16 border-4 border-dotted border-slate-100 text-center">
+                        <div className="bg-slate-50 dark:bg-slate-900/50 rounded-[32px] p-16 border-4 border-dotted border-slate-100 dark:border-slate-700 text-center">
                             <Shield className="mx-auto text-slate-200 mb-6" size={40} />
-                            <h5 className="font-black text-slate-800 text-lg tracking-tighter uppercase">Good Standing</h5>
-                            <p className="text-slate-400 text-xs mt-3 font-medium max-w-xs mx-auto leading-relaxed">No active violations detected. Keep up the good work!</p>
+                            <h5 className="font-black text-slate-800 dark:text-slate-200 text-lg tracking-tighter uppercase">Good Standing</h5>
+                            <p className="text-slate-400 dark:text-slate-500 text-xs mt-3 font-medium max-w-xs mx-auto leading-relaxed">No active violations detected. Keep up the good work!</p>
                         </div>
                     );
                 }
@@ -912,13 +912,13 @@ const StudentDashboard = () => {
                             if (isCompleted || displayStatus === 'Completed') displayStatus = 'Finished';
 
                             return (
-                                <div key={v.id} className={`p-5 border rounded-[28px] flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 transition-all ${isOngoing ? 'bg-green-50 border-green-200' : isCompleted ? 'bg-emerald-50 border-emerald-200 opacity-60' : 'bg-white border-slate-100 shadow-sm'}`}>
+                                <div key={v.id} className={`p-5 border rounded-[28px] flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 transition-all ${isOngoing ? 'bg-green-50 border-green-200' : isCompleted ? 'bg-emerald-50 border-emerald-200 opacity-60' : 'bg-white dark:bg-slate-800 border-slate-100 dark:border-slate-700 shadow-sm'}`}>
                                     <div className="flex gap-4 items-center w-full">
                                         <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 ${isOngoing ? 'bg-green-500 text-white shadow-lg shadow-green-200' : isCompleted ? 'bg-emerald-500 text-white' : 'bg-red-50 text-red-600'}`}>
                                             {isOngoing ? <Clock size={20} className="animate-spin-slow" /> : isCompleted ? <CheckCircle size={20} /> : <AlertTriangle size={20} />}
                                         </div>
                                         <div className="min-w-0 flex-1">
-                                            <h6 className="font-black text-slate-900 text-base uppercase truncate tracking-tight mb-1">{v.violation_type}</h6>
+                                            <h6 className="font-black text-slate-900 dark:text-white text-base uppercase truncate tracking-tight mb-1">{v.violation_type}</h6>
                                             <div className="flex items-center gap-2">
                                                 <span className={`text-[8px] font-black px-2 py-0.5 rounded-full uppercase tracking-widest ${
                                                     isOngoing ? 'bg-green-200 text-green-800' : 
@@ -928,10 +928,10 @@ const StudentDashboard = () => {
                                                 }`}>
                                                     {displayStatus}
                                                 </span>
-                                                <span className="text-[8px] text-slate-300 font-bold">{new Date(v.created_at).toLocaleDateString()}</span>
+                                                <span className="text-[8px] text-slate-300 dark:text-slate-600 font-bold">{new Date(v.created_at).toLocaleDateString()}</span>
                                             </div>
                                         </div>
-                                        <div className={`hidden sm:flex w-10 h-10 rounded-xl items-center justify-center shrink-0 ${isOngoing ? 'bg-green-500 text-white shadow-lg shadow-green-200' : isCompleted ? 'bg-emerald-50 text-emerald-200' : 'bg-slate-50 text-slate-100'}`}>
+                                        <div className={`hidden sm:flex w-10 h-10 rounded-xl items-center justify-center shrink-0 ${isOngoing ? 'bg-green-500 text-white shadow-lg shadow-green-200' : isCompleted ? 'bg-emerald-50 text-emerald-200' : 'bg-slate-50 dark:bg-slate-900 text-slate-100'}`}>
                                             {isOngoing ? <Clock size={16} className="animate-pulse" /> : isCompleted ? <CheckCircle size={16} /> : <Play size={16} />}
                                         </div>
                                     </div>

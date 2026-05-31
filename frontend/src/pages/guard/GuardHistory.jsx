@@ -52,14 +52,14 @@ const GuardHistory = () => {
     };
 
     return (
-        <div className="flex bg-slate-50 min-h-screen relative">
+        <div className="flex bg-slate-50 dark:bg-slate-900 min-h-screen relative">
             <Sidebar role={userRole} />
-            <main className="flex-1 p-3 md:p-6 pt-20 md:pt-6 max-w-7xl mx-auto h-screen overflow-hidden flex flex-col">
+            <main className="flex-1 p-3 md:p-6 pt-20 md:pt-6 w-full max-w-full h-screen overflow-hidden flex flex-col">
                 <header className="mb-4 text-center md:text-left shrink-0">
-                    <h1 className="text-xl md:text-2xl font-extrabold text-slate-900 tracking-tight">
+                    <h1 className="text-xl md:text-2xl font-extrabold text-slate-900 dark:text-white tracking-tight">
                         {userRole === 'faculty' ? 'Faculty Submission History' : 'Violation History'}
                     </h1>
-                    <p className="text-slate-500 mt-1 font-medium italic text-xs">
+                    <p className="text-slate-500 dark:text-slate-400 mt-1 font-medium italic text-xs">
                         {loading ? 'Syncing history...' : `Viewing ${filteredViolations.length} records`}
                     </p>
                 </header>
@@ -67,13 +67,13 @@ const GuardHistory = () => {
                 <div className="flex-1 overflow-y-auto pr-1 pb-10 custom-scrollbar mt-2">
                     <div className="flex flex-col sm:flex-row gap-3 mb-4">
                     <div className="relative flex-1">
-                        <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
+                        <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500" size={20} />
                         <input
                             type="text"
                             placeholder="Search by name, student ID, or violation..."
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
-                            className="w-full pl-12 pr-4 py-3 bg-white border-2 border-slate-100 rounded-2xl focus:border-ustp-blue focus:outline-none"
+                            className="w-full pl-12 pr-4 py-3 bg-white dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 rounded-2xl focus:border-ustp-blue focus:outline-none"
                         />
                     </div>
                     <div className="flex gap-2">
@@ -83,7 +83,7 @@ const GuardHistory = () => {
                                 onClick={() => setFilter(f)}
                                 className={`px-4 py-2 rounded-xl font-semibold text-sm transition-colors ${filter === f
                                         ? 'bg-ustp-blue text-white'
-                                        : 'bg-white text-slate-600 hover:bg-slate-100'
+                                        : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-100'
                                     }`}
                             >
                                 {f.charAt(0).toUpperCase() + f.slice(1)} ({statusCounts[f]})
@@ -95,12 +95,12 @@ const GuardHistory = () => {
                 {loading ? (
                     <div className="text-center py-20">
                         <div className="animate-spin w-12 h-12 border-4 border-ustp-blue border-t-transparent rounded-full mx-auto"></div>
-                        <p className="mt-4 text-slate-500 font-medium">Loading violations...</p>
+                        <p className="mt-4 text-slate-500 dark:text-slate-400 font-medium">Loading violations...</p>
                     </div>
                 ) : filteredViolations.length === 0 ? (
-                    <div className="text-center py-20 bg-white rounded-3xl border-2 border-dashed border-slate-100">
+                    <div className="text-center py-20 bg-white dark:bg-slate-800 rounded-3xl border-2 border-dashed border-slate-100 dark:border-slate-700">
                         <Clock className="mx-auto text-slate-200 mb-4" size={48} />
-                        <h5 className="font-bold text-slate-400 uppercase tracking-[0.2em] text-xs">No Violations Found</h5>
+                        <h5 className="font-bold text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em] text-xs">No Violations Found</h5>
                     </div>
                 ) : (
                     <div className="space-y-4">
@@ -109,35 +109,35 @@ const GuardHistory = () => {
                                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                                     <div className="flex-1 min-w-0">
                                         <div className="flex items-center gap-3 mb-2">
-                                            <h3 className="font-bold text-lg text-slate-800">
+                                            <h3 className="font-bold text-lg text-slate-800 dark:text-slate-200">
                                                 {report.student_details?.name || 'Unknown Student'}
                                             </h3>
                                             <span className={`text-[10px] font-black uppercase tracking-widest px-2 py-1 rounded-full ${report.status === 'Pending OSA Review' ? 'bg-yellow-100 text-yellow-800' :
                                                     report.status === 'Approved' ? 'bg-green-100 text-green-800' :
                                                         report.status === 'Dismissed' ? 'bg-red-100 text-red-800' :
-                                                            'bg-slate-100 text-slate-600'
+                                                            'bg-slate-100 text-slate-600 dark:text-slate-400'
                                                 }`}>
                                                 {report.status || 'Pending'}
                                             </span>
                                         </div>
-                                        <p className="text-sm text-slate-500">
+                                        <p className="text-sm text-slate-500 dark:text-slate-400">
                                             Student ID: {report.student_details?.student_id || report.student_id || 'N/A'}
                                         </p>
-                                        <p className="text-sm text-slate-500">
+                                        <p className="text-sm text-slate-500 dark:text-slate-400">
                                             Course: {report.student_details?.course || 'N/A'} - {report.student_details?.department || 'N/A'}
                                         </p>
                                     </div>
                                     <div className="text-right">
                                         <p className="text-sm font-bold text-ustp-blue uppercase">{report.violation_type}</p>
-                                        <p className="text-xs text-slate-400 mt-1">
+                                        <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">
                                             {report.created_at ? new Date(report.created_at).toLocaleString() : 'N/A'}
                                         </p>
-                                        <p className="text-xs text-slate-400">Reporter: {report.reporting_guard}</p>
+                                        <p className="text-xs text-slate-400 dark:text-slate-500">Reporter: {report.reporting_guard}</p>
                                     </div>
                                 </div>
                                 {report.description && (
-                                    <div className="mt-4 pt-4 border-t border-slate-100">
-                                        <p className="text-sm text-slate-600">{report.description}</p>
+                                    <div className="mt-4 pt-4 border-t border-slate-100 dark:border-slate-700">
+                                        <p className="text-sm text-slate-600 dark:text-slate-400">{report.description}</p>
                                     </div>
                                 )}
                             </div>

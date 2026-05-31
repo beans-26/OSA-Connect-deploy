@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import Sidebar from '../../components/Sidebar';
 import QRCode from 'react-qr-code';
 import { Settings as SettingsIcon, Shield, Clock, QrCode, Bell, Lock, User, Search, Key, AlertTriangle, Save, LogOut, CheckCircle } from 'lucide-react';
+import GlobalSearch from '../../components/GlobalSearch';
 
 const LiveTimer = ({ remainingHours }) => {
     const formatTime = (hours) => {
@@ -45,18 +46,13 @@ const StaffSettings = () => {
 
     const sections = [
         { id: 'codes', label: 'Action Codes', icon: QrCode, description: 'Service control QR codes' },
-        { id: 'tickets', label: 'Service Hub', icon: Shield, description: 'Manual service override' },
         { id: 'account', label: 'Account', icon: User, description: 'Manage your profile' },
         { id: 'security', label: 'Security', icon: Lock, description: 'Password and access' },
         { id: 'notifications', label: 'Notifications', icon: Bell, description: 'System alerts' },
     ];
 
     useEffect(() => {
-        if (activeSection === 'tickets') {
-            fetchAdminData();
-            const poll = setInterval(fetchAdminData, 3000);
-            return () => clearInterval(poll);
-        }
+        // Removed tickets polling
     }, [activeSection]);
 
     const fetchAdminData = async () => {
@@ -241,17 +237,18 @@ const StaffSettings = () => {
     };
 
     return (
-        <div className="flex bg-slate-50 min-h-screen relative">
+        <div className="flex bg-slate-50 dark:bg-slate-900 min-h-screen relative font-sans">
             <Sidebar role={userRole} />
-            <main className="flex-1 p-4 md:p-10 pt-24 md:pt-10 max-w-7xl mx-auto overflow-y-auto">
-                <header className="mb-8 md:mb-12 text-center md:text-left">
-                    <h1 className="text-3xl md:text-4xl font-extrabold text-slate-900 tracking-tight flex flex-col md:flex-row items-center gap-4">
-                        <div className="p-3 bg-ustp-blue/10 rounded-2xl">
-                            <SettingsIcon className="text-ustp-blue" size={32} />
-                        </div>
-                        Admin Command Center
+            <div className="flex-1 h-screen overflow-y-auto custom-scrollbar w-full">
+                <div className="sticky top-0 z-40 bg-slate-50 dark:bg-slate-900 px-6 md:px-10 pt-24 md:pt-10 pb-2 border-b border-transparent">
+                    <GlobalSearch />
+                </div>
+                <main className="flex-1 p-6 md:p-10 pt-0 md:pt-0 w-full max-w-full">
+                <header className="mb-6 md:mb-8 text-center md:text-left">
+                    <h1 className="text-3xl md:text-4xl font-extrabold text-slate-900 dark:text-white tracking-tight flex flex-col md:flex-row items-center gap-4">
+                        Settings
                     </h1>
-                    <p className="text-slate-500 mt-2 font-medium italic">Control system logic, service hub overrides, and security protocols.</p>
+                    <p className="text-slate-500 dark:text-slate-400 mt-2 font-medium">Configure system preferences and administration</p>
                 </header>
 
                 {saveStatus.msg && (
@@ -278,17 +275,22 @@ const StaffSettings = () => {
                             <button
                                 key={section.id}
                                 onClick={() => setActiveSection(section.id)}
-                                className={`w-full flex items-center gap-4 p-5 rounded-[24px] transition-all duration-300 ${activeSection === section.id
-                                    ? 'bg-ustp-blue text-white shadow-xl shadow-blue-200 translate-x-1'
-                                    : 'bg-white text-slate-500 hover:bg-slate-50 border border-slate-100 hover:border-slate-200'
+                                className={`w-full flex items-center gap-3 p-3 md:p-4 rounded-xl transition-all duration-300 ${
+                                    activeSection === section.id
+                                    ? 'bg-ustp-blue text-white shadow-md translate-x-1'
+                                    : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600'
                                     }`}
                             >
-                                <div className={`p-2 rounded-xl ${activeSection === section.id ? 'bg-white/20' : 'bg-slate-100'}`}>
-                                    <section.icon size={20} />
+                                <div className={`p-2 rounded-lg ${
+                                    activeSection === section.id
+                                    ? 'bg-white/20'
+                                    : 'bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400'
+                                }`}>
+                                    <section.icon size={18} />
                                 </div>
                                 <div className="text-left">
                                     <p className="font-black text-sm leading-none uppercase tracking-widest">{section.label}</p>
-                                    <p className={`text-[10px] mt-1 font-bold ${activeSection === section.id ? 'text-blue-100' : 'text-slate-400'}`}>
+                                    <p className={`text-[10px] mt-1 font-bold ${activeSection === section.id ? 'text-blue-100' : 'text-slate-400 dark:text-slate-500'}`}>
                                         {section.description}
                                     </p>
                                 </div>
@@ -299,50 +301,50 @@ const StaffSettings = () => {
                     {/* Content Area */}
                     <div className="lg:col-span-3">
                         {activeSection === 'codes' && (
-                            <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                                <div className="bg-white p-10 rounded-[40px] border border-slate-100 shadow-sm">
-                                    <div className="flex items-center gap-4 mb-8 pb-6 border-b border-slate-50">
-                                        <div className="p-3 bg-indigo-50 text-indigo-500 rounded-2xl">
-                                            <QrCode size={24} />
+                            <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                                <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl border border-slate-100 dark:border-slate-700 shadow-sm">
+                                    <div className="flex items-center gap-3 mb-6 pb-4 border-b border-slate-50">
+                                        <div className="p-2 bg-indigo-50 text-indigo-500 rounded-xl">
+                                            <QrCode size={20} />
                                         </div>
                                         <div>
-                                            <h3 className="text-xl font-black text-slate-900 uppercase tracking-tight">Service Control QR</h3>
-                                            <p className="text-slate-500 text-xs font-bold uppercase tracking-widest">Live identification codes</p>
+                                            <h3 className="text-xl font-black text-slate-900 dark:text-white uppercase tracking-tight">Service Control QR</h3>
+                                            <p className="text-slate-500 dark:text-slate-400 text-xs font-bold uppercase tracking-widest">Live identification codes</p>
                                         </div>
                                     </div>
 
-                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                                        <div className="bg-indigo-950 p-8 flex flex-col items-center justify-center text-center rounded-[32px] shadow-2xl border-4 border-indigo-800/30 group hover:border-indigo-500 transition-all duration-500">
-                                            <h4 className="font-black text-xl uppercase tracking-tighter text-indigo-400 mb-6 flex items-center gap-2">
-                                                <Clock size={20} /> CITC Building
+                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                        <div className="bg-indigo-950 p-6 flex flex-col items-center justify-center text-center rounded-2xl shadow-md border-2 border-indigo-800/30 group hover:border-indigo-500 transition-all duration-500">
+                                            <h4 className="font-black text-lg uppercase tracking-tighter text-indigo-400 mb-4 flex items-center gap-2">
+                                                <Clock size={16} /> CITC Building
                                             </h4>
-                                            <div className="bg-white p-6 rounded-[32px] mb-6 shadow-2xl group-hover:scale-105 transition-transform duration-500">
-                                                <QRCode value="CITC-BUILDING-3M" size={140} level="H" />
+                                            <div className="bg-white dark:bg-slate-800 p-4 rounded-xl mb-4 shadow-lg group-hover:scale-105 transition-transform duration-500">
+                                                <QRCode value="XKMBPQLVJZWFRCYTNDHSGEUIA" size={100} level="H" />
                                             </div>
-                                            <div className="bg-indigo-900/50 text-indigo-300 rounded-2xl px-6 py-3 font-mono font-black text-xs border border-indigo-700/50 tracking-widest uppercase">
-                                                CITC-BUILDING
+                                            <div className="bg-indigo-900/50 text-indigo-300 rounded-xl px-4 py-2 font-mono font-black text-[9px] border border-indigo-700/50 tracking-widest uppercase">
+                                                XKMBPQLVJZWFRCYTNDHSGEUIA
                                             </div>
-                                            <p className="text-indigo-400/60 text-[10px] font-bold mt-4 uppercase tracking-widest">Start/Resume Tracking</p>
+                                            <p className="text-indigo-400/60 text-[9px] font-bold mt-3 uppercase tracking-widest">Start/Resume Tracking</p>
                                         </div>
 
-                                        <div className="bg-rose-950 p-8 flex flex-col items-center justify-center text-center rounded-[32px] shadow-2xl border-4 border-rose-800/30 group hover:border-rose-500 transition-all duration-500">
-                                            <h4 className="font-black text-xl uppercase tracking-tighter text-rose-400 mb-6 flex items-center gap-2">
-                                                <Shield size={20} /> Stop Service
+                                        <div className="bg-rose-950 p-6 flex flex-col items-center justify-center text-center rounded-2xl shadow-md border-2 border-rose-800/30 group hover:border-rose-500 transition-all duration-500">
+                                            <h4 className="font-black text-lg uppercase tracking-tighter text-rose-400 mb-4 flex items-center gap-2">
+                                                <Shield size={16} /> Stop Service
                                             </h4>
-                                            <div className="bg-white p-6 rounded-[32px] mb-6 shadow-2xl group-hover:scale-105 transition-transform duration-500">
-                                                <QRCode value="OSA-STOP" size={140} level="H" />
+                                            <div className="bg-white dark:bg-slate-800 p-4 rounded-xl mb-4 shadow-lg group-hover:scale-105 transition-transform duration-500">
+                                                <QRCode value="VNZMXBCALSKDJFHGQPWIEURYT" size={100} level="H" />
                                             </div>
-                                            <div className="bg-rose-900/50 text-rose-300 rounded-2xl px-6 py-3 font-mono font-black text-xs border border-rose-700/50 tracking-widest uppercase">
-                                                OSA-STOP
+                                            <div className="bg-rose-900/50 text-rose-300 rounded-xl px-4 py-2 font-mono font-black text-[9px] border border-rose-700/50 tracking-widest uppercase">
+                                                VNZMXBCALSKDJFHGQPWIEURYT
                                             </div>
-                                            <p className="text-rose-400/60 text-[10px] font-bold mt-4 uppercase tracking-widest">End Session Immediately</p>
+                                            <p className="text-rose-400/60 text-[9px] font-bold mt-3 uppercase tracking-widest">End Session Immediately</p>
                                         </div>
 
-                                        <div className="bg-blue-950/30 p-8 flex flex-col items-center justify-center text-center rounded-[32px] shadow-sm border-2 border-dashed border-blue-900/30">
+                                        <div className="bg-blue-950/30 p-6 flex flex-col items-center justify-center text-center rounded-2xl shadow-sm border border-dashed border-blue-900/30">
                                             <h4 className="font-black text-sm uppercase tracking-widest text-blue-400 mb-6 flex items-center gap-2">
                                                 <User size={16} /> Public Registration QR
                                             </h4>
-                                            <div className="bg-white p-4 rounded-2xl mb-4 shadow-lg cursor-pointer transition-transform hover:scale-110" onClick={downloadRegistrationQR}>
+                                            <div className="bg-white dark:bg-slate-800 p-4 rounded-2xl mb-4 shadow-lg cursor-pointer transition-transform hover:scale-110" onClick={downloadRegistrationQR}>
                                                 <QRCode id="reg-qr-code-svg" value={`http://${window.location.hostname}:5173/register`} size={100} level="H" />
                                             </div>
                                             <button onClick={downloadRegistrationQR} className="text-blue-400 font-black text-[10px] uppercase tracking-[0.2em] hover:text-blue-300">Download Poster</button>
@@ -352,104 +354,15 @@ const StaffSettings = () => {
                             </div>
                         )}
 
-                        {activeSection === 'tickets' && (
-                            <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                                <div className="card-premium bg-gradient-to-br from-emerald-50 to-blue-50 border-2 border-emerald-100 flex flex-col md:flex-row items-center gap-8 p-10">
-                                    <div className="flex-1">
-                                        <h4 className="font-black text-emerald-800 uppercase tracking-[0.2em] text-[10px] mb-2">Manual Service Override</h4>
-                                        <h3 className="text-2xl font-black text-slate-900 mb-6">Timer Control Without Devices</h3>
-                                        <div className="flex flex-col sm:flex-row gap-3">
-                                            <input
-                                                className="flex-1 bg-white border-2 border-emerald-100 rounded-2xl p-4 font-bold outline-none focus:border-emerald-500 shadow-sm"
-                                                placeholder="Student ID Number"
-                                                value={manualStudentId}
-                                                onChange={(e) => setManualStudentId(e.target.value)}
-                                            />
-                                            <input
-                                                type="password"
-                                                className="w-full sm:w-40 bg-white border-2 border-emerald-100 rounded-2xl p-4 font-bold outline-none focus:border-emerald-500 shadow-sm"
-                                                placeholder="CODE"
-                                                value={manualCode}
-                                                onChange={(e) => setManualCode(e.target.value.toUpperCase())}
-                                            />
-                                        </div>
-                                        <div className="flex gap-3 mt-4">
-                                            <button onClick={handleManualTimeIn} className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white p-4 rounded-2xl font-black text-xs uppercase tracking-widest transition-all shadow-lg shadow-emerald-200">Time In</button>
-                                            <button onClick={handleManualTimeOut} className="flex-1 bg-red-500 hover:bg-red-600 text-white p-4 rounded-2xl font-black text-xs uppercase tracking-widest transition-all shadow-lg shadow-red-200">Time Out</button>
-                                        </div>
-                                        {manualMessage && <p className="mt-4 text-[10px] font-black uppercase text-emerald-600 tracking-widest bg-emerald-100/50 p-2 rounded-lg text-center">{manualMessage}</p>}
-                                    </div>
-                                    <div className="w-px h-40 bg-emerald-200 hidden md:block" />
-                                    <div className="flex flex-col items-center justify-center p-6 bg-white/50 rounded-3xl border border-emerald-100 min-w-[200px]">
-                                        <div className="p-4 bg-emerald-600 text-white rounded-2xl mb-3 shadow-lg">
-                                            <Shield size={32} />
-                                        </div>
-                                        <p className="font-black text-slate-900 uppercase tracking-widest text-[10px]">Security Verified</p>
-                                    </div>
-                                </div>
-
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                                    <div className="card-premium">
-                                        <div className="flex items-center gap-3 mb-8">
-                                            <div className="p-2 bg-blue-50 text-ustp-blue rounded-xl">
-                                                <Search size={18} />
-                                            </div>
-                                            <h4 className="font-black text-slate-800 uppercase tracking-widest text-[10px]">Manual Student Lookup</h4>
-                                        </div>
-
-                                        <div className="flex gap-2 mb-8">
-                                            <input
-                                                className="flex-1 bg-slate-50 border-2 border-slate-100 rounded-2xl p-4 font-bold outline-none focus:border-ustp-blue transition-all"
-                                                placeholder="Enter ID..."
-                                                value={searchId}
-                                                onChange={(e) => setSearchId(e.target.value)}
-                                            />
-                                            <button onClick={handleLookup} disabled={loadingLookup} className="px-6 bg-slate-900 text-white rounded-2xl font-black text-[10px] uppercase transition-all shadow-lg shadow-slate-200">Lookup</button>
-                                        </div>
-
-                                        {lookupResult && lookupResult !== 'Not Found' && (
-                                            <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm animate-in zoom-in max-w-md">
-                                                <div className="flex items-center gap-3 mb-6">
-                                                    <div className="w-10 h-10 bg-blue-50 text-ustp-blue rounded-xl flex items-center justify-center font-black">
-                                                        {lookupResult.violation_details?.student_details?.name?.charAt(0)}
-                                                    </div>
-                                                    <p className="font-black text-slate-900 text-sm uppercase truncate">{lookupResult.violation_details?.student_details?.name}</p>
-                                                </div>
-                                                <div className="space-y-3">
-                                                    <input type="password" placeholder="ADMIN CODE" className="w-full bg-slate-50 p-3 rounded-xl text-center font-black text-xs outline-none focus:bg-white focus:ring-2 ring-ustp-blue/10" value={adminCode} onChange={e => setAdminCode(e.target.value)} />
-                                                    <div className="flex gap-2">
-                                                        <input 
-                                                            type="number" 
-                                                            className="w-20 bg-slate-50 p-3 rounded-xl text-center font-black text-xs outline-none" 
-                                                            placeholder="Hrs"
-                                                            value={deductHours}
-                                                            onChange={(e) => setDeductHours(e.target.value)}
-                                                        />
-                                                        <button
-                                                            onClick={() => {
-                                                                handleSyncLog('custom', parseFloat(deductHours) || 0);
-                                                                setDeductHours('');
-                                                            }}
-                                                            className="flex-1 bg-ustp-blue text-white rounded-xl font-black text-[10px] uppercase tracking-widest"
-                                                        >
-                                                            Deduct Time
-                                                        </button>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
-                            </div>
-                        )}
+                        {/* Tickets section removed */}
 
                         {activeSection === 'account' && (
-                            <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                                <div className="card-premium p-10">
-                                    <div className="flex flex-col md:flex-row gap-10">
-                                        <div className="flex flex-col items-center gap-4">
-                                            <div className="w-32 h-32 bg-slate-100 rounded-[40px] flex items-center justify-center border-4 border-white shadow-xl">
-                                                <User size={64} className="text-slate-300" />
+                            <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                                <div className="card-premium p-6 rounded-2xl">
+                                    <div className="flex flex-col md:flex-row gap-8">
+                                        <div className="flex flex-col items-center gap-3">
+                                            <div className="w-24 h-24 bg-slate-100 rounded-2xl flex items-center justify-center border-2 border-white shadow-md">
+                                                <User size={48} className="text-slate-300 dark:text-slate-600" />
                                             </div>
                                             <span className="px-4 py-1.5 bg-ustp-blue/10 text-ustp-blue text-[10px] font-black uppercase tracking-widest rounded-full">
                                                 {currentUser.role} Account
@@ -459,26 +372,26 @@ const StaffSettings = () => {
                                         <form onSubmit={handleUpdateProfile} className="flex-1 space-y-6">
                                             <div className="space-y-4">
                                                 <div>
-                                                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 block ml-2">Display Name</label>
+                                                    <label className="text-[9px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-1 block ml-1">Display Name</label>
                                                     <input
-                                                        className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl p-4 font-bold outline-none focus:border-ustp-blue transition-all"
+                                                        className="w-full bg-slate-50 dark:bg-slate-900 border-2 border-slate-100 dark:border-slate-700 rounded-xl p-3 text-sm font-semibold text-slate-600 dark:text-slate-400 placeholder:text-slate-400 dark:placeholder:text-slate-500 outline-none focus:border-ustp-blue"
                                                         value={profileName}
                                                         onChange={(e) => setProfileName(e.target.value)}
                                                         placeholder="Enter full name"
                                                     />
                                                 </div>
                                                 <div>
-                                                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 block ml-2">Biography / Designations</label>
+                                                    <label className="text-[9px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-1 block ml-1">Biography / Designations</label>
                                                     <textarea
-                                                        className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl p-4 font-bold outline-none focus:border-ustp-blue transition-all min-h-[120px]"
+                                                        className="w-full bg-slate-50 dark:bg-slate-900 border-2 border-slate-100 dark:border-slate-700 rounded-xl p-3 text-sm font-semibold text-slate-600 dark:text-slate-400 placeholder:text-slate-400 dark:placeholder:text-slate-500 outline-none focus:border-ustp-blue min-h-[100px]"
                                                         value={profileBio}
                                                         onChange={(e) => setProfileBio(e.target.value)}
                                                         placeholder="Brief detail about yourself..."
                                                     />
                                                 </div>
                                             </div>
-                                            <button type="submit" className="btn-premium bg-ustp-blue text-white px-10 py-4 flex items-center gap-3 shadow-xl shadow-blue-200">
-                                                <Save size={18} /> Update Profile
+                                            <button type="submit" className="btn-premium bg-ustp-blue text-white px-6 py-3 rounded-xl flex items-center justify-center gap-2 shadow-md hover:shadow-lg shadow-blue-200 text-xs w-full md:w-auto">
+                                                <Save size={16} /> Update Profile
                                             </button>
                                         </form>
                                     </div>
@@ -487,46 +400,46 @@ const StaffSettings = () => {
                         )}
 
                         {activeSection === 'security' && (
-                            <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                                <div className="card-premium p-10 max-w-2xl">
-                                    <div className="flex items-center gap-4 mb-10 pb-6 border-b border-slate-50">
-                                        <div className="p-3 bg-red-50 text-red-500 rounded-2xl">
-                                            <Lock size={24} />
+                            <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                                <div className="card-premium p-6 rounded-2xl max-w-xl">
+                                    <div className="flex items-center gap-3 mb-6 pb-4 border-b border-slate-50">
+                                        <div className="p-2 bg-red-50 text-red-500 rounded-xl">
+                                            <Lock size={20} />
                                         </div>
                                         <div>
-                                            <h3 className="text-xl font-black text-slate-900 uppercase tracking-tight">Access Control</h3>
-                                            <p className="text-slate-500 text-xs font-bold uppercase tracking-widest">Manage login credentials</p>
+                                            <h3 className="text-lg font-black text-slate-900 dark:text-white uppercase tracking-tight">Access Control</h3>
+                                            <p className="text-slate-500 dark:text-slate-400 text-[10px] font-bold uppercase tracking-widest">Manage login credentials</p>
                                         </div>
                                     </div>
 
-                                    <form onSubmit={handleChangePassword} className="space-y-6">
-                                        <div className="space-y-4">
+                                    <form onSubmit={handleChangePassword} className="space-y-5">
+                                        <div className="space-y-3">
                                             <div>
-                                                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 block ml-2">Current Password</label>
+                                                <label className="text-[9px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-1 block ml-1">Current Password</label>
                                                 <input
                                                     type="password"
-                                                    className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl p-4 font-bold outline-none focus:border-ustp-blue transition-all"
+                                                    className="w-full bg-slate-50 dark:bg-slate-900 border-2 border-slate-100 dark:border-slate-700 rounded-xl p-3 text-sm font-semibold text-slate-600 dark:text-slate-400 placeholder:text-slate-400 dark:placeholder:text-slate-500 outline-none focus:border-ustp-blue"
                                                     value={oldPassword}
                                                     onChange={(e) => setOldPassword(e.target.value)}
                                                     required
                                                 />
                                             </div>
-                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                                                 <div>
-                                                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 block ml-2">New Password</label>
+                                                    <label className="text-[9px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-1 block ml-1">New Password</label>
                                                     <input
                                                         type="password"
-                                                        className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl p-4 font-bold outline-none focus:border-ustp-blue transition-all"
+                                                        className="w-full bg-slate-50 dark:bg-slate-900 border-2 border-slate-100 dark:border-slate-700 rounded-xl p-3 text-sm font-semibold text-slate-600 dark:text-slate-400 placeholder:text-slate-400 dark:placeholder:text-slate-500 outline-none focus:border-ustp-blue"
                                                         value={newPassword}
                                                         onChange={(e) => setNewPassword(e.target.value)}
                                                         required
                                                     />
                                                 </div>
                                                 <div>
-                                                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 block ml-2">Confirm Password</label>
+                                                    <label className="text-[9px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-1 block ml-1">Confirm Password</label>
                                                     <input
                                                         type="password"
-                                                        className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl p-4 font-bold outline-none focus:border-ustp-blue transition-all"
+                                                        className="w-full bg-slate-50 dark:bg-slate-900 border-2 border-slate-100 dark:border-slate-700 rounded-xl p-3 text-sm font-semibold text-slate-600 dark:text-slate-400 placeholder:text-slate-400 dark:placeholder:text-slate-500 outline-none focus:border-ustp-blue"
                                                         value={confirmPassword}
                                                         onChange={(e) => setConfirmPassword(e.target.value)}
                                                         required
@@ -534,7 +447,7 @@ const StaffSettings = () => {
                                                 </div>
                                             </div>
                                         </div>
-                                        <button type="submit" className="w-full btn-premium bg-slate-900 text-white py-5 shadow-xl shadow-slate-200">
+                                        <button type="submit" className="w-full btn-premium bg-slate-900 text-white py-3 rounded-xl text-xs shadow-md shadow-slate-200 hover:shadow-lg transition-all">
                                             Update Password
                                         </button>
                                     </form>
@@ -557,13 +470,14 @@ const StaffSettings = () => {
                         {activeSection === 'notifications' && (
                             <div className="card-premium py-20 flex flex-col items-center justify-center text-center opacity-50 animate-in fade-in duration-500">
                                 <Shield size={48} className="text-slate-200 mb-4" />
-                                <h4 className="font-black text-slate-300 lowercase uppercase tracking-[0.2em] text-sm">Experimental Section</h4>
-                                <p className="text-slate-400 text-xs font-medium mt-2">System alert configuration is currently under development.</p>
+                                <h4 className="font-black text-slate-300 dark:text-slate-600 lowercase uppercase tracking-[0.2em] text-sm">Experimental Section</h4>
+                                <p className="text-slate-400 dark:text-slate-500 text-xs font-medium mt-2">System alert configuration is currently under development.</p>
                             </div>
                         )}
                     </div>
                 </div>
             </main>
+            </div>
         </div>
     );
 };
