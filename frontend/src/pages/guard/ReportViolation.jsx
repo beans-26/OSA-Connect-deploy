@@ -1,7 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import Sidebar from '../../components/Sidebar';
-import { Shield, Scan, Send, AlertCircle, CheckCircle2, User, UserPlus, ClipboardList, Clock, X, QrCode, LogOut } from 'lucide-react';
-import { Html5QrcodeScanner } from 'html5-qrcode';
+import { Link } from 'react-router-dom';
+import { Shield, Scan, Send, AlertCircle, CheckCircle2, User, UserPlus, ClipboardList, Clock, X, QrCode, LogOut, HelpCircle } from 'lucide-react';
+import QrScannerModal from '../../components/QrScannerModal';
+import { parseStudentQr, NOT_A_STUDENT_QR } from '../../components/studentQr';
 
 const COURSES = [
     "BS Civil Engineering", "BS Electronics Engineering", "BS Electrical Engineering", "BS Mechanical Engineering",
@@ -37,42 +39,19 @@ const ReportViolation = () => {
         incident_time: new Date().toTimeString().slice(0, 5)
     });
 
-    // Scanner Effect
-    useEffect(() => {
-        if (!isScanning) return;
-        const scanner = new Html5QrcodeScanner("report-qr-reader", {
-            fps: 10, qrbox: { width: 220, height: 220 },
-            aspectRatio: 1.0, rememberLastUsedCamera: true
-        });
-        scanner.render((decodedText) => {
-            scanner.clear();
-            setIsScanning(false);
-
-            // New Format: NAME, ID, COURSE
-            // Example: VINCENT M. DAGARAGA, 2023303188, BSIT
-            const parts = decodedText.split(',').map(p => p.trim());
-
-            if (parts.length >= 2) {
-                const name = parts[0];
-                const studentId = parts[1];
-                const course = parts[2] || '';
-
-                setForm(prev => ({
-                    ...prev,
-                    name: name,
-                    student_id: studentId,
-                    course: course
-                }));
-            } else {
-                // Fallback for standard ID-only codes
-                const idMatch = decodedText.match(/\b(20\d{7,})\b/);
-                const studentId = idMatch ? idMatch[1] : decodedText;
-                setForm(prev => ({ ...prev, student_id: studentId }));
-                if (studentId.length >= 8) fetchStudentData(studentId);
-            }
-        });
-        return () => { scanner.clear().catch(e => { }); };
-    }, [isScanning]);
+    // The scanner only hands over codes that parseStudentQr accepts (see validate below)
+    const handleScanResult = (decodedText) => {
+        setIsScanning(false);
+        const student = parseStudentQr(decodedText);
+        if (!student) return;
+        setForm(prev => ({
+            ...prev,
+            student_id: student.studentId,
+            name: student.name || prev.name,
+            course: student.course || prev.course,
+        }));
+        fetchStudentData(student.studentId);
+    };
 
     const fetchStudentData = async (id) => {
         try {
@@ -133,27 +112,32 @@ const ReportViolation = () => {
 
     return (
         <div className="flex bg-slate-50 dark:bg-slate-900 min-h-screen relative">
-            {/* Floating Logout */}
-            <button 
-                onClick={() => { localStorage.clear(); window.location.href = '/login'; }} 
-                className="fixed top-6 right-6 z-50 flex items-center gap-2 px-4 py-2 bg-white dark:bg-slate-800/80 backdrop-blur shadow-sm border border-slate-200 dark:border-slate-600 rounded-full text-red-500 hover:bg-red-50 font-bold transition-all text-xs"
-            >
-                <LogOut size={16} /> Log Out
-            </button>
+            {/* Floating Help + Logout */}
+            <div className="fixed top-6 right-6 z-50 flex items-center gap-2">
+                <Link
+                    to="/help"
+                    className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-slate-800/80 backdrop-blur shadow-sm border border-slate-200 dark:border-slate-600 rounded-full text-slate-600 dark:text-slate-300 hover:text-ustp-blue font-bold transition-all text-xs"
+                >
+                    <HelpCircle size={16} /> Help
+                </Link>
+                <button
+                    onClick={() => { localStorage.clear(); window.location.href = '/login'; }}
+                    className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-slate-800/80 backdrop-blur shadow-sm border border-slate-200 dark:border-slate-600 rounded-full text-red-500 hover:bg-red-50 font-bold transition-all text-xs"
+                >
+                    <LogOut size={16} /> Log Out
+                </button>
+            </div>
             {/* Modal Scanner */}
             {isScanning && (
-                <div className="fixed inset-0 z-50 bg-slate-900/90 backdrop-blur-md flex items-center justify-center p-6">
-                    <div className="bg-white dark:bg-slate-800 rounded-[40px] p-8 max-w-md w-full shadow-2xl relative overflow-hidden">
-                        <button onClick={() => setIsScanning(false)} className="absolute top-6 right-6 w-12 h-12 bg-slate-100 rounded-full flex items-center justify-center hover:bg-red-50 hover:text-red-500 transition-all">
-                            <X size={24} />
-                        </button>
-                        <div className="text-center mb-10">
-                            <h3 className="font-black text-2xl text-slate-800 dark:text-slate-200 tracking-tight">Scanner Hub</h3>
-                            <p className="text-sm font-medium text-slate-400 dark:text-slate-500 mt-2">Scan Physical ID / QR Code</p>
-                        </div>
-                        <div id="report-qr-reader" className="w-full rounded-2xl overflow-hidden border-4 border-slate-50 shadow-inner"></div>
-                    </div>
-                </div>
+                <QrScannerModal
+                    title="Scan Student QR"
+                    subtitle="Scan the student's ID or OSAConnect QR code"
+                    allowUpload
+                    // Only student ID codes; OSA action/location codes and other QRs are rejected on the spot
+                    validate={(text) => (parseStudentQr(text) ? null : NOT_A_STUDENT_QR)}
+                    onClose={() => setIsScanning(false)}
+                    onResult={handleScanResult}
+                />
             )}
 
             {/* Confirm Modal */}

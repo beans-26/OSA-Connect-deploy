@@ -35,6 +35,9 @@ export default function Register() {
         contact_number: '',
         password: ''
     });
+    // Kept outside studentData so it isn't sent to the API
+    const [confirmPassword, setConfirmPassword] = useState('');
+    const passwordMismatch = confirmPassword.length > 0 && confirmPassword !== studentData.password;
 
     const qrRef = useRef();
 
@@ -52,9 +55,15 @@ export default function Register() {
     };
 
     const requestOTP = async () => {
+        // Enter can fire this while a request is still running
+        if (saving) return;
         // Validate required fields
-        if (!studentData.student_id || !studentData.first_name || !studentData.last_name || !studentData.email) {
+        if (!studentData.student_id || !studentData.first_name || !studentData.last_name || !studentData.email || !studentData.password.trim()) {
             Alert.alert("Missing Fields", "Please fill in all required fields.");
+            return;
+        }
+        if (studentData.password !== confirmPassword) {
+            Alert.alert("Password Mismatch", "Passwords do not match. Please re-enter your password.");
             return;
         }
 
@@ -71,14 +80,14 @@ export default function Register() {
     };
 
     const verifyAndRegister = async () => {
-        if (otp.length < 6) return;
+        if (saving || otp.length < 6) return;
         setSaving(true);
         try {
             const fullName = `${studentData.first_name} ${studentData.middle_name ? studentData.middle_name + ' ' : ''}${studentData.last_name}`.trim();
             const payload = {
                 ...studentData,
                 name: fullName,
-                password: studentData.password || studentData.student_id,
+                password: studentData.password,
                 otp: otp
             };
             const response = await api.post('/students/register_with_otp/', payload);
@@ -119,43 +128,43 @@ export default function Register() {
 
                             <View style={styles.formGroup}>
                                 <Text style={styles.label}>Student ID</Text>
-                                <TextInput style={styles.input} placeholder="2023303188" value={studentData.student_id} onChangeText={(t) => setStudentData({...studentData, student_id: t})} />
+                                <TextInput style={styles.input} placeholder="2023303188" value={studentData.student_id} onChangeText={(t) => setStudentData({...studentData, student_id: t})} returnKeyType="go" onSubmitEditing={requestOTP} />
                             </View>
 
                             <View style={styles.row}>
                                 <View style={[styles.formGroup, {flex: 1, marginRight: 8}]}>
                                     <Text style={styles.label}>First Name</Text>
-                                    <TextInput style={styles.input} placeholder="Juan" value={studentData.first_name} onChangeText={(t) => setStudentData({...studentData, first_name: t})} />
+                                    <TextInput style={styles.input} placeholder="Juan" value={studentData.first_name} onChangeText={(t) => setStudentData({...studentData, first_name: t})} returnKeyType="go" onSubmitEditing={requestOTP} />
                                 </View>
                                 <View style={[styles.formGroup, {flex: 1, marginLeft: 8}]}>
                                     <Text style={styles.label}>Last Name</Text>
-                                    <TextInput style={styles.input} placeholder="Cruz" value={studentData.last_name} onChangeText={(t) => setStudentData({...studentData, last_name: t})} />
+                                    <TextInput style={styles.input} placeholder="Cruz" value={studentData.last_name} onChangeText={(t) => setStudentData({...studentData, last_name: t})} returnKeyType="go" onSubmitEditing={requestOTP} />
                                 </View>
                             </View>
 
                             <View style={styles.formGroup}>
                                 <Text style={styles.label}>Middle Name (Optional)</Text>
-                                <TextInput style={styles.input} placeholder="Dela" value={studentData.middle_name} onChangeText={(t) => setStudentData({...studentData, middle_name: t})} />
+                                <TextInput style={styles.input} placeholder="Dela" value={studentData.middle_name} onChangeText={(t) => setStudentData({...studentData, middle_name: t})} returnKeyType="go" onSubmitEditing={requestOTP} />
                             </View>
 
                             <View style={styles.formGroup}>
                                 <Text style={styles.label}>Course</Text>
-                                <TextInput style={styles.input} placeholder="e.g. BS Information Technology" value={studentData.course} onChangeText={(t) => setStudentData({...studentData, course: t})} />
+                                <TextInput style={styles.input} placeholder="e.g. BS Information Technology" value={studentData.course} onChangeText={(t) => setStudentData({...studentData, course: t})} returnKeyType="go" onSubmitEditing={requestOTP} />
                             </View>
 
                             <View style={styles.formGroup}>
                                 <Text style={styles.label}>Department</Text>
-                                <TextInput style={styles.input} placeholder="e.g. CITC" value={studentData.department} onChangeText={(t) => setStudentData({...studentData, department: t})} />
+                                <TextInput style={styles.input} placeholder="e.g. CITC" value={studentData.department} onChangeText={(t) => setStudentData({...studentData, department: t})} returnKeyType="go" onSubmitEditing={requestOTP} />
                             </View>
 
                             <View style={styles.row}>
                                 <View style={[styles.formGroup, {flex: 1, marginRight: 8}]}>
                                     <Text style={styles.label}>Year Level</Text>
-                                    <TextInput style={styles.input} placeholder="1, 2, 3..." keyboardType="numeric" value={studentData.year_level} onChangeText={(t) => setStudentData({...studentData, year_level: t})} />
+                                    <TextInput style={styles.input} placeholder="1, 2, 3..." keyboardType="numeric" value={studentData.year_level} onChangeText={(t) => setStudentData({...studentData, year_level: t})} returnKeyType="go" onSubmitEditing={requestOTP} />
                                 </View>
                                 <View style={[styles.formGroup, {flex: 1, marginLeft: 8}]}>
                                     <Text style={styles.label}>Contact</Text>
-                                    <TextInput style={styles.input} placeholder="09XXX" keyboardType="phone-pad" value={studentData.contact_number} onChangeText={(t) => setStudentData({...studentData, contact_number: t})} />
+                                    <TextInput style={styles.input} placeholder="09XXX" keyboardType="phone-pad" value={studentData.contact_number} onChangeText={(t) => setStudentData({...studentData, contact_number: t})} returnKeyType="go" onSubmitEditing={requestOTP} />
                                 </View>
                             </View>
 
@@ -163,12 +172,18 @@ export default function Register() {
 
                             <View style={styles.formGroup}>
                                 <Text style={styles.label}>Email Address</Text>
-                                <TextInput style={styles.input} placeholder="student@example.edu" keyboardType="email-address" autoCapitalize="none" value={studentData.email} onChangeText={(t) => setStudentData({...studentData, email: t})} />
+                                <TextInput style={styles.input} placeholder="student@example.edu" keyboardType="email-address" autoCapitalize="none" value={studentData.email} onChangeText={(t) => setStudentData({...studentData, email: t})} returnKeyType="go" onSubmitEditing={requestOTP} />
                             </View>
 
                             <View style={styles.formGroup}>
                                 <Text style={styles.label}>Password</Text>
-                                <TextInput style={styles.input} placeholder="ID as default if blank" secureTextEntry value={studentData.password} onChangeText={(t) => setStudentData({...studentData, password: t})} />
+                                <TextInput style={styles.input} placeholder="Create a password" secureTextEntry value={studentData.password} onChangeText={(t) => setStudentData({...studentData, password: t})} returnKeyType="go" onSubmitEditing={requestOTP} />
+                            </View>
+
+                            <View style={styles.formGroup}>
+                                <Text style={styles.label}>Re-enter Password</Text>
+                                <TextInput style={[styles.input, passwordMismatch && styles.inputError]} placeholder="Re-enter your password" secureTextEntry value={confirmPassword} onChangeText={setConfirmPassword} returnKeyType="go" onSubmitEditing={requestOTP} />
+                                {passwordMismatch && <Text style={styles.errorText}>Passwords do not match</Text>}
                             </View>
 
                             <TouchableOpacity style={[styles.primaryButton, saving && styles.disabledButton]} onPress={requestOTP} disabled={saving}>
@@ -209,6 +224,8 @@ export default function Register() {
                                     keyboardType="number-pad"
                                     value={otp}
                                     onChangeText={(t) => setOtp(t.replace(/\D/g, ''))}
+                                    returnKeyType="go"
+                                    onSubmitEditing={verifyAndRegister}
                                 />
                             </View>
 
@@ -389,6 +406,16 @@ const styles = StyleSheet.create({
         color: Colors.text,
         fontWeight: '600',
         fontSize: 14,
+    },
+    inputError: {
+        borderColor: Colors.danger,
+    },
+    errorText: {
+        color: Colors.danger,
+        fontSize: 11,
+        fontWeight: 'bold',
+        marginTop: 6,
+        marginLeft: 4,
     },
     divider: {
         height: 1,

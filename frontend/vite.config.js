@@ -10,6 +10,8 @@ export default defineConfig({
     tailwindcss(),
   ],
   server: {
+    // Allow ../shared (help-content.json is shared with the mobile app)
+    fs: { allow: ['..'] },
     host: true, // Expose to local network (0.0.0.0)
     allowedHosts: ['floppy-seas-post.loca.lt', '.loca.lt'], // Allow localtunnel domains
     proxy: {

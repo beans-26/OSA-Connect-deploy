@@ -2,10 +2,12 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useColorScheme } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { lightColors, darkColors } from '../constants/Colors';
+import { useAuth } from './AuthContext';
 
 const ThemeContext = createContext();
 
 export const ThemeProvider = ({ children }) => {
+    const { user } = useAuth();
     const systemColorScheme = useColorScheme();
     const [themeMode, setThemeMode] = useState('system'); // 'system', 'light', 'dark'
     const [isDarkMode, setIsDarkMode] = useState(systemColorScheme === 'dark');
@@ -41,10 +43,14 @@ export const ThemeProvider = ({ children }) => {
         }
     };
 
-    const colors = isDarkMode ? darkColors : lightColors;
+    // Dark mode is a student feature: signed-out screens (login, register, forgot password)
+    // and staff/guard accounts always get the light theme
+    const lightOnly = !user || user.role === 'staff' || user.role === 'guard';
+    const dark = isDarkMode && !lightOnly;
+    const colors = dark ? darkColors : lightColors;
 
     return (
-        <ThemeContext.Provider value={{ isDarkMode, themeMode, changeTheme, colors }}>
+        <ThemeContext.Provider value={{ isDarkMode: dark, themeMode, changeTheme, colors }}>
             {children}
         </ThemeContext.Provider>
     );
