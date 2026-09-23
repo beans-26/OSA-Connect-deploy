@@ -40,6 +40,9 @@ const Sidebar = ({ role }) => {
             { name: 'Report Violation', path: '/guard/report', icon: AlertTriangle },
             { name: 'History', path: '/guard/history', icon: History },
         ],
+        staff: [
+            { name: 'Report Violation', path: '/staff/report', icon: AlertTriangle },
+        ],
         student: [
             { name: 'Service Hub', path: '/student/dashboard', icon: LayoutDashboard },
             { name: 'Settings', path: '/student/settings', icon: User },
@@ -110,8 +113,8 @@ const Sidebar = ({ role }) => {
             </nav>
 
             <div className="mt-auto pt-6 border-t border-slate-100 dark:border-slate-800 pb-4">
-                {role === 'admin' && (
-                    <Link to="/admin/help" onClick={() => setMobileOpen(false)} className="flex items-center gap-3 px-4 py-3 mx-3 text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-ustp-blue rounded-xl transition-all group mb-1">
+                {['admin', 'staff', 'guard'].includes(role) && (
+                    <Link to="/help" onClick={() => setMobileOpen(false)} className="flex items-center gap-3 px-4 py-3 mx-3 text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-ustp-blue rounded-xl transition-all group mb-1">
                         <HelpCircle size={20} className="group-hover:scale-110 transition-transform" />
                         <span className="font-bold text-sm">Help</span>
                     </Link>

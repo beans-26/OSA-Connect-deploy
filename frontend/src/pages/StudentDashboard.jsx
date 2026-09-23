@@ -1,45 +1,127 @@
-import React, { useState, useEffect } from 'react';
-import Sidebar from '../components/Sidebar';
-import {
-    Shield,
-    Clock,
-    History,
-    Scan,
-    AlertTriangle,
-    Inbox,
-    Key,
-    User,
-    Play,
-    CheckCircle,
-    X,
-    QrCode,
-    MapPin,
-    Navigation,
-    LocateFixed
-} from 'lucide-react';
-import { Html5QrcodeScanner } from 'html5-qrcode';
+import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { AlertTriangle, Key, User, Play, X, QrCode, FileText } from 'lucide-react';
+import QrScannerModal from '../components/QrScannerModal';
+import { useStudentTheme } from '../components/useStudentTheme';
 
-const LiveTimer = ({ startTime }) => {
-    const [elapsed, setElapsed] = useState(0);
+// Header copy shared with mobile/app/student/dashboard.jsx
+const getGreeting = () => {
+    const h = new Date().getHours();
+    if (h < 12) return 'GOOD MORNING,';
+    if (h < 17) return 'GOOD AFTERNOON,'; // evening from 5 PM, same as getSubGreetingText
+    return 'GOOD EVENING,';
+};
+
+const getSubGreetingText = () => {
+    const hour = new Date().getHours();
+    let options;
+    if (hour >= 5 && hour < 12) {
+        options = [
+            "Good morning! Ready to make today productive?",
+            "Early start, nice! Let's get those hours in.",
+            "A new day, a new opportunity to serve."
+        ];
+    } else if (hour >= 12 && hour < 17) {
+        options = [
+            "Good afternoon! How's your service going?",
+            "Keep up the great work today.",
+            "Another step closer to completing your hours."
+        ];
+    } else if (hour >= 17 && hour < 22) {
+        options = [
+            "Good evening! Still making progress?",
+            "The day isn't over yet. Keep going!",
+            "Finishing strong today?"
+        ];
+    } else {
+        options = [
+            "Working late? Your dedication is showing.",
+            "Burning the midnight oil, huh?",
+            "Late-night grind detected.",
+            "Most people are asleep. You're still making progress.",
+            "Don't forget to rest after your shift.",
+            "The stars are out, and so are your service hours."
+        ];
+    }
+    return options[Math.floor(Math.random() * options.length)];
+};
+
+// Leaflet geofence map framed like the mobile map card (hub, radius, and your position)
+const GeofenceMap = ({ hub, location, isOutOfBounds, isDarkMode }) => {
+    const containerRef = useRef(null);
+    const mapRef = useRef(null);
+    const layersRef = useRef({});
 
     useEffect(() => {
-        const interval = setInterval(() => {
-            setElapsed(Math.floor((Date.now() - new Date(startTime).getTime()) / 1000));
-        }, 1000);
-        return () => clearInterval(interval);
-    }, [startTime]);
+        if (!containerRef.current || !window.L || !hub) return;
+        const L = window.L;
+        const map = L.map(containerRef.current, { zoomControl: false, attributionControl: false })
+            .setView([hub.lat, hub.lng], 18);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
+        layersRef.current.circle = L.circle([hub.lat, hub.lng], {
+            color: '#10b981', fillColor: '#10b981', fillOpacity: 0.15, radius: hub.radius
+        }).addTo(map);
+        layersRef.current.hub = L.marker([hub.lat, hub.lng], {
+            icon: L.divIcon({
+                className: '',
+                html: '<div style="width:18px;height:18px;border-radius:9px;background:#1d4ed8;border:3px solid #fff;box-shadow:0 2px 4px rgba(0,0,0,.2)"></div>',
+                iconSize: [18, 18]
+            })
+        }).addTo(map);
+        mapRef.current = map;
+        return () => {
+            map.remove();
+            mapRef.current = null;
+            layersRef.current = {};
+        };
+    }, [hub?.lat, hub?.lng]);
 
-    const formatTime = (seconds) => {
-        const h = Math.floor(seconds / 3600);
-        const m = String(Math.floor((seconds % 3600) / 60)).padStart(2, '0');
-        const s = String(seconds % 60).padStart(2, '0');
-        return `${h}:${m}:${s}`;
-    };
+    useEffect(() => {
+        const L = window.L;
+        const map = mapRef.current;
+        if (!map || !L) return;
+        const color = isOutOfBounds ? '#ef4444' : '#10b981';
+        layersRef.current.circle?.setRadius(hub.radius).setStyle({ color, fillColor: color });
+        if (!location) return;
+        const icon = L.divIcon({
+            className: '',
+            html: `<div style="width:16px;height:16px;border-radius:8px;background:${color};border:2px solid #fff;box-shadow:0 1.5px 2px rgba(0,0,0,.15)"></div>`,
+            iconSize: [16, 16]
+        });
+        if (layersRef.current.you) {
+            layersRef.current.you.setLatLng([location.lat, location.lng]).setIcon(icon);
+        } else {
+            layersRef.current.you = L.marker([location.lat, location.lng], { icon }).addTo(map);
+        }
+    }, [location, isOutOfBounds, hub?.radius]);
 
-    return <span className="font-mono text-green-600 font-black tracking-tighter">{formatTime(elapsed)}</span>;
+    return (
+        <div className="relative mt-3 h-[200px] w-full overflow-hidden rounded-[14px] border border-[var(--s-border)]">
+            <div ref={containerRef} className={`h-full w-full ${isDarkMode ? 'brightness-[.8] contrast-[1.1]' : ''}`} />
+            <div className="absolute right-3 top-3 z-[500] rounded-full bg-[var(--s-card)] px-3 py-1.5 text-[9px] font-black tracking-[1px] text-[var(--s-text)] shadow">
+                LIVE GPS FEED
+            </div>
+            <div className="absolute bottom-2 left-2 z-[500] rounded-lg bg-[var(--s-card)] px-2 py-1.5 shadow">
+                <div className="mb-1 flex items-center">
+                    <span className="mr-1.5 h-2 w-2 rounded-full bg-[#1e3a8a]" />
+                    <span className="text-[10px] font-bold text-[var(--s-text)]">Hub</span>
+                </div>
+                {location && (
+                    <div className="mb-1 flex items-center">
+                        <span className={`mr-1.5 h-2 w-2 rounded-full ${isOutOfBounds ? 'bg-[#ef4444]' : 'bg-[#10b981]'}`} />
+                        <span className="text-[10px] font-bold text-[var(--s-text)]">You</span>
+                    </div>
+                )}
+                <p className="mt-0.5 text-[10px] font-semibold text-[var(--s-muted)]">Radius: {Math.round(hub.radius)}m</p>
+            </div>
+        </div>
+    );
 };
 
 const StudentDashboard = () => {
+    const navigate = useNavigate();
+    const { isDarkMode } = useStudentTheme();
+    const [subGreeting] = useState(getSubGreetingText);
     const [violations, setViolations] = useState([]);
     const [tickets, setTickets] = useState([]);
     const [logs, setLogs] = useState([]);
@@ -57,10 +139,6 @@ const StudentDashboard = () => {
     const [monitoringLocation, setMonitoringLocation] = useState(false);
     const [currentDistance, setCurrentDistance] = useState(0);
     const [warningCountdown, setWarningCountdown] = useState(null);
-    const [gpsAccuracy, setGpsAccuracy] = useState(0);
-    const mapRef = React.useRef(null);
-    const [markerInstance, setMarkerInstance] = useState(null);
-    const [circleInstance, setCircleInstance] = useState(null);
     const watchIdRef = React.useRef(null);
 
     const [pendingActionData, setPendingActionData] = useState(null);
@@ -168,76 +246,10 @@ const StudentDashboard = () => {
     };
 
 
-    // Leaflet Map Setup
-    useEffect(() => {
-        if (!location || !timerActive || mapRef.current) return;
-
-        const timer = setTimeout(() => {
-            try {
-                const container = document.getElementById('geofence-map');
-                if (!container || !window.L) return;
-
-                const map = L.map('geofence-map', { zoomControl: false }).setView([location.lat, location.lng], 18);
-                L.tileLayer('https://{s}.tile.osm.org/{z}/{x}/{y}.png', {
-                    attribution: '&copy; OpenStreetMap'
-                }).addTo(map);
-
-                const studentIcon = L.divIcon({
-                    className: 'student-map-icon',
-                    html: '<div class="w-4 h-4 bg-blue-600 rounded-full border-2 border-white shadow-lg animate-pulse"></div>',
-                    iconSize: [16, 16]
-                });
-
-                const marker = L.marker([location.lat, location.lng], { icon: studentIcon }).addTo(map);
-
-                let circle = null;
-                if (activeTicket?.lat) {
-                    circle = L.circle([activeTicket.lat, activeTicket.lng], {
-                        color: '#10b981',
-                        fillColor: '#10b981',
-                        fillOpacity: 0.2,
-                        radius: (activeTicket.radius || 3) + (gpsAccuracy * 0.7)
-                    }).addTo(map);
-                }
-
-                mapRef.current = map;
-                setMarkerInstance(marker);
-                setCircleInstance(circle);
-            } catch (e) {
-                console.error("Leaflet init error:", e);
-            }
-        }, 300);
-
-        return () => clearTimeout(timer);
-    }, [location, timerActive]);
-
-    // Update Marker/Circle on Location Change
-    useEffect(() => {
-        if (!mapRef.current || !location) return;
-
-        if (markerInstance) {
-            markerInstance.setLatLng([location.lat, location.lng]);
-            mapRef.current.panTo([location.lat, location.lng]);
-        }
-
-        if (circleInstance && activeTicket?.lat) {
-            const dist = calculateDistance(location.lat, location.lng, activeTicket.lat, activeTicket.lng);
-            const limit = (activeTicket.radius || 3) + (gpsAccuracy * 0.7);
-
-            circleInstance.setLatLng([activeTicket.lat, activeTicket.lng]);
-            circleInstance.setRadius(limit);
-
-            if (dist > limit) {
-                circleInstance.setStyle({ color: '#ef4444', fillColor: '#ef4444' });
-            } else {
-                circleInstance.setStyle({ color: '#10b981', fillColor: '#10b981' });
-            }
-        }
-    }, [location, gpsAccuracy]);
-
     const user = JSON.parse(localStorage.getItem('user') || '{}');
     const activeTicket = tickets.find(t => t.status === 'Ongoing') || tickets.find(t => t.status === 'Active');
-    const displayHours = activeTicket ? activeTicket.remaining_hours : 0;
+    // Stored hours (before the open session); the live elapsed time is subtracted below
+    const displayHours = activeTicket ? (activeTicket.base_remaining_hours ?? activeTicket.remaining_hours) : 0;
 
     useEffect(() => {
         fetchStudentData();
@@ -263,54 +275,6 @@ const StudentDashboard = () => {
         return () => clearInterval(interval);
     }, [timerActive, startTime, displayHours]);
 
-    // QR Scanner Effect
-    useEffect(() => {
-        if (!isScanning) return;
-
-        const scanner = new Html5QrcodeScanner("student-qr-reader", {
-            fps: 10,
-            qrbox: { width: 220, height: 220 },
-            aspectRatio: 1.0,
-            rememberLastUsedCamera: true
-        });
-
-        scanner.render((decodedText) => {
-            scanner.clear();
-            setIsScanning(false);
-            processCode(decodedText);
-        }, (err) => {
-            // ignore
-        });
-
-        return () => {
-            scanner.clear().catch(e => console.error("Scanner cleared:", e));
-        };
-    }, [isScanning]);
-
-    // Stop QR Scanner Effect
-    useEffect(() => {
-        if (!showStopScanner) return;
-
-        const scanner = new Html5QrcodeScanner("stop-qr-reader", {
-            fps: 10,
-            qrbox: { width: 220, height: 220 },
-            aspectRatio: 1.0,
-            rememberLastUsedCamera: true
-        });
-
-        scanner.render((decodedText) => {
-            scanner.clear();
-            setShowStopScanner(false);
-            processStopCode(decodedText);
-        }, (err) => {
-            // ignore
-        });
-
-        return () => {
-            scanner.clear().catch(e => console.error("Scanner cleared:", e));
-        };
-    }, [showStopScanner]);
-
     // Location Monitoring Effect (Leaflet watchPosition)
     useEffect(() => {
         if (timerActive && activeTicket && activeTicket.lat && activeTicket.lng) {
@@ -326,7 +290,6 @@ const StudentDashboard = () => {
                 (position) => {
                     const { latitude, longitude, accuracy } = position.coords;
                     setLocation({ lat: latitude, lng: longitude });
-                    setGpsAccuracy(accuracy);
 
                     const dist = calculateDistance(
                         latitude,
@@ -370,7 +333,8 @@ const StudentDashboard = () => {
                 navigator.geolocation.clearWatch(watchIdRef.current);
             }
         };
-    }, [timerActive, activeTicket]);
+        // Keyed on the ticket's fields so the 5s poll (new objects each time) doesn't restart GPS tracking
+    }, [timerActive, activeTicket?.id, activeTicket?.lat, activeTicket?.lng, activeTicket?.radius]);
 
     const handleBoundaryViolation = async () => {
         if (warningCountdown === null) {
@@ -415,9 +379,9 @@ const StudentDashboard = () => {
     };
 
     const autoStopTimer = async (reason) => {
-        if (!timerActive || tickets.length === 0) return;
+        if (!timerActive || !activeTicket) return;
         try {
-            const ticketId = tickets[0].id;
+            const ticketId = activeTicket.id;
             await fetch('/api/timelogs/log_time/', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -454,17 +418,19 @@ const StudentDashboard = () => {
                 v.student_details?.student_id === user.username
             );
 
+            // All of the student's tickets are listed (like mobile); only open ones can be timed
             const studentTickets = allTickets.filter(t =>
-                t.violation_details?.student_details?.student_id === user.username && t.status !== 'Completed'
+                t.violation_details?.student_details?.student_id === user.username
             );
+            const openTickets = studentTickets.filter(t => t.status === 'Ongoing' || t.status === 'Active');
 
             setViolations(studentViolations);
             setTickets(studentTickets);
             setLogs(allLogs);
 
             // Check for active Backend Timer
-            if (studentTickets.length > 0) {
-                const ongoingTicket = studentTickets.find(t => t.status === 'Ongoing') || studentTickets[0];
+            if (openTickets.length > 0) {
+                const ongoingTicket = openTickets.find(t => t.status === 'Ongoing') || openTickets[0];
                 const activeTicketId = ongoingTicket.id;
                 const activeLog = allLogs.find(log =>
                     (log.eticket === activeTicketId || log.eticket?.id === activeTicketId) && !log.time_out
@@ -494,7 +460,7 @@ const StudentDashboard = () => {
         const rawCode = (codeToProcess || adminCode) || "";
         const payloadCode = rawCode.trim().toUpperCase();
 
-        if (tickets.length === 0) {
+        if (!activeTicket) {
             alert("No active Service Obligations. Please wait for the Admin to assign your fresh violation.");
             return;
         }
@@ -603,7 +569,7 @@ const StudentDashboard = () => {
 
     const processStopCode = async (codeToProcess) => {
         const payloadCode = (codeToProcess || "").trim().toUpperCase();
-        if (tickets.length === 0) {
+        if (!activeTicket) {
             alert("No active Service Obligations to process.");
             return;
         }
@@ -637,313 +603,216 @@ const StudentDashboard = () => {
         return `${hours}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
     };
 
-    const formatObligationTime = (hours) => {
-        if (hours <= 0) return '0 hrs';
-        if (hours >= 1) return `${Math.round(hours * 10) / 10} hrs`;
-        const mins = Math.round(hours * 60);
-        return `${mins} min`;
-    };
+    const displayName = user.name?.split(' ')[0] || user.username || 'User';
+    const hub = activeTicket?.lat != null && activeTicket?.lng != null
+        ? { lat: activeTicket.lat, lng: activeTicket.lng, radius: activeTicket.radius || 15 }
+        : null;
+
+    const ticketBadge = (status) =>
+        status === 'Active' ? 'bg-[#dcfce7] text-[#10b981]' :
+        status === 'Completed' ? 'bg-[#f1f5f9] text-[#64748b]' :
+        'bg-[#faf5ff] text-[#7c3aed]';
 
     return (
-        <div className="flex bg-slate-50 dark:bg-slate-900 min-h-screen relative">
-            {/* QR Scanner Modals */}
+        <div className="student-ui" data-theme={isDarkMode ? 'dark' : 'light'}>
+            {/* QR Scanner (start) */}
             {isScanning && (
-                <div className="fixed inset-0 z-50 bg-slate-900/80 backdrop-blur-sm flex items-center justify-center p-4">
-                    <div className="bg-white dark:bg-slate-800 rounded-3xl p-6 max-w-md w-full shadow-2xl relative overflow-hidden">
-                        <button onClick={() => setIsScanning(false)} className="absolute top-4 right-4 w-10 h-10 bg-slate-100 rounded-full flex items-center justify-center hover:bg-red-100 hover:text-red-500 transition-colors z-10">
-                            <X size={20} />
-                        </button>
-                        <div className="text-center mb-6">
-                            <h3 className="font-black text-xl text-slate-800 dark:text-slate-200 tracking-tight">Staff Code Scanner</h3>
-                            <p className="text-xs font-medium text-slate-400 dark:text-slate-500 mt-2">Scan OSA Staff Action Codes</p>
-                        </div>
-                        <div id="student-qr-reader" className="w-full rounded-2xl overflow-hidden border-4 border-slate-100 dark:border-slate-700"></div>
-                    </div>
-                </div>
+                <QrScannerModal
+                    title="Scan the Hub QR Code"
+                    subtitle="Start your community service session"
+                    onClose={() => setIsScanning(false)}
+                    onResult={(text) => { setIsScanning(false); processCode(text); }}
+                />
             )}
 
+            {/* QR Scanner (end) */}
             {showStopScanner && (
-                <div className="fixed inset-0 z-50 bg-slate-900/80 backdrop-blur-sm flex items-center justify-center p-4">
-                    <div className="bg-white dark:bg-slate-800 rounded-3xl p-6 max-w-md w-full shadow-2xl relative overflow-hidden">
-                        <button onClick={() => setShowStopScanner(false)} className="absolute top-4 right-4 w-10 h-10 bg-slate-100 rounded-full flex items-center justify-center hover:bg-red-100 hover:text-red-500 transition-colors z-10">
-                            <X size={20} />
-                        </button>
-                        <div className="text-center mb-6">
-                            <h3 className="font-black text-xl text-red-600 tracking-tight">Stop Timer</h3>
-                            <p className="text-xs font-medium text-slate-400 dark:text-slate-500 mt-2">Scan QR code to pause your timer</p>
-                        </div>
-                        <div id="stop-qr-reader" className="w-full rounded-2xl overflow-hidden border-4 border-red-100"></div>
-                    </div>
-                </div>
+                <QrScannerModal
+                    title="Scan to End Service"
+                    subtitle="Scan the OSA stop code to end your session"
+                    accent="#ef4444"
+                    onClose={() => setShowStopScanner(false)}
+                    onResult={(text) => { setShowStopScanner(false); processStopCode(text); }}
+                />
             )}
 
+            {/* Photo proof */}
             {cameraActive && (
-                <div className="fixed inset-0 z-[60] bg-slate-900/95 flex flex-col items-center justify-center p-4">
-                    <div className="w-full max-w-md bg-white dark:bg-slate-800 rounded-3xl overflow-hidden shadow-2xl relative">
-                        <div className="p-4 bg-slate-900 text-center relative border-b border-slate-800">
-                            <h3 className="text-white font-black uppercase tracking-widest text-sm">Capture Proof</h3>
-                            <button onClick={() => { stopCamera(); setCameraActive(false); setPendingActionData(null); setPhotoProof(null); }} className="absolute top-1/2 -translate-y-1/2 right-4 text-slate-400 dark:text-slate-500 hover:text-white">
-                                <X size={20} />
-                            </button>
-                        </div>
-                        
-                        <div className="relative aspect-[3/4] bg-black">
-                            {!photoProof ? (
-                                <video 
-                                    ref={videoRef} 
-                                    autoPlay 
-                                    playsInline 
-                                    className="w-full h-full object-cover"
-                                />
-                            ) : (
-                                <img 
-                                    src={photoProof} 
-                                    alt="Proof" 
-                                    className="w-full h-full object-cover"
-                                />
-                            )}
-                            <canvas ref={canvasRef} className="hidden" />
-                        </div>
-                        
-                        <div className="p-6 bg-white dark:bg-slate-800 flex justify-center">
-                            {!photoProof ? (
-                                <button 
-                                    onClick={capturePhoto}
-                                    className="w-16 h-16 rounded-full bg-slate-200 border-4 border-slate-400 flex items-center justify-center hover:bg-slate-300 transition-colors"
-                                >
-                                    <div className="w-12 h-12 rounded-full bg-white dark:bg-slate-800 border-2 border-slate-300 shadow-sm" />
-                                </button>
-                            ) : (
-                                <div className="flex gap-4 w-full">
-                                    <button 
-                                        onClick={() => { setPhotoProof(null); startCamera(); }}
-                                        className="flex-1 py-3 font-black text-[10px] uppercase tracking-widest text-slate-500 dark:text-slate-400 bg-slate-100 rounded-xl hover:bg-slate-200 transition-colors"
-                                    >
-                                        Retake
-                                    </button>
-                                    <button 
-                                        onClick={submitActionWithProof}
-                                        className="flex-1 py-3 font-black text-[10px] uppercase tracking-widest text-white bg-blue-600 rounded-xl shadow-lg hover:bg-blue-700 transition-colors"
-                                    >
-                                        Submit
-                                    </button>
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            <Sidebar role="student" />
-            <main className="flex-1 p-4 md:p-10 pt-24 md:pt-10 w-full max-w-full overflow-y-auto">
-                <header className="mb-6 md:mb-10 flex flex-col md:flex-row justify-between items-center gap-4 text-center md:text-left">
-                    <div className="w-full">
-                        {/* Debug Bar for ID Verification */}
-                        <h1 className="text-2xl md:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight uppercase">Service Hub</h1>
-                        <p className="text-slate-500 dark:text-slate-400 mt-1 font-medium italic text-sm md:text-base">Welcome back, {user.name || user.username || 'Student'}</p>
-                    </div>
-                </header>
-
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-                    {/* Left Col: Obligation & Timer */}
-                    <div className="lg:col-span-4 space-y-8">
-                        {/* Service Obligation Card */}
-                        <div className="card-premium bg-slate-900 text-white relative overflow-hidden p-8 border-4 border-yellow-400/20">
-                            <p className=" text-[9px] uppercase font-black tracking-[0.4em] text-yellow-400 mb-6 drop-shadow-sm">Service Obligation</p>
-                    <div className="text-4xl md:text-5xl font-mono text-yellow-400 font-black tracking-tighter drop-shadow-xl">{formatObligationTime(displayHours)}</div>
-                    <div className="text-[9px] font-black tracking-widest text-yellow-400/80 mt-2 uppercase">Remaining Time</div>
-                </div>
-
-                {/* Timer / Scanner Card */}
-                <div className="card-premium flex flex-col items-center justify-center p-8 border-2 border-white shadow-xl relative overflow-hidden">
-                    {timerActive && (
-                        <div className="absolute top-0 left-0 w-full h-1 bg-yellow-400 animate-pulse shadow-[0_0_15px_rgba(255,184,28,0.5)]" />
+                <div className="fixed inset-0 z-[60] bg-black">
+                    {!photoProof ? (
+                        <video ref={videoRef} autoPlay playsInline className="h-full w-full object-cover" />
+                    ) : (
+                        <img src={photoProof} alt="Proof" className="h-full w-full object-cover" />
                     )}
-
-                    <div className={`w-20 h-20 rounded-[28px] flex items-center justify-center transition-all duration-500 ${timerActive ? 'bg-green-500 text-white shadow-2xl rotate-[360deg]' : 'bg-slate-50 dark:bg-slate-900 text-slate-300 dark:text-slate-600'}`}>
-                        {timerActive ? <Clock size={32} className="animate-spin-slow" /> : <Scan size={32} />}
-                    </div>
-
-                    <div className="text-center w-full mt-6">
-                        <h4 className="font-black text-slate-900 dark:text-white text-lg tracking-tight uppercase">
-                            {timerActive ? "Service in Progress" : "Staff Code Scanner"}
-                        </h4>
-                        {timerActive ? (
-                            <div className="w-full flex flex-col items-center mt-4">
-                                <div className="font-mono text-2xl font-black text-green-600 tracking-tighter animate-pulse mb-2">
-                                    {formatRemainingTime()}
-                                </div>
-
-                                {/* Live Map Integration */}
-                                <div className="card-premium w-full p-0 border-2 border-white shadow-xl overflow-hidden relative group h-[260px]">
-                                    <div id="geofence-map" className="w-full h-full bg-slate-50 dark:bg-slate-900 relative z-10" />
-                                    {!timerActive && (
-                                        <div className="absolute inset-0 bg-slate-100/80 backdrop-blur-sm z-20 flex flex-col items-center justify-center text-center p-6">
-                                            <div className="w-10 h-10 bg-white dark:bg-slate-800 rounded-2xl flex items-center justify-center text-slate-400 dark:text-slate-500 mb-4 shadow-xl">
-                                                <MapPin size={20} />
-                                            </div>
-                                            <p className="text-[9px] font-black text-slate-800 dark:text-slate-200 uppercase tracking-widest mb-1">Satellite Tracking Inactive</p>
-                                            <p className="text-[8px] text-slate-400 dark:text-slate-500 font-bold max-w-[150px]">Scan a Staff QR code to activate live boundary monitoring.</p>
-                                        </div>
-                                    )}
-                                    <div className="absolute top-4 right-4 z-20 bg-white dark:bg-slate-800/90 backdrop-blur p-2 rounded-xl text-[7px] font-black uppercase tracking-widest shadow-xl border border-white">
-                                        Live GPS Feed
-                                    </div>
-                                </div>
-
-                                {monitoringLocation && (
-                                    <div className="flex flex-col items-center gap-2 mb-6 w-full">
-                                        {/* 10-Second Warning Alert */}
-                                        {warningCountdown !== null && (
-                                            <div className="w-full bg-red-600 text-white p-3 rounded-2xl mb-4 animate-bounce shadow-2xl flex items-center justify-between border-2 border-red-400">
-                                                <div className="flex items-center gap-3">
-                                                    <AlertTriangle size={20} className="animate-pulse" />
-                                                    <div>
-                                                        <p className="text-[9px] font-black uppercase tracking-widest leading-none">Warning: Out of Boundary</p>
-                                                        <p className="text-[10px] font-bold mt-1">Return to area immediately!</p>
-                                                    </div>
-                                                </div>
-                                                <div className="bg-white dark:bg-slate-800 text-red-600 w-10 h-10 rounded-xl flex items-center justify-center font-black text-xl shadow-inner">
-                                                    {warningCountdown}
-                                                </div>
-                                            </div>
-                                        )}
-
-                                        <div className={`p-5 rounded-[28px] w-full border-2 transition-all ${isOutOfBounds ? "bg-rose-50 border-rose-200" : "bg-emerald-50 border-emerald-200"}`}>
-                                            <div className="flex items-center justify-between mb-4">
-                                                <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">Position Status</p>
-                                                <div className={`px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest ${isOutOfBounds ? "bg-rose-600 text-white shadow-lg shadow-rose-200" : "bg-emerald-600 text-white shadow-lg shadow-emerald-200"}`}>
-                                                    {isOutOfBounds ? "Outside Area" : "Inside Area"}
-                                                </div>
-                                            </div>
-
-                                            <div className="flex flex-col items-center py-2">
-                                                <div className={`text-3xl font-black tracking-tight mb-1 ${currentDistance <= (activeTicket?.radius || 5) ? "text-emerald-700" :
-                                                        currentDistance <= 25 ? "text-amber-600" : "text-rose-700"
-                                                    }`}>
-                                                    {currentDistance <= (activeTicket?.radius || 5) ? "Very Near" :
-                                                        currentDistance <= 25 ? "Near" : "Far"}
-                                                </div>
-                                                <p className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em]">
-                                                    Est. Distance: {Math.round(currentDistance)}m
-                                                </p>
-                                            </div>
-
-                                            <div className={`mt-3 pt-3 border-t flex items-center justify-between ${isOutOfBounds ? "border-rose-100" : "border-emerald-100"}`}>
-                                                <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 flex items-center gap-2">
-                                                    <MapPin size={10} /> Precision
-                                                </p>
-                                                <p className={`text-[9px] font-black tracking-tight ${gpsAccuracy > 15 ? "text-amber-600" : "text-emerald-600"}`}>
-                                                    {gpsAccuracy < 10 ? "Excellent" : gpsAccuracy < 25 ? "Good" : "Weak"}
-                                                </p>
-                                            </div>
-                                        </div>
-                                    </div>
-                                )}
-                                <button onClick={() => setShowStopScanner(true)} className="w-full bg-red-50 text-red-600 border-2 border-red-200 font-black py-3 rounded-xl flex items-center justify-center gap-2 hover:bg-red-600 hover:text-white transition-all uppercase text-[9px] tracking-widest">
-                                    <QrCode size={14} /> Scan to Stop
+                    <canvas ref={canvasRef} className="hidden" />
+                    <p className="absolute left-0 right-0 top-[60px] text-center text-base font-bold text-white [text-shadow:0_1px_4px_rgba(0,0,0,.5)]">
+                        {photoProof ? 'Use this photo?' : 'Take a real-time photo'}
+                    </p>
+                    <button
+                        onClick={() => { stopCamera(); setCameraActive(false); setPendingActionData(null); setPhotoProof(null); }}
+                        className="absolute right-5 top-14 rounded-full bg-black/55 p-3 text-white"
+                    >
+                        <X size={22} />
+                    </button>
+                    <div className="absolute bottom-[60px] left-0 right-0 flex items-center justify-center px-6">
+                        {!photoProof ? (
+                            <button onClick={capturePhoto} aria-label="Capture photo" className="flex h-[76px] w-[76px] items-center justify-center rounded-full border-4 border-white bg-white/25">
+                                <span className="h-[58px] w-[58px] rounded-full bg-white" />
+                            </button>
+                        ) : (
+                            <div className="flex w-full max-w-md gap-3">
+                                <button onClick={() => { setPhotoProof(null); startCamera(); }} className="flex-1 rounded-[14px] bg-white/90 p-4 text-sm font-bold uppercase tracking-[1px] text-[#0f172a]">
+                                    Retake
+                                </button>
+                                <button onClick={submitActionWithProof} className="flex-1 rounded-[14px] bg-[#1e3a8a] p-4 text-sm font-bold uppercase tracking-[1px] text-white">
+                                    Submit
                                 </button>
                             </div>
-                        ) : (
-                            <p className="text-xs text-slate-400 dark:text-slate-500 mt-4 font-medium max-w-[200px] leading-relaxed mx-auto text-center">
-                                {displayHours > 0 ? "Scan QR from OSA Staff to start your service session." : "No active service requirements at this time."}
-                            </p>
                         )}
                     </div>
-
-                    {!showAdminCode && !timerActive && (
-                        <div className="w-full grid grid-cols-2 gap-4 mt-8">
-                            <button onClick={() => setIsScanning(true)} className="bg-ustp-blue text-white font-black py-3 rounded-xl shadow-lg uppercase tracking-widest text-[9px] flex items-center justify-center gap-2">
-                                <QrCode size={14} /> Scan QR
-                            </button>
-                            <button onClick={() => setShowAdminCode(true)} className="bg-slate-900 text-white font-black py-3 rounded-xl shadow-lg uppercase tracking-widest text-[9px] flex flex-col items-center justify-center">
-                                <Key size={12} className="mb-0.5" /> Manual
-                            </button>
-                        </div>
-                    )}
-
-                    {showAdminCode && (
-                        <div className="w-full space-y-4 mt-6">
-                            <input type="password" placeholder="••••••••" className="w-full bg-slate-50 dark:bg-slate-900 border-2 border-slate-100 dark:border-slate-700 rounded-2xl p-4 font-black text-center outline-none focus:border-ustp-blue tracking-widest text-sm" value={adminCode} onChange={(e) => setAdminCode(e.target.value)} onKeyPress={(e) => e.key === 'Enter' && processCode()} />
-                            <div className="flex gap-2">
-                                <button onClick={() => processCode()} className="flex-1 bg-ustp-blue text-white font-black py-3 rounded-xl text-[9px] uppercase">Submit</button>
-                                <button onClick={() => { setShowAdminCode(false); setAdminCode(''); }} className="flex-1 bg-slate-100 text-slate-400 dark:text-slate-500 font-black py-3 rounded-xl text-[9px] uppercase">Cancel</button>
-                            </div>
-                        </div>
-                    )}
                 </div>
-        </div>
+            )}
 
-                    {/* Right Col: Violations */ }
-    <div className="lg:col-span-8 space-y-8">
-        <div className="card-premium border-2 border-white shadow-xl p-6 md:p-8">
-            <h4 className="font-black text-slate-900 dark:text-white text-lg flex items-center gap-4 mb-8 pb-6 border-b border-slate-50 uppercase tracking-tight">
-                <AlertTriangle className="text-red-500" size={20} />
-                Violation Records
-            </h4>
+            <main className="mx-auto w-full max-w-xl px-5 pb-16 pt-4">
+                {/* Header */}
+                <header className="mb-6 flex items-center justify-between">
+                    <div className="flex-1">
+                        <p className="mb-1 text-xs font-black uppercase tracking-[2px] text-[var(--s-muted)]">{getGreeting()}</p>
+                        <h1 className="text-2xl font-black tracking-[0.5px] text-[var(--s-text)]">Hi, {displayName}!</h1>
+                        <p className="mt-1 text-sm font-semibold text-[var(--s-muted)]">{subGreeting}</p>
+                    </div>
+                    <button
+                        onClick={() => navigate('/student/settings')}
+                        aria-label="Profile settings"
+                        className="flex h-11 w-11 items-center justify-center rounded-full bg-[var(--s-card)] text-[var(--s-text)] shadow-[0_2px_8px_rgba(0,0,0,0.05)]"
+                    >
+                        <User size={22} strokeWidth={2.5} />
+                    </button>
+                </header>
 
-            {loading ? (
-                <div className="py-20 text-center animate-pulse text-slate-300 dark:text-slate-600 font-black uppercase tracking-widest text-[10px]">Syncing Data...</div>
-            ) : (() => {
-                const activeViolations = violations;
+                {/* Active Session Card */}
+                <section className={`mb-6 rounded-[20px] bg-[var(--s-card)] p-6 shadow-[0_4px_12px_rgba(0,0,0,0.08)] ${isOutOfBounds ? 'border-[1.5px] border-[#ef4444]' : 'border border-[var(--s-border)]'}`}>
+                    {timerActive ? (
+                        <>
+                            <div className="mb-3 flex items-center">
+                                <Play size={16} className={isOutOfBounds ? 'text-[#ef4444]' : 'text-[var(--s-success)]'} />
+                                <span className={`ml-2 text-xs font-black uppercase tracking-[2px] ${isOutOfBounds ? 'text-[#ef4444]' : 'text-[var(--s-success)]'}`}>
+                                    Live Community Service
+                                </span>
+                            </div>
+                            <div className="my-2 text-[52px] font-black leading-tight tabular-nums text-[var(--s-text)]">
+                                {formatRemainingTime()}
+                            </div>
 
-                if (activeViolations.length === 0) {
-                    return (
-                        <div className="bg-slate-50 dark:bg-slate-900/50 rounded-[32px] p-16 border-4 border-dotted border-slate-100 dark:border-slate-700 text-center">
-                            <Shield className="mx-auto text-slate-200 mb-6" size={40} />
-                            <h5 className="font-black text-slate-800 dark:text-slate-200 text-lg tracking-tighter uppercase">Good Standing</h5>
-                            <p className="text-slate-400 dark:text-slate-500 text-xs mt-3 font-medium max-w-xs mx-auto leading-relaxed">No active violations detected. Keep up the good work!</p>
-                        </div>
-                    );
-                }
+                            {/* Location status */}
+                            <div className={`mt-3 flex items-center gap-2 rounded-xl border p-3 ${isOutOfBounds ? 'border-[#fca5a5] bg-[#fee2e2]' : 'border-[var(--s-border)] bg-[var(--s-bg)]'}`}>
+                                <span className={`h-2 w-2 rounded-full ${isOutOfBounds ? 'bg-[#ef4444]' : 'bg-[var(--s-success)]'}`} />
+                                <span className={`text-[13px] font-bold ${isOutOfBounds ? 'text-[#ef4444]' : 'text-[var(--s-muted)]'}`}>
+                                    {!monitoringLocation || !location
+                                        ? 'Fetching location...'
+                                        : isOutOfBounds
+                                            ? `Out of bounds — ${Math.round(currentDistance)}m away`
+                                            : `Within service area — ${Math.round(currentDistance)}m from hub`}
+                                </span>
+                            </div>
 
-                return (
-                    <div className="space-y-3">
-                        {activeViolations.map((v) => {
-                            const ticket = tickets.find(t => t.violation_details?.id === v.id || t.violation === v.id);
-                            const isOngoing = ticket?.status === 'Ongoing';
-                            const isCompleted = ticket?.status === 'Completed' || v.status === 'Completed';
+                            {hub && (
+                                <GeofenceMap hub={hub} location={location} isOutOfBounds={isOutOfBounds} isDarkMode={isDarkMode} />
+                            )}
 
-                            let displayStatus = v.status;
-                            if (ticket) {
-                                displayStatus = ticket.status;
-                            }
-                            if (displayStatus === 'Approved') displayStatus = 'Active';
-                            if (isCompleted || displayStatus === 'Completed') displayStatus = 'Finished';
-
-                            return (
-                                <div key={v.id} className={`p-5 border rounded-[28px] flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 transition-all ${isOngoing ? 'bg-green-50 border-green-200' : isCompleted ? 'bg-emerald-50 border-emerald-200 opacity-60' : 'bg-white dark:bg-slate-800 border-slate-100 dark:border-slate-700 shadow-sm'}`}>
-                                    <div className="flex gap-4 items-center w-full">
-                                        <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 ${isOngoing ? 'bg-green-500 text-white shadow-lg shadow-green-200' : isCompleted ? 'bg-emerald-500 text-white' : 'bg-red-50 text-red-600'}`}>
-                                            {isOngoing ? <Clock size={20} className="animate-spin-slow" /> : isCompleted ? <CheckCircle size={20} /> : <AlertTriangle size={20} />}
-                                        </div>
-                                        <div className="min-w-0 flex-1">
-                                            <h6 className="font-black text-slate-900 dark:text-white text-base uppercase truncate tracking-tight mb-1">{v.violation_type}</h6>
-                                            <div className="flex items-center gap-2">
-                                                <span className={`text-[8px] font-black px-2 py-0.5 rounded-full uppercase tracking-widest ${
-                                                    isOngoing ? 'bg-green-200 text-green-800' : 
-                                                    displayStatus === 'Finished' ? 'bg-blue-200 text-blue-800' :
-                                                    isCompleted ? 'bg-emerald-200 text-emerald-800' : 
-                                                    'bg-orange-100 text-orange-600'
-                                                }`}>
-                                                    {displayStatus}
-                                                </span>
-                                                <span className="text-[8px] text-slate-300 dark:text-slate-600 font-bold">{new Date(v.created_at).toLocaleDateString()}</span>
-                                            </div>
-                                        </div>
-                                        <div className={`hidden sm:flex w-10 h-10 rounded-xl items-center justify-center shrink-0 ${isOngoing ? 'bg-green-500 text-white shadow-lg shadow-green-200' : isCompleted ? 'bg-emerald-50 text-emerald-200' : 'bg-slate-50 dark:bg-slate-900 text-slate-100'}`}>
-                                            {isOngoing ? <Clock size={16} className="animate-pulse" /> : isCompleted ? <CheckCircle size={16} /> : <Play size={16} />}
+                            {warningCountdown !== null && (
+                                <div className="mt-4 flex items-center justify-between rounded-[18px] bg-[#e11d48] px-[18px] py-3.5 shadow-[0_4px_6px_rgba(225,29,72,0.2)]">
+                                    <div className="flex flex-1 items-center">
+                                        <AlertTriangle size={24} strokeWidth={2.5} className="text-white" />
+                                        <div className="ml-3">
+                                            <p className="text-[13px] font-black uppercase tracking-[0.5px] text-white">Warning: Out of Boundary</p>
+                                            <p className="mt-0.5 text-xs font-semibold text-[#fecdd3]">Return to area immediately!</p>
                                         </div>
                                     </div>
+                                    <div className="rounded-xl bg-white px-3 py-1.5 text-xl font-black text-[#e11d48]">{warningCountdown}</div>
                                 </div>
-                            );
-                        })}
-                    </div>
-                );
-            })()}
-        </div>
-    </div>
-                </div>
+                            )}
+
+                            <button
+                                onClick={() => setShowStopScanner(true)}
+                                className="mt-4 w-full rounded-[14px] bg-[var(--s-primary)] p-4 text-sm font-bold uppercase tracking-[1px] text-white"
+                            >
+                                Scan to End Service
+                            </button>
+                        </>
+                    ) : (
+                        <div className="text-center">
+                            <div className="mb-4 mt-2 flex justify-center text-[var(--s-border)]">
+                                <QrCode size={48} strokeWidth={1.5} />
+                            </div>
+                            <h2 className="mb-2 text-lg font-black text-[var(--s-text)]">No Active Session</h2>
+                            <p className="mb-5 text-sm font-medium leading-5 text-[var(--s-muted)]">
+                                Scan an activity QR code to start<br />tracking your community service hours.
+                            </p>
+                            {showAdminCode ? (
+                                <div className="mx-auto max-w-xs space-y-3">
+                                    <input
+                                        type="password"
+                                        autoFocus
+                                        placeholder="Enter staff code"
+                                        className="w-full rounded-lg border border-[var(--s-border)] bg-[var(--s-bg)] p-3 text-center font-semibold tracking-widest text-[var(--s-text)] outline-none focus:border-[var(--s-primary)]"
+                                        value={adminCode}
+                                        onChange={(e) => setAdminCode(e.target.value)}
+                                        onKeyDown={(e) => e.key === 'Enter' && processCode()}
+                                    />
+                                    <div className="flex gap-3">
+                                        <button onClick={() => { setShowAdminCode(false); setAdminCode(''); }} className="flex-1 rounded-xl bg-[var(--s-bg)] p-3 text-[13px] font-bold text-[var(--s-muted)]">
+                                            Cancel
+                                        </button>
+                                        <button onClick={() => processCode()} className="flex-1 rounded-xl bg-[var(--s-primary)] p-3 text-[13px] font-bold text-white">
+                                            Submit
+                                        </button>
+                                    </div>
+                                </div>
+                            ) : (
+                                <>
+                                    <button onClick={() => setIsScanning(true)} className="rounded-xl bg-[var(--s-primary)] px-7 py-3 text-[13px] font-bold tracking-[0.5px] text-white">
+                                        Scan QR Code
+                                    </button>
+                                    <button onClick={() => setShowAdminCode(true)} className="mx-auto mt-3 flex items-center justify-center gap-1.5 text-xs font-bold text-[var(--s-muted)] hover:text-[var(--s-primary)]">
+                                        <Key size={12} /> Enter code manually
+                                    </button>
+                                </>
+                            )}
+                        </div>
+                    )}
+                </section>
+
+                {/* E-Tickets */}
+                <section className="mb-6">
+                    <h2 className="mb-1 text-lg font-black text-[var(--s-text)]">E-Tickets</h2>
+                    <p className="mb-4 text-sm font-medium text-[var(--s-muted)]">Your violation tickets</p>
+
+                    {loading ? (
+                        <div className="mt-4 flex justify-center">
+                            <span className="h-5 w-5 animate-spin rounded-full border-2 border-[var(--s-primary)] border-t-transparent" />
+                        </div>
+                    ) : tickets.length === 0 ? (
+                        <div className="flex flex-col items-center gap-2 py-6 text-[var(--s-border)]">
+                            <FileText size={32} />
+                            <p className="text-[13px] italic text-[var(--s-muted)]">No tickets found</p>
+                        </div>
+                    ) : (
+                        tickets.map((ticket, idx) => (
+                            <div key={ticket.id || idx} className="mb-2 flex items-center rounded-xl border border-[var(--s-border)] bg-[var(--s-card)] p-3.5 shadow-[0_1px_4px_rgba(0,0,0,0.04)]">
+                                <span className={`mr-3 h-2 w-2 shrink-0 rounded-full ${ticket.status === 'Active' ? 'bg-[#ff6b35]' : 'bg-[var(--s-success)]'}`} />
+                                <div className="min-w-0 flex-1">
+                                    <p className="truncate text-[13px] font-bold text-[var(--s-text)]">Ticket #{ticket.id}</p>
+                                    <p className="mt-0.5 text-[11px] text-[var(--s-muted)]">{ticket.violation_details?.violation_type || 'Violation'}</p>
+                                    <p className="mt-0.5 text-[10px] text-[var(--s-muted)]">Required: {ticket.total_hours_required || 0} hrs</p>
+                                </div>
+                                <span className={`rounded-full px-2.5 py-1 text-[10px] font-bold ${ticketBadge(ticket.status)}`}>
+                                    {ticket.status || 'Pending'}
+                                </span>
+                            </div>
+                        ))
+                    )}
+                </section>
             </main>
         </div>
     );

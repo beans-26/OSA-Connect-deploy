@@ -37,12 +37,17 @@ class ETicketSerializer(serializers.DocumentSerializer):
             data['violation'] = str(instance.violation.id)
 
         # 2. Dynamic Hour Calculation
+        # base_remaining_hours + active_time_in let web and mobile compute the same live countdown
+        data['base_remaining_hours'] = instance.remaining_hours
+        data['active_time_in'] = None
+        data['station'] = {'lat': instance.lat, 'lng': instance.lng, 'radius': instance.radius}
         if instance.status == 'Ongoing':
             try:
                 from core.models import TimeLog
                 from datetime import datetime
                 open_log = TimeLog.objects.filter(eticket=instance, time_out=None).first()
                 if open_log and open_log.time_in:
+                    data['active_time_in'] = open_log.time_in.isoformat()
                     elapsed = (datetime.now() - open_log.time_in).total_seconds() / 3600
                     data['remaining_hours'] = max(0, instance.remaining_hours - elapsed)
             except: pass

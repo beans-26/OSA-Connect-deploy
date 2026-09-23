@@ -21,12 +21,12 @@ export default function Index() {
 
     // Route students
     if (user.role === 'student') {
-        return <Redirect href="/(student)/dashboard" />;
+        return <Redirect href="/student/dashboard" />;
     }
 
     // Route personnel
     if (user.role === 'staff' || user.role === 'guard') {
-        return <Redirect href="/(staff)/dashboard" />;
+        return <Redirect href="/staff/dashboard" />;
     }
 
     // Fallback if somehow someone else logs in
