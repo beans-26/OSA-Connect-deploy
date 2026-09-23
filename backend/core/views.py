@@ -115,7 +115,11 @@ class StudentViewSet(viewsets.ModelViewSet):
         
         if not email or not otp_input:
             return Response({"error": "Email and OTP are required"}, status=status.HTTP_400_BAD_REQUEST)
-            
+
+        # Checked before the OTP so a missing password doesn't burn the code
+        if not str(data.get('password', '')).strip():
+            return Response({"error": "Password is required"}, status=status.HTTP_400_BAD_REQUEST)
+
         verification = OTPVerification.objects.filter(email=email).first()
         if not verification:
             return Response({"error": "No OTP requested for this email or it has expired"}, status=status.HTTP_400_BAD_REQUEST)
@@ -335,6 +339,9 @@ PUNISHMENT_SYSTEM = {
     },
 }
 
+# Applied to violation types that aren't in PUNISHMENT_SYSTEM
+DEFAULT_PUNISHMENT = {"punishment": "To be determined", "hours": 4}
+
 def get_offense_count(student, violation_type):
     """Count how many times this student has committed this violation type"""
     count = ViolationReport.objects.filter(
@@ -352,7 +359,7 @@ def get_punishment(violation_type, offense_count):
         # If offense count exceeds defined punishments, use the last one
         return list(violation_punishments.values())[-1]
     # Default punishment for undefined violations
-    return {"punishment": "To be determined", "hours": 4}
+    return DEFAULT_PUNISHMENT
 
 def send_violation_email(report):
     """Sends an email notification to the student about their violation report"""
@@ -416,6 +423,27 @@ class ViolationViewSet(viewsets.ModelViewSet):
             reverse=True
         )
         return Response(sorted_data)
+
+    @action(detail=False, methods=['get'])
+    def punishments(self, request):
+        """Read-only penalties table for the Help pages (source of truth: PUNISHMENT_SYSTEM)"""
+        rules = [
+            {
+                "violation_type": violation_type,
+                "offenses": [
+                    {"offense": offense, "punishment": info["punishment"], "hours": info["hours"]}
+                    for offense, info in sorted(offenses.items())
+                ],
+            }
+            for violation_type, offenses in PUNISHMENT_SYSTEM.items()
+        ]
+        return Response({
+            "rules": rules,
+            "default": DEFAULT_PUNISHMENT,
+            # get_punishment() reuses the last defined penalty once a student passes it
+            "repeat_last_offense": True,
+        })
+
     @action(detail=False, methods=['post'])
     def bulk_create(self, request):
         data = request.data

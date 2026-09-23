@@ -52,6 +52,9 @@ const StudentRegistration = () => {
         contact_number: '',
         password: ''
     });
+    // Kept outside studentData so it isn't sent to the API
+    const [confirmPassword, setConfirmPassword] = useState('');
+    const passwordMismatch = confirmPassword.length > 0 && confirmPassword !== studentData.password;
 
     const CSSLogo = ({ className = "" }) => (
         <div className={`flex items-center gap-2 ${className}`}>
@@ -99,6 +102,10 @@ const StudentRegistration = () => {
 
     const requestOTP = async (e) => {
         if (e) e.preventDefault();
+        if (studentData.password !== confirmPassword) {
+            alert('Passwords do not match. Please re-enter your password.');
+            return;
+        }
         setSaving(true);
         try {
             const response = await fetch('/api/students/request_otp/', {
@@ -128,7 +135,7 @@ const StudentRegistration = () => {
             const payload = {
                 ...studentData,
                 name: fullName,
-                password: studentData.password || studentData.student_id,
+                password: studentData.password,
                 otp: otp
             };
             const response = await fetch('/api/students/register_with_otp/', {
@@ -226,7 +233,14 @@ const StudentRegistration = () => {
                                     </div>
                                     <div className="space-y-1.5">
                                         <label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-1">Password</label>
-                                        <input type="password" value={studentData.password} onChange={(e) => setStudentData({...studentData, password: e.target.value})} className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-600 rounded-lg p-3.5 outline-none font-semibold text-slate-700 dark:text-slate-300 focus:bg-white dark:bg-slate-800 focus:border-blue-600 transition-none text-sm" placeholder="ID as default if blank" />
+                                        <input required type="password" value={studentData.password} onChange={(e) => setStudentData({...studentData, password: e.target.value})} className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-600 rounded-lg p-3.5 outline-none font-semibold text-slate-700 dark:text-slate-300 focus:bg-white dark:bg-slate-800 focus:border-blue-600 transition-none text-sm" placeholder="Create a password" />
+                                    </div>
+                                    <div className="space-y-1.5">
+                                        <label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-1">Re-enter Password</label>
+                                        <input required type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} className={`w-full bg-slate-50 dark:bg-slate-900 border rounded-lg p-3.5 outline-none font-semibold text-slate-700 dark:text-slate-300 focus:bg-white dark:bg-slate-800 transition-none text-sm ${passwordMismatch ? 'border-red-400 focus:border-red-500' : 'border-slate-200 dark:border-slate-600 focus:border-blue-600'}`} placeholder="Re-enter your password" />
+                                        {passwordMismatch && (
+                                            <p className="ml-1 text-[11px] font-bold text-red-500">Passwords do not match</p>
+                                        )}
                                     </div>
                                 </div>
 

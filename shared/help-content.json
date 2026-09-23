@@ -1,0 +1,273 @@
+{
+  "_about": "Help page text shared by the website (frontend/src/pages/Help.jsx) and the mobile app (mobile/app/help.jsx). Answers are arrays of paragraphs; a paragraph starting with '- ' renders as a bullet. An item may have 'a' (both platforms) or 'web'/'mobile' (platform-specific). Values in [square brackets] are placeholders the OSA must fill in. Written against the code on 2026-09-23; update this file when the behavior changes. The penalties table is NOT here: both apps load it from GET /api/violations/punishments/ (backend/core/views.py PUNISHMENT_SYSTEM).",
+
+  "contact": {
+    "office": "[OSA office location]",
+    "hours": "[OSA office hours]",
+    "email": "[OSA office email]",
+    "phone": "[OSA office phone]"
+  },
+
+  "report_problem": {
+    "email": "[OSA office email]",
+    "subject": "OSAConnect problem report",
+    "body": "Describe the problem:\n\nWhat were you doing when it happened?\n\nDevice and app version:\n"
+  },
+
+  "student": {
+    "intro": "Everything you need to know about violations, e-tickets, and serving your community service hours.",
+
+    "flow": [
+      { "title": "Reported", "text": "A guard or staff member records the violation. You get an email notice if your email is on file." },
+      { "title": "Under review", "text": "OSA reviews the report and either approves or dismisses it. Pending reports don't appear in the app yet." },
+      { "title": "E-ticket issued", "text": "If approved, an e-ticket with your required hours appears under E-Tickets on your dashboard." },
+      { "title": "Serve your hours", "text": "Scan to start, take a selfie, stay in the service area, then scan to end. Hours can be split across sessions." },
+      { "title": "Completed", "text": "When your remaining hours reach zero after you end a session, the e-ticket is marked Completed." }
+    ],
+
+    "faq": [
+      {
+        "group": "Community service",
+        "items": [
+          {
+            "q": "How do I start a session?",
+            "a": [
+              "On your dashboard, tap Scan QR Code. The app first checks that location services are on and asks for location and camera permission.",
+              "Scan the QR code posted at your service location, then take a live selfie with the front camera. The countdown starts once the selfie is uploaded.",
+              "You need an Active e-ticket. If you don't have one, the app shows \"You don't have any active service tickets.\""
+            ]
+          },
+          {
+            "q": "How do I end a session?",
+            "a": [
+              "Tap Scan to End Service, scan the OSA stop code, and take another selfie. The time since you started is then deducted from your remaining hours.",
+              "The end button unlocks 20 seconds after you start, so you can't end a session immediately."
+            ]
+          },
+          {
+            "q": "Why do I have to take a selfie?",
+            "a": [
+              "The selfie at the start and end of each session is your proof of attendance. It's saved with that session's time log, and OSA administrators can view it in the admin dashboard."
+            ]
+          },
+          {
+            "q": "What does \"Out of bounds\" mean?",
+            "a": [
+              "Your service area is a circle with a 50-meter radius around the spot where your phone was when you started the session. If your phone's GPS puts you outside that circle, the session card turns red and shows how far away you are.",
+              "Go back inside the area. The app currently keeps your session running while you're out of bounds; it doesn't end it for you."
+            ]
+          },
+          {
+            "q": "Why did my session end by itself?",
+            "a": [
+              "The mobile app never ends a session automatically. It only ends when a stop code is scanned on your account.",
+              "If your dashboard shows no active session and you didn't end it, it was ended from another device signed in to your account or by OSA. Contact OSA if you think this was a mistake."
+            ]
+          },
+          {
+            "q": "Do I have to finish all my hours in one day?",
+            "a": [
+              "No. Each session deducts only the time you actually served, and your remaining hours carry over. Start a new session whenever you can until the countdown reaches zero."
+            ]
+          },
+          {
+            "q": "What happens if I lose internet during a session?",
+            "a": [
+              "The countdown keeps running on your phone, and GPS still works, but the map may not load.",
+              "Ending a session needs internet. Your session stays open on the server until a stop is recorded, so end it as soon as you're back online."
+            ]
+          }
+        ]
+      },
+      {
+        "group": "Violations and tickets",
+        "items": [
+          {
+            "q": "I was reported, but I don't see anything in the app. Why?",
+            "a": [
+              "The app only lists e-tickets, and an e-ticket is created only after OSA approves the report. While it's pending review (or if it was dismissed), nothing appears.",
+              "You should still have received an email notice when the report was filed, if your email is on file."
+            ]
+          },
+          {
+            "q": "How were my hours decided?",
+            "a": [
+              "When a violation is reported, the system counts your earlier reports of the same violation type to get the offense number, and records the suggested penalty from the table below.",
+              "When OSA approves the report, the reviewer assigns the building and the final number of required hours, which is what appears on your e-ticket.",
+              "Violation types that aren't in the table are recorded as \"To be determined\" with a suggested 4 hours."
+            ]
+          },
+          {
+            "q": "How do I appeal?",
+            "a": [
+              "The app doesn't have an appeal feature. [appeal procedure]"
+            ]
+          }
+        ]
+      },
+      {
+        "group": "Account",
+        "items": [
+          {
+            "q": "I forgot my password.",
+            "a": [
+              "On the login screen, tap Forgot Password and enter your registered email. Enter the 6-digit code we email you (it expires after 5 minutes), then set a new password."
+            ]
+          },
+          {
+            "q": "How do I change my email or contact number?",
+            "a": [
+              "You can't change these in the app. Your details in Profile Settings are read-only. Ask OSA to update your record."
+            ]
+          },
+          {
+            "q": "What is my personal QR code for?",
+            "a": [
+              "It's in Profile Settings and contains your student ID. Guards scan it to fill in your details when filing a report. It isn't used to start or end service sessions."
+            ]
+          }
+        ]
+      }
+    ],
+
+    "penalties_note": [
+      "Hours by offense number for each violation type. Once you pass the last listed offense, the last penalty applies again.",
+      "This is the suggested penalty recorded with a report. OSA sets the final required hours when it approves the report."
+    ],
+
+    "troubleshooting": [
+      {
+        "title": "The QR code won't scan",
+        "a": [
+          "- Hold the phone steady and fit the whole code inside the frame.",
+          "- In low light, tap the flashlight button on the scanner.",
+          "- Wipe the camera lens and move a little closer or farther.",
+          "- Make sure it's the code posted at your service location, not a screenshot on a cracked or dim screen."
+        ]
+      },
+      {
+        "title": "Location isn't working",
+        "a": [
+          "- Turn on location services (GPS). The app won't open the scanner while location is off.",
+          "- Allow location permission for OSAConnect.",
+          "- Turn on Precise location: Android 12+ in the app's location permission, iPhone under Settings > OSAConnect > Location.",
+          "- If you see \"GPS signal lost\" during a session, turn location back on."
+        ]
+      },
+      {
+        "title": "The camera is blocked",
+        "a": [
+          "- Android: Settings > Apps > OSAConnect > Permissions > Camera > Allow.",
+          "- iPhone: Settings > OSAConnect > Camera, then turn it on.",
+          "- Browser: tap the lock or camera icon in the address bar, set Camera to Allow, then reload the page.",
+          "- Close other apps that might be using the camera."
+        ]
+      },
+      {
+        "title": "The countdown looks wrong",
+        "a": [
+          "- The countdown shows your remaining hours minus the time since you started. It refreshes from the server every 5 seconds.",
+          "- Make sure your phone's date and time are set automatically.",
+          "- If it's off by whole hours, or jumps after refreshing, contact OSA with a screenshot."
+        ]
+      }
+    ],
+
+    "privacy": [
+      "Under the Data Privacy Act of 2012 (Republic Act No. 10173), OSAConnect collects only what it needs to manage violations and community service.",
+      "- Account details: your name, student ID, course, department, year level, email, contact number, and password.",
+      "- Reports: violation type, description, the reporter's name, and the date.",
+      "- Location: the app reads your phone's GPS while your dashboard is open, to check the service area. Your location is sent to OSA only when you start a session.",
+      "- Selfies: taken when you start and end each session, and stored with that session's time log.",
+      "OSA administrators can view reports, time logs, and session selfies in the admin dashboard.",
+      "Records are kept for [data retention period].",
+      "For questions or requests about your data, contact [data protection officer contact]."
+    ]
+  },
+
+  "staff": {
+    "intro": "How to file violation reports as a guard or staff member.",
+    "sections": [
+      {
+        "title": "Scanning a student's QR code",
+        "web": [
+          "On the Report Violation page, tap the scan button inside the Student ID field. Point the camera at the student's QR code; the scanner closes and fills in the form when it reads the code.",
+          "You can also tap Upload photo to read a picture of the QR code.",
+          "The scanner reads the student's OSAConnect QR (from their Profile Settings), a \"NAME, ID, COURSE\" code, or any code containing a student ID that starts with 20."
+        ],
+        "mobile": [
+          "Tap Scan Student QR Code and point the camera at the student's QR code. The form fills in when it reads the code.",
+          "The scanner reads the student's OSAConnect QR (from their Profile Settings), a \"NAME, ID, COURSE\" code, or any code containing a student ID that starts with 20."
+        ]
+      },
+      {
+        "title": "If the student has no QR code",
+        "web": [
+          "Type the student ID in the Student ID field. After 8 or more digits, the student's details fill in automatically if they're registered.",
+          "Double-check the ID before submitting. An ID that isn't registered creates a new student record with the details you typed. If the name matches an existing student, the report is filed under that student instead."
+        ],
+        "mobile": [
+          "Type the student ID under \"Or enter manually\". After 5 or more characters, the app looks the student up and fills in their details if they're registered.",
+          "Double-check the ID before submitting. An ID that isn't registered creates a new student record with placeholder details."
+        ]
+      },
+      {
+        "title": "Choosing the violation type",
+        "web": [
+          "Pick from: No ID, Improper Wearing of ID, Dress Code, Littering, Smoking, or Serious Misconduct.",
+          "The date and time fields are for your reference; the report is timestamped when you submit it."
+        ],
+        "mobile": [
+          "Pick the violation type from the list and choose the reporting guard's name. The list starts on Curfew Violation, so change it if needed.",
+          "Types that aren't in the penalties table are recorded as \"To be determined\" with a suggested 4 hours."
+        ]
+      },
+      {
+        "title": "After you submit",
+        "web": [
+          "The report is saved as Pending OSA Review, and the student gets an email notice if their email is on file. The system also records the student's offense number for that violation type.",
+          "Guards can track it in History, which lists all reports with filters for pending, approved, and dismissed. Staff accounts don't have a History page."
+        ],
+        "mobile": [
+          "The report is saved as Pending OSA Review, and the student gets an email notice if their email is on file. The system also records the student's offense number for that violation type.",
+          "The mobile app has no report history. Guards can track reports on the website's History page."
+        ]
+      }
+    ]
+  },
+
+  "admin": {
+    "intro": "Managing reports, service hours, and records.",
+    "sections": [
+      {
+        "title": "Approving or dismissing reports",
+        "a": [
+          "Go to Pending Reviews and open a report. To approve, choose the building where the student will serve and the required hours (3, 5, or 6), then tap Approve. This creates the student's e-ticket.",
+          "Tap Dismiss to reject a report. Dismissed reports move to Archives.",
+          "Use Pending Reviews for approvals. The quick Approve button in the Overview feed doesn't send a building, so the approval is rejected."
+        ]
+      },
+      {
+        "title": "Bulk reporting",
+        "a": [
+          "In All Students, open Bulk Reporting. Select students from the list or paste student IDs separated by commas or new lines, choose a building (Gymnasium, Library, or Field), and submit.",
+          "Bulk reports use the violation type \"Failure to attend mandatory campus event\". They're approved immediately, each student gets an e-ticket with the default 4 hours, and each student is emailed."
+        ]
+      },
+      {
+        "title": "Archives and PDF export",
+        "a": [
+          "Archives lists completed cases. Turn on the dismissed toggle to see dismissed reports instead. You can search by name or ID and filter by violation type.",
+          "Tap Download PDF to export the records currently shown as a landscape A4 \"Community Service Log\" with the USTP and OSA headers."
+        ]
+      },
+      {
+        "title": "Service Control QR codes",
+        "a": [
+          "In Settings, under Service Control QR, you'll find the Start/Resume Tracking code and the End Session code. Print them and post them where students serve their hours.",
+          "The same section has a registration QR that links to the sign-up page, with a Download Poster button."
+        ]
+      }
+    ]
+  }
+}

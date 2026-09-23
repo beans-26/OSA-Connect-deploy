@@ -1,11 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import Sidebar from '../../components/Sidebar';
+import { useNavigate } from 'react-router-dom';
 import QRCode from 'react-qr-code';
-import { User, Mail, Phone, BookOpen, Building2, Lock } from 'lucide-react';
+import { User, Mail, Phone, BookOpen, Building2, Lock, ArrowLeft, LogOut, AlertTriangle, Moon } from 'lucide-react';
+import { useStudentTheme } from '../../components/useStudentTheme';
 
+// Mirrors mobile/app/student/settings.jsx
 const Settings = () => {
+    const navigate = useNavigate();
+    const { isDarkMode, themeMode, changeTheme } = useStudentTheme();
     const [studentInfo, setStudentInfo] = useState(null);
     const [loading, setLoading] = useState(true);
+    const [showLogoutModal, setShowLogoutModal] = useState(false);
     const user = JSON.parse(localStorage.getItem('user') || '{}');
 
     useEffect(() => {
@@ -27,109 +32,158 @@ const Settings = () => {
         fetchStudentInfo();
     }, [user.username]);
 
+    const logout = () => {
+        localStorage.removeItem('user');
+        navigate('/login', { replace: true });
+    };
+
+    const theme = isDarkMode ? 'dark' : 'light';
+
     if (loading) {
         return (
-            <div className="flex bg-slate-50 dark:bg-slate-900 min-h-screen">
-                <Sidebar role="student" />
-                <main className="flex-1 p-4 sm:p-6 lg:p-10 flex items-center justify-center mobile-top-spacer">
-                    <div className="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
-                </main>
+            <div className="student-ui flex items-center justify-center" data-theme={theme}>
+                <span className="h-9 w-9 animate-spin rounded-full border-4 border-[var(--s-primary)] border-t-transparent" />
             </div>
         );
     }
 
     if (!studentInfo) {
         return (
-            <div className="flex bg-slate-50 dark:bg-slate-900 min-h-screen">
-                <Sidebar role="student" />
-                <main className="flex-1 p-4 sm:p-6 lg:p-10 flex items-center justify-center mobile-top-spacer">
-                    <p className="text-slate-500 dark:text-slate-400 font-bold text-sm sm:text-base">Profile not found. Please contact administration.</p>
-                </main>
+            <div className="student-ui flex items-center justify-center" data-theme={theme}>
+                <p className="text-sm font-bold text-[var(--s-muted)]">Profile not found. Please contact administration.</p>
             </div>
         );
     }
 
+    const cardTitle = 'ml-3 text-xs font-black uppercase tracking-[2px] text-[var(--s-primary)]';
+    const infoLabel = 'mb-1 text-[10px] font-black uppercase tracking-[1px] text-[var(--s-muted)]';
+    const infoValue = 'text-lg font-bold text-[var(--s-text)] break-words';
+    const infoValueSmall = 'text-sm font-bold uppercase text-[var(--s-text)]';
+
     return (
-        <div className="flex bg-slate-50 dark:bg-slate-900 min-h-screen">
-            <Sidebar role="student" />
-            <main className="flex-1 p-4 sm:p-6 lg:p-10 w-full max-w-full overflow-y-auto mobile-top-spacer">
-                <header className="mb-6 sm:mb-8 lg:mb-10">
-                    <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">Account Settings</h1>
-                    <p className="text-slate-500 dark:text-slate-400 mt-1 font-medium italic text-sm sm:text-base">Manage your personal identification</p>
+        <div className="student-ui" data-theme={theme}>
+            <div className="mx-auto w-full max-w-xl">
+                {/* Header */}
+                <header className="flex items-center justify-between px-5 py-4">
+                    <button onClick={() => navigate('/student/dashboard')} aria-label="Back" className="p-1 text-[var(--s-text)]">
+                        <ArrowLeft size={24} />
+                    </button>
+                    <h1 className="text-lg font-bold text-[var(--s-text)]">Profile Settings</h1>
+                    <span className="w-6" />
                 </header>
 
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-10">
+                <main className="px-4 pb-10">
                     {/* QR Code Card */}
-                    <div className="card-premium flex flex-col items-center justify-center p-8 sm:p-10 lg:p-12 text-center bg-white dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 shadow-xl">
-                        <div className="bg-white dark:bg-slate-800 p-4 sm:p-6 rounded-2xl sm:rounded-[32px] shadow-2xl shadow-blue-900/10 mb-6 sm:mb-8 border-4 border-slate-50">
-                            <QRCode
-                                value={studentInfo.student_id}
-                                size={160}
-                                level="H"
-                                className="mx-auto w-[140px] h-[140px] sm:w-[180px] sm:h-[180px] lg:w-[200px] lg:h-[200px]"
-                            />
+                    <section className="mb-5 flex flex-col items-center rounded-3xl border-2 border-[var(--s-bg)] bg-[var(--s-card)] p-6 text-center shadow-[0_2px_8px_rgba(0,0,0,0.1)]">
+                        <div className="mb-5 rounded-3xl bg-white p-3 shadow-[0_4px_12px_rgba(30,58,138,0.15)]">
+                            <QRCode value={studentInfo.student_id} size={160} fgColor={isDarkMode ? '#0f172a' : '#000'} bgColor="#fff" />
                         </div>
-                        <h3 className="font-black text-xl sm:text-2xl text-slate-900 dark:text-white tracking-tight">{studentInfo.name}</h3>
-                        <p className="text-blue-600 font-black tracking-widest text-xs sm:text-sm mt-1 mb-3 sm:mb-4 uppercase">{studentInfo.student_id}</p>
-                        <p className="text-sm font-medium text-slate-400 dark:text-slate-500 max-w-[250px] px-2">
+                        <h2 className="mb-1 text-2xl font-black text-[var(--s-text)]">{studentInfo.name}</h2>
+                        <p className="mb-4 text-sm font-black uppercase tracking-[2px] text-[var(--s-primary)]">{studentInfo.student_id}</p>
+                        <p className="px-2 text-xs text-[var(--s-muted)]">
                             Present this personalized QR code to campus guards for instant violation registration or service hub scanning.
                         </p>
-                    </div>
+                    </section>
 
-                    {/* Information Card */}
-                    <div className="space-y-4 sm:space-y-6">
-                        <div className="card-premium bg-white dark:bg-slate-800 p-6 sm:p-8 overflow-hidden relative border-2 border-slate-100 dark:border-slate-700 shadow-sm">
-                            <h4 className="font-black text-xs sm:text-sm uppercase tracking-[0.2em] text-blue-600 mb-6 sm:mb-8 flex items-center gap-3">
-                                <User size={18} /> Basic Information
-                            </h4>
-
-                            <div className="space-y-4 sm:space-y-6">
-                                <div>
-                                    <p className="text-slate-400 dark:text-slate-500 text-[10px] uppercase font-black tracking-widest mb-1">Full Identity Name</p>
-                                    <p className="font-bold text-slate-800 dark:text-slate-200 text-lg sm:text-xl tracking-tight">{studentInfo.name}</p>
-                                </div>
-                                <div className="grid grid-cols-2 gap-4 sm:gap-6">
-                                    <div>
-                                        <p className="text-slate-400 dark:text-slate-500 text-[10px] uppercase font-black tracking-widest mb-1 flex items-center gap-2"><BookOpen size={12} /> Course</p>
-                                        <p className="font-bold text-slate-800 dark:text-slate-200 uppercase text-sm sm:text-base">{studentInfo.course || 'N/A'}</p>
-                                    </div>
-                                    <div>
-                                        <p className="text-slate-400 dark:text-slate-500 text-[10px] uppercase font-black tracking-widest mb-1 flex items-center gap-2"><Building2 size={12} /> Department</p>
-                                        <p className="font-bold text-slate-800 dark:text-slate-200 uppercase text-sm sm:text-base">{studentInfo.department || 'N/A'}</p>
-                                    </div>
-                                </div>
+                    {/* Basic Information */}
+                    <section className="mb-4 rounded-2xl border-2 border-[var(--s-border)] bg-[var(--s-card)] p-5">
+                        <div className="mb-5 flex items-center">
+                            <User size={18} className="text-[var(--s-primary)]" />
+                            <span className={cardTitle}>Basic Information</span>
+                        </div>
+                        <div className="mb-4">
+                            <p className={infoLabel}>Full Identity Name</p>
+                            <p className={infoValue}>{studentInfo.name}</p>
+                        </div>
+                        <div className="flex justify-between gap-4">
+                            <div className="mb-4 flex-1">
+                                <p className={`${infoLabel} flex items-center gap-1.5`}><BookOpen size={12} /> Course</p>
+                                <p className={infoValueSmall}>{studentInfo.course || 'N/A'}</p>
+                            </div>
+                            <div className="mb-4 flex-1">
+                                <p className={`${infoLabel} flex items-center gap-1.5`}><Building2 size={12} /> Department</p>
+                                <p className={infoValueSmall}>{studentInfo.department || 'N/A'}</p>
                             </div>
                         </div>
+                    </section>
 
-                        <div className="card-premium bg-white dark:bg-slate-800 p-6 sm:p-8 border-2 border-slate-100 dark:border-slate-700 shadow-sm">
-                            <h4 className="font-black text-xs sm:text-sm uppercase tracking-[0.2em] text-slate-800 dark:text-slate-200 mb-6 sm:mb-8 flex items-center gap-3">
-                                <Mail size={18} className="text-blue-600" /> Contact Details
-                            </h4>
-
-                            <div className="space-y-4 sm:space-y-6">
-                                <div>
-                                    <p className="text-slate-400 dark:text-slate-500 text-[10px] uppercase font-black tracking-widest mb-1">Institutional Email</p>
-                                    <p className="font-bold text-slate-800 dark:text-slate-200 text-base sm:text-lg break-all">{studentInfo.email || 'N/A'}</p>
-                                </div>
-                                <div>
-                                    <p className="text-slate-400 dark:text-slate-500 text-[10px] uppercase font-black tracking-widest mb-1 flex items-center gap-2"><Phone size={12} /> Primary Contact</p>
-                                    <p className="font-bold text-slate-800 dark:text-slate-200 text-base sm:text-lg">{studentInfo.contact_number || 'N/A'}</p>
-                                </div>
-                            </div>
+                    {/* Contact Details */}
+                    <section className="mb-4 rounded-2xl border-2 border-[var(--s-border)] bg-[var(--s-card)] p-5">
+                        <div className="mb-5 flex items-center">
+                            <Mail size={18} className="text-[var(--s-primary)]" />
+                            <span className={cardTitle}>Contact Details</span>
                         </div>
-                    </div>
+                        <div className="mb-4">
+                            <p className={infoLabel}>Institutional Email</p>
+                            <p className={infoValue}>{studentInfo.email || 'N/A'}</p>
+                        </div>
+                        <div className="mb-4">
+                            <p className={`${infoLabel} flex items-center gap-1.5`}><Phone size={12} /> Primary Contact</p>
+                            <p className={infoValue}>{studentInfo.contact_number || 'N/A'}</p>
+                        </div>
+                    </section>
 
-                    {/* Change Password Card */}
-                    <div className="lg:col-span-2">
-                        <PasswordChangeSection studentId={studentInfo.student_id} />
+                    {/* Appearance */}
+                    <section className="mb-4 rounded-2xl border-2 border-[var(--s-border)] bg-[var(--s-card)] p-5">
+                        <div className="mb-5 flex items-center">
+                            <Moon size={18} className="text-[var(--s-primary)]" />
+                            <span className={cardTitle}>Appearance</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <p className={infoValueSmall}>Dark Mode</p>
+                                <p className="mt-0.5 text-[10px] font-black tracking-[1px] text-[var(--s-muted)]">
+                                    {themeMode === 'system' ? 'Syncs with system settings' : 'Manually enabled'}
+                                </p>
+                            </div>
+                            <button
+                                role="switch"
+                                aria-checked={isDarkMode}
+                                aria-label="Dark mode"
+                                onClick={() => changeTheme(isDarkMode ? 'light' : 'dark')}
+                                className={`relative h-[31px] w-[51px] rounded-full transition-colors ${isDarkMode ? 'bg-[var(--s-success)]' : 'bg-[var(--s-border)]'}`}
+                            >
+                                <span className={`absolute top-[2px] h-[27px] w-[27px] rounded-full bg-white shadow transition-all ${isDarkMode ? 'left-[22px]' : 'left-[2px]'}`} />
+                            </button>
+                        </div>
+                    </section>
+
+                    <PasswordChangeSection studentId={studentInfo.student_id} cardTitle={cardTitle} infoLabel={infoLabel} />
+
+                    <button
+                        onClick={() => setShowLogoutModal(true)}
+                        className="mt-2 flex w-full items-center justify-center rounded-2xl border-2 border-[var(--s-danger)] bg-[var(--s-card)] p-4"
+                    >
+                        <LogOut size={20} className="text-[var(--s-danger)]" />
+                        <span className="ml-2 text-sm font-black uppercase tracking-[1px] text-[var(--s-danger)]">Log Out</span>
+                    </button>
+                </main>
+            </div>
+
+            {showLogoutModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-5">
+                    <div className="w-full max-w-[400px] rounded-3xl bg-[var(--s-card)] p-6">
+                        <div className="mb-3 flex items-center">
+                            <AlertTriangle size={24} className="text-[var(--s-danger)]" />
+                            <h3 className="ml-2 text-lg font-black uppercase tracking-[1px] text-[var(--s-danger)]">Log Out</h3>
+                        </div>
+                        <p className="mb-6 text-sm leading-5 text-[var(--s-text)]">Are you sure you want to log out?</p>
+                        <div className="flex gap-3">
+                            <button onClick={() => setShowLogoutModal(false)} className="flex-1 rounded-xl bg-[var(--s-bg)] p-3.5 font-bold text-[var(--s-muted)]">
+                                Cancel
+                            </button>
+                            <button onClick={logout} className="flex-1 rounded-xl bg-[var(--s-danger)] p-3.5 text-sm font-bold text-white">
+                                Log Out
+                            </button>
+                        </div>
                     </div>
                 </div>
-            </main>
+            )}
         </div>
     );
 };
 
-const PasswordChangeSection = ({ studentId }) => {
+const PasswordChangeSection = ({ studentId, cardTitle, infoLabel }) => {
     const [passwords, setPasswords] = useState({
         current: '',
         new: '',
@@ -163,45 +217,56 @@ const PasswordChangeSection = ({ studentId }) => {
             } else {
                 setMessage({ type: 'error', text: data.error || 'Failed to update password' });
             }
-        } catch (err) {
+        } catch {
             setMessage({ type: 'error', text: 'Connection failure' });
         } finally {
             setLoading(false);
         }
     };
 
+    const input = 'w-full rounded-lg border border-[var(--s-border)] bg-[var(--s-bg)] p-3 font-semibold text-[var(--s-text)] outline-none placeholder:text-[var(--s-muted)] focus:border-[var(--s-primary)]';
+    const fields = [
+        ['current', 'Current Password'],
+        ['new', 'New Password'],
+        ['confirm', 'Confirm New Password'],
+    ];
+
     return (
-        <div className="card-premium bg-white dark:bg-slate-800 p-6 sm:p-8 border-2 border-slate-100 dark:border-slate-700 shadow-sm mt-6">
-            <h4 className="font-black text-xs sm:text-sm uppercase tracking-[0.2em] text-slate-800 dark:text-slate-200 mb-6 flex items-center gap-3">
-                <Lock size={18} className="text-blue-600" /> Security Settings
-            </h4>
+        <section className="mb-4 rounded-2xl border-2 border-[var(--s-border)] bg-[var(--s-card)] p-5">
+            <div className="mb-5 flex items-center">
+                <Lock size={18} className="text-[var(--s-primary)]" />
+                <span className={cardTitle}>Security Settings</span>
+            </div>
 
             {message.text && (
-                <div className={`mb-6 p-4 rounded-lg border text-center font-bold text-[10px] uppercase tracking-widest ${message.type === 'success' ? 'bg-emerald-50 border-emerald-100 text-emerald-600' : 'bg-red-50 border-red-100 text-red-600'}`}>
+                <div className={`mb-4 rounded-lg border p-3 text-center text-xs font-bold ${message.type === 'success' ? 'border-emerald-200 bg-emerald-50 text-emerald-600' : 'border-red-200 bg-red-50 text-red-600'}`}>
                     {message.text}
                 </div>
             )}
 
-            <form onSubmit={handleChangePassword} className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="space-y-1.5">
-                    <label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-1">Current Password</label>
-                    <input required type="password" value={passwords.current} onChange={(e) => setPasswords({...passwords, current: e.target.value})} className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-600 rounded-lg p-3 outline-none font-semibold text-slate-700 dark:text-slate-300 focus:bg-white dark:bg-slate-800 focus:border-blue-600 transition-none text-sm" placeholder="••••••••" />
-                </div>
-                <div className="space-y-1.5">
-                    <label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-1">New Password</label>
-                    <input required type="password" value={passwords.new} onChange={(e) => setPasswords({...passwords, new: e.target.value})} className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-600 rounded-lg p-3 outline-none font-semibold text-slate-700 dark:text-slate-300 focus:bg-white dark:bg-slate-800 focus:border-blue-600 transition-none text-sm" placeholder="••••••••" />
-                </div>
-                <div className="space-y-1.5">
-                    <label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-1">Confirm New Password</label>
-                    <div className="flex gap-4">
-                        <input required type="password" value={passwords.confirm} onChange={(e) => setPasswords({...passwords, confirm: e.target.value})} className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-600 rounded-lg p-3 outline-none font-semibold text-slate-700 dark:text-slate-300 focus:bg-white dark:bg-slate-800 focus:border-blue-600 transition-none text-sm" placeholder="••••••••" />
-                        <button type="submit" disabled={loading} className="bg-blue-900 text-white px-6 rounded-lg font-bold text-[10px] uppercase tracking-widest hover:bg-slate-800 transition-colors whitespace-nowrap shadow-lg shadow-blue-900/10">
-                            {loading ? 'Updating...' : 'Update'}
-                        </button>
+            <form onSubmit={handleChangePassword}>
+                {fields.map(([key, label]) => (
+                    <div key={key} className="mb-4">
+                        <label className={`${infoLabel} block`}>{label}</label>
+                        <input
+                            required
+                            type="password"
+                            value={passwords[key]}
+                            onChange={(e) => setPasswords({ ...passwords, [key]: e.target.value })}
+                            className={input}
+                            placeholder="••••••••"
+                        />
                     </div>
-                </div>
+                ))}
+                <button
+                    type="submit"
+                    disabled={loading}
+                    className="mt-2 h-12 w-full rounded-lg bg-[var(--s-secondary)] text-[10px] font-bold uppercase tracking-[2px] text-white disabled:opacity-70"
+                >
+                    {loading ? 'Updating...' : 'Update Password'}
+                </button>
             </form>
-        </div>
+        </section>
     );
 };
 
