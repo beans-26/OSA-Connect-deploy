@@ -22,6 +22,7 @@ export default function ForgotPassword() {
     const [newPassword, setNewPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
     const [loading, setLoading] = useState(false);
+    const [error, setError] = useState('');
     const [otpCooldown, setOtpCooldown] = useState(0);
 
     const startCooldown = () => {
@@ -38,45 +39,51 @@ export default function ForgotPassword() {
     };
 
     const handleRequestOTP = async () => {
+        // Enter can fire this while a request is still running
+        if (loading) return;
         if (!email) {
-            Alert.alert('Error', 'Please enter your email');
+            setError('Please enter your email');
             return;
         }
         setLoading(true);
+        setError('');
         try {
             await api.post('/students/request_password_reset/', { email });
             setStep(2);
             startCooldown();
         } catch (err) {
-            Alert.alert('Error', err.response?.data?.error || 'Failed to send reset code');
+            setError(err.response?.data?.error || 'Failed to send reset code');
         } finally {
             setLoading(false);
         }
     };
 
     const handleVerifyOTP = () => {
+        setError('');
         if (otp.length === 6) {
             setStep(3);
         } else {
-            Alert.alert('Error', 'Please enter a 6-digit code');
+            setError('Please enter a 6-digit code');
         }
     };
 
     const handleResetPassword = async () => {
+        if (loading) return;
         if (newPassword !== confirmPassword) {
-            Alert.alert('Error', 'Passwords do not match');
+            setError('Passwords do not match');
             return;
         }
         if (!newPassword) {
-            Alert.alert('Error', 'Please enter a new password');
+            setError('Please enter a new password');
             return;
         }
         setLoading(true);
+        setError('');
         try {
             await api.post('/students/reset_password/', { email, otp, password: newPassword });
             setStep(4);
         } catch (err) {
-            Alert.alert('Error', err.response?.data?.error || 'Failed to reset password');
+            setError(err.response?.data?.error || 'Failed to reset password');
         } finally {
             setLoading(false);
         }
@@ -91,6 +98,12 @@ export default function ForgotPassword() {
                 </View>
 
                 <View style={styles.card}>
+                    {error ? (
+                        <View style={styles.errorBox}>
+                            <Text style={styles.errorText}>{error}</Text>
+                        </View>
+                    ) : null}
+
                     {step === 1 && (
                         <View style={styles.stepContainer}>
                             <View style={styles.inputGroup}>
@@ -105,6 +118,8 @@ export default function ForgotPassword() {
                                         onChangeText={setEmail}
                                         keyboardType="email-address"
                                         autoCapitalize="none"
+                                        returnKeyType="go"
+                                        onSubmitEditing={handleRequestOTP}
                                     />
                                 </View>
                             </View>
@@ -135,6 +150,8 @@ export default function ForgotPassword() {
                                     keyboardType="number-pad"
                                     value={otp}
                                     onChangeText={(t) => setOtp(t.replace(/\D/g, ''))}
+                                    returnKeyType="go"
+                                    onSubmitEditing={handleVerifyOTP}
                                 />
                             </View>
                             
@@ -168,6 +185,8 @@ export default function ForgotPassword() {
                                         secureTextEntry
                                         value={newPassword}
                                         onChangeText={setNewPassword}
+                                        returnKeyType="go"
+                                        onSubmitEditing={handleResetPassword}
                                     />
                                 </View>
                             </View>
@@ -183,6 +202,8 @@ export default function ForgotPassword() {
                                         secureTextEntry
                                         value={confirmPassword}
                                         onChangeText={setConfirmPassword}
+                                        returnKeyType="go"
+                                        onSubmitEditing={handleResetPassword}
                                     />
                                 </View>
                             </View>
@@ -292,6 +313,22 @@ const styles = StyleSheet.create({
         elevation: 2,
         borderWidth: 1,
         borderColor: Colors.border,
+    },
+    errorBox: {
+        backgroundColor: '#fef2f2',
+        borderColor: '#fee2e2',
+        borderWidth: 1,
+        padding: 12,
+        borderRadius: 8,
+        marginBottom: 20,
+    },
+    errorText: {
+        color: Colors.danger,
+        fontWeight: 'bold',
+        fontSize: 10,
+        textAlign: 'center',
+        textTransform: 'uppercase',
+        letterSpacing: 1,
     },
     stepContainer: {
         width: '100%',

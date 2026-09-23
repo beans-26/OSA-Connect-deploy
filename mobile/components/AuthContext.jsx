@@ -34,9 +34,9 @@ export const AuthProvider = ({ children }) => {
             
             // Redirect based on role
             if (userData.role === 'student') {
-                router.replace('/(student)/dashboard');
+                router.replace('/student/dashboard');
             } else if (userData.role === 'guard' || userData.role === 'staff') {
-                router.replace('/(staff)/dashboard');
+                router.replace('/staff/dashboard');
             } else {
                 // If they manage to log in as admin, log them out
                 alert('Admin login is not supported on mobile.');

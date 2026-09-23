@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, KeyboardAvoidingView, Platform, Alert } from 'react-native';
-import { Link, router } from 'expo-router';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
+import { Link } from 'expo-router';
 import { User, Lock, Eye, EyeOff, ChevronRight } from 'lucide-react-native';
 import { useAuth } from '../components/AuthContext';
-import { Colors } from '../constants/Colors';
+import { useTheme } from '../components/ThemeContext';
 import api from '../services/api';
 
-const CSSLogo = () => (
+const CSSLogo = ({ styles }) => (
     <View style={styles.logoContainer}>
         <View style={styles.logoBox}>
             <View style={styles.logoAccent} />
@@ -23,8 +23,13 @@ export default function Login() {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
     const { login } = useAuth();
+    // Follows the app's light/dark setting like the other screens
+    const { isDarkMode, colors } = useTheme();
+    const styles = getStyles(colors, isDarkMode);
 
     const handleLogin = async () => {
+        // Enter can fire this while a request is still running
+        if (loading) return;
         if (!username || !password) {
             setError('Please enter both ID and password');
             return;
@@ -46,7 +51,9 @@ export default function Login() {
                 username: response.data.username,
                 role: response.data.role,
                 student_id: response.data.student_id,
-                name: response.data.name
+                name: response.data.name,
+                // Staff/guard display name, used as the reporter on violation reports
+                full_name: response.data.full_name
             };
             
             await login(userData);
@@ -69,9 +76,11 @@ export default function Login() {
             behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
             style={styles.container}
         >
+            {/* Scrolls on short screens / with the keyboard open; centered 448px column on wide screens */}
+            <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
             <View style={styles.content}>
                 <View style={styles.header}>
-                    <CSSLogo />
+                    <CSSLogo styles={styles} />
                     <Text style={styles.title}>Login to Portal</Text>
                     <Text style={styles.subtitle}>Smart student violation management</Text>
                 </View>
@@ -86,14 +95,16 @@ export default function Login() {
                     <View style={styles.inputGroup}>
                         <Text style={styles.label}>Student ID</Text>
                         <View style={styles.inputContainer}>
-                            <User size={18} color={Colors.textMuted} style={styles.inputIcon} />
+                            <User size={18} color={colors.textMuted} style={styles.inputIcon} />
                             <TextInput
                                 style={styles.input}
                                 placeholder="e.g. 2023303188"
-                                placeholderTextColor={Colors.textMuted}
+                                placeholderTextColor={colors.textMuted}
                                 value={username}
                                 onChangeText={setUsername}
                                 autoCapitalize="none"
+                                returnKeyType="go"
+                                onSubmitEditing={handleLogin}
                             />
                         </View>
                     </View>
@@ -101,20 +112,22 @@ export default function Login() {
                     <View style={styles.inputGroup}>
                         <Text style={styles.label}>Password</Text>
                         <View style={styles.inputContainer}>
-                            <Lock size={18} color={Colors.textMuted} style={styles.inputIcon} />
+                            <Lock size={18} color={colors.textMuted} style={styles.inputIcon} />
                             <TextInput
                                 style={styles.input}
                                 placeholder="••••••••"
-                                placeholderTextColor={Colors.textMuted}
+                                placeholderTextColor={colors.textMuted}
                                 value={password}
                                 onChangeText={setPassword}
                                 secureTextEntry={!showPassword}
+                                returnKeyType="go"
+                                onSubmitEditing={handleLogin}
                             />
                             <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.eyeIcon}>
                                 {showPassword ? (
-                                    <EyeOff size={18} color={Colors.textMuted} />
+                                    <EyeOff size={18} color={colors.textMuted} />
                                 ) : (
-                                    <Eye size={18} color={Colors.textMuted} />
+                                    <Eye size={18} color={colors.textMuted} />
                                 )}
                             </TouchableOpacity>
                         </View>
@@ -153,18 +166,24 @@ export default function Login() {
                     </Link>
                 </View>
             </View>
+            </ScrollView>
         </KeyboardAvoidingView>
     );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (Colors, isDarkMode) => StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: Colors.background,
     },
-    content: {
-        flex: 1,
+    scrollContent: {
+        flexGrow: 1,
         justifyContent: 'center',
+    },
+    content: {
+        width: '100%',
+        maxWidth: 448,
+        alignSelf: 'center',
         padding: 24,
     },
     header: {
@@ -225,8 +244,8 @@ const styles = StyleSheet.create({
         borderColor: Colors.border,
     },
     errorBox: {
-        backgroundColor: '#fef2f2',
-        borderColor: '#fee2e2',
+        backgroundColor: isDarkMode ? 'rgba(248, 113, 113, 0.12)' : '#fef2f2',
+        borderColor: isDarkMode ? 'rgba(248, 113, 113, 0.3)' : '#fee2e2',
         borderWidth: 1,
         padding: 12,
         borderRadius: 8,
@@ -262,10 +281,12 @@ const styles = StyleSheet.create({
         height: 48,
     },
     inputIcon: {
-        paddingHorizontal: 12,
+        marginHorizontal: 12,
     },
     input: {
         flex: 1,
+        // Without minWidth the web <input> keeps its default size and pushes the eye icon out
+        minWidth: 0,
         height: '100%',
         color: Colors.text,
         fontWeight: '600',
