@@ -155,21 +155,22 @@ export default function PersonnelDashboard() {
     return (
         <View style={styles.container}>
             <ScrollView contentContainerStyle={[styles.scrollContent, { paddingTop: insets.top + (wide ? 32 : 16) }]} keyboardShouldPersistTaps="handled">
-                {/* Top actions, like the website's floating Help / Log Out pills */}
-                <View style={styles.pillRow}>
-                    <TouchableOpacity style={styles.pill} onPress={() => router.push('/help')}>
-                        <CircleQuestionMark size={16} color={colors.textMuted} />
-                        <Text style={styles.pillText}>Help</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity style={styles.pill} onPress={logout}>
-                        <LogOut size={16} color={colors.danger} />
-                        <Text style={[styles.pillText, { color: colors.danger }]}>Log Out</Text>
-                    </TouchableOpacity>
-                </View>
-
+                {/* Title with Help / Log Out beside it, same as the website header */}
                 <View style={styles.pageHeader}>
-                    <Text style={styles.pageTitle}>{title}</Text>
-                    <Text style={styles.pageSubtitle}>Academic Integrity & Safety Reporting</Text>
+                    <View style={{ flex: 1 }}>
+                        <Text style={styles.pageTitle}>{title}</Text>
+                        <Text style={styles.pageSubtitle}>Academic Integrity & Safety Reporting</Text>
+                    </View>
+                    <View style={styles.pillRow}>
+                        <TouchableOpacity style={styles.pill} onPress={() => router.push('/help')} accessibilityLabel="Help">
+                            <CircleQuestionMark size={14} color={colors.textMuted} />
+                            {wide && <Text style={styles.pillText}>Help</Text>}
+                        </TouchableOpacity>
+                        <TouchableOpacity style={styles.pill} onPress={logout} accessibilityLabel="Log Out">
+                            <LogOut size={14} color={colors.danger} />
+                            {wide && <Text style={[styles.pillText, { color: colors.danger }]}>Log Out</Text>}
+                        </TouchableOpacity>
+                    </View>
                 </View>
 
                 {!submitted ? (
@@ -225,10 +226,6 @@ export default function PersonnelDashboard() {
                                         style={[styles.field, wide && { flex: 1 }]}
                                     />
                                 </View>
-                            </View>
-
-                            {/* Right column */}
-                            <View style={styles.column}>
                                 <TextInput
                                     style={styles.field}
                                     placeholder="Email Address"
@@ -246,6 +243,10 @@ export default function PersonnelDashboard() {
                                     value={form.contact}
                                     onChangeText={(t) => setForm({ ...form, contact: t })}
                                 />
+                            </View>
+
+                            {/* Right column: the incident itself */}
+                            <View style={styles.column}>
                                 <SelectField
                                     value={form.violation}
                                     options={VIOLATION_TYPES}
@@ -284,7 +285,7 @@ export default function PersonnelDashboard() {
                         <TouchableOpacity style={[styles.submitButton, loading && { opacity: 0.7 }]} onPress={confirmSubmit} disabled={loading}>
                             {loading ? <ActivityIndicator color="#fff" /> : (
                                 <>
-                                    <Send size={20} color="#fff" />
+                                    <Send size={18} color="#fff" />
                                     <Text style={styles.submitText}>SUBMIT REPORT</Text>
                                 </>
                             )}
@@ -364,16 +365,14 @@ const getStyles = (colors, isDarkMode, wide) => StyleSheet.create({
     },
     pillRow: {
         flexDirection: 'row',
-        justifyContent: 'flex-end',
-        gap: 8,
-        marginBottom: 8,
+        gap: 6,
     },
     pill: {
         flexDirection: 'row',
         alignItems: 'center',
         gap: 6,
-        paddingHorizontal: 14,
-        paddingVertical: 8,
+        paddingHorizontal: 10,
+        paddingVertical: 7,
         borderRadius: 999,
         backgroundColor: colors.card,
         borderWidth: 1,
@@ -385,10 +384,13 @@ const getStyles = (colors, isDarkMode, wide) => StyleSheet.create({
         color: colors.textMuted,
     },
     pageHeader: {
-        marginBottom: 16,
+        flexDirection: 'row',
+        alignItems: 'flex-start',
+        gap: 12,
+        marginBottom: 12,
     },
     pageTitle: {
-        fontSize: wide ? 30 : 24,
+        fontSize: wide ? 30 : 20,
         fontWeight: '900',
         fontStyle: 'italic',
         textTransform: 'uppercase',
@@ -396,8 +398,8 @@ const getStyles = (colors, isDarkMode, wide) => StyleSheet.create({
         color: colors.text,
     },
     pageSubtitle: {
-        marginTop: 4,
-        fontSize: 13,
+        marginTop: 2,
+        fontSize: 11,
         fontWeight: '500',
         fontStyle: 'italic',
         color: colors.textMuted,
@@ -405,7 +407,7 @@ const getStyles = (colors, isDarkMode, wide) => StyleSheet.create({
     card: {
         backgroundColor: colors.card,
         borderRadius: 24,
-        padding: wide ? 32 : 20,
+        padding: wide ? 28 : 16,
         borderWidth: 2,
         borderColor: isDarkMode ? colors.border : '#ffffff',
         shadowColor: '#000',
@@ -417,14 +419,14 @@ const getStyles = (colors, isDarkMode, wide) => StyleSheet.create({
     cardHeader: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 12,
-        paddingBottom: 16,
-        marginBottom: 24,
+        gap: 8,
+        paddingBottom: 12,
+        marginBottom: 14,
         borderBottomWidth: 1,
         borderBottomColor: colors.background,
     },
     cardTitle: {
-        fontSize: wide ? 20 : 18,
+        fontSize: wide ? 20 : 16,
         fontWeight: '900',
         textTransform: 'uppercase',
         letterSpacing: -0.5,
@@ -432,18 +434,18 @@ const getStyles = (colors, isDarkMode, wide) => StyleSheet.create({
     },
     columns: {
         flexDirection: wide ? 'row' : 'column',
-        gap: 16,
+        gap: 10,
     },
     column: {
         flex: wide ? 1 : undefined,
-        gap: 16,
+        gap: 10,
     },
     row: {
         flexDirection: 'row',
-        gap: 12,
+        gap: 10,
     },
     stack: {
-        gap: 16,
+        gap: 10,
     },
     tinyLabel: {
         fontSize: 9,
@@ -458,9 +460,9 @@ const getStyles = (colors, isDarkMode, wide) => StyleSheet.create({
         backgroundColor: colors.background,
         borderWidth: 2,
         borderColor: isDarkMode ? colors.border : '#f1f5f9',
-        borderRadius: 16,
-        height: 52,
-        paddingHorizontal: 16,
+        borderRadius: 12,
+        height: 46,
+        paddingHorizontal: 12,
         fontSize: 14,
         fontWeight: 'bold',
         color: colors.text,
@@ -474,11 +476,11 @@ const getStyles = (colors, isDarkMode, wide) => StyleSheet.create({
     },
     scanButton: {
         position: 'absolute',
-        right: 8,
-        top: 8,
-        bottom: 8,
+        right: 6,
+        top: 6,
+        bottom: 6,
         aspectRatio: 1,
-        borderRadius: 12,
+        borderRadius: 10,
         backgroundColor: colors.primary,
         alignItems: 'center',
         justifyContent: 'center',
@@ -495,9 +497,9 @@ const getStyles = (colors, isDarkMode, wide) => StyleSheet.create({
         fontSize: 13,
     },
     submitButton: {
-        marginTop: 24,
-        height: 60,
-        borderRadius: 16,
+        marginTop: 16,
+        height: 52,
+        borderRadius: 12,
         backgroundColor: colors.primary,
         flexDirection: 'row',
         alignItems: 'center',
@@ -511,7 +513,7 @@ const getStyles = (colors, isDarkMode, wide) => StyleSheet.create({
     },
     submitText: {
         color: '#fff',
-        fontSize: 18,
+        fontSize: 16,
         fontWeight: '900',
     },
     successCard: {
