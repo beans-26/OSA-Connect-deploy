@@ -1,17 +1,9 @@
-import React, { useState, useEffect } from 'react';
-import { 
-    UserPlus, 
-    CheckCircle2, 
-    QrCode, 
-    Download, 
-    ChevronRight, 
-    IdCard, 
-    Mail, 
-    Phone, 
-    GraduationCap, 
-    Building2, 
-    Layers, 
-    Lock,
+import React, { useState } from 'react';
+import {
+    CheckCircle2,
+    Download,
+    ChevronRight,
+    Mail,
     Loader2,
     KeyRound
 } from 'lucide-react';
@@ -34,6 +26,18 @@ const DEPARTMENTS = [
     "College of Science and Mathematics (CSM)", "College of Science and Technology Education (CSTE)",
     "College of Technology (CT)", "College of Medicine (COM)", "Senior High School (SHS)"
 ];
+
+const YEAR_LEVELS = ['1', '2', '3', '4', '5'];
+const OFFLINE_MESSAGE = "Can't reach the server. Check your internet connection and try again.";
+
+const inputClass = "w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-600 rounded-lg p-3 outline-none font-semibold text-slate-700 dark:text-slate-300 placeholder:text-slate-300 focus:bg-white dark:bg-slate-800 focus:border-blue-600 text-sm transition-none";
+
+const Field = ({ label, children }) => (
+    <div className="space-y-1.5 min-w-0">
+        <label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-1">{label}</label>
+        {children}
+    </div>
+);
 
 const StudentRegistration = () => {
     const [step, setStep] = useState(1);
@@ -66,25 +70,11 @@ const StudentRegistration = () => {
         </div>
     );
 
+    // Same format as the mobile app: "ID FIRST MIDDLE LAST COURSE"
     const formatQRData = (student) => {
-        if (!student.name) return student.student_id;
-        const nameParts = student.name.trim().split(/\s+/);
-        let firstName = nameParts[0] || '';
-        let middleInitial = '';
-        let lastName = '';
-        if (nameParts.length >= 2) {
-            const lastPart = nameParts[nameParts.length - 1];
-            if (lastPart.endsWith('.') || lastPart.length <= 3) {
-                middleInitial = lastPart;
-                lastName = nameParts.length > 2 ? nameParts[nameParts.length - 2] : '';
-            } else {
-                lastName = lastPart;
-                middleInitial = nameParts.length > 2 ? nameParts[1] : '';
-            }
-        }
-        const formattedName = `${firstName.toUpperCase()} ${middleInitial.toUpperCase()} ${lastName.toUpperCase()}`.trim();
-        const course = student.course ? student.course.replace(/^BS|^BSIT|^BSCS|^BSCE|^BSEE|^BSME|^BSCpE/i, '').trim() : '';
-        return `${student.student_id} ${formattedName} ${course}`.trim();
+        const nameParts = [student.first_name, student.middle_name, student.last_name].filter(Boolean);
+        const formattedName = nameParts.join(' ').toUpperCase();
+        return `${student.student_id} ${formattedName} ${student.course || ''}`.trim();
     };
 
     const startCooldown = () => {
@@ -117,11 +107,12 @@ const StudentRegistration = () => {
                 setStep(2);
                 startCooldown();
             } else {
-                const data = await response.json();
-                alert(`OTP Request failed: ${data.error || 'Check your email'}`);
+                const data = await response.json().catch(() => ({}));
+                alert(data.error || 'Check your email');
             }
         } catch (error) {
-            alert('Server connection error');
+            // No response at all means the backend is down or unreachable, not a bad email
+            alert(OFFLINE_MESSAGE);
         } finally {
             setSaving(false);
         }
@@ -146,11 +137,15 @@ const StudentRegistration = () => {
             if (response.ok) {
                 setStep(3);
             } else {
-                const data = await response.json();
-                alert(`Verification failed: ${data.error || data.message || 'Check your details'}`);
+                const data = await response.json().catch(() => ({}));
+                alert(`Verification Failed
+
+${data.error || data.message || 'Check your details'}`);
             }
         } catch (error) {
-            alert('Server connection error');
+            alert(`Verification Failed
+
+${OFFLINE_MESSAGE}`);
         } finally {
             setSaving(false);
         }
@@ -179,8 +174,8 @@ const StudentRegistration = () => {
     };
 
     return (
-        <div className="min-h-screen bg-slate-50 dark:bg-slate-900 flex flex-col items-center justify-center p-6 sm:p-12">
-            <div className="w-full max-w-2xl space-y-10">
+        <div className="min-h-screen bg-slate-50 dark:bg-slate-900 flex flex-col items-center justify-center p-4 sm:p-8">
+            <div className="w-full max-w-md space-y-8">
                 
                 {/* Clean Header */}
                 <div className="text-center space-y-4">
@@ -192,7 +187,7 @@ const StudentRegistration = () => {
                 </div>
 
                 {/* Stable Registration Card */}
-                <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-600 p-8 sm:p-12">
+                <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-600 p-6 sm:p-8">
                     {step === 1 ? (
                         <div className="space-y-8 animate-in fade-in duration-300">
                             <div className="border-b border-slate-50 pb-6">
@@ -201,29 +196,45 @@ const StudentRegistration = () => {
                             </div>
 
                             <form onSubmit={requestOTP} className="space-y-8">
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                                    {[
-                                        { label: 'Student ID', key: 'student_id', icon: IdCard, placeholder: '2023303188' },
-                                        { label: 'First Name', key: 'first_name', icon: UserPlus, placeholder: 'Juan' },
-                                        { label: 'Middle Name (Optional)', key: 'middle_name', icon: UserPlus, placeholder: 'Dela', required: false },
-                                        { label: 'Last Name', key: 'last_name', icon: UserPlus, placeholder: 'Cruz' },
-                                        { label: 'Course', key: 'course', icon: GraduationCap, type: 'select', options: COURSES },
-                                        { label: 'Department', key: 'department', icon: Building2, type: 'select', options: DEPARTMENTS },
-                                        { label: 'Year Level', key: 'year_level', icon: Layers, type: 'select', options: [1,2,3,4,5] },
-                                        { label: 'Contact', key: 'contact_number', icon: Phone, placeholder: '09XXX' }
-                                    ].map((f) => (
-                                        <div key={f.key} className="space-y-1.5">
-                                            <label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-1">{f.label}</label>
-                                            {f.type === 'select' ? (
-                                                <select required value={studentData[f.key]} onChange={(e) => setStudentData({...studentData, [f.key]: e.target.value})} className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-600 rounded-lg p-3 font-semibold text-slate-700 dark:text-slate-300 outline-none focus:bg-white dark:bg-slate-800 focus:border-blue-600 appearance-none text-sm transition-none">
-                                                    <option value="">Select {f.label}</option>
-                                                    {f.options.map(o => <option key={o} value={o}>{f.key === 'year_level' ? `Year ${o}` : o}</option>)}
-                                                </select>
-                                            ) : (
-                                                <input required={f.required !== false} type="text" value={studentData[f.key]} onChange={(e) => setStudentData({...studentData, [f.key]: e.target.value})} className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-600 rounded-lg p-3 outline-none font-semibold text-slate-700 dark:text-slate-300 placeholder:text-slate-200 focus:bg-white dark:bg-slate-800 focus:border-blue-600 text-sm transition-none" placeholder={f.placeholder} />
-                                            )}
-                                        </div>
-                                    ))}
+                                {/* Same order and rows as the mobile app's registration */}
+                                <div className="space-y-5">
+                                    <Field label="Student ID">
+                                        <input required type="text" value={studentData.student_id} onChange={(e) => setStudentData({...studentData, student_id: e.target.value})} className={inputClass} placeholder="2023303188" />
+                                    </Field>
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <Field label="First Name">
+                                            <input required type="text" value={studentData.first_name} onChange={(e) => setStudentData({...studentData, first_name: e.target.value})} className={inputClass} placeholder="Juan" />
+                                        </Field>
+                                        <Field label="Last Name">
+                                            <input required type="text" value={studentData.last_name} onChange={(e) => setStudentData({...studentData, last_name: e.target.value})} className={inputClass} placeholder="Cruz" />
+                                        </Field>
+                                    </div>
+                                    <Field label="Middle Name (Optional)">
+                                        <input type="text" value={studentData.middle_name} onChange={(e) => setStudentData({...studentData, middle_name: e.target.value})} className={inputClass} placeholder="Dela" />
+                                    </Field>
+                                    <Field label="Course">
+                                        <select required value={studentData.course} onChange={(e) => setStudentData({...studentData, course: e.target.value})} className={`${inputClass} appearance-none`}>
+                                            <option value="">Select Course</option>
+                                            {COURSES.map((o) => <option key={o} value={o}>{o}</option>)}
+                                        </select>
+                                    </Field>
+                                    <Field label="Department">
+                                        <select required value={studentData.department} onChange={(e) => setStudentData({...studentData, department: e.target.value})} className={`${inputClass} appearance-none`}>
+                                            <option value="">Select Department</option>
+                                            {DEPARTMENTS.map((o) => <option key={o} value={o}>{o}</option>)}
+                                        </select>
+                                    </Field>
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <Field label="Year Level">
+                                            <select required value={studentData.year_level} onChange={(e) => setStudentData({...studentData, year_level: e.target.value})} className={`${inputClass} appearance-none`}>
+                                                <option value="">Year</option>
+                                                {YEAR_LEVELS.map((y) => <option key={y} value={y}>Year {y}</option>)}
+                                            </select>
+                                        </Field>
+                                        <Field label="Contact">
+                                            <input type="tel" value={studentData.contact_number} onChange={(e) => setStudentData({...studentData, contact_number: e.target.value})} className={inputClass} placeholder="09XXX" />
+                                        </Field>
+                                    </div>
                                 </div>
 
                                 <div className="space-y-6 pt-6 border-t border-slate-100 dark:border-slate-700">
@@ -322,7 +333,6 @@ const StudentRegistration = () => {
                 </div>
             </div>
 
-            <p className="mt-12 text-[10px] font-bold text-slate-300 dark:text-slate-600 uppercase tracking-widest">OSA CONNECT SECURITY © 2026</p>
         </div>
     );
 };
