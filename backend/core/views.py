@@ -63,6 +63,28 @@ def login_view(request):
     # Default rejection
     return Response({"error": "Invalid credentials"}, status=status.HTTP_401_UNAUTHORIZED)
 
+def _registration_details_error(data, require_all):
+    """Returns an error message for a taken Student ID / name or a bad contact number, else None."""
+    sid = str(data.get('student_id', '')).strip()
+    contact = str(data.get('contact_number', '')).strip()
+    name = str(data.get('name', '')).strip()
+
+    if require_all and not sid:
+        return "Student ID is required."
+    if sid and Student.objects.filter(student_id=sid).first():
+        return f"Student ID {sid} is already registered."
+
+    if name and Student.objects.filter(name__iexact=name).first():
+        return f"A student named '{name}' is already registered."
+
+    if require_all and not contact:
+        return "Contact number is required."
+    if contact and not (contact.isdigit() and len(contact) == 11):
+        return "Contact number must be exactly 11 digits (e.g. 09123456789)."
+
+    return None
+
+
 class StudentViewSet(viewsets.ModelViewSet):
     lookup_field = 'student_id'
     queryset = Student.objects.all()
@@ -82,9 +104,15 @@ class StudentViewSet(viewsets.ModelViewSet):
             
         if Student.objects.filter(email__iexact=email).first():
             return Response({"error": "This email is already registered to another student."}, status=status.HTTP_400_BAD_REQUEST)
-            
+
+        # Checked here too so the student finds out before waiting for the email code.
+        # Optional because older app builds only send the email.
+        details_error = _registration_details_error(request.data, require_all=False)
+        if details_error:
+            return Response({"error": details_error}, status=status.HTTP_400_BAD_REQUEST)
+
         otp = str(random.randint(100000, 999999))
-        
+
         # Invalidate old OTPs for this email
         OTPVerification.objects.filter(email=email).delete()
         
@@ -110,7 +138,8 @@ class StudentViewSet(viewsets.ModelViewSet):
         from .models import OTPVerification
         import datetime
         data = request.data
-        email = data.get('email', '').strip()
+        # Lowercased to match how the code was saved when it was requested
+        email = data.get('email', '').strip().lower()
         otp_input = data.get('otp', '').strip()
         
         if not email or not otp_input:
@@ -119,6 +148,10 @@ class StudentViewSet(viewsets.ModelViewSet):
         # Checked before the OTP so a missing password doesn't burn the code
         if not str(data.get('password', '')).strip():
             return Response({"error": "Password is required"}, status=status.HTTP_400_BAD_REQUEST)
+
+        details_error = _registration_details_error(data, require_all=True)
+        if details_error:
+            return Response({"error": details_error}, status=status.HTTP_400_BAD_REQUEST)
 
         verification = OTPVerification.objects.filter(email=email).first()
         if not verification:
@@ -144,15 +177,9 @@ class StudentViewSet(viewsets.ModelViewSet):
         verification.delete()
         
         # Proceed with registration
-        sid = data.get('student_id', '').strip()
+        sid = str(data.get('student_id', '')).strip()
         name = data.get('name', '').strip()
 
-        if sid and Student.objects.filter(student_id=sid).first():
-            return Response({"error": f"Student ID '{sid}' is already in use."}, status=status.HTTP_400_BAD_REQUEST)
-        
-        if name and Student.objects.filter(name__iexact=name).first():
-            return Response({"error": f"A student named '{name}' is already registered."}, status=status.HTTP_400_BAD_REQUEST)
-            
         student = Student(
             student_id=sid,
             name=name,
@@ -160,7 +187,7 @@ class StudentViewSet(viewsets.ModelViewSet):
             department=data.get('department', ''),
             year_level=data.get('year_level', ''),
             email=email,
-            contact_number=data.get('contact_number', ''),
+            contact_number=str(data.get('contact_number', '')).strip(),
             password=data.get('password', '')
         ).save()
         
@@ -203,7 +230,8 @@ class StudentViewSet(viewsets.ModelViewSet):
         from .models import OTPVerification
         import datetime
         data = request.data
-        email = data.get('email', '').strip()
+        # Lowercased to match how the code was saved when it was requested
+        email = data.get('email', '').strip().lower()
         otp_input = data.get('otp', '').strip()
         new_password = data.get('password', '').strip()
         
@@ -219,7 +247,9 @@ class StudentViewSet(viewsets.ModelViewSet):
             verification.delete()
             return Response({"error": "Reset code has expired."}, status=status.HTTP_400_BAD_REQUEST)
             
-        student = Student.objects.get(email=email)
+        student = Student.objects.filter(email__iexact=email).first()
+        if not student:
+            return Response({"error": "No account found with this email address."}, status=status.HTTP_404_NOT_FOUND)
         student.password = new_password
         student.save()
         verification.delete()
