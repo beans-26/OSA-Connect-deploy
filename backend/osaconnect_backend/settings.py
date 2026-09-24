@@ -174,8 +174,9 @@ EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = 'smtp.gmail.com'
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
-EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER')
-EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD')
-DEFAULT_FROM_EMAIL = os.getenv('EMAIL_HOST_USER')
+EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', '').strip().strip('"').strip("'") or None
+# Gmail app passwords are shown as "abcd efgh ijkl mnop"; the spaces aren't part of the password
+EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', '').strip().strip('"').strip("'").replace(' ', '') or None
+DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
 
 print(f"SMTP CONFIG: Host={EMAIL_HOST}, User={EMAIL_HOST_USER}, PW_Len={len(EMAIL_HOST_PASSWORD) if EMAIL_HOST_PASSWORD else 0}")
