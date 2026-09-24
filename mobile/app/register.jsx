@@ -66,6 +66,10 @@ export default function Register() {
             showAlert("Missing Fields", "Please fill in all required fields.");
             return;
         }
+        if (studentData.contact_number.length !== 11) {
+            showAlert("Invalid Contact Number", "Contact number must be exactly 11 digits (e.g. 09123456789).");
+            return;
+        }
         if (studentData.password !== confirmPassword) {
             showAlert("Password Mismatch", "Passwords do not match. Please re-enter your password.");
             return;
@@ -73,7 +77,12 @@ export default function Register() {
 
         setSaving(true);
         try {
-            const response = await api.post('/students/request_otp/', { email: studentData.email });
+            // ID and contact are sent so a taken ID is caught before the code is emailed
+            const response = await api.post('/students/request_otp/', {
+                email: studentData.email,
+                student_id: studentData.student_id,
+                contact_number: studentData.contact_number
+            });
             setStep(2);
             startCooldown();
         } catch (error) {
@@ -201,7 +210,7 @@ export default function Register() {
                                 </View>
                                 <View style={[styles.formGroup, {flex: 1, marginLeft: 8}]}>
                                     <Text style={styles.label}>Contact</Text>
-                                    <TextInput style={styles.input} placeholder="09XXX" keyboardType="phone-pad" value={studentData.contact_number} onChangeText={(t) => setStudentData({...studentData, contact_number: t})} returnKeyType="go" onSubmitEditing={requestOTP} />
+                                    <TextInput style={styles.input} placeholder="09123456789" keyboardType="number-pad" maxLength={11} value={studentData.contact_number} onChangeText={(t) => setStudentData({...studentData, contact_number: t.replace(/\D/g, '').slice(0, 11)})} returnKeyType="go" onSubmitEditing={requestOTP} />
                                 </View>
                             </View>
 
