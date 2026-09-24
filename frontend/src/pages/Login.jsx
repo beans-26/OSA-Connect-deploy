@@ -36,12 +36,6 @@ const Login = () => {
                     return;
                 }
 
-                // Students may only use the mobile app; don't start a web session
-                if (data.role === 'student') {
-                    navigate('/mobile-only', { replace: true });
-                    return;
-                }
-
                 const userData = {
                     username: data.username,
                     role: data.role,
@@ -53,6 +47,7 @@ const Login = () => {
                 if (data.role === 'admin') navigate('/admin/overview');
                 else if (data.role === 'staff') navigate('/staff/report');
                 else if (data.role === 'guard') navigate('/guard/report');
+                else if (data.role === 'student') navigate('/student/dashboard');
                 else setError(`Unknown Role: ${data.role}`);
             } else {
                 setError(data.error || 'Invalid credentials');

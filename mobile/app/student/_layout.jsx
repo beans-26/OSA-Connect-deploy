@@ -1,4 +1,5 @@
 import { Stack } from 'expo-router';
+import RequireRole from '../../components/RequireRole';
 import { View, TouchableOpacity, StyleSheet, Alert } from 'react-native';
 import { Home, ScanLine, User } from 'lucide-react-native';
 import { useAuth } from '../../components/AuthContext';
@@ -58,17 +59,19 @@ function CustomTabBar({ state, descriptors, navigation }) {
 
 export default function StudentLayout() {
     return (
-        <Stack
-            screenOptions={{
-                headerShown: false,
-            }}
-        >
-            <Stack.Screen name="dashboard" />
-            <Stack.Screen name="settings" />
-            {/* Cameras get their own native full-screen screens; the dashboard stays mounted underneath */}
-            <Stack.Screen name="scan" options={{ presentation: 'fullScreenModal', animation: 'slide_from_bottom' }} />
-            <Stack.Screen name="selfie" options={{ presentation: 'fullScreenModal', animation: 'slide_from_bottom' }} />
-        </Stack>
+        <RequireRole roles={['student']}>
+            <Stack
+                screenOptions={{
+                    headerShown: false,
+                }}
+            >
+                <Stack.Screen name="dashboard" />
+                <Stack.Screen name="settings" />
+                {/* Cameras get their own native full-screen screens; the dashboard stays mounted underneath */}
+                <Stack.Screen name="scan" options={{ presentation: 'fullScreenModal', animation: 'slide_from_bottom' }} />
+                <Stack.Screen name="selfie" options={{ presentation: 'fullScreenModal', animation: 'slide_from_bottom' }} />
+            </Stack>
+        </RequireRole>
     );
 }
 
