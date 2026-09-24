@@ -92,6 +92,10 @@ const StudentRegistration = () => {
 
     const requestOTP = async (e) => {
         if (e) e.preventDefault();
+        if (studentData.contact_number.length !== 11) {
+            alert('Contact number must be exactly 11 digits (e.g. 09123456789).');
+            return;
+        }
         if (studentData.password !== confirmPassword) {
             alert('Passwords do not match. Please re-enter your password.');
             return;
@@ -101,7 +105,12 @@ const StudentRegistration = () => {
             const response = await fetch('/api/students/request_otp/', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email: studentData.email })
+                // ID and contact are sent so a taken ID is caught before the code is emailed
+                body: JSON.stringify({
+                    email: studentData.email,
+                    student_id: studentData.student_id,
+                    contact_number: studentData.contact_number
+                })
             });
             if (response.ok) {
                 setStep(2);
@@ -232,7 +241,7 @@ ${OFFLINE_MESSAGE}`);
                                             </select>
                                         </Field>
                                         <Field label="Contact">
-                                            <input type="tel" value={studentData.contact_number} onChange={(e) => setStudentData({...studentData, contact_number: e.target.value})} className={inputClass} placeholder="09XXX" />
+                                            <input required type="tel" inputMode="numeric" maxLength={11} value={studentData.contact_number} onChange={(e) => setStudentData({...studentData, contact_number: e.target.value.replace(/\D/g, '').slice(0, 11)})} className={inputClass} placeholder="09123456789" />
                                         </Field>
                                     </div>
                                 </div>
