@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
 
-// Mirrors mobile/components/ThemeContext.jsx: 'system' | 'light' | 'dark', saved under 'themeMode'
+// Mirrors mobile/components/ThemeContext.jsx: 'system' | 'light' | 'dark', saved under 'themeMode'.
+// Starts in light until the student picks something else in Settings.
 const readMode = () => {
     try {
-        return localStorage.getItem('themeMode') || 'system';
+        return localStorage.getItem('themeMode') || 'light';
     } catch {
-        return 'system';
+        return 'light';
     }
 };
 

@@ -9,8 +9,9 @@ const ThemeContext = createContext();
 export const ThemeProvider = ({ children }) => {
     const { user } = useAuth();
     const systemColorScheme = useColorScheme();
-    const [themeMode, setThemeMode] = useState('system'); // 'system', 'light', 'dark'
-    const [isDarkMode, setIsDarkMode] = useState(systemColorScheme === 'dark');
+    // 'system', 'light', 'dark' — starts in light until the student picks something else in Settings
+    const [themeMode, setThemeMode] = useState('light');
+    const [isDarkMode, setIsDarkMode] = useState(false);
 
     useEffect(() => {
         const loadTheme = async () => {
