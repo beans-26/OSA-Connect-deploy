@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
-import Sidebar from '../../components/Sidebar';
 import { Link } from 'react-router-dom';
-import { Shield, Scan, Send, AlertCircle, CheckCircle2, User, UserPlus, ClipboardList, Clock, X, QrCode, LogOut, HelpCircle } from 'lucide-react';
+import { Scan, Send, CheckCircle2, ClipboardList, Clock, X, LogOut, HelpCircle } from 'lucide-react';
 import QrScannerModal from '../../components/QrScannerModal';
 import { parseStudentQr, NOT_A_STUDENT_QR } from '../../components/studentQr';
 
@@ -21,6 +20,9 @@ const DEPARTMENTS = [
     "College of Science and Mathematics (CSM)", "College of Science and Technology Education (CSTE)",
     "College of Technology (CT)", "College of Medicine (COM)", "Senior High School (SHS)"
 ];
+
+const inputClass = "w-full bg-slate-50 dark:bg-slate-900 border-2 border-slate-100 dark:border-slate-700 rounded-xl px-3 py-2.5 md:p-3.5 font-bold focus:border-ustp-blue outline-none transition-all text-sm";
+const labelClass = "text-[9px] uppercase font-black text-slate-400 dark:text-slate-500 tracking-[0.2em] ml-1 mb-1 block";
 
 const ReportViolation = () => {
     const user = JSON.parse(localStorage.getItem('user') || '{}');
@@ -112,21 +114,6 @@ const ReportViolation = () => {
 
     return (
         <div className="flex bg-slate-50 dark:bg-slate-900 min-h-screen relative">
-            {/* Floating Help + Logout */}
-            <div className="fixed top-6 right-6 z-50 flex items-center gap-2">
-                <Link
-                    to="/help"
-                    className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-slate-800/80 backdrop-blur shadow-sm border border-slate-200 dark:border-slate-600 rounded-full text-slate-600 dark:text-slate-300 hover:text-ustp-blue font-bold transition-all text-xs"
-                >
-                    <HelpCircle size={16} /> Help
-                </Link>
-                <button
-                    onClick={() => { localStorage.clear(); window.location.href = '/login'; }}
-                    className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-slate-800/80 backdrop-blur shadow-sm border border-slate-200 dark:border-slate-600 rounded-full text-red-500 hover:bg-red-50 font-bold transition-all text-xs"
-                >
-                    <LogOut size={16} /> Log Out
-                </button>
-            </div>
             {/* Modal Scanner */}
             {isScanning && (
                 <QrScannerModal
@@ -194,54 +181,72 @@ const ReportViolation = () => {
                 </div>
             )}
  
-            <main className="flex-1 p-3 md:p-10 pt-20 md:pt-10 w-full max-w-full h-screen overflow-hidden flex flex-col">
-                <header className="mb-4 text-center md:text-left shrink-0">
-                    <h1 className="text-2xl md:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tighter uppercase italic">
-                        {userRole === 'guard' ? 'Guard Report' : 'Faculty Report'}
-                    </h1>
-                    <p className="text-slate-400 dark:text-slate-500 mt-1 font-medium italic text-xs md:text-sm">
-                        Academic Integrity & Safety Reporting
-                    </p>
+            <main className="flex-1 p-3 md:p-10 w-full max-w-full h-screen overflow-y-auto custom-scrollbar">
+                {/* Help + Log Out sit in the header so they scroll away with the page */}
+                <header className="max-w-4xl mx-auto w-full mb-3 flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                        <h1 className="text-xl md:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tighter uppercase italic">
+                            {userRole === 'guard' ? 'Guard Report' : 'Staff Report'}
+                        </h1>
+                        <p className="text-slate-400 dark:text-slate-500 font-medium italic text-[11px] md:text-sm">
+                            Academic Integrity & Safety Reporting
+                        </p>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                        {userRole === 'guard' && (
+                            <Link to="/guard/history" className="flex items-center gap-1.5 px-3 py-1.5 bg-white dark:bg-slate-800 shadow-sm border border-slate-200 dark:border-slate-600 rounded-full text-slate-600 dark:text-slate-300 hover:text-ustp-blue font-bold text-xs">
+                                <Clock size={14} /> History
+                            </Link>
+                        )}
+                        <Link to="/help" aria-label="Help" className="flex items-center gap-1.5 px-3 py-1.5 bg-white dark:bg-slate-800 shadow-sm border border-slate-200 dark:border-slate-600 rounded-full text-slate-600 dark:text-slate-300 hover:text-ustp-blue font-bold text-xs">
+                            <HelpCircle size={14} /> <span className="hidden sm:inline">Help</span>
+                        </Link>
+                        <button
+                            onClick={() => { localStorage.clear(); window.location.href = '/login'; }}
+                            aria-label="Log Out"
+                            className="flex items-center gap-1.5 px-3 py-1.5 bg-white dark:bg-slate-800 shadow-sm border border-slate-200 dark:border-slate-600 rounded-full text-red-500 hover:bg-red-50 font-bold text-xs"
+                        >
+                            <LogOut size={14} /> <span className="hidden sm:inline">Log Out</span>
+                        </button>
+                    </div>
                 </header>
- 
-                <div className="max-w-4xl mx-auto w-full flex-1 overflow-y-auto pb-20 custom-scrollbar">
+
+                <div className="max-w-4xl mx-auto w-full pb-10">
                     {step === 1 ? (
-                        <div className="card-premium border-2 border-white shadow-2xl p-5 sm:p-8 md:p-10 animate-in slide-in-from-bottom-5 duration-500">
-                            <h3 className="text-lg md:text-xl font-black text-slate-900 dark:text-white flex items-center gap-3 mb-6 pb-4 border-b border-slate-50 uppercase tracking-tighter">
-                                <ClipboardList className="text-ustp-blue" size={24} />
+                        <div className="card-premium border-2 border-white shadow-2xl p-4 sm:p-6 md:p-8 animate-in slide-in-from-bottom-5 duration-500">
+                            <h3 className="text-base md:text-xl font-black text-slate-900 dark:text-white flex items-center gap-2 mb-3 pb-3 border-b border-slate-50 uppercase tracking-tighter">
+                                <ClipboardList className="text-ustp-blue" size={20} />
                                 New Incident Report
                             </h3>
- 
-                            <form onSubmit={handleSubmit} className="space-y-4">
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    <div className="space-y-4">
-                                        <div className="relative group">
-                                            <label className="text-[9px] uppercase font-black text-slate-300 dark:text-slate-600 tracking-[0.2em] ml-1 mb-1 block">Student ID / Scan QR</label>
+
+                            <form onSubmit={handleSubmit} className="space-y-3">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-2.5">
+                                    <div className="space-y-2.5 min-w-0">
+                                        <div>
+                                            <label className={labelClass}>Student ID / Scan QR</label>
                                             <div className="relative">
-                                                <input required value={form.student_id} onChange={handleIdChange} placeholder="202X-XXXXXXX" className="w-full bg-slate-50 dark:bg-slate-900 border-2 border-slate-100 dark:border-slate-700 rounded-2xl p-3 md:p-4 pr-12 font-black focus:border-ustp-blue outline-none transition-all uppercase placeholder:text-slate-200 text-sm" />
-                                                <button type="button" onClick={() => setIsScanning(true)} className="absolute right-2 top-2 bottom-2 aspect-square bg-ustp-blue text-white rounded-xl flex items-center justify-center shadow-lg shadow-blue-200 hover:scale-105 active:scale-95 transition-all">
-                                                    <Scan size={18} />
+                                                <input required value={form.student_id} onChange={handleIdChange} placeholder="202X-XXXXXXX" className={`${inputClass} pr-12 font-black uppercase placeholder:text-slate-300`} />
+                                                <button type="button" onClick={() => setIsScanning(true)} className="absolute right-1.5 top-1.5 bottom-1.5 aspect-square bg-ustp-blue text-white rounded-lg flex items-center justify-center shadow-md shadow-blue-200 active:scale-95 transition-all">
+                                                    <Scan size={16} />
                                                 </button>
                                             </div>
                                         </div>
-                                        <input required placeholder="Student Full Name" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} className="w-full bg-slate-50 dark:bg-slate-900 border-2 border-slate-100 dark:border-slate-700 rounded-2xl p-3 md:p-4 font-bold focus:border-ustp-blue outline-none transition-all text-sm" />
-                                        <div className="grid grid-cols-2 gap-3">
-                                            <select required value={form.course} onChange={e => setForm({ ...form, course: e.target.value })} className="w-full bg-slate-50 dark:bg-slate-900 border-2 border-slate-100 dark:border-slate-700 rounded-2xl p-3 md:p-4 font-bold outline-none focus:border-ustp-blue text-sm appearance-none truncate">
+                                        <input required placeholder="Student Full Name" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} className={inputClass} />
+                                        <div className="grid grid-cols-2 gap-2.5">
+                                            <select required value={form.course} onChange={e => setForm({ ...form, course: e.target.value })} className={`${inputClass} appearance-none truncate`}>
                                                 <option value="">Course</option>
                                                 {COURSES.map(c => <option key={c} value={c}>{c}</option>)}
                                             </select>
-                                            <select required value={form.department} onChange={e => setForm({ ...form, department: e.target.value })} className="w-full bg-slate-50 dark:bg-slate-900 border-2 border-slate-100 dark:border-slate-700 rounded-2xl p-3 md:p-4 font-bold outline-none focus:border-ustp-blue text-sm appearance-none truncate">
+                                            <select required value={form.department} onChange={e => setForm({ ...form, department: e.target.value })} className={`${inputClass} appearance-none truncate`}>
                                                 <option value="">Dept</option>
                                                 {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
                                             </select>
                                         </div>
+                                        <input required type="email" placeholder="Email Address" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} className={inputClass} />
+                                        <input required type="tel" placeholder="Contact Number" value={form.contact} onChange={e => setForm({ ...form, contact: e.target.value })} className={inputClass} />
                                     </div>
-                                    <div className="space-y-4">
-                                        <div className="grid grid-cols-1 gap-4">
-                                            <input required type="email" placeholder="Email Address" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} className="w-full bg-slate-50 dark:bg-slate-900 border-2 border-slate-100 dark:border-slate-700 rounded-2xl p-3 md:p-4 font-bold focus:border-ustp-blue outline-none transition-all text-sm" />
-                                            <input required placeholder="Contact Number" value={form.contact} onChange={e => setForm({ ...form, contact: e.target.value })} className="w-full bg-slate-50 dark:bg-slate-900 border-2 border-slate-100 dark:border-slate-700 rounded-2xl p-3 md:p-4 font-bold focus:border-ustp-blue outline-none transition-all text-sm" />
-                                        </div>
-                                        <select required value={form.violation} onChange={e => setForm({ ...form, violation: e.target.value })} className="w-full bg-red-50 border-2 border-red-100 rounded-2xl p-3 md:p-4 font-black text-red-900 focus:border-red-500 outline-none transition-all cursor-pointer text-sm appearance-none truncate">
+                                    <div className="space-y-2.5 min-w-0">
+                                        <select required value={form.violation} onChange={e => setForm({ ...form, violation: e.target.value })} className="w-full bg-red-50 border-2 border-red-100 rounded-xl px-3 py-2.5 md:p-3.5 font-black text-red-900 focus:border-red-500 outline-none transition-all cursor-pointer text-sm appearance-none truncate">
                                             <option value="">SELECT VIOLATION</option>
                                             <option value="No ID">No ID</option>
                                             <option value="Improper wearing of ID">Improper Wearing of ID</option>
@@ -250,19 +255,20 @@ const ReportViolation = () => {
                                             <option value="Smoking inside campus">Smoking</option>
                                             <option value="Serious misconduct">Serious Misconduct</option>
                                         </select>
-                                        <div className="grid grid-cols-2 gap-3">
-                                            <div>
-                                                <label className="text-[9px] uppercase font-black text-slate-300 dark:text-slate-600 tracking-widest mb-1 ml-1 block">Date</label>
-                                                <input type="date" required value={form.incident_date} onChange={e => setForm({ ...form, incident_date: e.target.value })} className="w-full bg-slate-50 dark:bg-slate-900 border-2 border-slate-100 dark:border-slate-700 rounded-2xl p-3 md:p-4 font-bold outline-none focus:border-ustp-blue text-xs" />
+                                        <div className="grid grid-cols-2 gap-2.5">
+                                            {/* min-w-0 + appearance-none stop iPhone Safari's date/time boxes from spilling past the card */}
+                                            <div className="min-w-0">
+                                                <label className={labelClass}>Date</label>
+                                                <input type="date" required value={form.incident_date} onChange={e => setForm({ ...form, incident_date: e.target.value })} className={`${inputClass} min-w-0 appearance-none text-xs`} />
                                             </div>
-                                            <div>
-                                                <label className="text-[9px] uppercase font-black text-slate-300 dark:text-slate-600 tracking-widest mb-1 ml-1 block">Time</label>
-                                                <input type="time" required value={form.incident_time} onChange={e => setForm({ ...form, incident_time: e.target.value })} className="w-full bg-slate-50 dark:bg-slate-900 border-2 border-slate-100 dark:border-slate-700 rounded-2xl p-3 md:p-4 font-bold outline-none focus:border-ustp-blue text-xs" />
+                                            <div className="min-w-0">
+                                                <label className={labelClass}>Time</label>
+                                                <input type="time" required value={form.incident_time} onChange={e => setForm({ ...form, incident_time: e.target.value })} className={`${inputClass} min-w-0 appearance-none text-xs`} />
                                             </div>
                                         </div>
                                     </div>
                                 </div>
-                                <button type="submit" disabled={loading} className="group relative bg-ustp-blue text-white w-full py-4 rounded-2xl text-lg font-black shadow-xl shadow-blue-900/20 flex items-center justify-center gap-3 transition-all hover:bg-slate-900 active:scale-[0.98]">
+                                <button type="submit" disabled={loading} className="group relative bg-ustp-blue text-white w-full py-3.5 rounded-xl text-base font-black shadow-xl shadow-blue-900/20 flex items-center justify-center gap-3 transition-all hover:bg-slate-900 active:scale-[0.98]">
                                     <Send size={20} className="group-hover:-translate-y-1 group-hover:translate-x-1 transition-transform" />
                                     {loading ? "Syncing..." : "SUBMIT REPORT"}
                                 </button>
