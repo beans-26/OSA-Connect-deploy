@@ -3,6 +3,7 @@ import { ChevronDown, Mail, Phone, MapPin, Clock, Scale, LifeBuoy, ShieldCheck, 
 import Sidebar from '../components/Sidebar';
 // Shared with the mobile app (mobile/app/help.jsx); see the _about note in the file
 import help from '../../../shared/help-content.json';
+import StudentHelp from './student/Help';
 
 // Paragraphs starting with "- " are grouped into bullet lists
 const Paragraphs = ({ items }) => {
@@ -110,6 +111,7 @@ const PenaltiesTable = () => {
 const Help = () => {
     const user = JSON.parse(localStorage.getItem('user') || '{}');
     const role = user.role;
+    if (role === 'student') return <StudentHelp />;
     const isAdmin = role === 'admin';
     const { contact, report_problem: problem } = help;
     const mailto = `mailto:${problem.email}?subject=${encodeURIComponent(problem.subject)}&body=${encodeURIComponent(problem.body)}`;

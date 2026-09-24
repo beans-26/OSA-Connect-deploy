@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import QRCode from 'react-qr-code';
-import { User, Mail, Phone, BookOpen, Building2, Lock, ArrowLeft, LogOut, AlertTriangle, Moon } from 'lucide-react';
+import { User, Mail, Phone, BookOpen, Building2, Lock, ArrowLeft, LogOut, AlertTriangle, Moon, CircleHelp, ChevronRight } from 'lucide-react';
 import { useStudentTheme } from '../../components/useStudentTheme';
 
 // Mirrors mobile/app/student/settings.jsx
@@ -149,6 +149,19 @@ const Settings = () => {
                     </section>
 
                     <PasswordChangeSection studentId={studentInfo.student_id} cardTitle={cardTitle} infoLabel={infoLabel} />
+
+                    {/* Same "Help & Support" row as the mobile app's Profile Settings */}
+                    <button
+                        onClick={() => navigate('/help')}
+                        className="mb-4 flex w-full items-center rounded-2xl border-2 border-[var(--s-border)] bg-[var(--s-card)] p-4 text-left"
+                    >
+                        <CircleHelp size={20} className="shrink-0 text-[var(--s-primary)]" />
+                        <span className="ml-3 flex-1">
+                            <span className="block text-sm font-bold text-[var(--s-text)]">Help &amp; Support</span>
+                            <span className="mt-0.5 block text-xs text-[var(--s-muted)]">FAQ, penalties, troubleshooting, and contact info</span>
+                        </span>
+                        <ChevronRight size={18} className="shrink-0 text-[var(--s-muted)]" />
+                    </button>
 
                     <button
                         onClick={() => setShowLogoutModal(true)}

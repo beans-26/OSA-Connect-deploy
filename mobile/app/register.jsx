@@ -1,11 +1,15 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator, KeyboardAvoidingView, Platform, Alert } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator, KeyboardAvoidingView, Platform } from 'react-native';
+import { showAlert } from '../components/showAlert';
 import { Link, router } from 'expo-router';
 import { UserPlus, Mail, KeyRound, ChevronRight, CheckCircle2, Download, IdCard, GraduationCap, Building2, Layers, Phone, Lock } from 'lucide-react-native';
 import QRCode from 'react-native-qrcode-svg';
 import { Colors } from '../constants/Colors';
 import { COURSES, DEPARTMENTS } from '../constants/Data';
+import SelectField from '../components/SelectField';
 import api from '../services/api';
+
+const YEAR_LEVELS = ['1', '2', '3', '4', '5'].map((y) => ({ label: `Year ${y}`, value: y }));
 // Using TextInputs instead of picker for simplicity without adding dependencies
 
 const CSSLogo = () => (
@@ -58,12 +62,12 @@ export default function Register() {
         // Enter can fire this while a request is still running
         if (saving) return;
         // Validate required fields
-        if (!studentData.student_id || !studentData.first_name || !studentData.last_name || !studentData.email || !studentData.password.trim()) {
-            Alert.alert("Missing Fields", "Please fill in all required fields.");
+        if (!studentData.student_id || !studentData.first_name || !studentData.last_name || !studentData.course || !studentData.department || !studentData.year_level || !studentData.email || !studentData.password.trim()) {
+            showAlert("Missing Fields", "Please fill in all required fields.");
             return;
         }
         if (studentData.password !== confirmPassword) {
-            Alert.alert("Password Mismatch", "Passwords do not match. Please re-enter your password.");
+            showAlert("Password Mismatch", "Passwords do not match. Please re-enter your password.");
             return;
         }
 
@@ -73,7 +77,11 @@ export default function Register() {
             setStep(2);
             startCooldown();
         } catch (error) {
-            Alert.alert('Error', error.response?.data?.error || 'Check your email');
+            showAlert(
+                'Error',
+                // No response at all means the backend is down or unreachable, not a bad email
+                error.response ? (error.response.data?.error || 'Check your email') : "Can't reach the server. Check your internet connection and try again."
+            );
         } finally {
             setSaving(false);
         }
@@ -93,14 +101,19 @@ export default function Register() {
             const response = await api.post('/students/register_with_otp/', payload);
             setStep(3);
         } catch (error) {
-            Alert.alert('Verification Failed', error.response?.data?.error || error.response?.data?.message || 'Check your details');
+            showAlert(
+                'Verification Failed',
+                error.response
+                    ? (error.response.data?.error || error.response.data?.message || 'Check your details')
+                    : "Can't reach the server. Check your internet connection and try again."
+            );
         } finally {
             setSaving(false);
         }
     };
 
     const downloadQR = async () => {
-        Alert.alert('Save QR', 'Please take a screenshot of your screen to save your QR code.');
+        showAlert('Save QR', 'Please take a screenshot of your screen to save your QR code.');
     };
 
     const formatQRData = (student) => {
@@ -149,18 +162,42 @@ export default function Register() {
 
                             <View style={styles.formGroup}>
                                 <Text style={styles.label}>Course</Text>
-                                <TextInput style={styles.input} placeholder="e.g. BS Information Technology" value={studentData.course} onChangeText={(t) => setStudentData({...studentData, course: t})} returnKeyType="go" onSubmitEditing={requestOTP} />
+                                {/* Same USTP lists as the website's registration (constants/Data.js) */}
+                                <SelectField
+                                    value={studentData.course}
+                                    options={COURSES}
+                                    placeholder="Select Course"
+                                    title="Select Course"
+                                    searchable
+                                    onChange={(v) => setStudentData((prev) => ({ ...prev, course: v }))}
+                                    style={[styles.input, styles.selectInput]}
+                                />
                             </View>
 
                             <View style={styles.formGroup}>
                                 <Text style={styles.label}>Department</Text>
-                                <TextInput style={styles.input} placeholder="e.g. CITC" value={studentData.department} onChangeText={(t) => setStudentData({...studentData, department: t})} returnKeyType="go" onSubmitEditing={requestOTP} />
+                                <SelectField
+                                    value={studentData.department}
+                                    options={DEPARTMENTS}
+                                    placeholder="Select Department"
+                                    title="Select Department"
+                                    onChange={(v) => setStudentData((prev) => ({ ...prev, department: v }))}
+                                    style={[styles.input, styles.selectInput]}
+                                />
                             </View>
 
                             <View style={styles.row}>
                                 <View style={[styles.formGroup, {flex: 1, marginRight: 8}]}>
                                     <Text style={styles.label}>Year Level</Text>
-                                    <TextInput style={styles.input} placeholder="1, 2, 3..." keyboardType="numeric" value={studentData.year_level} onChangeText={(t) => setStudentData({...studentData, year_level: t})} returnKeyType="go" onSubmitEditing={requestOTP} />
+                                    {/* Same choices as the website: saved as "1"–"5", shown as "Year 1"–"Year 5" */}
+                                    <SelectField
+                                        value={studentData.year_level}
+                                        options={YEAR_LEVELS}
+                                        placeholder="Year"
+                                        title="Select Year Level"
+                                        onChange={(v) => setStudentData((prev) => ({ ...prev, year_level: v }))}
+                                        style={[styles.input, styles.selectInput]}
+                                    />
                                 </View>
                                 <View style={[styles.formGroup, {flex: 1, marginLeft: 8}]}>
                                     <Text style={styles.label}>Contact</Text>
@@ -406,6 +443,10 @@ const styles = StyleSheet.create({
         color: Colors.text,
         fontWeight: '600',
         fontSize: 14,
+    },
+    // Dropdown fields reuse the input box look; fixed height keeps them the same size as text fields
+    selectInput: {
+        minHeight: 46,
     },
     inputError: {
         borderColor: Colors.danger,
