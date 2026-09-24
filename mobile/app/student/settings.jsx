@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, ActivityIndicator, Alert, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, Modal, StatusBar, Switch } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, ActivityIndicator, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, Modal, StatusBar, Switch } from 'react-native';
+import { showAlert } from '../../components/showAlert';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import QRCode from 'react-native-qrcode-svg';
 import { User, Mail, Phone, BookOpen, Building2, Lock, ArrowLeft, LogOut, AlertTriangle, Moon, CircleQuestionMark, ChevronRight } from 'lucide-react-native';
@@ -31,7 +32,7 @@ export default function Settings() {
             const response = await api.get(`/students/${user.username}/`);
             setStudentInfo(response.data);
         } catch (error) {
-            Alert.alert('Error', 'Failed to fetch student profile');
+            showAlert('Error', 'Failed to fetch student profile');
         } finally {
             setLoading(false);
         }
@@ -39,11 +40,11 @@ export default function Settings() {
 
     const handleChangePassword = async () => {
         if (!passwords.current || !passwords.new || !passwords.confirm) {
-            Alert.alert('Error', 'Please fill all password fields');
+            showAlert('Error', 'Please fill all password fields');
             return;
         }
         if (passwords.new !== passwords.confirm) {
-            Alert.alert('Error', 'New passwords do not match');
+            showAlert('Error', 'New passwords do not match');
             return;
         }
         
@@ -54,10 +55,10 @@ export default function Settings() {
                 current_password: passwords.current,
                 new_password: passwords.new
             });
-            Alert.alert('Success', 'Password updated successfully!');
+            showAlert('Success', 'Password updated successfully!');
             setPasswords({ current: '', new: '', confirm: '' });
         } catch (err) {
-            Alert.alert('Error', err.response?.data?.error || 'Failed to update password');
+            showAlert('Error', err.response?.data?.error || 'Failed to update password');
         } finally {
             setPasswordLoading(false);
         }

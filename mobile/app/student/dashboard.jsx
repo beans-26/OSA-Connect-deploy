@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
-    View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert, StatusBar, Platform
+  View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, StatusBar, Platform
 } from 'react-native';
+import { showAlert } from '../../components/showAlert';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { QrCode, Play, AlertTriangle, X, Clock, FileText, User, CircleQuestionMark } from 'lucide-react-native';
 import { useCameraPermissions } from 'expo-camera';
@@ -167,11 +168,15 @@ export default function Dashboard() {
                     setStartTime(null);
                     setElapsedSeconds(0);
                 } else {
-                    const timeInMs = new Date(activeTicket.active_time_in).getTime();
-                    const elapsedSinceIn = Math.floor((Date.now() - timeInMs) / 1000);
+                    // Time served so far, measured by the server's own clock: balance before this session
+                    // minus the live balance. Parsing active_time_in instead broke on Vercel, which stores
+                    // naive UTC that phones read as local time (sessions looked 8 h old and showed 0:00:00).
+                    const liveHours = activeTicket.remaining_hours ?? baseHours;
+                    const elapsedSinceIn = Math.max(0, Math.round((baseHours - liveHours) * 3600));
                     setTimerActive(true);
-                    setStartTime(timeInMs);
-                    setElapsedSeconds(Math.max(0, elapsedSinceIn));
+                    // Anchor to this phone's clock so the countdown keeps ticking between polls
+                    setStartTime(Date.now() - elapsedSinceIn * 1000);
+                    setElapsedSeconds(elapsedSinceIn);
 
                     if (elapsedSinceIn < 20 && elapsedSinceIn >= 0) {
                         const remainingCooldown = 20 - elapsedSinceIn;
@@ -303,7 +308,7 @@ export default function Dashboard() {
             if (activeTicket) {
                 parsedData.eticket_id = activeTicket.id;
             } else {
-                Alert.alert('Error', "You don't have any active service tickets.");
+                showAlert('Error', "You don't have any active service tickets.");
                 return;
             }
         }
@@ -340,18 +345,18 @@ export default function Dashboard() {
                         return prev - 1;
                     });
                 }, 1000);
-                Alert.alert('Success', 'Timer Started!');
+                showAlert('Success', 'Timer Started!');
                 setTimeout(() => fetchData(), 2000);
             } else {
                 setTimerActive(false);
                 setStartTime(null);
                 setScanCooldown(0);
                 if (cooldownRef.current) clearInterval(cooldownRef.current);
-                Alert.alert('Success', 'Timer Stopped!');
+                showAlert('Success', 'Timer Stopped!');
                 fetchData();
             }
         } catch (error) {
-            Alert.alert('Error', error.response?.data?.error || 'Failed to log time');
+            showAlert('Error', error.response?.data?.error || 'Failed to log time');
         } finally {
             setLoading(false);
         }
@@ -360,13 +365,13 @@ export default function Dashboard() {
     const startScan = async () => {
         const { status: locStatus } = await Location.requestForegroundPermissionsAsync();
         if (locStatus !== 'granted') {
-            Alert.alert('Location Required', 'Please enable location permissions to scan the QR code.');
+            showAlert('Location Required', 'Please enable location permissions to scan the QR code.');
             return;
         }
 
         const isLocationEnabled = await Location.hasServicesEnabledAsync();
         if (!isLocationEnabled) {
-            Alert.alert('Location Disabled', 'Please turn on your device location to scan the QR code.');
+            showAlert('Location Disabled', 'Please turn on your device location to scan the QR code.');
             return;
         }
 
@@ -381,7 +386,7 @@ export default function Dashboard() {
                     }
                 );
             } catch (e) {
-                Alert.alert('Location Error', 'Unable to fetch your current location. Please try again.');
+                showAlert('Location Error', 'Unable to fetch your current location. Please try again.');
                 return;
             }
         }
@@ -389,7 +394,7 @@ export default function Dashboard() {
         if (!cameraPermission?.granted) {
             const { status } = await requestCameraPermission();
             if (status !== 'granted') {
-                Alert.alert('Camera permission is required to scan QR codes');
+                showAlert('Camera permission is required to scan QR codes');
                 return;
             }
         }

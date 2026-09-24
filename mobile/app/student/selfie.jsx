@@ -1,5 +1,6 @@
 import React, { useRef, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { showAlert } from '../../components/showAlert';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CameraView } from 'expo-camera';
 import { useRouter } from 'expo-router';
@@ -29,7 +30,7 @@ export default function SelfieScreen() {
             router.back();
             emitCameraResult('selfie', photo.base64);
         } catch {
-            Alert.alert('Capture Error', 'Failed to take photo. Please try again.');
+            showAlert('Capture Error', 'Failed to take photo. Please try again.');
             setCapturing(false);
         }
     };

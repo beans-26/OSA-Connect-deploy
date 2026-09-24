@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { AlertTriangle, Key, User, Play, X, QrCode, FileText } from 'lucide-react';
+import { AlertTriangle, Key, User, Play, X, QrCode, FileText, CircleHelp } from 'lucide-react';
 import QrScannerModal from '../components/QrScannerModal';
 import { useStudentTheme } from '../components/useStudentTheme';
 
@@ -431,13 +431,15 @@ const StudentDashboard = () => {
             // Check for active Backend Timer
             if (openTickets.length > 0) {
                 const ongoingTicket = openTickets.find(t => t.status === 'Ongoing') || openTickets[0];
-                const activeTicketId = ongoingTicket.id;
-                const activeLog = allLogs.find(log =>
-                    (log.eticket === activeTicketId || log.eticket?.id === activeTicketId) && !log.time_out
-                );
 
-                if (activeLog) {
-                    setStartTime(new Date(activeLog.time_in).getTime());
+                if (ongoingTicket.active_time_in) {
+                    // Same as the mobile app: time served so far by the server's own clock (balance before
+                    // this session minus the live balance), anchored to this device's clock. Parsing the
+                    // stored time_in breaks when the server and the student are in different time zones.
+                    const base = ongoingTicket.base_remaining_hours ?? ongoingTicket.remaining_hours ?? 0;
+                    const live = ongoingTicket.remaining_hours ?? base;
+                    const servedMs = Math.max(0, (base - live) * 3600 * 1000);
+                    setStartTime(Date.now() - servedMs);
                     setTimerActive(true);
                 } else {
                     setTimerActive(false);
@@ -681,13 +683,23 @@ const StudentDashboard = () => {
                         <h1 className="text-2xl font-black tracking-[0.5px] text-[var(--s-text)]">Hi, {displayName}!</h1>
                         <p className="mt-1 text-sm font-semibold text-[var(--s-muted)]">{subGreeting}</p>
                     </div>
-                    <button
-                        onClick={() => navigate('/student/settings')}
-                        aria-label="Profile settings"
-                        className="flex h-11 w-11 items-center justify-center rounded-full bg-[var(--s-card)] text-[var(--s-text)] shadow-[0_2px_8px_rgba(0,0,0,0.05)]"
-                    >
-                        <User size={22} strokeWidth={2.5} />
-                    </button>
+                    {/* Help + profile, like the mobile dashboard header */}
+                    <div className="flex items-center gap-2.5">
+                        <button
+                            onClick={() => navigate('/help')}
+                            aria-label="Help"
+                            className="flex h-11 w-11 items-center justify-center rounded-full bg-[var(--s-card)] text-[var(--s-text)] shadow-[0_2px_8px_rgba(0,0,0,0.05)]"
+                        >
+                            <CircleHelp size={22} strokeWidth={2.5} />
+                        </button>
+                        <button
+                            onClick={() => navigate('/student/settings')}
+                            aria-label="Profile settings"
+                            className="flex h-11 w-11 items-center justify-center rounded-full bg-[var(--s-card)] text-[var(--s-text)] shadow-[0_2px_8px_rgba(0,0,0,0.05)]"
+                        >
+                            <User size={22} strokeWidth={2.5} />
+                        </button>
+                    </div>
                 </header>
 
                 {/* Active Session Card */}

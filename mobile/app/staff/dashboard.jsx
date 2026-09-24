@@ -1,5 +1,6 @@
 import React, { useState, useRef } from 'react';
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView, Alert, Modal, ActivityIndicator, useWindowDimensions } from 'react-native';
+import { View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView, Modal, ActivityIndicator, useWindowDimensions } from 'react-native';
+import { showAlert } from '../../components/showAlert';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useCameraPermissions } from 'expo-camera';
 import { ClipboardList, AlertCircle, ScanLine, Send, CheckCircle2, CircleQuestionMark, LogOut } from 'lucide-react-native';
@@ -112,7 +113,7 @@ export default function PersonnelDashboard() {
         if (!permission.granted) {
             const { granted } = await requestPermission();
             if (!granted) {
-                Alert.alert('Permission required', 'Camera access is needed to scan QR codes.');
+                showAlert('Permission required', 'Camera access is needed to scan QR codes.');
                 return;
             }
         }

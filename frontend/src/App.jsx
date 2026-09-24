@@ -11,7 +11,8 @@ import Archives from './pages/staff/Archives';
 import StaffSettings from './pages/staff/Settings';
 import AllStudents from './pages/staff/AllStudents';
 import Analytics from './pages/staff/Analytics';
-import MobileOnly from './pages/MobileOnly';
+import StudentDashboard from './pages/StudentDashboard';
+import Settings from './pages/student/Settings';
 import Help from './pages/Help';
 import FacultyDashboard from './pages/faculty/FacultyDashboard';
 import LandingPage from './pages/LandingPage';
@@ -36,7 +37,7 @@ const ProtectedRoute = ({ element, allowedRoles }) => {
             <p className="text-slate-500 font-medium mb-8 text-sm leading-relaxed">This link is restricted. Your account does not have permission for this section.</p>
             <div className="space-y-3">
               {user.role === 'student' && (
-                <a href="/mobile-only" className="block w-full bg-ustp-blue text-white py-4 rounded-xl font-black uppercase text-xs tracking-widest hover:bg-blue-700 transition shadow-lg shadow-blue-200">Use the Mobile App</a>
+                <a href="/student/dashboard" className="block w-full bg-ustp-blue text-white py-4 rounded-xl font-black uppercase text-xs tracking-widest hover:bg-blue-700 transition shadow-lg shadow-blue-200">My Dashboard</a>
               )}
               {user.role === 'guard' && (
                 <a href="/guard/report" className="block w-full bg-ustp-blue text-white py-4 rounded-xl font-black uppercase text-xs tracking-widest hover:bg-blue-700 transition shadow-lg shadow-blue-200">Guard Dashboard</a>
@@ -84,12 +85,14 @@ function App() {
           <Route path="/admin/analytics" element={<ProtectedRoute element={<Analytics />} allowedRoles={['admin']} />} />
           <Route path="/admin/*" element={<Navigate to="/admin/overview" replace />} />
 
-          <Route path="/help" element={<ProtectedRoute element={<Help />} allowedRoles={['admin', 'staff', 'guard']} />} />
+          <Route path="/help" element={<ProtectedRoute element={<Help />} allowedRoles={['admin', 'staff', 'guard', 'student']} />} />
           <Route path="/admin/help" element={<Navigate to="/help" replace />} />
 
-          {/* Students use the mobile app only */}
-          <Route path="/mobile-only" element={<MobileOnly />} />
-          <Route path="/student/*" element={<Navigate to="/mobile-only" replace />} />
+          <Route path="/student/dashboard" element={<ProtectedRoute element={<StudentDashboard />} allowedRoles={['student']} />} />
+          <Route path="/student/settings" element={<ProtectedRoute element={<Settings />} allowedRoles={['student']} />} />
+          <Route path="/student/*" element={<Navigate to="/student/dashboard" replace />} />
+          {/* Old link from when students were mobile-only */}
+          <Route path="/mobile-only" element={<Navigate to="/login" replace />} />
 
           <Route path="/" element={<LandingPage />} />
         </Routes>
