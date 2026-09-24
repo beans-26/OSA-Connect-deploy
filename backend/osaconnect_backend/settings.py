@@ -177,6 +177,7 @@ EMAIL_USE_TLS = True
 EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', '').strip().strip('"').strip("'") or None
 # Gmail app passwords are shown as "abcd efgh ijkl mnop"; the spaces aren't part of the password
 EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', '').strip().strip('"').strip("'").replace(' ', '') or None
-DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
+# A display name makes the emails look less like a bot to Gmail's spam filter
+DEFAULT_FROM_EMAIL = f"OSAConnect <{EMAIL_HOST_USER}>" if EMAIL_HOST_USER else None
 
 print(f"SMTP CONFIG: Host={EMAIL_HOST}, User={EMAIL_HOST_USER}, PW_Len={len(EMAIL_HOST_PASSWORD) if EMAIL_HOST_PASSWORD else 0}")
