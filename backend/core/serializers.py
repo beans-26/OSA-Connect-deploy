@@ -40,7 +40,7 @@ class ETicketSerializer(serializers.DocumentSerializer):
         # base_remaining_hours + active_time_in let web and mobile compute the same live countdown
         data['base_remaining_hours'] = instance.remaining_hours
         data['active_time_in'] = None
-        data['station'] = {'lat': instance.lat, 'lng': instance.lng, 'radius': instance.radius}
+        data['station'] = {'lat': instance.lat, 'lng': instance.lng, 'radius': instance.radius, 'site_code': getattr(instance, 'site_code', None)}
         if instance.status == 'Ongoing':
             try:
                 from core.models import TimeLog

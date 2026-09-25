@@ -54,6 +54,7 @@ class ETicket(Document):
     lat = FloatField() # Allowed Geofence Lat
     lng = FloatField() # Allowed Geofence Lng
     radius = FloatField(default=100.0) # Allowed Radius in Meters
+    site_code = StringField() # Service site of the current session, when started from a site QR
     created_at = DateTimeField(default=datetime.datetime.now)
     meta = {'collection': 'etickets'}
 
