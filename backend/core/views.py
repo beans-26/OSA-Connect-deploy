@@ -3,7 +3,7 @@ from rest_framework.response import Response
 from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework import status
 from rest_framework.permissions import AllowAny
-from .models import Student, ViolationReport, ETicket, TimeLog, SystemUser
+from .models import Student, ViolationReport, ETicket, TimeLog, SystemUser, ServiceSite
 from .serializers import StudentSerializer, ViolationReportSerializer, ETicketSerializer, TimeLogSerializer
 import datetime
 from django.core.mail import send_mail
@@ -859,11 +859,24 @@ class TimeLogViewSet(viewsets.ModelViewSet):
                 lng = request.data.get('lng')
                 radius = request.data.get('radius')
                 photo_proof = request.data.get('photo_proof')
-                
-                if lat is not None and lng is not None:
+                site_code = str(request.data.get('site_code') or '').strip().upper()
+
+                if site_code:
+                    # Registered service site: the geofence comes from the saved site, never from the phone
+                    site = ServiceSite.objects.filter(site_code=site_code, is_active=True).first()
+                    if not site:
+                        return Response({"error": f"{site_code} is not an active service site."}, status=status.HTTP_400_BAD_REQUEST)
+                    if not TimeLog.objects.filter(eticket=eticket, time_out=None).first():
+                        eticket.lat = site.latitude
+                        eticket.lng = site.longitude
+                        eticket.radius = float(site.radius_m)
+                        eticket.site_code = site.site_code
+                        eticket.save()
+                elif lat is not None and lng is not None:
                     eticket.lat = float(lat)
                     eticket.lng = float(lng)
                     eticket.radius = float(radius or 5)
+                    eticket.site_code = None
                     eticket.save()
 
                 # Check if there's already an active session
@@ -879,6 +892,12 @@ class TimeLogViewSet(viewsets.ModelViewSet):
                 return Response(TimeLogSerializer(log).data)
             else:
                 photo_proof = request.data.get('photo_proof')
+                site_code = str(request.data.get('site_code') or '').strip().upper()
+                # Ending with a site QR: it must be the site the session started at
+                if site_code and eticket.site_code and site_code != eticket.site_code:
+                    return Response({"error": f"Scan the QR code of {eticket.site_code}, where you started this session."}, status=status.HTTP_400_BAD_REQUEST)
+                if site_code and not ServiceSite.objects.filter(site_code=site_code).first():
+                    return Response({"error": f"{site_code} is not a service site."}, status=status.HTTP_400_BAD_REQUEST)
                 log = TimeLog.objects.filter(eticket=eticket, time_out=None).order_by('-time_in').first()
                 if log:
                     log.time_out = datetime.datetime.now()

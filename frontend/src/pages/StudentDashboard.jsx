@@ -4,6 +4,10 @@ import { AlertTriangle, User, Play, QrCode, FileText, CircleHelp } from 'lucide-
 import QrScannerModal from '../components/QrScannerModal';
 import { useStudentTheme } from '../components/useStudentTheme';
 
+// Service site QR codes hold only the site code, e.g. "LIB-01" (same rule as backend/core/site_views.py).
+// Checked after the OSA action/building codes, which look similar ("OSA-START", "CITC-DEPT").
+const SITE_CODE_PATTERN = /^[A-Z0-9]{2,10}-[A-Z0-9]{1,6}$/;
+
 // Header copy shared with mobile/app/student/dashboard.jsx
 const getGreeting = () => {
     const h = new Date().getHours();
@@ -150,7 +154,9 @@ const StudentDashboard = () => {
                     action: pendingActionData.actionType,
                     lat: pendingActionData.forcedLat,
                     lng: pendingActionData.forcedLng,
-                    radius: pendingActionData.forcedRadius
+                    radius: pendingActionData.forcedRadius,
+                    // Registered service site: the server looks up its location and radius from the code
+                    site_code: pendingActionData.siteCode || null
                 }),
             });
 
@@ -451,6 +457,16 @@ const StudentDashboard = () => {
             }
         }
 
+        // 4. Registered service site (Admin > Settings > Service Sites), e.g. "LIB-01"
+        let siteCode = null;
+        if (!actionType && SITE_CODE_PATTERN.test(payloadCode)) {
+            siteCode = payloadCode;
+            actionType = 'in';
+            forcedLat = null;
+            forcedLng = null;
+            forcedRadius = null;
+        }
+
         if (!actionType) {
             alert("Invalid QR Code. Please scan a valid location or action code.");
             return;
@@ -489,7 +505,8 @@ const StudentDashboard = () => {
                 actionType,
                 forcedLat,
                 forcedLng,
-                forcedRadius
+                forcedRadius,
+                siteCode
             });
         } catch (err) {
             console.error(err);
@@ -506,8 +523,11 @@ const StudentDashboard = () => {
             return;
         }
 
-        if (payloadCode !== "OSA-PAUSE" && payloadCode !== "VNZMXBCALSKDJFHGQPWIEURYT" && payloadCode !== "OSA-STOP") {
-            alert(`INVALID CODE: ${payloadCode}. Please scan a valid STOP QR code.`);
+        // The service site's own QR also ends the session (the server checks it's the same site)
+        const isStopCode = ["OSA-PAUSE", "VNZMXBCALSKDJFHGQPWIEURYT", "OSA-STOP"].includes(payloadCode);
+        const siteCode = !isStopCode && SITE_CODE_PATTERN.test(payloadCode) ? payloadCode : null;
+        if (!isStopCode && !siteCode) {
+            alert(`INVALID CODE: ${payloadCode}. Scan your service site's QR code or the OSA stop code.`);
             return;
         }
 
@@ -517,7 +537,8 @@ const StudentDashboard = () => {
                 actionType: 'out',
                 forcedLat: null,
                 forcedLng: null,
-                forcedRadius: null
+                forcedRadius: null,
+                siteCode
             });
         } catch (err) {
             alert("Network failure processing action code.");
@@ -549,7 +570,7 @@ const StudentDashboard = () => {
             {isScanning && (
                 <QrScannerModal
                     title="Scan the Hub QR Code"
-                    subtitle="Start your community service session"
+                    subtitle="Scan the QR code posted at your service site"
                     onClose={() => setIsScanning(false)}
                     onResult={(text) => { setIsScanning(false); processCode(text); }}
                 />
@@ -559,7 +580,7 @@ const StudentDashboard = () => {
             {showStopScanner && (
                 <QrScannerModal
                     title="Scan to End Service"
-                    subtitle="Scan the OSA stop code to end your session"
+                    subtitle="Scan your service site QR or the OSA stop code"
                     accent="#ef4444"
                     onClose={() => setShowStopScanner(false)}
                     onResult={(text) => { setShowStopScanner(false); processStopCode(text); }}
