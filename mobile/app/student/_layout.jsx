@@ -69,9 +69,8 @@ export default function StudentLayout() {
                 <Stack.Screen name="dashboard" />
                 {/* Dashboard ↔ Settings is the app's "tab" switch: quick fade instead of a full slide */}
                 <Stack.Screen name="settings" options={{ animation: 'fade_from_bottom' }} />
-                {/* Cameras get their own native full-screen screens; the dashboard stays mounted underneath */}
+                {/* The scanner gets its own native full-screen screen; the dashboard stays mounted underneath */}
                 <Stack.Screen name="scan" options={{ presentation: 'fullScreenModal', animation: 'slide_from_bottom' }} />
-                <Stack.Screen name="selfie" options={{ presentation: 'fullScreenModal', animation: 'slide_from_bottom' }} />
             </Stack>
         </RequireRole>
     );
