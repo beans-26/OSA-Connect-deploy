@@ -2,12 +2,17 @@ from mongoengine import Document, StringField, DateTimeField, IntField, Referenc
 import datetime
 from enum import Enum
 
+# Every model sets auto_create_index False: otherwise mongoengine asks for the Atlas primary before the
+# first query on each collection, and each Vercel cold start stalls whenever the primary is slow to answer.
+# The indexes (unique student_id, username, otp email, site_code) already exist in the database;
+# a brand-new database needs them created once, e.g. Student.ensure_indexes().
+
 class OTPVerification(Document):
     email = StringField(required=True, unique=True)
     otp = StringField(required=True)
     created_at = DateTimeField(default=datetime.datetime.now)
     attempts = IntField(default=0)
-    meta = {'collection': 'otp_verifications'}
+    meta = {'collection': 'otp_verifications', 'auto_create_index': False}
 
 class ViolationStatus(Enum):
     PENDING = "Pending OSA Review"
@@ -31,7 +36,7 @@ class Student(Document):
     email = StringField()
     password = StringField()
     qr_data = StringField()
-    meta = {'collection': 'students'}
+    meta = {'collection': 'students', 'auto_create_index': False}
 
 class ViolationReport(Document):
     student = ReferenceField(Student, required=True)
@@ -43,7 +48,7 @@ class ViolationReport(Document):
     punishment = StringField()
     assigned_building = StringField() # New field for OSA review
     created_at = DateTimeField(default=datetime.datetime.now)
-    meta = {'collection': 'violation_reports'}
+    meta = {'collection': 'violation_reports', 'auto_create_index': False}
 
 class ETicket(Document):
     violation = ReferenceField(ViolationReport, required=True)
@@ -56,7 +61,7 @@ class ETicket(Document):
     radius = FloatField(default=100.0) # Allowed Radius in Meters
     site_code = StringField() # Service site of the current session, when started from a site QR
     created_at = DateTimeField(default=datetime.datetime.now)
-    meta = {'collection': 'etickets'}
+    meta = {'collection': 'etickets', 'auto_create_index': False}
 
 class TimeLog(Document):
     eticket = ReferenceField(ETicket, required=True)
@@ -65,7 +70,7 @@ class TimeLog(Document):
     duration_seconds = FloatField()
     photo_proof_in = StringField() # Base64 image when starting
     photo_proof_out = StringField() # Base64 image when stopping
-    meta = {'collection': 'timelogs'}
+    meta = {'collection': 'timelogs', 'auto_create_index': False}
 
 class SystemUser(Document):
     username = StringField(required=True, unique=True)
@@ -73,7 +78,7 @@ class SystemUser(Document):
     full_name = StringField(default="OSA Administrator")
     bio = StringField(default="University of Science and Technology of Southern Philippines Personnel")
     role = StringField(required=True, choices=['admin', 'guard', 'student', 'staff', 'faculty'])
-    meta = {'collection': 'system_users'}
+    meta = {'collection': 'system_users', 'auto_create_index': False}
 
 
 class ServiceSite(Document):
@@ -91,4 +96,4 @@ class ServiceSite(Document):
     registered_by = ReferenceField(SystemUser)
     registered_at = DateTimeField(default=datetime.datetime.now)
     updated_at = DateTimeField(default=datetime.datetime.now)
-    meta = {'collection': 'service_sites', 'ordering': ['-registered_at']}
+    meta = {'collection': 'service_sites', 'ordering': ['-registered_at'], 'auto_create_index': False}
