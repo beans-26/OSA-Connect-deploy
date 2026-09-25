@@ -200,7 +200,7 @@ const Archives = () => {
                 <div className="sticky top-0 z-40 bg-slate-50 dark:bg-slate-900 px-6 md:px-10 pt-24 md:pt-10 pb-2 border-b border-transparent">
                     <GlobalSearch />
                 </div>
-                <main className="flex-1 p-4 md:p-10 pt-0 md:pt-0 w-full max-w-full">
+                <main className="page-enter flex-1 p-4 md:p-10 pt-0 md:pt-0 w-full max-w-full">
                 <header className="mb-8">
                     <div className="flex justify-between items-end">
                         <div className="print:hidden">

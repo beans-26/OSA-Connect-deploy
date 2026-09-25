@@ -54,7 +54,7 @@ const GuardHistory = () => {
     return (
         <div className="flex bg-slate-50 dark:bg-slate-900 min-h-screen relative">
             <Sidebar role={userRole} />
-            <main className="flex-1 p-3 md:p-6 pt-20 md:pt-6 w-full max-w-full h-screen overflow-hidden flex flex-col">
+            <main className="page-enter flex-1 p-3 md:p-6 pt-20 md:pt-6 w-full max-w-full h-screen overflow-hidden flex flex-col">
                 <header className="mb-4 text-center md:text-left shrink-0">
                     <h1 className="text-xl md:text-2xl font-extrabold text-slate-900 dark:text-white tracking-tight">
                         {userRole === 'faculty' ? 'Faculty Submission History' : 'Violation History'}
