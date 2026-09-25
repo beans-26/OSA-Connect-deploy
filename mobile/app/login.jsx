@@ -98,8 +98,7 @@ export default function Login() {
                             <User size={18} color={colors.textMuted} style={styles.inputIcon} />
                             <TextInput
                                 style={styles.input}
-                                placeholder="e.g. 2023303188"
-                                placeholderTextColor={colors.textMuted}
+                               
                                 value={username}
                                 onChangeText={setUsername}
                                 autoCapitalize="none"
@@ -115,8 +114,7 @@ export default function Login() {
                             <Lock size={18} color={colors.textMuted} style={styles.inputIcon} />
                             <TextInput
                                 style={styles.input}
-                                placeholder="••••••••"
-                                placeholderTextColor={colors.textMuted}
+                               
                                 value={password}
                                 onChangeText={setPassword}
                                 secureTextEntry={!showPassword}
