@@ -97,6 +97,7 @@ DATABASES = {
 # MongoDB Configuration (Mongoengine)
 import mongoengine
 import certifi
+from pymongo import ReadPreference
 
 MONGODB_URI = os.getenv('MONGODB_URI', 'mongodb://localhost:27017/OSAConnect_deploymenttest')
 MONGODB_URI = MONGODB_URI.strip('"').strip("'")
@@ -105,7 +106,10 @@ try:
     mongoengine.connect(
         host=MONGODB_URI,
         tlsCAFile=certifi.where(),
-        serverSelectionTimeoutMS=5000
+        serverSelectionTimeoutMS=5000,
+        # Reads fall back to a secondary when the Atlas primary is briefly unreachable,
+        # instead of every page waiting out the timeout. Writes still need the primary.
+        read_preference=ReadPreference.PRIMARY_PREFERRED,
     )
     print("WSGI: Database connected")
 except Exception as e:
