@@ -443,7 +443,7 @@ const userRole = JSON.parse(localStorage.getItem('user') || '{}').role || 'staff
                 
                 <div className="flex flex-col xl:flex-row w-full min-h-full">
                     {/* Main Content Area */}
-                    <main className="flex-1 p-6 md:p-10 pt-0 md:pt-0 pb-10">
+                    <main className="page-enter flex-1 p-6 md:p-10 pt-0 md:pt-0 pb-10">
                         <header className="mb-6 text-center md:text-left shrink-0">
                             <h1 className="text-3xl md:text-4xl font-extrabold text-slate-900 dark:text-white tracking-tight">{getGreeting()}, Admin!</h1>
                             <p className="text-slate-400 dark:text-slate-500 mt-1 font-medium text-sm italic">{subGreeting}</p>

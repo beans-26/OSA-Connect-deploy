@@ -126,7 +126,7 @@ const Help = () => {
     return (
         <div className="flex min-h-screen bg-slate-50 dark:bg-slate-900">
             <Sidebar role={role} />
-            <main className="w-full min-w-0 flex-1 p-4 pt-24 md:p-10 lg:pt-10">
+            <main className="page-enter w-full min-w-0 flex-1 p-4 pt-24 md:p-10 lg:pt-10">
                 <div className="mx-auto max-w-3xl space-y-6">
                     <header>
                         <h1 className="text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white md:text-4xl">Help</h1>
