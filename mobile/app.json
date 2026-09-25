@@ -25,8 +25,15 @@
         "android.permission.CAMERA",
         "android.permission.RECORD_AUDIO",
         "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.ACCESS_COARSE_LOCATION",
         "android.permission.ACCESS_FINE_LOCATION"
-      ]
+      ],
+      "runtimeVersion": {
+        "policy": "appVersion"
+      }
     },
     "web": {
       "output": "static",
@@ -71,6 +78,9 @@
         "projectId": "ffbf9ba0-7ccf-4e1f-9552-72c532843471"
       }
     },
-    "owner": "beansilog26"
+    "owner": "beansilog26",
+    "updates": {
+      "url": "https://u.expo.dev/ffbf9ba0-7ccf-4e1f-9552-72c532843471"
+    }
   }
 }
