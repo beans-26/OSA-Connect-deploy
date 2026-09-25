@@ -2,9 +2,11 @@ import { Stack } from 'expo-router';
 import { AuthProvider } from '../components/AuthContext';
 import { ThemeProvider, useTheme } from '../components/ThemeContext';
 import { StatusBar } from 'expo-status-bar';
+import { useAutoUpdate } from '../components/useAutoUpdate';
 
 function RootContent() {
     const { isDarkMode, colors } = useTheme();
+    useAutoUpdate();
     return (
         <>
             <StatusBar style={isDarkMode ? "light" : "dark"} />
