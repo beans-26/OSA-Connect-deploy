@@ -161,7 +161,7 @@ const Analytics = () => {
                 <div className="sticky top-0 z-40 bg-slate-50 dark:bg-slate-900 px-6 md:px-10 pt-24 md:pt-10 pb-2 border-b border-transparent">
                     <GlobalSearch />
                 </div>
-                <main className="flex-1 p-6 md:p-10 pt-0 md:pt-0 w-full max-w-full">
+                <main className="page-enter flex-1 p-6 md:p-10 pt-0 md:pt-0 w-full max-w-full">
                     <header className="mb-12">
                         <h1 className="text-4xl font-extrabold text-slate-900 dark:text-white tracking-tight">Analytics Dashboard</h1>
                         <p className="text-slate-500 dark:text-slate-400 mt-2 font-medium">Real-time trends and data-driven insights into campus compliance.</p>
@@ -184,7 +184,7 @@ const Analytics = () => {
                     </div>
 
                     {activeTab === 'overview' && (
-                        <div className="space-y-10">
+                        <div className="page-enter space-y-10">
                             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                                 <div className="lg:col-span-1 card-premium p-8">
                                     <div className="flex items-center justify-between mb-8">
@@ -274,7 +274,7 @@ const Analytics = () => {
                     )}
 
                     {activeTab === 'monthly' && (
-                        <div className="space-y-8">
+                        <div className="page-enter space-y-8">
                             <div className="card-premium">
                                 <div className="flex items-center justify-between mb-8 pb-6 border-b border-slate-50">
                                     <h4 className="font-bold text-slate-800 dark:text-slate-200 uppercase tracking-widest text-sm text-blue-900">Monthly Monitoring</h4>
@@ -369,7 +369,7 @@ const Analytics = () => {
                     )}
 
                     {activeTab === 'violators' && (
-                        <div className="space-y-8">
+                        <div className="page-enter space-y-8">
                             <div className="card-premium">
                                 <div className="flex items-center justify-between mb-8 pb-6 border-b border-slate-50">
                                     <h4 className="font-bold text-slate-800 dark:text-slate-200 uppercase tracking-widest text-sm text-blue-900">Top Violators</h4>

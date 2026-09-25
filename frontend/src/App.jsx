@@ -61,6 +61,9 @@ const ProtectedRoute = ({ element, allowedRoles }) => {
   }
 };
 
+// Pages with a sidebar animate only their <main> (the .page-enter class) so the sidebar stays still
+const SIDEBAR_PAGES = /^\/(admin\/|help$|guard\/history$)/;
+
 // Fades each page in when the route changes. Opacity only: a transform here would
 // break the pages' position: fixed modals and menus while the animation runs.
 const PageFade = ({ children }) => {
@@ -68,7 +71,7 @@ const PageFade = ({ children }) => {
   return (
     <motion.div
       key={location.pathname}
-      initial={{ opacity: 0 }}
+      initial={SIDEBAR_PAGES.test(location.pathname) ? false : { opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.25, ease: 'easeOut' }}
     >
