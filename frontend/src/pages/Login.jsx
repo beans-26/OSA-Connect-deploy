@@ -95,7 +95,7 @@ const Login = () => {
                         <div className="space-y-4">
                             {/* Input Field */}
                             <div className="space-y-1.5">
-                                <label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-1">Account ID / Username</label>
+                                <label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-1">Student ID / Username</label>
                                 <div className="relative border border-slate-200 dark:border-slate-600 rounded-lg bg-slate-50 dark:bg-slate-900 overflow-hidden focus-within:bg-white dark:bg-slate-800 focus-within:border-blue-600 transition-none">
                                     <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500">
                                         <User size={18} />
@@ -113,7 +113,7 @@ const Login = () => {
 
                             {/* Password Field */}
                             <div className="space-y-1.5">
-                                <label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-1">Secret Password</label>
+                                <label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-1">Password</label>
                                 <div className="relative border border-slate-200 dark:border-slate-600 rounded-lg bg-slate-50 dark:bg-slate-900 overflow-hidden focus-within:bg-white dark:bg-slate-800 focus-within:border-blue-600 transition-none">
                                     <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500">
                                         <Lock size={18} />
