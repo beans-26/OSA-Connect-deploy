@@ -150,23 +150,23 @@ export default function Register() {
 
                             <View style={styles.formGroup}>
                                 <Text style={styles.label}>Student ID</Text>
-                                <TextInput style={styles.input} placeholder="2023303188" value={studentData.student_id} onChangeText={(t) => setStudentData({...studentData, student_id: t})} returnKeyType="go" onSubmitEditing={requestOTP} />
+                                <TextInput style={styles.input} value={studentData.student_id} onChangeText={(t) => setStudentData({...studentData, student_id: t})} returnKeyType="go" onSubmitEditing={requestOTP} />
                             </View>
 
                             <View style={styles.row}>
                                 <View style={[styles.formGroup, {flex: 1, marginRight: 8}]}>
                                     <Text style={styles.label}>First Name</Text>
-                                    <TextInput style={styles.input} placeholder="Juan" value={studentData.first_name} onChangeText={(t) => setStudentData({...studentData, first_name: t})} returnKeyType="go" onSubmitEditing={requestOTP} />
+                                    <TextInput style={styles.input} value={studentData.first_name} onChangeText={(t) => setStudentData({...studentData, first_name: t})} returnKeyType="go" onSubmitEditing={requestOTP} />
                                 </View>
                                 <View style={[styles.formGroup, {flex: 1, marginLeft: 8}]}>
                                     <Text style={styles.label}>Last Name</Text>
-                                    <TextInput style={styles.input} placeholder="Cruz" value={studentData.last_name} onChangeText={(t) => setStudentData({...studentData, last_name: t})} returnKeyType="go" onSubmitEditing={requestOTP} />
+                                    <TextInput style={styles.input} value={studentData.last_name} onChangeText={(t) => setStudentData({...studentData, last_name: t})} returnKeyType="go" onSubmitEditing={requestOTP} />
                                 </View>
                             </View>
 
                             <View style={styles.formGroup}>
                                 <Text style={styles.label}>Middle Name (Optional)</Text>
-                                <TextInput style={styles.input} placeholder="Dela" value={studentData.middle_name} onChangeText={(t) => setStudentData({...studentData, middle_name: t})} returnKeyType="go" onSubmitEditing={requestOTP} />
+                                <TextInput style={styles.input} value={studentData.middle_name} onChangeText={(t) => setStudentData({...studentData, middle_name: t})} returnKeyType="go" onSubmitEditing={requestOTP} />
                             </View>
 
                             <View style={styles.formGroup}>
@@ -210,7 +210,7 @@ export default function Register() {
                                 </View>
                                 <View style={[styles.formGroup, {flex: 1, marginLeft: 8}]}>
                                     <Text style={styles.label}>Contact</Text>
-                                    <TextInput style={styles.input} placeholder="09123456789" keyboardType="number-pad" maxLength={11} value={studentData.contact_number} onChangeText={(t) => setStudentData({...studentData, contact_number: t.replace(/\D/g, '').slice(0, 11)})} returnKeyType="go" onSubmitEditing={requestOTP} />
+                                    <TextInput style={styles.input} keyboardType="number-pad" maxLength={11} value={studentData.contact_number} onChangeText={(t) => setStudentData({...studentData, contact_number: t.replace(/\D/g, '').slice(0, 11)})} returnKeyType="go" onSubmitEditing={requestOTP} />
                                 </View>
                             </View>
 
@@ -218,17 +218,17 @@ export default function Register() {
 
                             <View style={styles.formGroup}>
                                 <Text style={styles.label}>Email Address</Text>
-                                <TextInput style={styles.input} placeholder="student@example.edu" keyboardType="email-address" autoCapitalize="none" value={studentData.email} onChangeText={(t) => setStudentData({...studentData, email: t})} returnKeyType="go" onSubmitEditing={requestOTP} />
+                                <TextInput style={styles.input} keyboardType="email-address" autoCapitalize="none" value={studentData.email} onChangeText={(t) => setStudentData({...studentData, email: t})} returnKeyType="go" onSubmitEditing={requestOTP} />
                             </View>
 
                             <View style={styles.formGroup}>
                                 <Text style={styles.label}>Password</Text>
-                                <TextInput style={styles.input} placeholder="Create a password" secureTextEntry value={studentData.password} onChangeText={(t) => setStudentData({...studentData, password: t})} returnKeyType="go" onSubmitEditing={requestOTP} />
+                                <TextInput style={styles.input} secureTextEntry value={studentData.password} onChangeText={(t) => setStudentData({...studentData, password: t})} returnKeyType="go" onSubmitEditing={requestOTP} />
                             </View>
 
                             <View style={styles.formGroup}>
                                 <Text style={styles.label}>Re-enter Password</Text>
-                                <TextInput style={[styles.input, passwordMismatch && styles.inputError]} placeholder="Re-enter your password" secureTextEntry value={confirmPassword} onChangeText={setConfirmPassword} returnKeyType="go" onSubmitEditing={requestOTP} />
+                                <TextInput style={[styles.input, passwordMismatch && styles.inputError]} secureTextEntry value={confirmPassword} onChangeText={setConfirmPassword} returnKeyType="go" onSubmitEditing={requestOTP} />
                                 {passwordMismatch && <Text style={styles.errorText}>Passwords do not match</Text>}
                             </View>
 
@@ -265,7 +265,7 @@ export default function Register() {
                                 <Text style={[styles.label, {textAlign: 'center'}]}>6-Digit Code</Text>
                                 <TextInput 
                                     style={styles.otpInput} 
-                                    placeholder="000000" 
+                                    
                                     maxLength={6}
                                     keyboardType="number-pad"
                                     value={otp}
