@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import Sidebar from '../../components/Sidebar';
 import QRCode from 'react-qr-code';
-import { Settings as SettingsIcon, Shield, Clock, QrCode, Bell, Lock, User, Search, Key, AlertTriangle, Save, LogOut, CheckCircle } from 'lucide-react';
+import { Settings as SettingsIcon, Shield, Clock, QrCode, Bell, Lock, User, Search, Key, AlertTriangle, Save, LogOut, CheckCircle, MapPin } from 'lucide-react';
 import GlobalSearch from '../../components/GlobalSearch';
+import ServiceSites from './ServiceSites';
 
 const LiveTimer = ({ remainingHours }) => {
     const formatTime = (hours) => {
@@ -46,6 +47,7 @@ const StaffSettings = () => {
 
     const sections = [
         { id: 'codes', label: 'Action Codes', icon: QrCode, description: 'Service control QR codes' },
+        { id: 'sites', label: 'Service Sites', icon: MapPin, description: 'Register locations by GPS' },
         { id: 'account', label: 'Account', icon: User, description: 'Manage your profile' },
         { id: 'security', label: 'Security', icon: Lock, description: 'Password and access' },
         { id: 'notifications', label: 'Notifications', icon: Bell, description: 'System alerts' },
@@ -353,6 +355,8 @@ const StaffSettings = () => {
                                 </div>
                             </div>
                         )}
+
+                        {activeSection === 'sites' && <ServiceSites />}
 
                         {/* Tickets section removed */}
 

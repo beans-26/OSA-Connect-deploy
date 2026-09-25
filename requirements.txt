@@ -12,3 +12,4 @@ whitenoise
 dj-database-url
 dnspython
 certifi
+segno
