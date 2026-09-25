@@ -1,5 +1,6 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { motion } from 'framer-motion';
 import Login from './pages/Login';
 import ForgotPassword from './pages/ForgotPassword';
 import StudentRegistration from './pages/StudentRegistration';
@@ -60,10 +61,27 @@ const ProtectedRoute = ({ element, allowedRoles }) => {
   }
 };
 
+// Fades each page in when the route changes. Opacity only: a transform here would
+// break the pages' position: fixed modals and menus while the animation runs.
+const PageFade = ({ children }) => {
+  const location = useLocation();
+  return (
+    <motion.div
+      key={location.pathname}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.25, ease: 'easeOut' }}
+    >
+      {children}
+    </motion.div>
+  );
+};
+
 function App() {
   return (
     <Router>
       <div className="min-h-screen bg-slate-50 text-slate-900">
+        <PageFade>
         <Routes>
           <Route path="/login" element={<Login />} />
           <Route path="/login/admin" element={<AdminLogin />} />
@@ -96,6 +114,7 @@ function App() {
 
           <Route path="/" element={<LandingPage />} />
         </Routes>
+        </PageFade>
       </div>
     </Router>
   );
