@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import Sidebar from '../../components/Sidebar';
 import QRCode from 'react-qr-code';
-import { Settings as SettingsIcon, Shield, Clock, QrCode, Bell, Lock, User, Search, Key, AlertTriangle, Save, LogOut, CheckCircle } from 'lucide-react';
+import { Settings as SettingsIcon, Shield, Clock, QrCode, Bell, Lock, User, Search, Key, AlertTriangle, Save, LogOut, CheckCircle, MapPin } from 'lucide-react';
 import GlobalSearch from '../../components/GlobalSearch';
+import ServiceSites from './ServiceSites';
 
 const LiveTimer = ({ remainingHours }) => {
     const formatTime = (hours) => {
@@ -46,6 +47,7 @@ const StaffSettings = () => {
 
     const sections = [
         { id: 'codes', label: 'Action Codes', icon: QrCode, description: 'Service control QR codes' },
+        { id: 'sites', label: 'Service Sites', icon: MapPin, description: 'Register locations by GPS' },
         { id: 'account', label: 'Account', icon: User, description: 'Manage your profile' },
         { id: 'security', label: 'Security', icon: Lock, description: 'Password and access' },
         { id: 'notifications', label: 'Notifications', icon: Bell, description: 'System alerts' },
@@ -240,15 +242,15 @@ const StaffSettings = () => {
         <div className="flex bg-slate-50 dark:bg-slate-900 min-h-screen relative font-sans">
             <Sidebar role={userRole} />
             <div className="flex-1 h-screen overflow-y-auto custom-scrollbar w-full">
-                <div className="sticky top-0 z-40 bg-slate-50 dark:bg-slate-900 px-6 md:px-10 pt-24 md:pt-10 pb-2 border-b border-transparent">
+                <div className="sticky top-0 z-40 bg-slate-50 dark:bg-slate-900 px-4 md:px-10 pt-[76px] lg:pt-10 pb-2 border-b border-transparent">
                     <GlobalSearch />
                 </div>
-                <main className="page-enter flex-1 p-6 md:p-10 pt-0 md:pt-0 w-full max-w-full">
-                <header className="mb-6 md:mb-8 text-center md:text-left">
-                    <h1 className="text-3xl md:text-4xl font-extrabold text-slate-900 dark:text-white tracking-tight flex flex-col md:flex-row items-center gap-4">
+                <main className="page-enter flex-1 px-4 pb-8 md:p-10 md:pt-0 w-full max-w-full">
+                <header className="mb-6 md:mb-8">
+                    <h1 className="text-2xl md:text-4xl font-extrabold text-slate-900 dark:text-white tracking-tight">
                         Settings
                     </h1>
-                    <p className="text-slate-500 dark:text-slate-400 mt-2 font-medium">Configure system preferences and administration</p>
+                    <p className="text-slate-500 dark:text-slate-400 mt-2 font-medium text-sm">Configure system preferences and administration</p>
                 </header>
 
                 {saveStatus.msg && (
@@ -313,20 +315,7 @@ const StaffSettings = () => {
                                         </div>
                                     </div>
 
-                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                                        <div className="bg-indigo-950 p-6 flex flex-col items-center justify-center text-center rounded-2xl shadow-md border-2 border-indigo-800/30 group hover:border-indigo-500 transition-all duration-500">
-                                            <h4 className="font-black text-lg uppercase tracking-tighter text-indigo-400 mb-4 flex items-center gap-2">
-                                                <Clock size={16} /> CITC Building
-                                            </h4>
-                                            <div className="bg-white dark:bg-slate-800 p-4 rounded-xl mb-4 shadow-lg group-hover:scale-105 transition-transform duration-500">
-                                                <QRCode value="XKMBPQLVJZWFRCYTNDHSGEUIA" size={100} level="H" />
-                                            </div>
-                                            <div className="bg-indigo-900/50 text-indigo-300 rounded-xl px-4 py-2 font-mono font-black text-[9px] border border-indigo-700/50 tracking-widest uppercase">
-                                                XKMBPQLVJZWFRCYTNDHSGEUIA
-                                            </div>
-                                            <p className="text-indigo-400/60 text-[9px] font-bold mt-3 uppercase tracking-widest">Start/Resume Tracking</p>
-                                        </div>
-
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                         <div className="bg-rose-950 p-6 flex flex-col items-center justify-center text-center rounded-2xl shadow-md border-2 border-rose-800/30 group hover:border-rose-500 transition-all duration-500">
                                             <h4 className="font-black text-lg uppercase tracking-tighter text-rose-400 mb-4 flex items-center gap-2">
                                                 <Shield size={16} /> Stop Service
@@ -353,6 +342,8 @@ const StaffSettings = () => {
                                 </div>
                             </div>
                         )}
+
+                        {activeSection === 'sites' && <ServiceSites />}
 
                         {/* Tickets section removed */}
 
