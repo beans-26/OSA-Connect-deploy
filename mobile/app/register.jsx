@@ -42,6 +42,8 @@ export default function Register() {
     // Kept outside studentData so it isn't sent to the API
     const [confirmPassword, setConfirmPassword] = useState('');
     const passwordMismatch = confirmPassword.length > 0 && confirmPassword !== studentData.password;
+    // Placeholders repeat the field name as faint, see-through text (same as the website)
+    const faintPlaceholder = 'rgba(148,163,184,0.4)';
 
     const qrRef = useRef();
 
@@ -148,87 +150,84 @@ export default function Register() {
                                 <Text style={styles.stepSubtitle}>Step 01: Personal Information</Text>
                             </View>
 
+                            {/* Same three groups and order as the website's registration */}
+                            <Text style={styles.sectionTitle}>Personal Information</Text>
                             <View style={styles.formGroup}>
                                 <Text style={styles.label}>Student ID</Text>
-                                <TextInput style={styles.input} value={studentData.student_id} onChangeText={(t) => setStudentData({...studentData, student_id: t})} returnKeyType="go" onSubmitEditing={requestOTP} />
+                                <TextInput style={styles.input} placeholder="Student ID" keyboardType="number-pad" value={studentData.student_id} onChangeText={(t) => setStudentData({...studentData, student_id: t})} placeholderTextColor={faintPlaceholder} returnKeyType="go" onSubmitEditing={requestOTP} />
                             </View>
-
                             <View style={styles.row}>
                                 <View style={[styles.formGroup, {flex: 1, marginRight: 8}]}>
                                     <Text style={styles.label}>First Name</Text>
-                                    <TextInput style={styles.input} value={studentData.first_name} onChangeText={(t) => setStudentData({...studentData, first_name: t})} returnKeyType="go" onSubmitEditing={requestOTP} />
+                                    <TextInput style={styles.input} placeholder="First Name" value={studentData.first_name} onChangeText={(t) => setStudentData({...studentData, first_name: t})} placeholderTextColor={faintPlaceholder} returnKeyType="go" onSubmitEditing={requestOTP} />
                                 </View>
                                 <View style={[styles.formGroup, {flex: 1, marginLeft: 8}]}>
-                                    <Text style={styles.label}>Last Name</Text>
-                                    <TextInput style={styles.input} value={studentData.last_name} onChangeText={(t) => setStudentData({...studentData, last_name: t})} returnKeyType="go" onSubmitEditing={requestOTP} />
+                                    <Text style={styles.label}>Middle Name (Optional)</Text>
+                                    <TextInput style={styles.input} placeholder="Middle Name" value={studentData.middle_name} onChangeText={(t) => setStudentData({...studentData, middle_name: t})} placeholderTextColor={faintPlaceholder} returnKeyType="go" onSubmitEditing={requestOTP} />
                                 </View>
                             </View>
-
                             <View style={styles.formGroup}>
-                                <Text style={styles.label}>Middle Name (Optional)</Text>
-                                <TextInput style={styles.input} value={studentData.middle_name} onChangeText={(t) => setStudentData({...studentData, middle_name: t})} returnKeyType="go" onSubmitEditing={requestOTP} />
+                                <Text style={styles.label}>Last Name</Text>
+                                <TextInput style={styles.input} placeholder="Last Name" value={studentData.last_name} onChangeText={(t) => setStudentData({...studentData, last_name: t})} placeholderTextColor={faintPlaceholder} returnKeyType="go" onSubmitEditing={requestOTP} />
                             </View>
 
+                            <Text style={styles.sectionTitle}>Academic Information</Text>
                             <View style={styles.formGroup}>
                                 <Text style={styles.label}>Course</Text>
                                 {/* Same USTP lists as the website's registration (constants/Data.js) */}
                                 <SelectField
                                     value={studentData.course}
                                     options={COURSES}
-                                    placeholder="Select Course"
+                                    placeholder="Course"
+                                    placeholderColor={faintPlaceholder}
                                     title="Select Course"
                                     searchable
                                     onChange={(v) => setStudentData((prev) => ({ ...prev, course: v }))}
                                     style={[styles.input, styles.selectInput]}
                                 />
                             </View>
-
                             <View style={styles.formGroup}>
                                 <Text style={styles.label}>Department</Text>
                                 <SelectField
                                     value={studentData.department}
                                     options={DEPARTMENTS}
-                                    placeholder="Select Department"
+                                    placeholder="Department"
+                                    placeholderColor={faintPlaceholder}
                                     title="Select Department"
                                     onChange={(v) => setStudentData((prev) => ({ ...prev, department: v }))}
                                     style={[styles.input, styles.selectInput]}
                                 />
                             </View>
-
-                            <View style={styles.row}>
-                                <View style={[styles.formGroup, {flex: 1, marginRight: 8}]}>
-                                    <Text style={styles.label}>Year Level</Text>
-                                    {/* Same choices as the website: saved as "1"–"5", shown as "Year 1"–"Year 5" */}
-                                    <SelectField
-                                        value={studentData.year_level}
-                                        options={YEAR_LEVELS}
-                                        placeholder="Year"
-                                        title="Select Year Level"
-                                        onChange={(v) => setStudentData((prev) => ({ ...prev, year_level: v }))}
-                                        style={[styles.input, styles.selectInput]}
-                                    />
-                                </View>
-                                <View style={[styles.formGroup, {flex: 1, marginLeft: 8}]}>
-                                    <Text style={styles.label}>Contact</Text>
-                                    <TextInput style={styles.input} keyboardType="number-pad" maxLength={11} value={studentData.contact_number} onChangeText={(t) => setStudentData({...studentData, contact_number: t.replace(/\D/g, '').slice(0, 11)})} returnKeyType="go" onSubmitEditing={requestOTP} />
-                                </View>
+                            <View style={styles.formGroup}>
+                                <Text style={styles.label}>Year Level</Text>
+                                {/* Same choices as the website: saved as "1"–"5", shown as "Year 1"–"Year 5" */}
+                                <SelectField
+                                    value={studentData.year_level}
+                                    options={YEAR_LEVELS}
+                                    placeholder="Year Level"
+                                    placeholderColor={faintPlaceholder}
+                                    title="Select Year Level"
+                                    onChange={(v) => setStudentData((prev) => ({ ...prev, year_level: v }))}
+                                    style={[styles.input, styles.selectInput]}
+                                />
                             </View>
 
-                            <View style={styles.divider} />
-
+                            <Text style={styles.sectionTitle}>Account</Text>
+                            <View style={styles.formGroup}>
+                                <Text style={styles.label}>Contact Number</Text>
+                                <TextInput style={styles.input} placeholder="Contact Number" keyboardType="number-pad" maxLength={11} value={studentData.contact_number} onChangeText={(t) => setStudentData({...studentData, contact_number: t.replace(/\D/g, '').slice(0, 11)})} placeholderTextColor={faintPlaceholder} returnKeyType="go" onSubmitEditing={requestOTP} />
+                            </View>
                             <View style={styles.formGroup}>
                                 <Text style={styles.label}>Email Address</Text>
-                                <TextInput style={styles.input} keyboardType="email-address" autoCapitalize="none" value={studentData.email} onChangeText={(t) => setStudentData({...studentData, email: t})} returnKeyType="go" onSubmitEditing={requestOTP} />
+                                <TextInput style={styles.input} placeholder="Email Address" keyboardType="email-address" autoCapitalize="none" value={studentData.email} onChangeText={(t) => setStudentData({...studentData, email: t})} placeholderTextColor={faintPlaceholder} returnKeyType="go" onSubmitEditing={requestOTP} />
                             </View>
-
                             <View style={styles.formGroup}>
                                 <Text style={styles.label}>Password</Text>
-                                <TextInput style={styles.input} secureTextEntry value={studentData.password} onChangeText={(t) => setStudentData({...studentData, password: t})} returnKeyType="go" onSubmitEditing={requestOTP} />
+                                <TextInput style={styles.input} placeholder="Password" secureTextEntry value={studentData.password} onChangeText={(t) => setStudentData({...studentData, password: t})} placeholderTextColor={faintPlaceholder} returnKeyType="go" onSubmitEditing={requestOTP} />
                             </View>
-
                             <View style={styles.formGroup}>
                                 <Text style={styles.label}>Re-enter Password</Text>
-                                <TextInput style={[styles.input, passwordMismatch && styles.inputError]} secureTextEntry value={confirmPassword} onChangeText={setConfirmPassword} returnKeyType="go" onSubmitEditing={requestOTP} />
+                                <TextInput style={[styles.input, passwordMismatch && styles.inputError]} placeholder="Re-enter Password" secureTextEntry value={confirmPassword} onChangeText={setConfirmPassword} placeholderTextColor={faintPlaceholder} returnKeyType="go" onSubmitEditing={requestOTP} />
                                 {passwordMismatch && <Text style={styles.errorText}>Passwords do not match</Text>}
                             </View>
 
@@ -466,6 +465,18 @@ const styles = StyleSheet.create({
         fontWeight: 'bold',
         marginTop: 6,
         marginLeft: 4,
+    },
+    sectionTitle: {
+        fontSize: 11,
+        fontWeight: '900',
+        textTransform: 'uppercase',
+        letterSpacing: 1.5,
+        color: Colors.primary,
+        borderBottomWidth: 1,
+        borderBottomColor: Colors.border,
+        paddingBottom: 8,
+        marginTop: 8,
+        marginBottom: 14,
     },
     divider: {
         height: 1,

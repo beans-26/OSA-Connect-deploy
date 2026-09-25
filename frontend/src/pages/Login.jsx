@@ -104,8 +104,8 @@ const Login = () => {
                                         type="text"
                                         value={username}
                                         onChange={(e) => setUsername(e.target.value)}
-                                       
-                                        className="w-full bg-transparent p-3.5 pl-11 outline-none font-semibold text-slate-700 dark:text-slate-300 placeholder:text-slate-300 dark:text-slate-600 text-sm"
+                                        placeholder="Student ID / Username"
+                                        className="w-full bg-transparent p-3.5 pl-11 outline-none font-semibold text-slate-700 dark:text-slate-300 placeholder:text-slate-400/40 dark:placeholder:text-slate-400/30 text-sm"
                                         required
                                     />
                                 </div>
@@ -122,8 +122,8 @@ const Login = () => {
                                         type={showPassword ? "text" : "password"}
                                         value={password}
                                         onChange={(e) => setPassword(e.target.value)}
-                                       
-                                        className="w-full bg-transparent p-3.5 pl-11 pr-11 outline-none font-semibold text-slate-700 dark:text-slate-300 placeholder:text-slate-300 dark:text-slate-600 text-sm"
+                                        placeholder="Password"
+                                        className="w-full bg-transparent p-3.5 pl-11 pr-11 outline-none font-semibold text-slate-700 dark:text-slate-300 placeholder:text-slate-400/40 dark:placeholder:text-slate-400/30 text-sm"
                                         required
                                     />
                                     <button 

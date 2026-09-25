@@ -30,7 +30,15 @@ const DEPARTMENTS = [
 const YEAR_LEVELS = ['1', '2', '3', '4', '5'];
 const OFFLINE_MESSAGE = "Can't reach the server. Check your internet connection and try again.";
 
-const inputClass = "w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-600 rounded-lg p-3 outline-none font-semibold text-slate-700 dark:text-slate-300 placeholder:text-slate-300 focus:bg-white dark:bg-slate-800 focus:border-blue-600 text-sm transition-none";
+const inputClass = "w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-600 rounded-lg p-3 outline-none font-semibold text-slate-700 dark:text-slate-300 placeholder:text-slate-400/40 dark:placeholder:text-slate-400/30 focus:bg-white dark:bg-slate-800 focus:border-blue-600 text-sm transition-none";
+
+// A titled group of fields; the web and mobile registration use the same three groups
+const Section = ({ title, children }) => (
+    <div className="space-y-4">
+        <p className="text-[11px] font-black uppercase tracking-[0.15em] text-blue-900 dark:text-blue-300 border-b border-slate-100 dark:border-slate-700 pb-2">{title}</p>
+        {children}
+    </div>
+);
 
 const Field = ({ label, children }) => (
     <div className="space-y-1.5 min-w-0">
@@ -204,65 +212,63 @@ ${OFFLINE_MESSAGE}`);
                                 <p className="text-slate-400 dark:text-slate-500 font-bold text-[10px] uppercase tracking-widest">Step 01: Personal Information</p>
                             </div>
 
-                            <form onSubmit={requestOTP} className="space-y-8">
+                            <form onSubmit={requestOTP} className="space-y-7">
                                 {/* Same order and rows as the mobile app's registration */}
-                                <div className="space-y-5">
+                                <Section title="Personal Information">
                                     <Field label="Student ID">
-                                        <input required type="text" value={studentData.student_id} onChange={(e) => setStudentData({...studentData, student_id: e.target.value})} className={inputClass} />
+                                        <input required type="text" inputMode="numeric" placeholder="Student ID" value={studentData.student_id} onChange={(e) => setStudentData({...studentData, student_id: e.target.value})} className={inputClass} />
                                     </Field>
-                                    <div className="grid grid-cols-2 gap-4">
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                         <Field label="First Name">
-                                            <input required type="text" value={studentData.first_name} onChange={(e) => setStudentData({...studentData, first_name: e.target.value})} className={inputClass} />
+                                            <input required type="text" placeholder="First Name" value={studentData.first_name} onChange={(e) => setStudentData({...studentData, first_name: e.target.value})} className={inputClass} />
                                         </Field>
-                                        <Field label="Last Name">
-                                            <input required type="text" value={studentData.last_name} onChange={(e) => setStudentData({...studentData, last_name: e.target.value})} className={inputClass} />
+                                        <Field label="Middle Name (Optional)">
+                                            <input type="text" placeholder="Middle Name" value={studentData.middle_name} onChange={(e) => setStudentData({...studentData, middle_name: e.target.value})} className={inputClass} />
                                         </Field>
                                     </div>
-                                    <Field label="Middle Name (Optional)">
-                                        <input type="text" value={studentData.middle_name} onChange={(e) => setStudentData({...studentData, middle_name: e.target.value})} className={inputClass} />
+                                    <Field label="Last Name">
+                                        <input required type="text" placeholder="Last Name" value={studentData.last_name} onChange={(e) => setStudentData({...studentData, last_name: e.target.value})} className={inputClass} />
                                     </Field>
+                                </Section>
+
+                                <Section title="Academic Information">
                                     <Field label="Course">
-                                        <select required value={studentData.course} onChange={(e) => setStudentData({...studentData, course: e.target.value})} className={`${inputClass} appearance-none`}>
-                                            <option value="">Select Course</option>
+                                        <select required value={studentData.course} onChange={(e) => setStudentData({...studentData, course: e.target.value})} className={`${inputClass} appearance-none ${studentData.course ? '' : '!text-slate-400/50'}`}>
+                                            <option value="" disabled hidden>Course</option>
                                             {COURSES.map((o) => <option key={o} value={o}>{o}</option>)}
                                         </select>
                                     </Field>
                                     <Field label="Department">
-                                        <select required value={studentData.department} onChange={(e) => setStudentData({...studentData, department: e.target.value})} className={`${inputClass} appearance-none`}>
-                                            <option value="">Select Department</option>
+                                        <select required value={studentData.department} onChange={(e) => setStudentData({...studentData, department: e.target.value})} className={`${inputClass} appearance-none ${studentData.department ? '' : '!text-slate-400/50'}`}>
+                                            <option value="" disabled hidden>Department</option>
                                             {DEPARTMENTS.map((o) => <option key={o} value={o}>{o}</option>)}
                                         </select>
                                     </Field>
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <Field label="Year Level">
-                                            <select required value={studentData.year_level} onChange={(e) => setStudentData({...studentData, year_level: e.target.value})} className={`${inputClass} appearance-none`}>
-                                                <option value="">Year</option>
-                                                {YEAR_LEVELS.map((y) => <option key={y} value={y}>Year {y}</option>)}
-                                            </select>
-                                        </Field>
-                                        <Field label="Contact">
-                                            <input required type="tel" inputMode="numeric" maxLength={11} value={studentData.contact_number} onChange={(e) => setStudentData({...studentData, contact_number: e.target.value.replace(/\D/g, '').slice(0, 11)})} className={inputClass} />
-                                        </Field>
-                                    </div>
-                                </div>
+                                    <Field label="Year Level">
+                                        <select required value={studentData.year_level} onChange={(e) => setStudentData({...studentData, year_level: e.target.value})} className={`${inputClass} appearance-none ${studentData.year_level ? '' : '!text-slate-400/50'}`}>
+                                            <option value="" disabled hidden>Year Level</option>
+                                            {YEAR_LEVELS.map((y) => <option key={y} value={y}>Year {y}</option>)}
+                                        </select>
+                                    </Field>
+                                </Section>
 
-                                <div className="space-y-6 pt-6 border-t border-slate-100 dark:border-slate-700">
-                                    <div className="space-y-1.5">
-                                        <label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-1">Email Address</label>
-                                        <input required type="email" value={studentData.email} onChange={(e) => setStudentData({...studentData, email: e.target.value})} className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-600 rounded-lg p-3.5 outline-none font-semibold text-slate-700 dark:text-slate-300 focus:bg-white dark:bg-slate-800 focus:border-blue-600 transition-none text-sm" />
-                                    </div>
-                                    <div className="space-y-1.5">
-                                        <label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-1">Password</label>
-                                        <input required type="password" value={studentData.password} onChange={(e) => setStudentData({...studentData, password: e.target.value})} className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-600 rounded-lg p-3.5 outline-none font-semibold text-slate-700 dark:text-slate-300 focus:bg-white dark:bg-slate-800 focus:border-blue-600 transition-none text-sm" />
-                                    </div>
-                                    <div className="space-y-1.5">
-                                        <label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-1">Re-enter Password</label>
-                                        <input required type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} className={`w-full bg-slate-50 dark:bg-slate-900 border rounded-lg p-3.5 outline-none font-semibold text-slate-700 dark:text-slate-300 focus:bg-white dark:bg-slate-800 transition-none text-sm ${passwordMismatch ? 'border-red-400 focus:border-red-500' : 'border-slate-200 dark:border-slate-600 focus:border-blue-600'}`} />
+                                <Section title="Account">
+                                    <Field label="Contact Number">
+                                        <input required type="tel" inputMode="numeric" maxLength={11} placeholder="Contact Number" value={studentData.contact_number} onChange={(e) => setStudentData({...studentData, contact_number: e.target.value.replace(/\D/g, '').slice(0, 11)})} className={inputClass} />
+                                    </Field>
+                                    <Field label="Email Address">
+                                        <input required type="email" placeholder="Email Address" value={studentData.email} onChange={(e) => setStudentData({...studentData, email: e.target.value})} className={inputClass} />
+                                    </Field>
+                                    <Field label="Password">
+                                        <input required type="password" placeholder="Password" value={studentData.password} onChange={(e) => setStudentData({...studentData, password: e.target.value})} className={inputClass} />
+                                    </Field>
+                                    <Field label="Re-enter Password">
+                                        <input required type="password" placeholder="Re-enter Password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} className={`${inputClass} ${passwordMismatch ? '!border-red-400 focus:!border-red-500' : ''}`} />
                                         {passwordMismatch && (
                                             <p className="ml-1 text-[11px] font-bold text-red-500">Passwords do not match</p>
                                         )}
-                                    </div>
-                                </div>
+                                    </Field>
+                                </Section>
 
                                 <button type="submit" disabled={saving} className="w-full h-14 bg-blue-900 text-white rounded-lg font-bold text-xs uppercase tracking-[0.2em] shadow-sm flex items-center justify-center gap-3 hover:bg-slate-800 transition-colors">
                                     {saving ? <Loader2 className="animate-spin" size={20} /> : <>Verify Email <ChevronRight size={18} /></>}
