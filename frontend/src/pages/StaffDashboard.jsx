@@ -161,28 +161,6 @@ const ViolationModal = ({ report, ticket, activeLog, onClose, onAction }) => {
                                     />
                                 )}
                             </div>
-                            
-                            {activeLog && (activeLog.photo_proof_in || activeLog.photo_proof_out) && (
-                                <div className="mt-6">
-                                    <h4 className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 dark:text-slate-500 mb-3 ml-2">
-                                        <QrCode size={12} /> Proof of Action
-                                    </h4>
-                                    <div className="flex gap-4">
-                                        {activeLog.photo_proof_in && (
-                                            <div className="flex-1 bg-slate-50 dark:bg-slate-900/40 p-3 rounded-[24px] border border-slate-200/80 dark:border-slate-700/60 shadow-sm">
-                                                <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-2 text-center">Time In</p>
-                                                <img src={activeLog.photo_proof_in} alt="Time In Proof" className="w-full rounded-[16px] border border-slate-200 dark:border-slate-700 object-cover aspect-[3/4]" />
-                                            </div>
-                                        )}
-                                        {activeLog.photo_proof_out && (
-                                            <div className="flex-1 bg-slate-50 dark:bg-slate-900/40 p-3 rounded-[24px] border border-slate-200/80 dark:border-slate-700/60 shadow-sm">
-                                                <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-2 text-center">Time Out</p>
-                                                <img src={activeLog.photo_proof_out} alt="Time Out Proof" className="w-full rounded-[16px] border border-slate-200 dark:border-slate-700 object-cover aspect-[3/4]" />
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
-                            )}
                         </div>
                     )}
                 </div>
