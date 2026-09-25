@@ -16,6 +16,23 @@ export default function SelfieScreen() {
     const [ready, setReady] = useState(false);
     const [capturing, setCapturing] = useState(false);
     const [mountError, setMountError] = useState(null);
+    const [pictureSize, setPictureSize] = useState(undefined);
+
+    // A full-resolution front photo as base64 is many MB and could crash the app on Android.
+    // Use the smallest size the camera offers that is still at least 640px (the website sends 640px wide).
+    const onCameraReady = async () => {
+        try {
+            const sizes = await cameraRef.current?.getAvailablePictureSizesAsync?.();
+            const parsed = (sizes || [])
+                .map((s) => ({ s, dims: String(s).split('x').map(Number) }))
+                .filter(({ dims }) => dims.length === 2 && dims.every((n) => n > 0) && Math.max(...dims) >= 640)
+                .sort((a, b) => a.dims[0] * a.dims[1] - b.dims[0] * b.dims[1]);
+            if (parsed.length) setPictureSize(parsed[0].s);
+        } catch {
+            // Fall back to the camera's default size; quality below still keeps it small-ish
+        }
+        setReady(true);
+    };
 
     const close = () => {
         clearCameraResult('selfie');
@@ -26,7 +43,8 @@ export default function SelfieScreen() {
         if (!cameraRef.current || !ready || capturing) return;
         setCapturing(true);
         try {
-            const photo = await cameraRef.current.takePictureAsync({ base64: true, quality: 0.5 });
+            const photo = await cameraRef.current.takePictureAsync({ base64: true, quality: 0.4, exif: false });
+            if (!photo?.base64) throw new Error('No photo data');
             router.back();
             emitCameraResult('selfie', photo.base64);
         } catch {
@@ -42,7 +60,8 @@ export default function SelfieScreen() {
                 ref={cameraRef}
                 style={{ flex: 1 }}
                 facing="front"
-                onCameraReady={() => setReady(true)}
+                pictureSize={pictureSize}
+                onCameraReady={onCameraReady}
                 onMountError={(e) => setMountError(e?.message || 'The camera could not start.')}
             />
             <View style={[styles.topBar, { paddingTop: insets.top + 16 }]}>
