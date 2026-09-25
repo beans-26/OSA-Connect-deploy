@@ -147,7 +147,6 @@ export default function Register() {
                         <View style={styles.stepContainer}>
                             <View style={styles.stepHeader}>
                                 <Text style={styles.stepTitle}>Account Details</Text>
-                                <Text style={styles.stepSubtitle}>Step 01: Personal Information</Text>
                             </View>
 
                             {/* Same three groups and order as the website's registration */}
@@ -257,7 +256,6 @@ export default function Register() {
                                 <Mail size={32} color={Colors.primary} />
                             </View>
                             <Text style={[styles.stepTitle, {textAlign: 'center'}]}>Verify Your Email</Text>
-                            <Text style={[styles.stepSubtitle, {textAlign: 'center'}]}>Step 02: Verification Code</Text>
                             <Text style={styles.emailSentText}>We sent a 6-digit code to {studentData.email}</Text>
 
                             <View style={styles.otpContainer}>
@@ -337,19 +335,19 @@ const styles = StyleSheet.create({
         backgroundColor: Colors.background,
     },
     scrollContent: {
-        padding: 24,
+        padding: 16,
         flexGrow: 1,
         justifyContent: 'center',
     },
     header: {
         alignItems: 'center',
-        marginBottom: 32,
-        marginTop: 20,
+        marginBottom: 16,
+        marginTop: 12,
     },
     logoContainer: {
         flexDirection: 'row',
         alignItems: 'center',
-        marginBottom: 16,
+        marginBottom: 8,
     },
     logoBox: {
         position: 'relative',
@@ -395,7 +393,7 @@ const styles = StyleSheet.create({
     card: {
         backgroundColor: Colors.card,
         borderRadius: 16,
-        padding: 24,
+        padding: 18,
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.05,
@@ -410,8 +408,8 @@ const styles = StyleSheet.create({
     stepHeader: {
         borderBottomWidth: 1,
         borderBottomColor: Colors.background,
-        paddingBottom: 16,
-        marginBottom: 24,
+        paddingBottom: 10,
+        marginBottom: 14,
     },
     stepTitle: {
         fontSize: 18,
@@ -431,7 +429,7 @@ const styles = StyleSheet.create({
         justifyContent: 'space-between',
     },
     formGroup: {
-        marginBottom: 16,
+        marginBottom: 12,
     },
     label: {
         fontSize: 10,
@@ -474,9 +472,9 @@ const styles = StyleSheet.create({
         color: Colors.primary,
         borderBottomWidth: 1,
         borderBottomColor: Colors.border,
-        paddingBottom: 8,
-        marginTop: 8,
-        marginBottom: 14,
+        paddingBottom: 6,
+        marginTop: 4,
+        marginBottom: 10,
     },
     divider: {
         height: 1,
@@ -553,7 +551,7 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center',
         alignSelf: 'center',
-        marginBottom: 24,
+        marginBottom: 14,
         borderWidth: 1,
         borderColor: '#dbeafe',
     },
@@ -562,13 +560,13 @@ const styles = StyleSheet.create({
         color: Colors.textMuted,
         fontSize: 14,
         marginTop: 12,
-        marginBottom: 24,
+        marginBottom: 16,
     },
     otpContainer: {
         maxWidth: 240,
         alignSelf: 'center',
         width: '100%',
-        marginBottom: 24,
+        marginBottom: 16,
     },
     otpInput: {
         backgroundColor: Colors.background,

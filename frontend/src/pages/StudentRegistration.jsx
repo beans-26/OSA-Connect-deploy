@@ -34,14 +34,14 @@ const inputClass = "w-full bg-slate-50 dark:bg-slate-900 border border-slate-200
 
 // A titled group of fields; the web and mobile registration use the same three groups
 const Section = ({ title, children }) => (
-    <div className="space-y-4">
+    <div className="space-y-3">
         <p className="text-[11px] font-black uppercase tracking-[0.15em] text-blue-900 dark:text-blue-300 border-b border-slate-100 dark:border-slate-700 pb-2">{title}</p>
         {children}
     </div>
 );
 
 const Field = ({ label, children }) => (
-    <div className="space-y-1.5 min-w-0">
+    <div className="space-y-1 min-w-0">
         <label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-1">{label}</label>
         {children}
     </div>
@@ -191,11 +191,11 @@ ${OFFLINE_MESSAGE}`);
     };
 
     return (
-        <div className="min-h-screen bg-slate-50 dark:bg-slate-900 flex flex-col items-center justify-center p-4 sm:p-8">
-            <div className="w-full max-w-md space-y-8">
+        <div className="min-h-screen bg-slate-50 dark:bg-slate-900 flex flex-col items-center justify-center px-4 py-6 sm:p-8">
+            <div className="w-full max-w-md space-y-5">
                 
                 {/* Clean Header */}
-                <div className="text-center space-y-4">
+                <div className="text-center space-y-2">
                     <CSSLogo className="justify-center" />
                     <div className="space-y-1">
                         <h1 className="text-2xl font-bold text-slate-900 dark:text-white uppercase tracking-tight">Student Identity Proxy</h1>
@@ -204,21 +204,18 @@ ${OFFLINE_MESSAGE}`);
                 </div>
 
                 {/* Stable Registration Card */}
-                <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-600 p-6 sm:p-8">
+                <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-600 p-5 sm:p-7">
                     {step === 1 ? (
-                        <div className="space-y-8 animate-in fade-in duration-300">
-                            <div className="border-b border-slate-50 pb-6">
-                                <h2 className="text-xl font-bold text-slate-800 dark:text-slate-200 tracking-tight">Account Details</h2>
-                                <p className="text-slate-400 dark:text-slate-500 font-bold text-[10px] uppercase tracking-widest">Step 01: Personal Information</p>
-                            </div>
+                        <div className="space-y-5 animate-in fade-in duration-300">
+                            <h2 className="text-xl font-bold text-slate-800 dark:text-slate-200 tracking-tight">Account Details</h2>
 
-                            <form onSubmit={requestOTP} className="space-y-7">
+                            <form onSubmit={requestOTP} className="space-y-5">
                                 {/* Same order and rows as the mobile app's registration */}
                                 <Section title="Personal Information">
                                     <Field label="Student ID">
                                         <input required type="text" inputMode="numeric" placeholder="Student ID" value={studentData.student_id} onChange={(e) => setStudentData({...studentData, student_id: e.target.value})} className={inputClass} />
                                     </Field>
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                         <Field label="First Name">
                                             <input required type="text" placeholder="First Name" value={studentData.first_name} onChange={(e) => setStudentData({...studentData, first_name: e.target.value})} className={inputClass} />
                                         </Field>
@@ -270,24 +267,23 @@ ${OFFLINE_MESSAGE}`);
                                     </Field>
                                 </Section>
 
-                                <button type="submit" disabled={saving} className="w-full h-14 bg-blue-900 text-white rounded-lg font-bold text-xs uppercase tracking-[0.2em] shadow-sm flex items-center justify-center gap-3 hover:bg-slate-800 transition-colors">
+                                <button type="submit" disabled={saving} className="w-full h-12 bg-blue-900 text-white rounded-lg font-bold text-xs uppercase tracking-[0.2em] shadow-sm flex items-center justify-center gap-3 hover:bg-slate-800 transition-colors">
                                     {saving ? <Loader2 className="animate-spin" size={20} /> : <>Verify Email <ChevronRight size={18} /></>}
                                 </button>
                             </form>
 
-                            <div className="mt-10 text-center pt-8 border-t border-slate-100 dark:border-slate-700/50">
+                            <div className="text-center pt-4 border-t border-slate-100 dark:border-slate-700/50">
                                 <p className="text-slate-400 dark:text-slate-500 font-bold text-[10px] uppercase tracking-widest">Already have an account? <Link to="/login" className="text-blue-900 font-bold underline underline-offset-4">Log in</Link></p>
                             </div>
                         </div>
                     ) : step === 2 ? (
-                        <div className="space-y-8 animate-in fade-in duration-300">
-                            <div className="border-b border-slate-50 pb-6 text-center">
-                                <div className="w-16 h-16 bg-blue-50 text-blue-900 rounded-2xl flex items-center justify-center mx-auto mb-6 border border-blue-100">
+                        <div className="space-y-5 animate-in fade-in duration-300">
+                            <div className="border-b border-slate-50 pb-4 text-center">
+                                <div className="w-14 h-14 bg-blue-50 text-blue-900 rounded-2xl flex items-center justify-center mx-auto mb-3 border border-blue-100">
                                     <Mail size={32} />
                                 </div>
                                 <h2 className="text-xl font-bold text-slate-800 dark:text-slate-200 tracking-tight">Verify Your Email</h2>
-                                <p className="text-slate-400 dark:text-slate-500 font-bold text-[10px] uppercase tracking-widest mt-2">Step 02: Verification Code</p>
-                                <p className="text-slate-500 dark:text-slate-400 text-sm mt-4">We sent a 6-digit code to <span className="font-semibold text-slate-800 dark:text-slate-200">{studentData.email}</span></p>
+                                <p className="text-slate-500 dark:text-slate-400 text-sm mt-2">We sent a 6-digit code to <span className="font-semibold text-slate-800 dark:text-slate-200">{studentData.email}</span></p>
                             </div>
 
                             <form onSubmit={verifyAndRegister} className="space-y-6">
