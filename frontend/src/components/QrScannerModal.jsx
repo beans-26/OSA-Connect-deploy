@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import QrScanner from 'qr-scanner';
-import { X, Zap, ZapOff, SwitchCamera, ImageUp, CameraOff, RotateCcw } from 'lucide-react';
+import { X, ImageUp, CameraOff, RotateCcw } from 'lucide-react';
 
 // Full-screen QR scanner shared by the student and guard pages.
 // Mount it only while scanning; it releases the camera on unmount (and before onResult,
@@ -22,10 +22,6 @@ const QrScannerModal = ({ title, subtitle, accent = '#1e3a8a', allowUpload = fal
     const [scanError, setScanError] = useState(null);
     const [status, setStatus] = useState('starting'); // starting | scanning | detected | error
     const [errorMsg, setErrorMsg] = useState('');
-    const [hasFlash, setHasFlash] = useState(false);
-    const [flashOn, setFlashOn] = useState(false);
-    const [cameras, setCameras] = useState([]);
-    const [cameraIndex, setCameraIndex] = useState(0);
     const [attempt, setAttempt] = useState(0);
 
     const finish = (text) => {
@@ -76,12 +72,7 @@ const QrScannerModal = ({ title, subtitle, accent = '#1e3a8a', allowUpload = fal
         scannerRef.current = scanner;
 
         scanner.start()
-            .then(async () => {
-                setStatus('scanning');
-                setHasFlash(await scanner.hasFlash().catch(() => false));
-                const list = await QrScanner.listCameras(true).catch(() => []);
-                setCameras(list);
-            })
+            .then(() => setStatus('scanning'))
             .catch((err) => {
                 const msg = String(err?.name || err || '');
                 setErrorMsg(
@@ -99,24 +90,6 @@ const QrScannerModal = ({ title, subtitle, accent = '#1e3a8a', allowUpload = fal
             scannerRef.current = null;
         };
     }, [attempt]);
-
-    const toggleFlash = async () => {
-        try {
-            await scannerRef.current?.toggleFlash();
-            setFlashOn(!!scannerRef.current?.isFlashOn());
-        } catch {
-            setHasFlash(false);
-        }
-    };
-
-    const switchCamera = async () => {
-        if (cameras.length < 2 || !scannerRef.current) return;
-        const next = (cameraIndex + 1) % cameras.length;
-        setCameraIndex(next);
-        await scannerRef.current.setCamera(cameras[next].id).catch(() => {});
-        setFlashOn(false);
-        setHasFlash(await scannerRef.current.hasFlash().catch(() => false));
-    };
 
     const scanFile = async (e) => {
         const file = e.target.files?.[0];
@@ -144,7 +117,9 @@ const QrScannerModal = ({ title, subtitle, accent = '#1e3a8a', allowUpload = fal
     const laserColor = accent === '#1e3a8a' ? '#60a5fa' : accent;
 
     return (
-        <div className="fixed inset-0 z-[70] overflow-hidden bg-black text-white" role="dialog" aria-modal="true" aria-label={title}>
+        // translateZ(0) puts the scanner on its own layer: iPhone Safari otherwise drew the dashboard's
+        // Leaflet map (3D-transformed tiles) on top of it despite the z-index
+        <div className="fixed inset-0 z-[70] overflow-hidden bg-black text-white [transform:translateZ(0)]" role="dialog" aria-modal="true" aria-label={title}>
             <video ref={videoRef} className="absolute inset-0 h-full w-full object-cover" muted playsInline />
 
             {/* Viewfinder: the huge shadow darkens everything outside the square */}
@@ -224,23 +199,11 @@ const QrScannerModal = ({ title, subtitle, accent = '#1e3a8a', allowUpload = fal
                             {status === 'detected' ? 'QR code detected' : status === 'starting' ? 'Starting camera…' : 'Align the QR code inside the frame'}
                         </p>
                     )}
-                    <div className="flex items-center gap-4">
-                        {hasFlash && (
-                            <button onClick={toggleFlash} aria-label={flashOn ? 'Turn off flashlight' : 'Turn on flashlight'} className={`rounded-full p-4 backdrop-blur ${flashOn ? 'bg-amber-400 text-slate-900' : 'bg-white/15 hover:bg-white/25'}`}>
-                                {flashOn ? <ZapOff size={22} /> : <Zap size={22} />}
-                            </button>
-                        )}
-                        {allowUpload && (
-                            <button onClick={() => fileRef.current?.click()} aria-label="Scan from a photo" className="flex items-center gap-2 rounded-full bg-white/15 px-5 py-4 text-sm font-bold backdrop-blur hover:bg-white/25">
-                                <ImageUp size={20} /> Upload photo
-                            </button>
-                        )}
-                        {cameras.length > 1 && (
-                            <button onClick={switchCamera} aria-label="Switch camera" className="rounded-full bg-white/15 p-4 backdrop-blur hover:bg-white/25">
-                                <SwitchCamera size={22} />
-                            </button>
-                        )}
-                    </div>
+                    {allowUpload && (
+                        <button onClick={() => fileRef.current?.click()} aria-label="Scan from a photo" className="flex items-center gap-2 rounded-full bg-white/15 px-5 py-4 text-sm font-bold backdrop-blur hover:bg-white/25">
+                            <ImageUp size={20} /> Upload photo
+                        </button>
+                    )}
                 </div>
             )}
 
