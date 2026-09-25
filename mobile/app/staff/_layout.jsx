@@ -17,6 +17,7 @@ export default function StaffLayout() {
                     },
                     headerTintColor: colors.text,
                     contentStyle: { backgroundColor: colors.background },
+                    animation: 'slide_from_right',
                     headerTitleStyle: {
                         fontWeight: 'bold',
                     },
@@ -44,6 +45,8 @@ export default function StaffLayout() {
                     name="settings"
                     options={{
                         headerShown: false,
+                        // Same "tab" switch feel as the student Dashboard ↔ Settings
+                        animation: 'fade_from_bottom',
                     }}
                 />
                 {/* Camera gets its own native full-screen screen; the report form stays mounted underneath */}

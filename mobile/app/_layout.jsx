@@ -1,14 +1,27 @@
-import { Slot } from 'expo-router';
+import { Stack } from 'expo-router';
 import { AuthProvider } from '../components/AuthContext';
 import { ThemeProvider, useTheme } from '../components/ThemeContext';
 import { StatusBar } from 'expo-status-bar';
 
 function RootContent() {
-    const { isDarkMode } = useTheme();
+    const { isDarkMode, colors } = useTheme();
     return (
         <>
             <StatusBar style={isDarkMode ? "light" : "dark"} />
-            <Slot />
+            {/* Native stack so moving between screens animates instead of jumping */}
+            <Stack
+                screenOptions={{
+                    headerShown: false,
+                    animation: 'slide_from_right',
+                    contentStyle: { backgroundColor: colors.background },
+                }}
+            >
+                {/* Logging in/out swaps the whole app, so a soft fade reads better than a slide */}
+                <Stack.Screen name="index" options={{ animation: 'fade' }} />
+                <Stack.Screen name="login" options={{ animation: 'fade' }} />
+                <Stack.Screen name="student" options={{ animation: 'fade' }} />
+                <Stack.Screen name="staff" options={{ animation: 'fade' }} />
+            </Stack>
         </>
     );
 }
