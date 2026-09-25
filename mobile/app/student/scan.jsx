@@ -2,7 +2,7 @@ import React from 'react';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import QrScannerView from '../../components/QrScannerView';
 import { emitCameraResult, clearCameraResult } from '../../components/cameraResults';
-import { parseServiceQr, NOT_A_START_QR, NOT_A_STOP_QR } from '../../components/serviceQr';
+import { parseServiceQr, serviceQrAction, NOT_A_START_QR, NOT_A_STOP_QR } from '../../components/serviceQr';
 
 // Student hub-QR scanner, opened from the dashboard as its own full-screen screen
 // (a CameraView inside a Modal or overlay didn't render on iPhone).
@@ -14,13 +14,12 @@ export default function StudentScanScreen() {
     return (
         <QrScannerView
             title={ending ? 'Scan to End Service' : 'Scan the Hub QR Code'}
-            subtitle={ending ? 'Scan the OSA stop code to end your session' : 'Start your community service session'}
+            subtitle={ending ? 'Scan your service site QR or the OSA stop code' : 'Scan the QR code posted at your service site'}
             accent={ending ? '#ef4444' : '#60a5fa'}
             // Only OSA service codes; random QRs are rejected on the spot and scanning continues
             validate={(data) => {
-                const code = parseServiceQr(data);
-                if (ending) return code?.action === 'out' ? null : NOT_A_STOP_QR;
-                return code?.action === 'in' ? null : NOT_A_START_QR;
+                if (serviceQrAction(parseServiceQr(data), ending)) return null;
+                return ending ? NOT_A_STOP_QR : NOT_A_START_QR;
             }}
             onScanned={(result) => {
                 router.back();

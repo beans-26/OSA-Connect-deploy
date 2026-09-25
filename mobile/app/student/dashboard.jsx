@@ -12,7 +12,7 @@ import api from '../../services/api';
 import { useRouter } from 'expo-router';
 import MapViewComponent from '../../components/MapViewComponent';
 import { onCameraResult } from '../../components/cameraResults';
-import { parseServiceQr, NOT_A_START_QR, NOT_A_STOP_QR } from '../../components/serviceQr';
+import { parseServiceQr, serviceQrAction, NOT_A_START_QR, NOT_A_STOP_QR } from '../../components/serviceQr';
 import { useTheme } from '../../components/ThemeContext';
 
 // Haversine formula
@@ -298,7 +298,8 @@ export default function Dashboard() {
     const handleBarCodeScanned = async ({ data }) => {
         // The scanner already rejects anything that isn't an OSA code (app/student/scan.jsx); checked again here
         const code = parseServiceQr(data);
-        if (!code || code.action !== (timerActive ? 'out' : 'in')) {
+        const action = serviceQrAction(code, timerActive);
+        if (!action) {
             showAlert('Invalid QR Code', timerActive ? NOT_A_STOP_QR : NOT_A_START_QR);
             return;
         }
@@ -307,9 +308,9 @@ export default function Dashboard() {
             showAlert('Error', "You don't have any active service tickets.");
             return;
         }
-        const scannedData = { eticket_id: activeTicket.id, lat: code.lat, lng: code.lng, radius: code.radius };
+        const scannedData = { eticket_id: activeTicket.id, lat: code.lat, lng: code.lng, radius: code.radius, siteCode: code.siteCode || null };
         // Starts or stops the timer right away (no photo step)
-        submitLog(code.action, scannedData);
+        submitLog(action, scannedData);
     };
 
     const submitLog = async (actionType, scannedData) => {
@@ -323,7 +324,9 @@ export default function Dashboard() {
                 // the backend saves these as the service area, so that would move the geofence to the student.
                 lat: scannedData.lat,
                 lng: scannedData.lng,
-                radius: scannedData.radius
+                radius: scannedData.radius,
+                // Registered service site: the server looks up its location and radius from the code
+                site_code: scannedData.siteCode
             });
             if (actionType === 'in') {
                 setTimerActive(true);
