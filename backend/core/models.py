@@ -73,3 +73,21 @@ class SystemUser(Document):
     bio = StringField(default="University of Science and Technology of Southern Philippines Personnel")
     role = StringField(required=True, choices=['admin', 'guard', 'student', 'staff', 'faculty'])
     meta = {'collection': 'system_users'}
+
+
+class ServiceSite(Document):
+    """A physical community service location registered by an admin from their phone's GPS.
+    Its QR code encodes only site_code, so re-capturing the location keeps printed codes working."""
+    site_code = StringField(required=True, unique=True)  # e.g. "LIB-01"
+    name = StringField(required=True)
+    description = StringField(default='')
+    latitude = FloatField(required=True, min_value=-90, max_value=90)  # stored rounded to 7 decimals
+    longitude = FloatField(required=True, min_value=-180, max_value=180)
+    radius_m = IntField(default=50, min_value=10, max_value=300)
+    accuracy_m = IntField()  # averaged GPS accuracy at capture time
+    sample_count = IntField()  # number of GPS readings averaged
+    is_active = BooleanField(default=True)
+    registered_by = ReferenceField(SystemUser)
+    registered_at = DateTimeField(default=datetime.datetime.now)
+    updated_at = DateTimeField(default=datetime.datetime.now)
+    meta = {'collection': 'service_sites', 'ordering': ['-registered_at']}
