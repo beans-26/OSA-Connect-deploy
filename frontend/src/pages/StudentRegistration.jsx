@@ -208,18 +208,18 @@ ${OFFLINE_MESSAGE}`);
                                 {/* Same order and rows as the mobile app's registration */}
                                 <div className="space-y-5">
                                     <Field label="Student ID">
-                                        <input required type="text" value={studentData.student_id} onChange={(e) => setStudentData({...studentData, student_id: e.target.value})} className={inputClass} placeholder="2023303188" />
+                                        <input required type="text" value={studentData.student_id} onChange={(e) => setStudentData({...studentData, student_id: e.target.value})} className={inputClass} />
                                     </Field>
                                     <div className="grid grid-cols-2 gap-4">
                                         <Field label="First Name">
-                                            <input required type="text" value={studentData.first_name} onChange={(e) => setStudentData({...studentData, first_name: e.target.value})} className={inputClass} placeholder="Juan" />
+                                            <input required type="text" value={studentData.first_name} onChange={(e) => setStudentData({...studentData, first_name: e.target.value})} className={inputClass} />
                                         </Field>
                                         <Field label="Last Name">
-                                            <input required type="text" value={studentData.last_name} onChange={(e) => setStudentData({...studentData, last_name: e.target.value})} className={inputClass} placeholder="Cruz" />
+                                            <input required type="text" value={studentData.last_name} onChange={(e) => setStudentData({...studentData, last_name: e.target.value})} className={inputClass} />
                                         </Field>
                                     </div>
                                     <Field label="Middle Name (Optional)">
-                                        <input type="text" value={studentData.middle_name} onChange={(e) => setStudentData({...studentData, middle_name: e.target.value})} className={inputClass} placeholder="Dela" />
+                                        <input type="text" value={studentData.middle_name} onChange={(e) => setStudentData({...studentData, middle_name: e.target.value})} className={inputClass} />
                                     </Field>
                                     <Field label="Course">
                                         <select required value={studentData.course} onChange={(e) => setStudentData({...studentData, course: e.target.value})} className={`${inputClass} appearance-none`}>
@@ -241,7 +241,7 @@ ${OFFLINE_MESSAGE}`);
                                             </select>
                                         </Field>
                                         <Field label="Contact">
-                                            <input required type="tel" inputMode="numeric" maxLength={11} value={studentData.contact_number} onChange={(e) => setStudentData({...studentData, contact_number: e.target.value.replace(/\D/g, '').slice(0, 11)})} className={inputClass} placeholder="09123456789" />
+                                            <input required type="tel" inputMode="numeric" maxLength={11} value={studentData.contact_number} onChange={(e) => setStudentData({...studentData, contact_number: e.target.value.replace(/\D/g, '').slice(0, 11)})} className={inputClass} />
                                         </Field>
                                     </div>
                                 </div>
@@ -249,15 +249,15 @@ ${OFFLINE_MESSAGE}`);
                                 <div className="space-y-6 pt-6 border-t border-slate-100 dark:border-slate-700">
                                     <div className="space-y-1.5">
                                         <label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-1">Email Address</label>
-                                        <input required type="email" value={studentData.email} onChange={(e) => setStudentData({...studentData, email: e.target.value})} className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-600 rounded-lg p-3.5 outline-none font-semibold text-slate-700 dark:text-slate-300 focus:bg-white dark:bg-slate-800 focus:border-blue-600 transition-none text-sm" placeholder="student@example.edu" />
+                                        <input required type="email" value={studentData.email} onChange={(e) => setStudentData({...studentData, email: e.target.value})} className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-600 rounded-lg p-3.5 outline-none font-semibold text-slate-700 dark:text-slate-300 focus:bg-white dark:bg-slate-800 focus:border-blue-600 transition-none text-sm" />
                                     </div>
                                     <div className="space-y-1.5">
                                         <label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-1">Password</label>
-                                        <input required type="password" value={studentData.password} onChange={(e) => setStudentData({...studentData, password: e.target.value})} className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-600 rounded-lg p-3.5 outline-none font-semibold text-slate-700 dark:text-slate-300 focus:bg-white dark:bg-slate-800 focus:border-blue-600 transition-none text-sm" placeholder="Create a password" />
+                                        <input required type="password" value={studentData.password} onChange={(e) => setStudentData({...studentData, password: e.target.value})} className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-600 rounded-lg p-3.5 outline-none font-semibold text-slate-700 dark:text-slate-300 focus:bg-white dark:bg-slate-800 focus:border-blue-600 transition-none text-sm" />
                                     </div>
                                     <div className="space-y-1.5">
                                         <label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-1">Re-enter Password</label>
-                                        <input required type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} className={`w-full bg-slate-50 dark:bg-slate-900 border rounded-lg p-3.5 outline-none font-semibold text-slate-700 dark:text-slate-300 focus:bg-white dark:bg-slate-800 transition-none text-sm ${passwordMismatch ? 'border-red-400 focus:border-red-500' : 'border-slate-200 dark:border-slate-600 focus:border-blue-600'}`} placeholder="Re-enter your password" />
+                                        <input required type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} className={`w-full bg-slate-50 dark:bg-slate-900 border rounded-lg p-3.5 outline-none font-semibold text-slate-700 dark:text-slate-300 focus:bg-white dark:bg-slate-800 transition-none text-sm ${passwordMismatch ? 'border-red-400 focus:border-red-500' : 'border-slate-200 dark:border-slate-600 focus:border-blue-600'}`} />
                                         {passwordMismatch && (
                                             <p className="ml-1 text-[11px] font-bold text-red-500">Passwords do not match</p>
                                         )}
@@ -291,7 +291,7 @@ ${OFFLINE_MESSAGE}`);
                                         <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
                                             <KeyRound className="text-slate-400 dark:text-slate-500" size={18} />
                                         </div>
-                                        <input required type="text" maxLength={6} value={otp} onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))} className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-600 rounded-lg pl-12 p-3.5 outline-none font-bold tracking-widest text-center text-xl text-slate-700 dark:text-slate-300 placeholder:text-slate-300 dark:text-slate-600 focus:bg-white dark:bg-slate-800 focus:border-blue-600 transition-none" placeholder="000000" />
+                                        <input required type="text" maxLength={6} value={otp} onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))} className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-600 rounded-lg pl-12 p-3.5 outline-none font-bold tracking-widest text-center text-xl text-slate-700 dark:text-slate-300 placeholder:text-slate-300 dark:text-slate-600 focus:bg-white dark:bg-slate-800 focus:border-blue-600 transition-none" />
                                     </div>
                                 </div>
 
