@@ -308,13 +308,11 @@ export default function Dashboard() {
             return;
         }
         const scannedData = { eticket_id: activeTicket.id, lat: code.lat, lng: code.lng, radius: code.radius };
-        // Proof selfie is its own screen (app/student/selfie.jsx); it hands the photo back here.
-        // Opened after a short delay so the scanner's camera has been released.
-        onCameraResult('selfie', (photoBase64) => submitLog(code.action, scannedData, photoBase64));
-        setTimeout(() => router.push('/student/selfie'), 600);
+        // Starts or stops the timer right away (no photo step)
+        submitLog(code.action, scannedData);
     };
 
-    const submitLog = async (actionType, scannedData, photoBase64) => {
+    const submitLog = async (actionType, scannedData) => {
         if (!scannedData) return;
         setLoading(true);
         try {
@@ -325,8 +323,7 @@ export default function Dashboard() {
                 // the backend saves these as the service area, so that would move the geofence to the student.
                 lat: scannedData.lat,
                 lng: scannedData.lng,
-                radius: scannedData.radius,
-                photo_proof: photoBase64 ? `data:image/jpeg;base64,${photoBase64}` : null
+                radius: scannedData.radius
             });
             if (actionType === 'in') {
                 setTimerActive(true);
