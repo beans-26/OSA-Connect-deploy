@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { AlertTriangle, Key, User, Play, X, QrCode, FileText, CircleHelp } from 'lucide-react';
+import { AlertTriangle, User, Play, QrCode, FileText, CircleHelp } from 'lucide-react';
 import QrScannerModal from '../components/QrScannerModal';
 import { useStudentTheme } from '../components/useStudentTheme';
 
@@ -127,8 +127,6 @@ const StudentDashboard = () => {
     const [logs, setLogs] = useState([]);
 
     const [loading, setLoading] = useState(true);
-    const [showAdminCode, setShowAdminCode] = useState(false);
-    const [adminCode, setAdminCode] = useState('');
     const [isScanning, setIsScanning] = useState(false);
     const [showStopScanner, setShowStopScanner] = useState(false);
     const [timerActive, setTimerActive] = useState(false);
@@ -141,66 +139,8 @@ const StudentDashboard = () => {
     const [warningCountdown, setWarningCountdown] = useState(null);
     const watchIdRef = React.useRef(null);
 
-    const [pendingActionData, setPendingActionData] = useState(null);
-    const [cameraActive, setCameraActive] = useState(false);
-    const [photoProof, setPhotoProof] = useState(null);
-    const videoRef = React.useRef(null);
-    const streamRef = React.useRef(null);
-    const canvasRef = React.useRef(null);
-
-    const startCamera = async () => {
-        setCameraActive(true);
-        setPhotoProof(null);
-        try {
-            const stream = await navigator.mediaDevices.getUserMedia({ 
-                video: { facingMode: 'environment' } 
-            });
-            streamRef.current = stream;
-            // Need a slight delay to ensure videoRef is mounted
-            setTimeout(() => {
-                if (videoRef.current) {
-                    videoRef.current.srcObject = stream;
-                }
-            }, 100);
-        } catch (err) {
-            console.error("Camera access error:", err);
-            alert("Unable to access the camera. Please allow camera permissions to continue.");
-            setCameraActive(false);
-            setPendingActionData(null);
-        }
-    };
-
-    const stopCamera = () => {
-        if (streamRef.current) {
-            streamRef.current.getTracks().forEach(track => track.stop());
-            streamRef.current = null;
-        }
-        setCameraActive(false);
-    };
-
-    const capturePhoto = () => {
-        if (videoRef.current && canvasRef.current) {
-            const video = videoRef.current;
-            const canvas = canvasRef.current;
-            
-            // Scale down to prevent payload too large errors
-            const MAX_WIDTH = 640;
-            const scaleSize = MAX_WIDTH / video.videoWidth;
-            canvas.width = MAX_WIDTH;
-            canvas.height = video.videoHeight * scaleSize;
-            
-            const ctx = canvas.getContext('2d');
-            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-            const dataUrl = canvas.toDataURL('image/jpeg', 0.6); // Compress to 60% quality
-            setPhotoProof(dataUrl);
-            stopCamera(); 
-            setCameraActive(true); // Keep modal open to show preview
-        }
-    };
-
-    const submitActionWithProof = async () => {
-        if (!pendingActionData) return;
-        
+    // Starts or stops the timer right after a valid scan (no photo step)
+    const submitAction = async (pendingActionData) => {
         try {
             const response = await fetch('/api/timelogs/log_time/', {
                 method: 'POST',
@@ -210,8 +150,7 @@ const StudentDashboard = () => {
                     action: pendingActionData.actionType,
                     lat: pendingActionData.forcedLat,
                     lng: pendingActionData.forcedLng,
-                    radius: pendingActionData.forcedRadius,
-                    photo_proof: photoProof
+                    radius: pendingActionData.forcedRadius
                 }),
             });
 
@@ -225,8 +164,6 @@ const StudentDashboard = () => {
                     setElapsed(0);
                     alert("TIMER STOPPED");
                 }
-                setShowAdminCode(false);
-                setAdminCode('');
                 fetchStudentData();
             } else {
                 let errorMsg = "Server error. Check if the backend is running.";
@@ -238,10 +175,6 @@ const StudentDashboard = () => {
             }
         } catch (err) {
             alert("Network failure processing action.");
-        } finally {
-            setCameraActive(false);
-            setPhotoProof(null);
-            setPendingActionData(null);
         }
     };
 
@@ -459,7 +392,7 @@ const StudentDashboard = () => {
     };
 
     const processCode = async (codeToProcess) => {
-        const rawCode = (codeToProcess || adminCode) || "";
+        const rawCode = codeToProcess || "";
         const payloadCode = rawCode.trim().toUpperCase();
 
         if (!activeTicket) {
@@ -551,16 +484,13 @@ const StudentDashboard = () => {
                 }
             }
 
-            const ticketId = activeTicket.id;
-            setPendingActionData({
-                ticketId,
+            await submitAction({
+                ticketId: activeTicket.id,
                 actionType,
                 forcedLat,
                 forcedLng,
                 forcedRadius
             });
-            setShowAdminCode(false);
-            startCamera();
         } catch (err) {
             console.error(err);
             if (err.code === 1) alert("PERMISSION DENIED: Please reset location permissions in your browser settings.");
@@ -582,15 +512,13 @@ const StudentDashboard = () => {
         }
 
         try {
-            const ticketId = activeTicket.id;
-            setPendingActionData({
-                ticketId,
+            await submitAction({
+                ticketId: activeTicket.id,
                 actionType: 'out',
                 forcedLat: null,
                 forcedLng: null,
                 forcedRadius: null
             });
-            startCamera();
         } catch (err) {
             alert("Network failure processing action code.");
         }
@@ -636,43 +564,6 @@ const StudentDashboard = () => {
                     onClose={() => setShowStopScanner(false)}
                     onResult={(text) => { setShowStopScanner(false); processStopCode(text); }}
                 />
-            )}
-
-            {/* Photo proof */}
-            {cameraActive && (
-                <div className="fixed inset-0 z-[60] bg-black">
-                    {!photoProof ? (
-                        <video ref={videoRef} autoPlay playsInline className="h-full w-full object-cover" />
-                    ) : (
-                        <img src={photoProof} alt="Proof" className="h-full w-full object-cover" />
-                    )}
-                    <canvas ref={canvasRef} className="hidden" />
-                    <p className="absolute left-0 right-0 top-[60px] text-center text-base font-bold text-white [text-shadow:0_1px_4px_rgba(0,0,0,.5)]">
-                        {photoProof ? 'Use this photo?' : 'Take a real-time photo'}
-                    </p>
-                    <button
-                        onClick={() => { stopCamera(); setCameraActive(false); setPendingActionData(null); setPhotoProof(null); }}
-                        className="absolute right-5 top-14 rounded-full bg-black/55 p-3 text-white"
-                    >
-                        <X size={22} />
-                    </button>
-                    <div className="absolute bottom-[60px] left-0 right-0 flex items-center justify-center px-6">
-                        {!photoProof ? (
-                            <button onClick={capturePhoto} aria-label="Capture photo" className="flex h-[76px] w-[76px] items-center justify-center rounded-full border-4 border-white bg-white/25">
-                                <span className="h-[58px] w-[58px] rounded-full bg-white" />
-                            </button>
-                        ) : (
-                            <div className="flex w-full max-w-md gap-3">
-                                <button onClick={() => { setPhotoProof(null); startCamera(); }} className="flex-1 rounded-[14px] bg-white/90 p-4 text-sm font-bold uppercase tracking-[1px] text-[#0f172a]">
-                                    Retake
-                                </button>
-                                <button onClick={submitActionWithProof} className="flex-1 rounded-[14px] bg-[#1e3a8a] p-4 text-sm font-bold uppercase tracking-[1px] text-white">
-                                    Submit
-                                </button>
-                            </div>
-                        )}
-                    </div>
-                </div>
             )}
 
             <main className="mx-auto w-full max-w-xl px-5 pb-16 pt-4">
@@ -761,36 +652,9 @@ const StudentDashboard = () => {
                             <p className="mb-5 text-sm font-medium leading-5 text-[var(--s-muted)]">
                                 Scan an activity QR code to start<br />tracking your community service hours.
                             </p>
-                            {showAdminCode ? (
-                                <div className="mx-auto max-w-xs space-y-3">
-                                    <input
-                                        type="password"
-                                        autoFocus
-                                        placeholder="Enter staff code"
-                                        className="w-full rounded-lg border border-[var(--s-border)] bg-[var(--s-bg)] p-3 text-center font-semibold tracking-widest text-[var(--s-text)] outline-none focus:border-[var(--s-primary)]"
-                                        value={adminCode}
-                                        onChange={(e) => setAdminCode(e.target.value)}
-                                        onKeyDown={(e) => e.key === 'Enter' && processCode()}
-                                    />
-                                    <div className="flex gap-3">
-                                        <button onClick={() => { setShowAdminCode(false); setAdminCode(''); }} className="flex-1 rounded-xl bg-[var(--s-bg)] p-3 text-[13px] font-bold text-[var(--s-muted)]">
-                                            Cancel
-                                        </button>
-                                        <button onClick={() => processCode()} className="flex-1 rounded-xl bg-[var(--s-primary)] p-3 text-[13px] font-bold text-white">
-                                            Submit
-                                        </button>
-                                    </div>
-                                </div>
-                            ) : (
-                                <>
-                                    <button onClick={() => setIsScanning(true)} className="rounded-xl bg-[var(--s-primary)] px-7 py-3 text-[13px] font-bold tracking-[0.5px] text-white">
-                                        Scan QR Code
-                                    </button>
-                                    <button onClick={() => setShowAdminCode(true)} className="mx-auto mt-3 flex items-center justify-center gap-1.5 text-xs font-bold text-[var(--s-muted)] hover:text-[var(--s-primary)]">
-                                        <Key size={12} /> Enter code manually
-                                    </button>
-                                </>
-                            )}
+                            <button onClick={() => setIsScanning(true)} className="rounded-xl bg-[var(--s-primary)] px-7 py-3 text-[13px] font-bold tracking-[0.5px] text-white">
+                                Scan QR Code
+                            </button>
                         </div>
                     )}
                 </section>
