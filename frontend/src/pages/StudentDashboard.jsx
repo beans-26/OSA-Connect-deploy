@@ -128,7 +128,6 @@ const StudentDashboard = () => {
     const [subGreeting] = useState(getSubGreetingText);
     const [violations, setViolations] = useState([]);
     const [tickets, setTickets] = useState([]);
-    const [logs, setLogs] = useState([]);
 
     const [loading, setLoading] = useState(true);
     const [isScanning, setIsScanning] = useState(false);
@@ -337,21 +336,12 @@ const StudentDashboard = () => {
     const fetchStudentData = async () => {
         if (!user.username) return;
         try {
-            const vResponse = await fetch('/api/violations/');
-            const allViolations = await vResponse.json();
-
-            let allTickets = [];
-            try {
-                const tResponse = await fetch('/api/etickets/?t=' + Date.now());
-                allTickets = await tResponse.json();
-                console.log('DEBUG: All Tickets Received:', allTickets);
-            } catch (e) { console.log('ETickets error', e); }
-
-            let allLogs = [];
-            try {
-                const lResponse = await fetch('/api/timelogs/?t=' + Date.now());
-                allLogs = await lResponse.json();
-            } catch (e) { console.log('Timelogs error', e); }
+            // Both at once (they used to load one after the other, followed by every student's
+            // time logs and photos, which this page never used and which took the longest)
+            const [allViolations, allTickets] = await Promise.all([
+                fetch('/api/violations/').then((r) => r.json()),
+                fetch('/api/etickets/?t=' + Date.now()).then((r) => r.json()).catch(() => []),
+            ]);
 
             const studentViolations = allViolations.filter(v =>
                 v.student_details?.student_id === user.username
@@ -365,7 +355,6 @@ const StudentDashboard = () => {
 
             setViolations(studentViolations);
             setTickets(studentTickets);
-            setLogs(allLogs);
 
             // Check for active Backend Timer
             if (openTickets.length > 0) {
