@@ -158,12 +158,12 @@ const Analytics = () => {
             <Sidebar role={userRole} />
             <div className="flex-1 flex">
             <div className="flex-1 h-screen overflow-y-auto custom-scrollbar w-full">
-                <div className="sticky top-0 z-40 bg-slate-50 dark:bg-slate-900 px-6 md:px-10 pt-24 md:pt-10 pb-2 border-b border-transparent">
+                <div className="sticky top-0 z-40 bg-slate-50 dark:bg-slate-900 px-4 md:px-10 pt-[76px] lg:pt-10 pb-2 border-b border-transparent">
                     <GlobalSearch />
                 </div>
-                <main className="page-enter flex-1 p-6 md:p-10 pt-0 md:pt-0 w-full max-w-full">
-                    <header className="mb-12">
-                        <h1 className="text-4xl font-extrabold text-slate-900 dark:text-white tracking-tight">Analytics Dashboard</h1>
+                <main className="page-enter flex-1 px-4 pb-8 md:p-10 md:pt-0 w-full max-w-full">
+                    <header className="mb-6 md:mb-12">
+                        <h1 className="text-2xl md:text-4xl font-extrabold text-slate-900 dark:text-white tracking-tight">Analytics Dashboard</h1>
                         <p className="text-slate-500 dark:text-slate-400 mt-2 font-medium">Real-time trends and data-driven insights into campus compliance.</p>
                     </header>
 

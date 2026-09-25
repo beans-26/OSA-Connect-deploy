@@ -437,15 +437,15 @@ const userRole = JSON.parse(localStorage.getItem('user') || '{}').role || 'staff
         <div className="flex bg-slate-50 dark:bg-slate-900 min-h-screen relative font-sans">
             <Sidebar role={userRole} />
             <div className="flex-1 h-screen overflow-y-auto custom-scrollbar w-full">
-                <div className="sticky top-0 z-40 bg-slate-50 dark:bg-slate-900 px-6 md:px-10 pt-24 md:pt-10 pb-2 border-b border-transparent">
+                <div className="sticky top-0 z-40 bg-slate-50 dark:bg-slate-900 px-4 md:px-10 pt-[76px] lg:pt-10 pb-2 border-b border-transparent">
                     <GlobalSearch />
                 </div>
                 
                 <div className="flex flex-col xl:flex-row w-full min-h-full">
                     {/* Main Content Area */}
-                    <main className="page-enter flex-1 p-6 md:p-10 pt-0 md:pt-0 pb-10">
-                        <header className="mb-6 text-center md:text-left shrink-0">
-                            <h1 className="text-3xl md:text-4xl font-extrabold text-slate-900 dark:text-white tracking-tight">{getGreeting()}, Admin!</h1>
+                    <main className="page-enter flex-1 px-4 pb-10 md:p-10 md:pt-0">
+                        <header className="mb-6 shrink-0">
+                            <h1 className="text-2xl md:text-4xl font-extrabold text-slate-900 dark:text-white tracking-tight">{getGreeting()}, Admin!</h1>
                             <p className="text-slate-400 dark:text-slate-500 mt-1 font-medium text-sm italic">{subGreeting}</p>
                         </header>
  

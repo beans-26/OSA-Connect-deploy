@@ -62,18 +62,18 @@ const PendingReviews = () => {
         <div className="flex bg-slate-50 dark:bg-slate-900 min-h-screen relative font-sans">
             <Sidebar role={userRole} />
             <div className="flex-1 h-screen overflow-y-auto custom-scrollbar w-full">
-                <div className="sticky top-0 z-40 bg-slate-50 dark:bg-slate-900 px-6 md:px-10 pt-24 md:pt-10 pb-2 border-b border-transparent">
+                <div className="sticky top-0 z-40 bg-slate-50 dark:bg-slate-900 px-4 md:px-10 pt-[76px] lg:pt-10 pb-2 border-b border-transparent">
                     <GlobalSearch />
                 </div>
-                <main className="page-enter flex-1 p-4 md:p-10 pt-0 md:pt-0 w-full max-w-full">
-                <header className="mb-6 md:mb-8 text-center md:text-left flex flex-col md:flex-row items-center gap-4">
+                <main className="page-enter flex-1 px-4 pb-8 md:p-10 md:pt-0 w-full max-w-full">
+                <header className="mb-6 md:mb-8 flex flex-col md:flex-row md:items-center gap-4">
                     <div>
-                        <h1 className="text-3xl md:text-4xl font-extrabold text-slate-900 dark:text-white tracking-tight">Pending Reviews</h1>
+                        <h1 className="text-2xl md:text-4xl font-extrabold text-slate-900 dark:text-white tracking-tight">Pending Reviews</h1>
                         <p className="text-slate-500 dark:text-slate-400 mt-2 font-medium text-sm">Validate and synchronize violation reports from field units.</p>
                     </div>
                 </header>
 
-                <div className="card-premium border-2 border-white shadow-xl p-6 md:p-10">
+                <div className="card-premium border-2 border-white shadow-xl p-4 md:p-10">
                     <div className="flex flex-col md:flex-row justify-between items-center mb-4 pb-4 border-b border-slate-50 gap-4">
                         <div className="relative w-full md:max-w-md">
                             <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 dark:text-slate-600" size={20} />

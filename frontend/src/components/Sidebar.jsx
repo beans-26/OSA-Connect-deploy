@@ -138,8 +138,8 @@ const Sidebar = ({ role }) => {
 
     return (
         <>
-            {/* Mobile Top Bar */}
-            <div className="lg:hidden fixed top-0 left-0 right-0 z-40 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 px-4 py-3 flex items-center justify-between shadow-sm">
+            {/* Mobile Top Bar: above the pages' sticky search headers (z-40), below modals (z-50) */}
+            <div className="lg:hidden fixed top-0 left-0 right-0 z-[45] bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 px-4 py-3 flex items-center justify-between shadow-sm">
                 <div className="flex items-center gap-2">
                     <img src={logo} alt="OSA Connect Logo" className="h-8 w-auto object-contain" />
                 </div>
@@ -159,7 +159,7 @@ const Sidebar = ({ role }) => {
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
                             exit={{ opacity: 0 }}
-                            className="lg:hidden fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-40"
+                            className="lg:hidden fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[46]"
                             onClick={() => setMobileOpen(false)}
                         />
                         <motion.aside
@@ -167,7 +167,7 @@ const Sidebar = ({ role }) => {
                             animate={{ x: 0 }}
                             exit={{ x: -280 }}
                             transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-                            className="lg:hidden fixed top-0 left-0 w-[280px] h-screen bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 z-50 py-6 flex flex-col shadow-2xl"
+                            className="lg:hidden fixed top-0 left-0 w-[280px] h-screen bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 z-[47] py-6 flex flex-col shadow-2xl"
                         >
                             {sidebarContent}
                         </motion.aside>
