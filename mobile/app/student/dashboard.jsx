@@ -12,6 +12,7 @@ import api from '../../services/api';
 import { useRouter } from 'expo-router';
 import MapViewComponent from '../../components/MapViewComponent';
 import { onCameraResult } from '../../components/cameraResults';
+import { parseServiceQr, NOT_A_START_QR, NOT_A_STOP_QR } from '../../components/serviceQr';
 import { useTheme } from '../../components/ThemeContext';
 
 // Haversine formula
@@ -295,26 +296,21 @@ export default function Dashboard() {
     }, [location, targetLocation, timerActive, locationEnabled]);
 
     const handleBarCodeScanned = async ({ data }) => {
-        let action = 'in';
-        let parsedData = {};
-        try {
-            parsedData = JSON.parse(data);
-            action = parsedData.action || 'in';
-        } catch (e) {
-            action = timerActive ? 'out' : 'in';
+        // The scanner already rejects anything that isn't an OSA code (app/student/scan.jsx); checked again here
+        const code = parseServiceQr(data);
+        if (!code || code.action !== (timerActive ? 'out' : 'in')) {
+            showAlert('Invalid QR Code', timerActive ? NOT_A_STOP_QR : NOT_A_START_QR);
+            return;
         }
-        if (!parsedData.eticket_id) {
-            const activeTicket = tickets.find(t => t.status === 'Active' || t.status === 'Ongoing');
-            if (activeTicket) {
-                parsedData.eticket_id = activeTicket.id;
-            } else {
-                showAlert('Error', "You don't have any active service tickets.");
-                return;
-            }
+        const activeTicket = tickets.find(t => t.status === 'Ongoing') || tickets.find(t => t.status === 'Active');
+        if (!activeTicket) {
+            showAlert('Error', "You don't have any active service tickets.");
+            return;
         }
+        const scannedData = { eticket_id: activeTicket.id, lat: code.lat, lng: code.lng, radius: code.radius };
         // Proof selfie is its own screen (app/student/selfie.jsx); it hands the photo back here.
         // Opened after a short delay so the scanner's camera has been released.
-        onCameraResult('selfie', (photoBase64) => submitLog(action, parsedData, photoBase64));
+        onCameraResult('selfie', (photoBase64) => submitLog(code.action, scannedData, photoBase64));
         setTimeout(() => router.push('/student/selfie'), 600);
     };
 
@@ -325,9 +321,11 @@ export default function Dashboard() {
             await api.post('/timelogs/log_time/', {
                 eticket_id: scannedData.eticket_id,
                 action: actionType,
-                lat: location?.latitude,
-                lng: location?.longitude,
-                radius: 50,
+                // The hub from the QR code, as the website sends it. Never the phone's own position:
+                // the backend saves these as the service area, so that would move the geofence to the student.
+                lat: scannedData.lat,
+                lng: scannedData.lng,
+                radius: scannedData.radius,
                 photo_proof: photoBase64 ? `data:image/jpeg;base64,${photoBase64}` : null
             });
             if (actionType === 'in') {
