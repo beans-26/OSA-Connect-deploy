@@ -26,6 +26,8 @@ export default function Login() {
     // Follows the app's light/dark setting like the other screens
     const { isDarkMode, colors } = useTheme();
     const styles = getStyles(colors, isDarkMode);
+    // Faint, see-through hint text, same as the website's login
+    const faintPlaceholder = isDarkMode ? 'rgba(148,163,184,0.3)' : 'rgba(148,163,184,0.4)';
 
     const handleLogin = async () => {
         // Enter can fire this while a request is still running
@@ -98,7 +100,8 @@ export default function Login() {
                             <User size={18} color={colors.textMuted} style={styles.inputIcon} />
                             <TextInput
                                 style={styles.input}
-                               
+                                placeholder="Student ID / Username"
+                                placeholderTextColor={faintPlaceholder}
                                 value={username}
                                 onChangeText={setUsername}
                                 autoCapitalize="none"
@@ -114,7 +117,8 @@ export default function Login() {
                             <Lock size={18} color={colors.textMuted} style={styles.inputIcon} />
                             <TextInput
                                 style={styles.input}
-                               
+                                placeholder="Password"
+                                placeholderTextColor={faintPlaceholder}
                                 value={password}
                                 onChangeText={setPassword}
                                 secureTextEntry={!showPassword}
