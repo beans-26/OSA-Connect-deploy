@@ -2,16 +2,15 @@ import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Animated, Easing, Platform, Vibration, useWindowDimensions, BackHandler } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CameraView, useCameraPermissions } from 'expo-camera';
-import { X, Zap, ZapOff } from 'lucide-react-native';
+import { X } from 'lucide-react-native';
 
 // Full-screen QR scanner shared by the student and staff screens.
 // Same look as the website's QrScannerModal: dimmed surroundings, corner-bracket viewfinder,
-// sweeping laser line, success flash, and a flashlight toggle.
+// sweeping laser line and success flash.
 // `validate(data)` is optional: return an error message to reject a code and keep scanning.
 export default function QrScannerView({ title, subtitle, accent = '#60a5fa', onScanned, onClose, validate }) {
     const { width, height } = useWindowDimensions();
     const size = Math.min(width * 0.7, 280);
-    const [torchOn, setTorchOn] = useState(false);
     const [detected, setDetected] = useState(false);
     const doneRef = useRef(false);
     const laser = useRef(new Animated.Value(0)).current;
@@ -80,7 +79,6 @@ export default function QrScannerView({ title, subtitle, accent = '#60a5fa', onS
             <CameraView
                 style={{ flex: 1 }}
                 facing="back"
-                enableTorch={torchOn}
                 onBarcodeScanned={detected ? undefined : handleScan}
                 barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
                 onCameraReady={() => setCameraReady(true)}
@@ -129,7 +127,7 @@ export default function QrScannerView({ title, subtitle, accent = '#60a5fa', onS
                 </TouchableOpacity>
             </View>
 
-            {/* Bottom hint + flashlight */}
+            {/* Bottom hint */}
             <View style={[styles.bottomBar, { bottom: insets.bottom + 32 }]}>
                 {mountError || (permission && !permission.granted) ? (
                     <View style={styles.errorBox}>
@@ -147,15 +145,6 @@ export default function QrScannerView({ title, subtitle, accent = '#60a5fa', onS
                     <Text style={styles.hint}>
                         {detected ? 'QR code detected' : cameraReady ? 'Align the QR code inside the frame' : 'Starting camera…'}
                     </Text>
-                )}
-                {Platform.OS !== 'web' && (
-                    <TouchableOpacity
-                        onPress={() => setTorchOn((on) => !on)}
-                        style={[styles.torchButton, torchOn && styles.torchButtonOn]}
-                        accessibilityLabel={torchOn ? 'Turn off flashlight' : 'Turn on flashlight'}
-                    >
-                        {torchOn ? <ZapOff size={22} color="#0f172a" /> : <Zap size={22} color="#fff" />}
-                    </TouchableOpacity>
                 )}
             </View>
         </View>
@@ -260,13 +249,5 @@ const styles = StyleSheet.create({
         fontSize: 14,
         fontWeight: '600',
         textAlign: 'center',
-    },
-    torchButton: {
-        padding: 16,
-        borderRadius: 32,
-        backgroundColor: 'rgba(255,255,255,0.15)',
-    },
-    torchButtonOn: {
-        backgroundColor: '#fbbf24',
     },
 });
