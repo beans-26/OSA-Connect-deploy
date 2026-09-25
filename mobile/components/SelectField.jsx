@@ -9,7 +9,7 @@ import { useTheme } from './ThemeContext';
 //
 // options: array of strings or { label, value }. A value that isn't in the list (e.g. an older
 // course name on a student record) is still displayed as-is.
-export default function SelectField({ value, options, placeholder, onChange, title, style, textStyle, iconColor, searchable = false }) {
+export default function SelectField({ value, options, placeholder, placeholderColor, onChange, title, style, textStyle, iconColor, searchable = false }) {
     const { colors } = useTheme();
     const insets = useSafeAreaInsets();
     const styles = getStyles(colors);
@@ -39,7 +39,7 @@ export default function SelectField({ value, options, placeholder, onChange, tit
                 accessibilityLabel={title || placeholder}
             >
                 <Text
-                    style={[styles.fieldText, !selectedLabel && { color: colors.textMuted }, textStyle]}
+                    style={[styles.fieldText, !selectedLabel && { color: placeholderColor || colors.textMuted }, textStyle]}
                     numberOfLines={1}
                 >
                     {selectedLabel || placeholder}
