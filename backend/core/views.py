@@ -809,7 +809,8 @@ class ETicketViewSet(viewsets.ModelViewSet):
 
 
 class TimeLogViewSet(viewsets.ModelViewSet):
-    queryset = TimeLog.objects.all()
+    # Selfie proofs were dropped; old ones made this list many MB, so the photo fields are never loaded
+    queryset = TimeLog.objects.exclude('photo_proof_in', 'photo_proof_out')
     serializer_class = TimeLogSerializer
     permission_classes = [AllowAny]
 
@@ -858,7 +859,6 @@ class TimeLogViewSet(viewsets.ModelViewSet):
                 lat = request.data.get('lat')
                 lng = request.data.get('lng')
                 radius = request.data.get('radius')
-                photo_proof = request.data.get('photo_proof')
                 site_code = str(request.data.get('site_code') or '').strip().upper()
 
                 if site_code:
@@ -886,12 +886,11 @@ class TimeLogViewSet(viewsets.ModelViewSet):
                     return Response(TimeLogSerializer(existing_log).data)
                 
                 # Create new session only if none exists
-                log = TimeLog(eticket=eticket, photo_proof_in=photo_proof).save()
+                log = TimeLog(eticket=eticket).save()
                 eticket.status = "Ongoing"
                 eticket.save()
                 return Response(TimeLogSerializer(log).data)
             else:
-                photo_proof = request.data.get('photo_proof')
                 site_code = str(request.data.get('site_code') or '').strip().upper()
                 # Ending with a site QR: it must be the site the session started at
                 if site_code and eticket.site_code and site_code != eticket.site_code:
@@ -903,8 +902,6 @@ class TimeLogViewSet(viewsets.ModelViewSet):
                     log.time_out = datetime.datetime.now()
                     duration = (log.time_out - log.time_in).total_seconds()
                     log.duration_seconds = duration
-                    if photo_proof:
-                        log.photo_proof_out = photo_proof
                     log.save()
                     
                     hours_to_deduct = duration / 3600
