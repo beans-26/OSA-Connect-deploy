@@ -315,20 +315,7 @@ const StaffSettings = () => {
                                         </div>
                                     </div>
 
-                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                                        <div className="bg-indigo-950 p-6 flex flex-col items-center justify-center text-center rounded-2xl shadow-md border-2 border-indigo-800/30 group hover:border-indigo-500 transition-all duration-500">
-                                            <h4 className="font-black text-lg uppercase tracking-tighter text-indigo-400 mb-4 flex items-center gap-2">
-                                                <Clock size={16} /> CITC Building
-                                            </h4>
-                                            <div className="bg-white dark:bg-slate-800 p-4 rounded-xl mb-4 shadow-lg group-hover:scale-105 transition-transform duration-500">
-                                                <QRCode value="XKMBPQLVJZWFRCYTNDHSGEUIA" size={100} level="H" />
-                                            </div>
-                                            <div className="bg-indigo-900/50 text-indigo-300 rounded-xl px-4 py-2 font-mono font-black text-[9px] border border-indigo-700/50 tracking-widest uppercase">
-                                                XKMBPQLVJZWFRCYTNDHSGEUIA
-                                            </div>
-                                            <p className="text-indigo-400/60 text-[9px] font-bold mt-3 uppercase tracking-widest">Start/Resume Tracking</p>
-                                        </div>
-
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                         <div className="bg-rose-950 p-6 flex flex-col items-center justify-center text-center rounded-2xl shadow-md border-2 border-rose-800/30 group hover:border-rose-500 transition-all duration-500">
                                             <h4 className="font-black text-lg uppercase tracking-tighter text-rose-400 mb-4 flex items-center gap-2">
                                                 <Shield size={16} /> Stop Service
