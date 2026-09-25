@@ -197,14 +197,14 @@ const Archives = () => {
         <div className="flex bg-slate-50 dark:bg-slate-900 min-h-screen">
             <Sidebar role={userRole} />
             <div className="flex-1 h-screen overflow-y-auto custom-scrollbar w-full">
-                <div className="sticky top-0 z-40 bg-slate-50 dark:bg-slate-900 px-6 md:px-10 pt-24 md:pt-10 pb-2 border-b border-transparent">
+                <div className="sticky top-0 z-40 bg-slate-50 dark:bg-slate-900 px-4 md:px-10 pt-[76px] lg:pt-10 pb-2 border-b border-transparent">
                     <GlobalSearch />
                 </div>
-                <main className="page-enter flex-1 p-4 md:p-10 pt-0 md:pt-0 w-full max-w-full">
-                <header className="mb-8">
-                    <div className="flex justify-between items-end">
+                <main className="page-enter flex-1 px-4 pb-8 md:p-10 md:pt-0 w-full max-w-full">
+                <header className="mb-6 md:mb-8">
+                    <div className="flex flex-col sm:flex-row sm:justify-between sm:items-end gap-4">
                         <div className="print:hidden">
-                            <h1 className="text-3xl md:text-4xl font-extrabold text-slate-900 dark:text-white tracking-tight flex items-center gap-3">
+                            <h1 className="text-2xl md:text-4xl font-extrabold text-slate-900 dark:text-white tracking-tight flex items-center gap-3">
                                 Violation Archives
                             </h1>
                             <p className="text-slate-500 dark:text-slate-400 mt-2 font-medium text-sm">Immutable historical record of completed and dismissed violations.</p>
@@ -220,7 +220,7 @@ const Archives = () => {
                     </div>
                 </header>
 
-                <div className="flex gap-4 mb-6 print:hidden">
+                <div className="flex gap-3 mb-6 print:hidden">
                     <button
                         onClick={() => setShowDismissed(false)}
                         className={`px-6 py-3 rounded-xl font-semibold text-sm ${!showDismissed ? 'bg-ustp-blue text-white shadow-lg' : 'bg-slate-50 dark:bg-slate-900 text-slate-600 dark:text-slate-400 border-2 border-slate-100 dark:border-slate-700'}`}
@@ -235,7 +235,7 @@ const Archives = () => {
                     </button>
                 </div>
 
-                <div className="flex gap-4 mb-4 print:hidden">
+                <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 mb-4 print:hidden">
                     <div className="flex-1 relative">
                         <Search size={18} className="absolute top-1/2 left-5 -translate-y-1/2 text-slate-300 dark:text-slate-600" />
                         <input
@@ -247,7 +247,7 @@ const Archives = () => {
                     </div>
                     <div className="relative">
                         <select
-                            className="appearance-none bg-slate-50 dark:bg-slate-900 border-2 border-slate-100 dark:border-slate-700 rounded-xl py-4 pl-6 pr-12 text-sm font-semibold text-slate-600 dark:text-slate-400 outline-none focus:border-ustp-blue cursor-pointer"
+                            className="w-full sm:w-auto appearance-none bg-slate-50 dark:bg-slate-900 border-2 border-slate-100 dark:border-slate-700 rounded-xl py-4 pl-6 pr-12 text-sm font-semibold text-slate-600 dark:text-slate-400 outline-none focus:border-ustp-blue cursor-pointer"
                             value={filterType}
                             onChange={(e) => setFilterType(e.target.value)}
                         >
