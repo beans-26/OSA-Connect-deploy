@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { AlertTriangle, User, Play, QrCode, FileText, CircleHelp } from 'lucide-react';
+import { AlertTriangle, User, Play, QrCode, FileText, CircleHelp, Clock } from 'lucide-react';
 import QrScannerModal from '../components/QrScannerModal';
 import { useStudentTheme } from '../components/useStudentTheme';
 
@@ -100,7 +100,8 @@ const GeofenceMap = ({ hub, location, isOutOfBounds, isDarkMode }) => {
     }, [location, isOutOfBounds, hub?.radius]);
 
     return (
-        <div className="relative mt-3 h-[200px] w-full overflow-hidden rounded-[14px] border border-[var(--s-border)]">
+        // isolate: Leaflet's panes use z-index 400+, which otherwise drew the map over the QR scanner (z-70)
+        <div className="relative isolate mt-3 h-[200px] w-full overflow-hidden rounded-[14px] border border-[var(--s-border)]">
             <div ref={containerRef} className={`h-full w-full ${isDarkMode ? 'brightness-[.8] contrast-[1.1]' : ''}`} />
             <div className="absolute right-3 top-3 z-[500] rounded-full bg-[var(--s-card)] px-3 py-1.5 text-[9px] font-black tracking-[1px] text-[var(--s-text)] shadow">
                 LIVE GPS FEED
@@ -162,6 +163,7 @@ const StudentDashboard = () => {
             if (response.ok) {
                 if (pendingActionData.actionType === 'in') {
                     setStartTime(Date.now());
+                    setElapsed(0);
                     setTimerActive(true);
                 } else {
                     setTimerActive(false);
@@ -188,6 +190,12 @@ const StudentDashboard = () => {
     const activeTicket = tickets.find(t => t.status === 'Ongoing') || tickets.find(t => t.status === 'Active');
     // Stored hours (before the open session); the live elapsed time is subtracted below
     const displayHours = activeTicket ? (activeTicket.base_remaining_hours ?? activeTicket.remaining_hours) : 0;
+    // Same as the mobile app: a session can't be ended in its first 20 seconds.
+    // Re-rendered every second by the countdown's elapsed tick.
+    const END_COOLDOWN_S = 20;
+    const endCooldown = timerActive && startTime
+        ? Math.max(0, END_COOLDOWN_S - Math.floor((Date.now() - startTime) / 1000))
+        : 0;
 
     useEffect(() => {
         fetchStudentData();
@@ -646,11 +654,18 @@ const StudentDashboard = () => {
                                 </div>
                             )}
 
+                            {endCooldown > 0 && (
+                                <div className="mt-4 flex items-center justify-center gap-1.5 rounded-xl border border-[#fde68a] bg-[#fffbeb] p-2.5 text-xs font-bold text-[#b45309]">
+                                    <Clock size={13} className="text-[#f59e0b]" />
+                                    Please wait {endCooldown}s before ending session
+                                </div>
+                            )}
                             <button
                                 onClick={() => setShowStopScanner(true)}
-                                className="mt-4 w-full rounded-[14px] bg-[var(--s-primary)] p-4 text-sm font-bold uppercase tracking-[1px] text-white"
+                                disabled={endCooldown > 0}
+                                className="mt-4 w-full rounded-[14px] bg-[var(--s-primary)] p-4 text-sm font-bold uppercase tracking-[1px] text-white disabled:opacity-50"
                             >
-                                Scan to End Service
+                                {endCooldown > 0 ? `Scan to End Service (${endCooldown}s)` : 'Scan to End Service'}
                             </button>
                         </>
                     ) : (
