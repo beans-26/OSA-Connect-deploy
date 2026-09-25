@@ -637,7 +637,8 @@ const StudentDashboard = () => {
                                 </span>
                             </div>
 
-                            {hub && (
+                            {/* Unmounted while a scanner is open: iPhone Safari drew the map over the camera */}
+                            {hub && !isScanning && !showStopScanner && (
                                 <GeofenceMap hub={hub} location={location} isOutOfBounds={isOutOfBounds} isDarkMode={isDarkMode} />
                             )}
 
