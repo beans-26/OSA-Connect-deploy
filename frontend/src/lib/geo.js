@@ -1,0 +1,143 @@
+// GPS helpers shared by Admin > Service Sites (registering a site) and, later, the student
+// check-in that keeps a timer running only inside a site's radius.
+//
+// Geolocation only works in a secure context: HTTPS, or http://localhost while developing.
+
+export class GeoError extends Error {
+    constructor(code, message) {
+        super(message);
+        this.code = code; // 'insecure' | 'unsupported' | 'permission' | 'unavailable' | 'not-enough' | 'cancelled'
+    }
+}
+
+export const GEO_MESSAGES = {
+    insecure: 'Location only works on a secure (https://) page. Open the site through its https:// address.',
+    unsupported: "This browser can't read your location. Try Chrome or Safari on your phone.",
+    permission:
+        'Location access is blocked. Allow it in your browser: tap the lock/info icon next to the address bar, ' +
+        'set Location to "Allow", then try again. On iPhone also check Settings > Privacy & Security > Location Services > Safari.',
+    unavailable: "Your phone couldn't get a GPS fix. Turn on Location/GPS and try again outdoors or near a window.",
+    'not-enough': 'Not enough accurate readings. Try again outdoors or near a window.',
+    cancelled: 'Location capture was cancelled.',
+};
+
+const geoError = (code) => new GeoError(code, GEO_MESSAGES[code]);
+
+/** Throws a GeoError if this page can't use geolocation at all. */
+export const assertGeolocationAvailable = () => {
+    if (typeof window !== 'undefined' && window.isSecureContext === false) throw geoError('insecure');
+    if (typeof navigator === 'undefined' || !navigator.geolocation) throw geoError('unsupported');
+};
+
+/** 'granted' | 'denied' | 'prompt' | 'unknown' (Safari may not support the Permissions API). */
+export const getLocationPermission = async () => {
+    try {
+        const result = await navigator.permissions?.query({ name: 'geolocation' });
+        return result?.state || 'unknown';
+    } catch {
+        return 'unknown';
+    }
+};
+
+/**
+ * Collects GPS readings for `durationMs` and averages the accurate ones.
+ *
+ * Readings with accuracy worse than `maxAccuracyM` are discarded. Resolves with
+ * { latitude, longitude, accuracy, samples }; rejects with a GeoError ('not-enough' when fewer
+ * than `minSamples` good readings arrived). `onProgress` gets
+ * { secondsLeft, goodCount, totalCount, lastAccuracy } about once a second and on every reading.
+ * Pass an AbortSignal to cancel.
+ */
+export const captureLocation = ({
+    durationMs = 30000,
+    maxAccuracyM = 25,
+    minSamples = 5,
+    onProgress,
+    signal,
+} = {}) =>
+    new Promise((resolve, reject) => {
+        try {
+            assertGeolocationAvailable();
+        } catch (e) {
+            reject(e);
+            return;
+        }
+
+        const good = [];
+        let totalCount = 0;
+        let lastAccuracy = null;
+        let finished = false;
+        const endsAt = Date.now() + durationMs;
+
+        const report = () =>
+            onProgress?.({
+                secondsLeft: Math.max(0, Math.ceil((endsAt - Date.now()) / 1000)),
+                goodCount: good.length,
+                totalCount,
+                lastAccuracy,
+            });
+
+        const finish = (error, result) => {
+            if (finished) return;
+            finished = true;
+            navigator.geolocation.clearWatch(watchId);
+            clearInterval(ticker);
+            clearTimeout(timer);
+            signal?.removeEventListener('abort', onAbort);
+            if (error) reject(error);
+            else resolve(result);
+        };
+
+        const onAbort = () => finish(geoError('cancelled'));
+
+        const watchId = navigator.geolocation.watchPosition(
+            ({ coords }) => {
+                totalCount += 1;
+                lastAccuracy = coords.accuracy;
+                if (coords.accuracy <= maxAccuracyM) {
+                    good.push({ latitude: coords.latitude, longitude: coords.longitude, accuracy: coords.accuracy });
+                }
+                report();
+            },
+            (err) => {
+                // Timeouts and brief signal loss are retried by the watch itself; these two are final
+                if (err.code === err.PERMISSION_DENIED) finish(geoError('permission'));
+                else if (err.code === err.POSITION_UNAVAILABLE && totalCount === 0) finish(geoError('unavailable'));
+            },
+            { enableHighAccuracy: true, maximumAge: 0 }
+        );
+
+        const ticker = setInterval(report, 1000);
+        const timer = setTimeout(() => {
+            if (good.length < minSamples) {
+                finish(geoError('not-enough'));
+                return;
+            }
+            const avg = (key) => good.reduce((sum, r) => sum + r[key], 0) / good.length;
+            finish(null, {
+                latitude: avg('latitude'),
+                longitude: avg('longitude'),
+                accuracy: avg('accuracy'),
+                samples: good.length,
+            });
+        }, durationMs);
+
+        if (signal?.aborted) onAbort();
+        else signal?.addEventListener('abort', onAbort);
+        report();
+    });
+
+/** Great-circle distance in meters between two { latitude, longitude } points. */
+export const distanceMeters = (a, b) => {
+    const R = 6371000;
+    const toRad = (d) => (d * Math.PI) / 180;
+    const dLat = toRad(b.latitude - a.latitude);
+    const dLng = toRad(b.longitude - a.longitude);
+    const h =
+        Math.sin(dLat / 2) ** 2 +
+        Math.cos(toRad(a.latitude)) * Math.cos(toRad(b.latitude)) * Math.sin(dLng / 2) ** 2;
+    return 2 * R * Math.asin(Math.sqrt(h));
+};
+
+/** True when `point` is inside the circle around `site` ({ latitude, longitude, radius_m }). */
+export const isWithinSite = (point, site) => distanceMeters(point, site) <= site.radius_m;
