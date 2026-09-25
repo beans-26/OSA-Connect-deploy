@@ -93,7 +93,7 @@ export default function Login() {
                     ) : null}
 
                     <View style={styles.inputGroup}>
-                        <Text style={styles.label}>Student ID</Text>
+                        <Text style={styles.label}>Student ID / Username</Text>
                         <View style={styles.inputContainer}>
                             <User size={18} color={colors.textMuted} style={styles.inputIcon} />
                             <TextInput
