@@ -4,7 +4,16 @@ import { Shield, LayoutDashboard, User, AlertTriangle, Clock, LogOut, Menu, X, U
 import { motion, AnimatePresence } from 'framer-motion';
 import logo from '../assets/logo.png';
 
+// Every page renders its own Sidebar, so it remounts on each navigation.
+// Only slide it in the first time; after that it should stay put while the content animates.
+let hasSlidIn = false;
+
 const Sidebar = ({ role }) => {
+    const [slideIn] = useState(() => {
+        const first = !hasSlidIn;
+        hasSlidIn = true;
+        return first;
+    });
     const [mobileOpen, setMobileOpen] = useState(false);
     const [collapsedSections, setCollapsedSections] = useState({});
 
@@ -168,7 +177,7 @@ const Sidebar = ({ role }) => {
 
             {/* Desktop Sidebar */}
             <motion.aside
-                initial={{ x: -100, opacity: 0 }}
+                initial={slideIn ? { x: -100, opacity: 0 } : false}
                 animate={{ x: 0, opacity: 1 }}
                 className="hidden lg:flex w-72 h-screen bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 sticky top-0 py-8 flex-col shrink-0"
             >
