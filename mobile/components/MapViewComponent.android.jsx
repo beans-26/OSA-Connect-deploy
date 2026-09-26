@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, Image, StyleSheet } from 'react-native';
 
 // Android map drawn from OpenStreetMap tiles with plain Views, so it looks like the website's
@@ -14,8 +14,39 @@ const TILE = 256;
 const MIN_ZOOM = 3;
 const MAX_ZOOM = 18;
 const TILE_URL = (z, x, y) => `https://tile.openstreetmap.org/${z}/${x}/${y}.png`;
-// OpenStreetMap asks apps to identify themselves
-const TILE_HEADERS = { 'User-Agent': 'OSAConnect/1.0 (USTP Office of Student Affairs)' };
+// OpenStreetMap's tile servers require apps to identify themselves and answer anonymous ones with an
+// "Access blocked" image. Android's <Image> loader can't set the User-Agent, so tiles are downloaded
+// with fetch (which can) and shown as data URIs. Cached for the app session so re-renders don't refetch.
+const TILE_HEADERS = { 'User-Agent': 'OSAConnect/1.0 (+https://osaconnect.vercel.app)' };
+const tileCache = new Map(); // url -> Promise<dataUri | null>
+
+const loadTile = (url) => {
+    if (!tileCache.has(url)) {
+        const promise = fetch(url, { headers: TILE_HEADERS })
+            .then((r) => (r.ok ? r.blob() : null))
+            .then((blob) => blob && new Promise((resolve) => {
+                const reader = new FileReader();
+                reader.onloadend = () => resolve(reader.result);
+                reader.onerror = () => resolve(null);
+                reader.readAsDataURL(blob);
+            }))
+            .catch(() => null);
+        promise.then((uri) => { if (!uri) tileCache.delete(url); }); // retry failed tiles next time
+        tileCache.set(url, promise);
+    }
+    return tileCache.get(url);
+};
+
+const Tile = ({ url, left, top }) => {
+    const [uri, setUri] = useState(null);
+    useEffect(() => {
+        let alive = true;
+        loadTile(url).then((u) => alive && setUri(u));
+        return () => { alive = false; };
+    }, [url]);
+    if (!uri) return null;
+    return <Image source={{ uri }} style={[styles.tile, { left, top }]} fadeDuration={0} />;
+};
 
 // Web Mercator: position in world pixels at a zoom level
 const project = (lat, lng, zoom) => {
@@ -117,12 +148,7 @@ export default function MapViewComponent({
             onLayout={(e) => setSize({ width: e.nativeEvent.layout.width, height: e.nativeEvent.layout.height })}
         >
             {tiles.map((t) => (
-                <Image
-                    key={t.key}
-                    source={{ uri: t.uri, headers: TILE_HEADERS }}
-                    style={[styles.tile, { left: t.x, top: t.y }]}
-                    fadeDuration={0}
-                />
+                <Tile key={t.key} url={t.uri} left={t.x} top={t.y} />
             ))}
             {/* Dim the tiles a little in dark mode, like the website's map filter */}
             {isDarkMode && <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(15,23,42,0.28)' }]} pointerEvents="none" />}
