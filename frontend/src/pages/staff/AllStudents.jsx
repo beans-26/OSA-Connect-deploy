@@ -4,6 +4,7 @@ import { Users, Search, ClipboardList, QrCode, CheckCircle, Edit2, Eye, UserX, U
 import QRCode from 'react-qr-code';
 import { Shield, AlertCircle, CheckCircle2, Send, Clock, LocateFixed } from 'lucide-react';
 import GlobalSearch from '../../components/GlobalSearch';
+import { useServiceSites, ServiceSiteOptions } from '../../components/useServiceSites';
 
 const COURSES = [
     "BS Civil Engineering",
@@ -57,6 +58,8 @@ const PRESET_LOCATIONS = [
 const AllStudents = () => {
     const userRole = JSON.parse(localStorage.getItem('user') || '{}').role || 'staff';
     const [students, setStudents] = useState([]);
+    // Bulk report buildings are the registered service sites (Settings > Service Sites)
+    const serviceSites = useServiceSites();
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
     const [filterCourse, setFilterCourse] = useState('');
@@ -644,14 +647,7 @@ const AllStudents = () => {
                                         onChange={e => setBulkForm({ ...bulkForm, assigned_building: e.target.value })}
                                         className="w-full bg-white dark:bg-slate-800 border-2 border-slate-200 dark:border-slate-600 rounded-2xl p-4 font-bold outline-none focus:border-ustp-blue transition-all text-slate-900 dark:text-white"
                                     >
-                                        <option value="">Select Building...</option>
-                                        {DEPARTMENTS.map(dept => {
-                                            const name = dept.match(/\(([^)]+)\)/)?.[1] || dept;
-                                            return <option key={dept} value={name}>{name}</option>;
-                                        })}
-                                        <option value="Gymnasium">Gymnasium</option>
-                                        <option value="Library">Library</option>
-                                        <option value="Field">Field</option>
+                                        <ServiceSiteOptions {...serviceSites} placeholder="Select Building..." />
                                     </select>
                                 </div>
                             </div>

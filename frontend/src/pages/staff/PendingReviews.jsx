@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import Sidebar from '../../components/Sidebar';
 import { Search, Check, X, ShieldAlert, User, Eye, AlertCircle } from 'lucide-react';
 import GlobalSearch from '../../components/GlobalSearch';
+import { useServiceSites, ServiceSiteOptions } from '../../components/useServiceSites';
 
 const PendingReviews = () => {
     const userRole = JSON.parse(localStorage.getItem('user') || '{}').role || 'staff';
@@ -11,7 +12,8 @@ const PendingReviews = () => {
     const [searchTerm, setSearchTerm] = useState('');
     const [assignedBuildings, setAssignedBuildings] = useState({});
     const [customHours, setCustomHours] = useState({});
-    const BUILDINGS = ['CITC', 'CEA', 'COT', 'CSEE', 'CSM', 'Library', 'Gymnasium', 'Admin Building', 'Field/Campus'];
+    // Buildings are the registered service sites (Settings > Service Sites)
+    const serviceSites = useServiceSites();
     const HOURS_OPTIONS = ['3', '5', '6'];
 
     useEffect(() => {
@@ -170,8 +172,7 @@ const PendingReviews = () => {
                                             onChange={(e) => setAssignedBuildings({...assignedBuildings, [selectedReport.id]: e.target.value})}
                                             className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-xs font-bold text-slate-700 dark:text-slate-300 focus:border-ustp-blue outline-none transition-all"
                                         >
-                                            <option value="">Choose...</option>
-                                            {BUILDINGS.map(b => <option key={b} value={b}>{b}</option>)}
+                                            <ServiceSiteOptions {...serviceSites} placeholder="Choose..." />
                                         </select>
                                     </div>
                                     <div className="bg-slate-50 dark:bg-slate-900/50 p-4 rounded-2xl border border-slate-100 dark:border-slate-800">
