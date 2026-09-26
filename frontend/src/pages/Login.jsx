@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, useLocation, Link } from 'react-router-dom';
+import { ACTIVITY_KEY } from '../components/studentSession';
 import { 
     User, 
     Eye, 
@@ -16,6 +17,8 @@ const Login = () => {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
     const navigate = useNavigate();
+    // Set by StudentIdleGuard after an inactivity logout
+    const notice = useLocation().state?.notice;
 
     const handleLogin = async (e) => {
         e.preventDefault();
@@ -43,6 +46,8 @@ const Login = () => {
                     name: data.name
                 };
                 localStorage.setItem('user', JSON.stringify(userData));
+                // StudentIdleGuard counts inactivity from this login
+                localStorage.setItem(ACTIVITY_KEY, String(Date.now()));
                 
                 if (data.role === 'admin') navigate('/admin/overview');
                 else if (data.role === 'staff') navigate('/staff/report');
@@ -85,6 +90,11 @@ const Login = () => {
 
                 {/* Clean Form Card */}
                 <div className="bg-white dark:bg-slate-800 p-8 rounded-xl shadow-sm border border-slate-200 dark:border-slate-600">
+                    {notice && !error && (
+                        <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-lg">
+                            <p className="text-amber-800 font-semibold text-xs text-center leading-relaxed">{notice}</p>
+                        </div>
+                    )}
                     {error && (
                         <div className="mb-6 p-4 bg-red-50 border border-red-100 rounded-lg">
                             <p className="text-red-600 font-bold text-xs uppercase tracking-widest text-center">{error}</p>
