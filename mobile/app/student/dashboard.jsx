@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
-  View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, StatusBar, Platform
+  View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, StatusBar, Platform, Linking
 } from 'react-native';
 import { showAlert } from '../../components/showAlert';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { QrCode, Play, AlertTriangle, X, Clock, FileText, User, CircleQuestionMark } from 'lucide-react-native';
+import { QrCode, Play, AlertTriangle, X, Clock, FileText, User, CircleQuestionMark, Navigation } from 'lucide-react-native';
 import { useCameraPermissions } from 'expo-camera';
 import * as Location from 'expo-location';
 import { useAuth } from '../../components/AuthContext';
@@ -15,6 +15,7 @@ import { onCameraResult } from '../../components/cameraResults';
 import { parseServiceQr, serviceQrAction, NOT_A_START_QR, NOT_A_STOP_QR } from '../../components/serviceQr';
 import { useTheme } from '../../components/ThemeContext';
 import { timeGreeting, todayLabel, studentStatusLine } from '../../components/greeting';
+import { compassDirection, formatDistance, directionsUrl } from '../../components/geo';
 
 // Haversine formula
 const getDistance = (lat1, lon1, lat2, lon2) => {
@@ -359,6 +360,13 @@ export default function Dashboard() {
 
     const displayName = user?.name?.split(' ')[0] || user?.username || 'User';
     const assignedSite = (tickets.find(t => t.status === 'Ongoing') || tickets.find(t => t.status === 'Active'))?.assigned_site;
+    // Before a session: how far and which way the student's site is (targetLocation comes from the open ticket)
+    // (only when the ticket has a real location; targetLocation falls back to a default campus point)
+    const openStation = (tickets.find(t => t.status === 'Ongoing') || tickets.find(t => t.status === 'Active'))?.station;
+    const siteTarget = targetLocation && openStation?.lat != null ? { latitude: targetLocation.lat, longitude: targetLocation.lng } : null;
+    const approachDistance = siteTarget && location ? getDistance(location.latitude, location.longitude, siteTarget.latitude, siteTarget.longitude) : null;
+    const approachInside = approachDistance != null && approachDistance <= (targetLocation?.radius || 50);
+    const approachDirection = siteTarget && location ? compassDirection(location, siteTarget) : '';
 
     return (
         <View style={{ flex: 1 }}>
@@ -517,6 +525,47 @@ export default function Dashboard() {
                                 <Text style={styles.noSessionSubtitle}>
                                     Scan an activity QR code to start{'\n'}tracking your community service hours.
                                 </Text>
+                            )}
+                            {/* Guide to the site: where you are, how far, which way */}
+                            {siteTarget && (
+                                <View style={styles.approachBox}>
+                                    <View style={[styles.approachStatus, approachInside && styles.approachStatusInside]}>
+                                        <Navigation size={14} color={approachInside ? '#059669' : colors.primary} />
+                                        <Text style={[styles.approachStatusText, approachInside && { color: '#047857' }]}>
+                                            {!location
+                                                ? 'Finding your location…'
+                                                : approachInside
+                                                    ? "You're at the site. Scan the QR code to start."
+                                                    : `${assignedSite?.name || 'Service site'}: ${formatDistance(approachDistance)} away, ${approachDirection}`}
+                                        </Text>
+                                    </View>
+                                    <View style={styles.mapContainer}>
+                                        <View style={styles.liveGpsBadge}>
+                                            <Text style={styles.liveGpsText}>ROUTE TO SITE</Text>
+                                        </View>
+                                        <MapViewComponent
+                                            style={styles.map}
+                                            region={{ latitude: targetLocation.lat, longitude: targetLocation.lng, latitudeDelta: 0.004, longitudeDelta: 0.004 }}
+                                            isDarkMode={isDarkMode}
+                                            darkMapStyle={darkMapStyle}
+                                            targetLocation={targetLocation}
+                                            isOutOfBounds={false}
+                                            location={location}
+                                            approach
+                                            hubMarkerDotStyle={styles.hubMarkerDot}
+                                            studentMarkerDotStyle={[styles.studentMarkerDot, { backgroundColor: '#0ea5e9' }]}
+                                        />
+                                    </View>
+                                    {!approachInside && (
+                                        <TouchableOpacity
+                                            style={styles.directionsButton}
+                                            onPress={() => Linking.openURL(directionsUrl(siteTarget)).catch(() => showAlert('Maps unavailable', "Couldn't open a maps app on this phone."))}
+                                        >
+                                            <Navigation size={15} color={colors.text} />
+                                            <Text style={styles.directionsText}>Get directions</Text>
+                                        </TouchableOpacity>
+                                    )}
+                                </View>
                             )}
                             <TouchableOpacity style={styles.scanCta} onPress={startScan}>
                                 <Text style={styles.scanCtaText}>Scan QR Code</Text>
@@ -706,6 +755,47 @@ const getStyles = (colors) => StyleSheet.create({
         marginBottom: 20,
         fontWeight: '500',
         lineHeight: 20,
+    },
+    approachBox: {
+        width: '100%',
+        marginBottom: 16,
+    },
+    approachStatus: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+        padding: 12,
+        borderRadius: 12,
+        borderWidth: 1,
+        borderColor: colors.border,
+        backgroundColor: colors.background,
+    },
+    approachStatusInside: {
+        borderColor: '#a7f3d0',
+        backgroundColor: '#ecfdf5',
+    },
+    approachStatusText: {
+        flex: 1,
+        fontSize: 13,
+        fontWeight: '700',
+        color: colors.textMuted,
+    },
+    directionsButton: {
+        marginTop: 12,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 8,
+        padding: 12,
+        borderRadius: 12,
+        borderWidth: 1,
+        borderColor: colors.border,
+        backgroundColor: colors.background,
+    },
+    directionsText: {
+        fontSize: 13,
+        fontWeight: '700',
+        color: colors.text,
     },
     scanCta: {
         backgroundColor: colors.primary,
