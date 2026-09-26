@@ -269,7 +269,7 @@ export default function Settings() {
                             <AlertTriangle size={24} color={colors.danger} />
                             <Text style={styles.modalTitle}>Log Out</Text>
                         </View>
-                        <Text style={styles.modalMessage}>Are you sure you want to log out?</Text>
+                        <Text style={styles.modalMessage}>Are you sure you want to log out? A running service timer will stop.</Text>
                         <View style={styles.modalActions}>
                             <TouchableOpacity style={styles.modalCancelButton} onPress={() => setShowLogoutModal(false)}>
                                 <Text style={styles.modalCancelText}>Cancel</Text>
