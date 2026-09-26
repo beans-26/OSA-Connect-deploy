@@ -26,6 +26,7 @@ import {
     CheckCircle
 } from 'lucide-react';
 import GlobalSearch from '../components/GlobalSearch';
+import { timeGreeting, todayLabel, adminStatusLine } from '../lib/greeting';
 
 /* ─── Violation Detail Modal ──────────────────────────────────────── */
 const ViolationModal = ({ report, ticket, activeLog, onClose, onAction }) => {
@@ -218,52 +219,6 @@ const ViolationModal = ({ report, ticket, activeLog, onClose, onAction }) => {
 
 /* ─── Staff Dashboard ─────────────────────────────────────────────── */
 const StaffDashboard = () => {
-    const getGreeting = () => {
-        const hour = new Date().getHours();
-        if (hour < 5) return 'Late Night';
-        if (hour < 12) return 'Good Morning';
-        if (hour < 17) return 'Good Afternoon';
-        if (hour < 21) return 'Good Evening';
-        return 'Late Night';
-    };
-
-    const getSubGreeting = () => {
-        const hour = new Date().getHours();
-        if (hour >= 5 && hour < 12) {
-            const opts = [
-                "Good morning! Ready to make today productive?",
-                "Early start, nice! Let's keep things running smoothly.",
-                "A new day, a new opportunity to serve."
-            ];
-            return opts[Math.floor(Math.random() * opts.length)];
-        }
-        if (hour >= 12 && hour < 17) {
-            const opts = [
-                "Good afternoon! How's everything going?",
-                "Keep up the great work today.",
-                "Staying on top of it all — that's the spirit."
-            ];
-            return opts[Math.floor(Math.random() * opts.length)];
-        }
-        if (hour >= 17 && hour < 22) {
-            const opts = [
-                "Good evening! Still keeping watch?",
-                "The day isn't over yet. Keep going!",
-                "Finishing strong today?"
-            ];
-            return opts[Math.floor(Math.random() * opts.length)];
-        }
-        const opts = [
-            "Working late? Your dedication is showing.",
-            "Burning the midnight oil, huh?",
-            "Late-night shift detected. Stay sharp!",
-            "Most people are asleep. You're still at it.",
-            "Don't forget to rest after your shift."
-        ];
-        return opts[Math.floor(Math.random() * opts.length)];
-    };
-
-    const [subGreeting] = useState(() => getSubGreeting());
     const [stats, setStats] = useState({ pending: 0, active: 0, completed: 0, warnings: 0 });
     const [violators, setViolators] = useState([]);
     const [allTickets, setAllTickets] = useState([]);
@@ -410,6 +365,8 @@ const StaffDashboard = () => {
     };
 
 const userRole = JSON.parse(localStorage.getItem('user') || '{}').role || 'staff';
+    // Display name from the admin's profile (Settings > Account)
+    const adminName = JSON.parse(localStorage.getItem('user') || '{}').full_name || 'Admin';
 
     return (
         <div className="flex bg-slate-50 dark:bg-slate-900 min-h-screen relative font-sans">
@@ -423,8 +380,9 @@ const userRole = JSON.parse(localStorage.getItem('user') || '{}').role || 'staff
                     {/* Main Content Area */}
                     <main className="page-enter flex-1 px-4 pb-10 md:p-10 md:pt-0">
                         <header className="mb-6 shrink-0">
-                            <h1 className="text-2xl md:text-4xl font-extrabold text-slate-900 dark:text-white tracking-tight">{getGreeting()}, Admin!</h1>
-                            <p className="text-slate-400 dark:text-slate-500 mt-1 font-medium text-sm italic">{subGreeting}</p>
+                            <p className="text-[11px] font-bold uppercase tracking-[0.15em] text-slate-400 dark:text-slate-500 mb-1">{todayLabel()}</p>
+                            <h1 className="text-2xl md:text-4xl font-extrabold text-slate-900 dark:text-white tracking-tight">{timeGreeting()}, {adminName}</h1>
+                            <p className="text-slate-500 dark:text-slate-400 mt-1 font-medium text-sm">{adminStatusLine(stats.pending)}</p>
                         </header>
  
                         <div className="space-y-6">
