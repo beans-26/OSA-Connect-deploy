@@ -94,6 +94,16 @@ def _resolve_service_site(value):
             or ServiceSite.objects.filter(name__iexact=value, is_active=True).first())
 
 
+def _assigned_site_code(eticket):
+    """Site code the ticket must be served at. Tickets approved before sites were linked only saved
+    the site's name as assigned_location, so fall back to matching that name."""
+    code = getattr(eticket, 'assigned_site_code', None)
+    if code:
+        return code
+    site = _resolve_service_site(eticket.assigned_location) if eticket.assigned_location else None
+    return site.site_code if site else None
+
+
 def _site_ticket_fields(site):
     """E-ticket fields for a ticket assigned to `site`: the site to scan, and its geofence up front for the map."""
     if not site:
@@ -886,7 +896,7 @@ class TimeLogViewSet(viewsets.ModelViewSet):
                 site_code = str(request.data.get('site_code') or '').strip().upper()
 
                 # Assigned to a site: only that site's QR starts the timer (not other sites or the old OSA codes)
-                assigned_code = getattr(eticket, 'assigned_site_code', None)
+                assigned_code = _assigned_site_code(eticket)
                 if assigned_code and site_code != assigned_code:
                     assigned = ServiceSite.objects.filter(site_code=assigned_code).first()
                     label = f"{assigned.name} ({assigned_code})" if assigned else assigned_code
