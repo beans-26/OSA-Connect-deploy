@@ -13,10 +13,13 @@ const Archives = () => {
     const [searchTerm, setSearchTerm] = useState('');
     const [filterType, setFilterType] = useState('All');
     const [showDismissed, setShowDismissed] = useState(false);
+    // 'loading' until the first response, so an empty list isn't shown as "No Archived Records" too early
+    const [loadState, setLoadState] = useState('loading'); // loading | ready | error
 
     useEffect(() => {
         fetchData();
-        const poll = setInterval(fetchData, 5000);
+        // Archives change rarely; refresh every 30 s instead of re-downloading everything every 5 s
+        const poll = setInterval(fetchData, 30000);
         return () => clearInterval(poll);
     }, []);
 
@@ -27,11 +30,16 @@ const Archives = () => {
                 fetch('/api/etickets/'),
                 fetch('/api/timelogs/')
             ]);
-            setViolations(await vResp.json());
-            setTickets(await tResp.json());
-            setLogs(await lResp.json());
+            if (!vResp.ok || !tResp.ok || !lResp.ok) throw new Error('Server error');
+            const [v, t, l] = await Promise.all([vResp.json(), tResp.json(), lResp.json()]);
+            setViolations(v);
+            setTickets(t);
+            setLogs(l);
+            setLoadState('ready');
         } catch (e) {
             console.error(e);
+            // Keep showing data from an earlier load if there is some
+            setLoadState((prev) => (prev === 'ready' ? prev : 'error'));
         }
     };
 
@@ -260,7 +268,21 @@ const Archives = () => {
                     </div>
                 </div>
 
-                {filtered.length === 0 ? (
+                {loadState === 'loading' ? (
+                    <div className="py-32 text-center print:hidden">
+                        <div className="mx-auto mb-6 h-12 w-12 animate-spin rounded-full border-4 border-slate-200 border-t-ustp-blue dark:border-slate-700 dark:border-t-blue-400" />
+                        <h4 className="font-black text-slate-400 dark:text-slate-500 text-lg uppercase tracking-widest">Loading archives…</h4>
+                    </div>
+                ) : loadState === 'error' ? (
+                    <div className="py-32 text-center print:hidden">
+                        <XCircle className="mx-auto text-red-300 mb-6" size={56} />
+                        <h4 className="font-black text-slate-500 dark:text-slate-400 text-lg uppercase tracking-widest">Couldn't load archives</h4>
+                        <p className="text-slate-400 dark:text-slate-500 mt-3 font-medium">Check your connection, then try again.</p>
+                        <button onClick={() => { setLoadState('loading'); fetchData(); }} className="mt-6 rounded-xl bg-ustp-blue px-6 py-3 text-xs font-black uppercase tracking-widest text-white">
+                            Try again
+                        </button>
+                    </div>
+                ) : filtered.length === 0 ? (
                     <div className="py-32 text-center print:hidden">
                         <Archive className="mx-auto text-slate-200 mb-6" size={64} />
                         <h4 className="font-black text-slate-300 dark:text-slate-600 text-xl uppercase tracking-widest">No Archived Records</h4>
