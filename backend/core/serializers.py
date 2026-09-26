@@ -41,7 +41,8 @@ class ETicketSerializer(serializers.DocumentSerializer):
         data['base_remaining_hours'] = instance.remaining_hours
         data['active_time_in'] = None
         data['station'] = {'lat': instance.lat, 'lng': instance.lng, 'radius': instance.radius, 'site_code': getattr(instance, 'site_code', None)}
-        assigned_code = getattr(instance, 'assigned_site_code', None)
+        from core.views import _assigned_site_code
+        assigned_code = _assigned_site_code(instance)
         data['assigned_site'] = {'site_code': assigned_code, 'name': instance.assigned_location} if assigned_code else None
         if instance.status == 'Ongoing':
             try:

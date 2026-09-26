@@ -3,52 +3,11 @@ import { useNavigate } from 'react-router-dom';
 import { AlertTriangle, User, Play, QrCode, FileText, CircleHelp, Clock } from 'lucide-react';
 import QrScannerModal from '../components/QrScannerModal';
 import { useStudentTheme } from '../components/useStudentTheme';
+import { timeGreeting, todayLabel, studentStatusLine } from '../lib/greeting';
 
 // Service site QR codes hold only the site code, e.g. "LIB-01" (same rule as backend/core/site_views.py).
 // Checked after the OSA action/building codes, which look similar ("OSA-START", "CITC-DEPT").
 const SITE_CODE_PATTERN = /^[A-Z0-9]{2,10}-[A-Z0-9]{1,6}$/;
-
-// Header copy shared with mobile/app/student/dashboard.jsx
-const getGreeting = () => {
-    const h = new Date().getHours();
-    if (h < 12) return 'GOOD MORNING,';
-    if (h < 17) return 'GOOD AFTERNOON,'; // evening from 5 PM, same as getSubGreetingText
-    return 'GOOD EVENING,';
-};
-
-const getSubGreetingText = () => {
-    const hour = new Date().getHours();
-    let options;
-    if (hour >= 5 && hour < 12) {
-        options = [
-            "Good morning! Ready to make today productive?",
-            "Early start, nice! Let's get those hours in.",
-            "A new day, a new opportunity to serve."
-        ];
-    } else if (hour >= 12 && hour < 17) {
-        options = [
-            "Good afternoon! How's your service going?",
-            "Keep up the great work today.",
-            "Another step closer to completing your hours."
-        ];
-    } else if (hour >= 17 && hour < 22) {
-        options = [
-            "Good evening! Still making progress?",
-            "The day isn't over yet. Keep going!",
-            "Finishing strong today?"
-        ];
-    } else {
-        options = [
-            "Working late? Your dedication is showing.",
-            "Burning the midnight oil, huh?",
-            "Late-night grind detected.",
-            "Most people are asleep. You're still making progress.",
-            "Don't forget to rest after your shift.",
-            "The stars are out, and so are your service hours."
-        ];
-    }
-    return options[Math.floor(Math.random() * options.length)];
-};
 
 // Leaflet geofence map framed like the mobile map card (hub, radius, and your position)
 const GeofenceMap = ({ hub, location, isOutOfBounds, isDarkMode }) => {
@@ -126,7 +85,6 @@ const GeofenceMap = ({ hub, location, isOutOfBounds, isDarkMode }) => {
 const StudentDashboard = () => {
     const navigate = useNavigate();
     const { isDarkMode } = useStudentTheme();
-    const [subGreeting] = useState(getSubGreetingText);
     const [violations, setViolations] = useState([]);
     const [tickets, setTickets] = useState([]);
 
@@ -588,9 +546,9 @@ const StudentDashboard = () => {
                 {/* Header */}
                 <header className="mb-6 flex items-center justify-between">
                     <div className="flex-1">
-                        <p className="mb-1 text-xs font-black uppercase tracking-[2px] text-[var(--s-muted)]">{getGreeting()}</p>
-                        <h1 className="text-2xl font-black tracking-[0.5px] text-[var(--s-text)]">Hi, {displayName}!</h1>
-                        <p className="mt-1 text-sm font-semibold text-[var(--s-muted)]">{subGreeting}</p>
+                        <p className="mb-1 text-xs font-bold uppercase tracking-[1.5px] text-[var(--s-muted)]">{todayLabel()}</p>
+                        <h1 className="text-2xl font-black tracking-[0.3px] text-[var(--s-text)]">{timeGreeting()}, {displayName}</h1>
+                        <p className="mt-1 text-sm font-semibold text-[var(--s-muted)]">{studentStatusLine({ sessionActive: timerActive, openTicket: activeTicket })}</p>
                     </div>
                     {/* Help + profile, like the mobile dashboard header */}
                     <div className="flex items-center gap-2.5">
