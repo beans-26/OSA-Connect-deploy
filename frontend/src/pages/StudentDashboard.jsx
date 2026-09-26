@@ -1,19 +1,23 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { AlertTriangle, User, Play, QrCode, FileText, CircleHelp, Clock } from 'lucide-react';
+import { AlertTriangle, User, Play, QrCode, FileText, CircleHelp, Clock, Navigation } from 'lucide-react';
 import QrScannerModal from '../components/QrScannerModal';
 import { useStudentTheme } from '../components/useStudentTheme';
 import { timeGreeting, todayLabel, studentStatusLine } from '../lib/greeting';
+import { distanceMeters, compassDirection, formatDistance, directionsUrl } from '../lib/geo';
 
 // Service site QR codes hold only the site code, e.g. "LIB-01" (same rule as backend/core/site_views.py).
 // Checked after the OSA action/building codes, which look similar ("OSA-START", "CITC-DEPT").
 const SITE_CODE_PATTERN = /^[A-Z0-9]{2,10}-[A-Z0-9]{1,6}$/;
 
-// Leaflet geofence map framed like the mobile map card (hub, radius, and your position)
-const GeofenceMap = ({ hub, location, isOutOfBounds, isDarkMode }) => {
+// Leaflet geofence map framed like the mobile map card (site, radius, and your position).
+// approach: before a session. The circle is shown faded (not active yet) with a dashed line from
+// the student to the site; once the timer starts it turns green/red with the geofence.
+const GeofenceMap = ({ hub, location, isOutOfBounds, isDarkMode, approach = false }) => {
     const containerRef = useRef(null);
     const mapRef = useRef(null);
     const layersRef = useRef({});
+    const fittedRef = useRef(false);
 
     useEffect(() => {
         if (!containerRef.current || !window.L || !hub) return;
@@ -32,6 +36,7 @@ const GeofenceMap = ({ hub, location, isOutOfBounds, isDarkMode }) => {
             })
         }).addTo(map);
         mapRef.current = map;
+        fittedRef.current = false;
         return () => {
             map.remove();
             mapRef.current = null;
@@ -43,40 +48,60 @@ const GeofenceMap = ({ hub, location, isOutOfBounds, isDarkMode }) => {
         const L = window.L;
         const map = mapRef.current;
         if (!map || !L) return;
-        const color = isOutOfBounds ? '#ef4444' : '#10b981';
-        layersRef.current.circle?.setRadius(hub.radius).setStyle({ color, fillColor: color });
+        const layers = layersRef.current;
+        const color = approach ? '#64748b' : isOutOfBounds ? '#ef4444' : '#10b981';
+        layers.circle?.setRadius(hub.radius).setStyle(approach
+            ? { color, fillColor: color, fillOpacity: 0.06, dashArray: '6 6', weight: 2 }
+            : { color, fillColor: color, fillOpacity: 0.15, dashArray: null, weight: 3 });
         if (!location) return;
+        const youColor = approach ? '#0ea5e9' : color;
         const icon = L.divIcon({
             className: '',
-            html: `<div style="width:16px;height:16px;border-radius:8px;background:${color};border:2px solid #fff;box-shadow:0 1.5px 2px rgba(0,0,0,.15)"></div>`,
+            html: `<div style="width:16px;height:16px;border-radius:8px;background:${youColor};border:2px solid #fff;box-shadow:0 1.5px 2px rgba(0,0,0,.15)"></div>`,
             iconSize: [16, 16]
         });
-        if (layersRef.current.you) {
-            layersRef.current.you.setLatLng([location.lat, location.lng]).setIcon(icon);
+        if (layers.you) {
+            layers.you.setLatLng([location.lat, location.lng]).setIcon(icon);
         } else {
-            layersRef.current.you = L.marker([location.lat, location.lng], { icon }).addTo(map);
+            layers.you = L.marker([location.lat, location.lng], { icon }).addTo(map);
         }
-    }, [location, isOutOfBounds, hub?.radius]);
+        if (approach) {
+            const path = [[location.lat, location.lng], [hub.lat, hub.lng]];
+            if (layers.route) layers.route.setLatLngs(path);
+            else layers.route = L.polyline(path, { color: '#0ea5e9', weight: 3, dashArray: '2 8', lineCap: 'round' }).addTo(map);
+            // Frame both points once; after that let the student pan freely
+            if (!fittedRef.current) {
+                // Extra bottom padding keeps both points clear of the legend in the corner
+                map.fitBounds(L.latLngBounds(path), { maxZoom: 18, paddingTopLeft: [30, 45], paddingBottomRight: [30, 95] });
+                fittedRef.current = true;
+            }
+        } else if (layers.route) {
+            layers.route.remove();
+            layers.route = null;
+        }
+    }, [location, isOutOfBounds, hub?.radius, approach]);
 
     return (
         // isolate: Leaflet's panes use z-index 400+, which otherwise drew the map over the QR scanner (z-70)
-        <div className="relative isolate mt-3 h-[200px] w-full overflow-hidden rounded-[14px] border border-[var(--s-border)]">
+        <div className={`relative isolate mt-3 w-full overflow-hidden rounded-[14px] border border-[var(--s-border)] ${approach ? 'h-[280px]' : 'h-[200px]'}`}>
             <div ref={containerRef} className={`h-full w-full ${isDarkMode ? 'brightness-[.8] contrast-[1.1]' : ''}`} />
             <div className="absolute right-3 top-3 z-[500] rounded-full bg-[var(--s-card)] px-3 py-1.5 text-[9px] font-black tracking-[1px] text-[var(--s-text)] shadow">
-                LIVE GPS FEED
+                {approach ? 'ROUTE TO SITE' : 'LIVE GPS FEED'}
             </div>
             <div className="absolute bottom-2 left-2 z-[500] rounded-lg bg-[var(--s-card)] px-2 py-1.5 shadow">
                 <div className="mb-1 flex items-center">
                     <span className="mr-1.5 h-2 w-2 rounded-full bg-[#1e3a8a]" />
-                    <span className="text-[10px] font-bold text-[var(--s-text)]">Hub</span>
+                    <span className="text-[10px] font-bold text-[var(--s-text)]">Service site</span>
                 </div>
                 {location && (
                     <div className="mb-1 flex items-center">
-                        <span className={`mr-1.5 h-2 w-2 rounded-full ${isOutOfBounds ? 'bg-[#ef4444]' : 'bg-[#10b981]'}`} />
+                        <span className={`mr-1.5 h-2 w-2 rounded-full ${approach ? 'bg-[#0ea5e9]' : isOutOfBounds ? 'bg-[#ef4444]' : 'bg-[#10b981]'}`} />
                         <span className="text-[10px] font-bold text-[var(--s-text)]">You</span>
                     </div>
                 )}
-                <p className="mt-0.5 text-[10px] font-semibold text-[var(--s-muted)]">Radius: {Math.round(hub.radius)}m</p>
+                <p className="mt-0.5 text-[10px] font-semibold text-[var(--s-muted)]">
+                    Radius: {Math.round(hub.radius)}m{approach ? ' · starts when you scan' : ''}
+                </p>
             </div>
         </div>
     );
@@ -178,6 +203,22 @@ const StudentDashboard = () => {
         }
         return () => clearInterval(interval);
     }, [timerActive, startTime, displayHours]);
+
+    // Before a session: show where the student is relative to their site (no geofence yet)
+    const approachWatchRef = useRef(null);
+    useEffect(() => {
+        const hasSite = activeTicket?.lat != null && activeTicket?.lng != null;
+        if (timerActive || !hasSite || !navigator.geolocation) return;
+        approachWatchRef.current = navigator.geolocation.watchPosition(
+            ({ coords }) => setLocation({ lat: coords.latitude, lng: coords.longitude }),
+            () => {}, // Permission is asked again (with an explanation) when they scan
+            { enableHighAccuracy: true, timeout: 15000, maximumAge: 5000 }
+        );
+        return () => {
+            navigator.geolocation.clearWatch(approachWatchRef.current);
+            approachWatchRef.current = null;
+        };
+    }, [timerActive, activeTicket?.id, activeTicket?.lat, activeTicket?.lng]);
 
     // Location Monitoring Effect (Leaflet watchPosition)
     useEffect(() => {
@@ -513,6 +554,13 @@ const StudentDashboard = () => {
     const hub = activeTicket?.lat != null && activeTicket?.lng != null
         ? { lat: activeTicket.lat, lng: activeTicket.lng, radius: activeTicket.radius || 15 }
         : null;
+    const approachDistance = hub && location
+        ? distanceMeters({ latitude: location.lat, longitude: location.lng }, { latitude: hub.lat, longitude: hub.lng })
+        : null;
+    const approachInside = approachDistance != null && approachDistance <= hub.radius;
+    const approachDirection = hub && location
+        ? compassDirection({ latitude: location.lat, longitude: location.lng }, { latitude: hub.lat, longitude: hub.lng })
+        : '';
 
     const ticketBadge = (status) =>
         status === 'Active' ? 'bg-[#dcfce7] text-[#10b981]' :
@@ -635,14 +683,44 @@ const StudentDashboard = () => {
                             <h2 className="mb-2 text-lg font-black text-[var(--s-text)]">No Active Session</h2>
                             {activeTicket?.assigned_site ? (
                                 // Assigned by the admin: only this site's QR starts the timer
-                                <p className="mb-5 text-sm font-medium leading-5 text-[var(--s-muted)]">
+                                <p className="mb-4 text-sm font-medium leading-5 text-[var(--s-muted)]">
                                     Go to <span className="font-black text-[var(--s-text)]">{activeTicket.assigned_site.name}</span> and scan<br />the QR code posted there to start.
                                 </p>
                             ) : (
-                                <p className="mb-5 text-sm font-medium leading-5 text-[var(--s-muted)]">
+                                <p className="mb-4 text-sm font-medium leading-5 text-[var(--s-muted)]">
                                     Scan an activity QR code to start<br />tracking your community service hours.
                                 </p>
                             )}
+
+                            {/* Guide to the site: where you are, how far, which way */}
+                            {hub && (
+                                <div className="mb-4 text-left">
+                                    <div className={`flex items-center gap-2 rounded-xl border p-3 ${approachInside ? 'border-[#a7f3d0] bg-[#ecfdf5]' : 'border-[var(--s-border)] bg-[var(--s-bg)]'}`}>
+                                        <Navigation size={14} className={approachInside ? 'text-[var(--s-success)]' : 'text-[var(--s-primary)]'} />
+                                        <span className={`text-[13px] font-bold ${approachInside ? 'text-[#047857]' : 'text-[var(--s-muted)]'}`}>
+                                            {!location
+                                                ? 'Finding your location…'
+                                                : approachInside
+                                                    ? "You're at the site. Scan the QR code to start."
+                                                    : `${activeTicket?.assigned_site?.name || 'Service site'}: ${formatDistance(approachDistance)} away, ${approachDirection}`}
+                                        </span>
+                                    </div>
+                                    {!isScanning && !showStopScanner && (
+                                        <GeofenceMap hub={hub} location={location} isOutOfBounds={false} isDarkMode={isDarkMode} approach />
+                                    )}
+                                    {!approachInside && (
+                                        <a
+                                            href={directionsUrl({ latitude: hub.lat, longitude: hub.lng })}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl border border-[var(--s-border)] bg-[var(--s-bg)] p-3 text-[13px] font-bold text-[var(--s-text)]"
+                                        >
+                                            <Navigation size={15} /> Get directions
+                                        </a>
+                                    )}
+                                </div>
+                            )}
+
                             <button onClick={() => setIsScanning(true)} className="rounded-xl bg-[var(--s-primary)] px-7 py-3 text-[13px] font-bold tracking-[0.5px] text-white">
                                 Scan QR Code
                             </button>
