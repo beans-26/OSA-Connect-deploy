@@ -462,7 +462,7 @@ export default function Dashboard() {
                                 <View style={styles.mapLegend}>
                                     <View style={styles.mapLegendItem}>
                                         <View style={[styles.mapLegendDot, { backgroundColor: '#1e3a8a' }]} />
-                                        <Text style={styles.mapLegendText}>Hub</Text>
+                                        <Text style={styles.mapLegendText}>Service site</Text>
                                     </View>
                                     {location && (
                                         <View style={styles.mapLegendItem}>
@@ -539,12 +539,12 @@ export default function Dashboard() {
                                                     : `${assignedSite?.name || 'Service site'}: ${formatDistance(approachDistance)} away, ${approachDirection}`}
                                         </Text>
                                     </View>
-                                    <View style={styles.mapContainer}>
+                                    <View style={[styles.mapContainer, { height: 280 }]}>
                                         <View style={styles.liveGpsBadge}>
                                             <Text style={styles.liveGpsText}>ROUTE TO SITE</Text>
                                         </View>
                                         <MapViewComponent
-                                            style={styles.map}
+                                            style={[styles.map, { height: 280 }]}
                                             region={{ latitude: targetLocation.lat, longitude: targetLocation.lng, latitudeDelta: 0.004, longitudeDelta: 0.004 }}
                                             isDarkMode={isDarkMode}
                                             darkMapStyle={darkMapStyle}
@@ -555,6 +555,20 @@ export default function Dashboard() {
                                             hubMarkerDotStyle={styles.hubMarkerDot}
                                             studentMarkerDotStyle={[styles.studentMarkerDot, { backgroundColor: '#0ea5e9' }]}
                                         />
+                                        {/* Same legend as the website's map */}
+                                        <View style={styles.mapLegend}>
+                                            <View style={styles.mapLegendItem}>
+                                                <View style={[styles.mapLegendDot, { backgroundColor: '#1e3a8a' }]} />
+                                                <Text style={styles.mapLegendText}>Service site</Text>
+                                            </View>
+                                            {location && (
+                                                <View style={styles.mapLegendItem}>
+                                                    <View style={[styles.mapLegendDot, { backgroundColor: '#0ea5e9' }]} />
+                                                    <Text style={styles.mapLegendText}>You</Text>
+                                                </View>
+                                            )}
+                                            <Text style={styles.mapLegendRadius}>Radius: {targetLocation.radius}m · starts when you scan</Text>
+                                        </View>
                                     </View>
                                     {!approachInside && (
                                         <TouchableOpacity

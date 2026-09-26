@@ -1,122 +1,203 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import { View, Text, Image, StyleSheet } from 'react-native';
 
-// Android geofence view drawn with plain Views instead of react-native-maps.
-// Google Maps on Android needs an API key baked into the APK; without one the app crashed
-// as soon as the map appeared (i.e. right after a timer started). Expo picks this file over
+// Android map drawn from OpenStreetMap tiles with plain Views, so it looks like the website's
+// Leaflet map without react-native-maps (Google Maps on Android needs an API key baked into the APK;
+// without one the app crashed as soon as the map appeared). Expo picks this file over
 // MapViewComponent.native.jsx on Android; iPhone keeps the real map.
 //
-// The service area fills the middle of the box; the student's dot is placed by their
-// real offset from the hub and pinned to the edge when they are far outside.
+// Session: centered on the site, the geofence circle green inside / red outside.
+// approach (before the timer): framed on both the student and the site, with the circle faded
+// and a dashed line showing which way to walk.
 
-const METERS_PER_DEG_LAT = 110540;
-const metersPerDegLng = (lat) => 111320 * Math.cos((lat * Math.PI) / 180);
+const TILE = 256;
+const MIN_ZOOM = 3;
+const MAX_ZOOM = 18;
+const TILE_URL = (z, x, y) => `https://tile.openstreetmap.org/${z}/${x}/${y}.png`;
+// OpenStreetMap's tile servers require apps to identify themselves and answer anonymous ones with an
+// "Access blocked" image. Android's <Image> loader can't set the User-Agent, so tiles are downloaded
+// with fetch (which can) and shown as data URIs. Cached for the app session so re-renders don't refetch.
+const TILE_HEADERS = { 'User-Agent': 'OSAConnect/1.0 (+https://osaconnect.vercel.app)' };
+const tileCache = new Map(); // url -> Promise<dataUri | null>
+
+const loadTile = (url) => {
+    if (!tileCache.has(url)) {
+        const promise = fetch(url, { headers: TILE_HEADERS })
+            .then((r) => (r.ok ? r.blob() : null))
+            .then((blob) => blob && new Promise((resolve) => {
+                const reader = new FileReader();
+                reader.onloadend = () => resolve(reader.result);
+                reader.onerror = () => resolve(null);
+                reader.readAsDataURL(blob);
+            }))
+            .catch(() => null);
+        promise.then((uri) => { if (!uri) tileCache.delete(url); }); // retry failed tiles next time
+        tileCache.set(url, promise);
+    }
+    return tileCache.get(url);
+};
+
+const Tile = ({ url, left, top }) => {
+    const [uri, setUri] = useState(null);
+    useEffect(() => {
+        let alive = true;
+        loadTile(url).then((u) => alive && setUri(u));
+        return () => { alive = false; };
+    }, [url]);
+    if (!uri) return null;
+    return <Image source={{ uri }} style={[styles.tile, { left, top }]} fadeDuration={0} />;
+};
+
+// Web Mercator: position in world pixels at a zoom level
+const project = (lat, lng, zoom) => {
+    const scale = TILE * 2 ** zoom;
+    const s = Math.sin((Math.max(-85, Math.min(85, lat)) * Math.PI) / 180);
+    return {
+        x: ((lng + 180) / 360) * scale,
+        y: (0.5 - Math.log((1 + s) / (1 - s)) / (4 * Math.PI)) * scale,
+    };
+};
+const metersPerPixel = (lat, zoom) => (156543.03392 * Math.cos((lat * Math.PI) / 180)) / 2 ** zoom;
+
+// Highest zoom where every point, plus padding, fits in the box
+const fitZoom = (points, width, height, pad) => {
+    for (let z = MAX_ZOOM; z > MIN_ZOOM; z--) {
+        const px = points.map((p) => project(p.lat, p.lng, z));
+        const w = Math.max(...px.map((p) => p.x)) - Math.min(...px.map((p) => p.x));
+        const h = Math.max(...px.map((p) => p.y)) - Math.min(...px.map((p) => p.y));
+        if (w <= width - pad.x * 2 && h <= height - pad.top - pad.bottom) return z;
+    }
+    return MIN_ZOOM;
+};
 
 export default function MapViewComponent({
     style, isDarkMode, targetLocation, isOutOfBounds, location, hubMarkerDotStyle, studentMarkerDotStyle, approach = false,
 }) {
     const [size, setSize] = useState({ width: 0, height: 0 });
+    const viewRef = useRef(null); // { zoom, center, key } kept steady so tiles don't reload on every GPS tick
 
-    const hubLat = targetLocation ? targetLocation.lat : 8.4859;
-    const hubLng = targetLocation ? targetLocation.lng : 124.6567;
+    const hub = {
+        lat: targetLocation ? targetLocation.lat : 8.4859,
+        lng: targetLocation ? targetLocation.lng : 124.6567,
+    };
     const radius = targetLocation?.radius || 50;
+    const you = location ? { lat: location.latitude, lng: location.longitude } : null;
+    const { width, height } = size;
 
-    const box = Math.min(size.width, size.height);
-    const cx = size.width / 2;
-    const cy = size.height / 2;
-
-    // Student's offset from the site in meters (east, north)
-    const offset = location
-        ? {
-            east: (location.longitude - hubLng) * metersPerDegLng(hubLat),
-            north: (location.latitude - hubLat) * METERS_PER_DEG_LAT,
+    let view = null;
+    if (width > 0 && height > 0) {
+        const pad = { x: 28, top: 40, bottom: 34 };
+        // Circle edges (north/south/east/west of the site) so the whole geofence stays in view
+        const dLat = radius / 111320;
+        const dLng = radius / (111320 * Math.cos((hub.lat * Math.PI) / 180));
+        const circlePts = [
+            { lat: hub.lat + dLat, lng: hub.lng }, { lat: hub.lat - dLat, lng: hub.lng },
+            { lat: hub.lat, lng: hub.lng + dLng }, { lat: hub.lat, lng: hub.lng - dLng },
+        ];
+        const key = `${approach}:${hub.lat}:${hub.lng}:${radius}:${width}x${height}`;
+        const prev = viewRef.current;
+        // Re-frame when the site/mode changes, or (approach) when the student walks out of view
+        let reframe = !prev || prev.key !== key || (approach && you && !prev.hadYou);
+        if (!reframe && approach && you) {
+            const c = project(prev.center.lat, prev.center.lng, prev.zoom);
+            const p = project(you.lat, you.lng, prev.zoom);
+            reframe = Math.abs(p.x - c.x) > width / 2 - 16 || Math.abs(p.y - c.y) > height / 2 - 16;
         }
-        : null;
-
-    // Session: the service area fills the middle. Approach (before the timer): zoom out until the
-    // student fits too, so the dashed line shows which way to walk.
-    let pxPerMeter = (box * 0.34) / radius;
-    if (approach && offset) {
-        const meters = Math.hypot(offset.east, offset.north);
-        if (meters > 0) pxPerMeter = Math.min(pxPerMeter, (box / 2 - 20) / meters);
-    }
-    const circlePx = Math.max(6, radius * pxPerMeter); // service-area circle radius on screen
-
-    let student = null;
-    if (offset && box > 0) {
-        const dx = offset.east * pxPerMeter;
-        const dy = -offset.north * pxPerMeter;
-        const limit = box / 2 - 14;
-        const dist = Math.hypot(dx, dy);
-        const k = dist > limit ? limit / dist : 1;
-        student = { x: cx + dx * k, y: cy + dy * k, pinned: k < 1 };
+        if (reframe) {
+            const points = approach && you ? [...circlePts, you] : circlePts;
+            const zoom = fitZoom(points, width, height, pad);
+            const lats = points.map((p) => p.lat);
+            const lngs = points.map((p) => p.lng);
+            const center = approach && you
+                ? { lat: (Math.max(...lats) + Math.min(...lats)) / 2, lng: (Math.max(...lngs) + Math.min(...lngs)) / 2 }
+                : hub;
+            viewRef.current = { key, zoom, center, hadYou: !!you };
+        }
+        view = viewRef.current;
     }
 
-    // Faded until the timer starts; then green inside / red outside
+    const tiles = [];
+    let toScreen = null;
+    let circlePx = 0;
+    if (view) {
+        const c = project(view.center.lat, view.center.lng, view.zoom);
+        const left = c.x - width / 2;
+        const top = c.y - height / 2;
+        toScreen = (p) => {
+            const w = project(p.lat, p.lng, view.zoom);
+            return { x: w.x - left, y: w.y - top };
+        };
+        const n = 2 ** view.zoom;
+        for (let tx = Math.floor(left / TILE); tx <= Math.floor((left + width) / TILE); tx++) {
+            for (let ty = Math.floor(top / TILE); ty <= Math.floor((top + height) / TILE); ty++) {
+                if (ty < 0 || ty >= n) continue;
+                const wrapped = ((tx % n) + n) % n;
+                tiles.push({ key: `${view.zoom}/${tx}/${ty}`, uri: TILE_URL(view.zoom, wrapped, ty), x: tx * TILE - left, y: ty * TILE - top });
+            }
+        }
+        circlePx = radius / metersPerPixel(hub.lat, view.zoom);
+    }
+
+    const hubPt = toScreen ? toScreen(hub) : null;
+    const youPt = toScreen && you ? toScreen(you) : null;
     const areaColor = approach ? '#64748b' : isOutOfBounds ? '#dc2626' : '#059669';
-    const ring = isDarkMode ? 'rgba(148,163,184,0.18)' : 'rgba(100,116,139,0.15)';
 
     return (
         <View
-            style={[style, styles.base, { backgroundColor: isDarkMode ? '#0f172a' : '#eef2f7' }]}
-            onLayout={(e) => setSize(e.nativeEvent.layout)}
+            style={[style, styles.base, { backgroundColor: isDarkMode ? '#1e293b' : '#e5e7eb' }]}
+            onLayout={(e) => setSize({ width: e.nativeEvent.layout.width, height: e.nativeEvent.layout.height })}
         >
-            {box > 0 && (
-                <>
-                    {/* Distance rings for scale */}
-                    {[0.7, 1.4].map((f) => (
-                        <View
-                            key={f}
-                            style={[styles.circle, {
-                                width: circlePx * 2 * f, height: circlePx * 2 * f, borderRadius: circlePx * f,
-                                left: cx - circlePx * f, top: cy - circlePx * f,
-                                borderColor: ring, borderStyle: 'dashed', borderWidth: 1,
-                            }]}
-                        />
-                    ))}
-                    {/* Service area */}
+            {tiles.map((t) => (
+                <Tile key={t.key} url={t.uri} left={t.x} top={t.y} />
+            ))}
+            {/* Dim the tiles a little in dark mode, like the website's map filter */}
+            {isDarkMode && <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(15,23,42,0.28)' }]} pointerEvents="none" />}
+
+            {hubPt && (
+                <View
+                    pointerEvents="none"
+                    style={[styles.abs, {
+                        width: circlePx * 2, height: circlePx * 2, borderRadius: circlePx,
+                        left: hubPt.x - circlePx, top: hubPt.y - circlePx,
+                        borderColor: areaColor, borderWidth: approach ? 2 : 3, borderStyle: approach ? 'dashed' : 'solid',
+                        backgroundColor: approach ? 'rgba(100,116,139,0.08)' : isOutOfBounds ? 'rgba(220,38,38,0.12)' : 'rgba(5,150,105,0.15)',
+                    }]}
+                />
+            )}
+
+            {/* Route line from the student to the site (approach only) */}
+            {approach && hubPt && youPt && (() => {
+                const len = Math.hypot(youPt.x - hubPt.x, youPt.y - hubPt.y);
+                if (len < 4) return null;
+                const angle = Math.atan2(hubPt.y - youPt.y, hubPt.x - youPt.x);
+                return (
                     <View
-                        style={[styles.circle, {
-                            width: circlePx * 2, height: circlePx * 2, borderRadius: circlePx,
-                            left: cx - circlePx, top: cy - circlePx,
-                            borderColor: areaColor, borderWidth: approach ? 2 : 3, borderStyle: approach ? 'dashed' : 'solid',
-                            backgroundColor: approach ? 'rgba(100,116,139,0.06)' : isOutOfBounds ? 'rgba(220,38,38,0.08)' : 'rgba(5,150,105,0.10)',
+                        pointerEvents="none"
+                        style={[styles.abs, {
+                            width: len,
+                            left: (youPt.x + hubPt.x) / 2 - len / 2,
+                            top: (youPt.y + hubPt.y) / 2 - 1.5,
+                            borderTopWidth: 3,
+                            borderColor: '#0ea5e9',
+                            borderStyle: 'dashed',
+                            transform: [{ rotate: `${angle}rad` }],
                         }]}
                     />
-                    {/* Route line from the student to the site (approach only) */}
-                    {approach && student && (() => {
-                        const len = Math.hypot(student.x - cx, student.y - cy);
-                        const angle = Math.atan2(cy - student.y, cx - student.x);
-                        return (
-                            <View
-                                style={{
-                                    position: 'absolute',
-                                    width: len,
-                                    left: (student.x + cx) / 2 - len / 2,
-                                    top: (student.y + cy) / 2 - 1.5,
-                                    borderTopWidth: 3,
-                                    borderColor: '#0ea5e9',
-                                    borderStyle: 'dashed',
-                                    transform: [{ rotate: `${angle}rad` }],
-                                }}
-                            />
-                        );
-                    })()}
-                    {/* Hub */}
-                    <View style={[styles.dot, { left: cx - 8, top: cy - 8 }]}>
-                        <View style={hubMarkerDotStyle} />
-                    </View>
-                    {/* Student */}
-                    {student && (
-                        <View style={[styles.dot, { left: student.x - 8, top: student.y - 8 }]}>
-                            <View style={studentMarkerDotStyle} />
-                        </View>
-                    )}
-                    <Text style={[styles.scale, { color: isDarkMode ? '#94a3b8' : '#64748b' }]}>
-                        {approach ? 'Starts when you scan' : student?.pinned ? 'You are far from the service area' : `Service area: ${Math.round(radius)} m`}
-                    </Text>
-                </>
+                );
+            })()}
+
+            {hubPt && (
+                <View pointerEvents="none" style={[styles.dot, { left: hubPt.x - 9, top: hubPt.y - 9 }]}>
+                    <View style={hubMarkerDotStyle} />
+                </View>
             )}
+            {youPt && (
+                <View pointerEvents="none" style={[styles.dot, { left: youPt.x - 9, top: youPt.y - 9 }]}>
+                    <View style={studentMarkerDotStyle} />
+                </View>
+            )}
+
+            <Text style={styles.attribution}>© OpenStreetMap</Text>
         </View>
     );
 }
@@ -125,21 +206,29 @@ const styles = StyleSheet.create({
     base: {
         overflow: 'hidden',
     },
-    circle: {
+    tile: {
+        position: 'absolute',
+        width: TILE,
+        height: TILE,
+    },
+    abs: {
         position: 'absolute',
     },
     dot: {
         position: 'absolute',
-        width: 16,
-        height: 16,
+        width: 18,
+        height: 18,
         alignItems: 'center',
         justifyContent: 'center',
     },
-    scale: {
+    attribution: {
         position: 'absolute',
-        bottom: 8,
-        right: 10,
-        fontSize: 10,
-        fontWeight: '700',
+        bottom: 2,
+        right: 4,
+        fontSize: 8,
+        color: '#475569',
+        backgroundColor: 'rgba(255,255,255,0.7)',
+        paddingHorizontal: 3,
+        borderRadius: 3,
     },
 });
