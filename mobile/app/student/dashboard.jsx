@@ -14,6 +14,7 @@ import MapViewComponent from '../../components/MapViewComponent';
 import { onCameraResult } from '../../components/cameraResults';
 import { parseServiceQr, serviceQrAction, NOT_A_START_QR, NOT_A_STOP_QR } from '../../components/serviceQr';
 import { useTheme } from '../../components/ThemeContext';
+import { timeGreeting, todayLabel, studentStatusLine } from '../../components/greeting';
 
 // Haversine formula
 const getDistance = (lat1, lon1, lat2, lon2) => {
@@ -34,13 +35,6 @@ const LiveTimer = ({ elapsedSeconds, requiredSeconds, textStyle }) => {
     return <Text style={textStyle}>{h}:{m}:{s}</Text>;
 };
 
-const getGreeting = () => {
-    const h = new Date().getHours();
-    if (h < 12) return 'GOOD MORNING,';
-    if (h < 17) return 'GOOD AFTERNOON,'; // evening from 5 PM, same as getSubGreetingText
-    return 'GOOD EVENING,';
-};
-
 const formatTime = (date) => {
     return new Date(date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
 };
@@ -51,7 +45,6 @@ export default function Dashboard() {
     const { isDarkMode, colors } = useTheme();
     const styles = getStyles(colors);
 
-    const [subGreeting, setSubGreeting] = useState('');
     const [violations, setViolations] = useState([]);
     const [tickets, setTickets] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -83,43 +76,6 @@ export default function Dashboard() {
     useEffect(() => {
         setupLocationTracking();
 
-        const getSubGreetingText = () => {
-            const hour = new Date().getHours();
-            if (hour >= 5 && hour < 12) {
-                const options = [
-                    "Good morning! Ready to make today productive?",
-                    "Early start, nice! Let's get those hours in.",
-                    "A new day, a new opportunity to serve."
-                ];
-                return options[Math.floor(Math.random() * options.length)];
-            }
-            if (hour >= 12 && hour < 17) {
-                const options = [
-                    "Good afternoon! How's your service going?",
-                    "Keep up the great work today.",
-                    "Another step closer to completing your hours."
-                ];
-                return options[Math.floor(Math.random() * options.length)];
-            }
-            if (hour >= 17 && hour < 22) {
-                const options = [
-                    "Good evening! Still making progress?",
-                    "The day isn't over yet. Keep going!",
-                    "Finishing strong today?"
-                ];
-                return options[Math.floor(Math.random() * options.length)];
-            }
-            const options = [
-                "Working late? Your dedication is showing.",
-                "Burning the midnight oil, huh?",
-                "Late-night grind detected.",
-                "Most people are asleep. You're still making progress.",
-                "Don't forget to rest after your shift.",
-                "The stars are out, and so are your service hours."
-            ];
-            return options[Math.floor(Math.random() * options.length)];
-        };
-        setSubGreeting(getSubGreetingText());
 
         return () => {
             if (locationSubscription.current) {
@@ -416,9 +372,9 @@ export default function Dashboard() {
                 {/* Header */}
                 <View style={styles.header}>
                     <View style={styles.headerLeft}>
-                        <Text style={styles.greeting}>{getGreeting()}</Text>
-                        <Text style={styles.userName}>Hi, {displayName}!</Text>
-                        <Text style={styles.subGreeting}>{subGreeting}</Text>
+                        <Text style={styles.greeting}>{todayLabel()}</Text>
+                        <Text style={styles.userName}>{timeGreeting()}, {displayName}</Text>
+                        <Text style={styles.subGreeting}>{studentStatusLine({ sessionActive: timerActive, openTicket: tickets.find(t => t.status === 'Ongoing') || tickets.find(t => t.status === 'Active') })}</Text>
                     </View>
                     <View style={styles.headerRight}>
                         <TouchableOpacity style={styles.iconButton} onPress={() => router.push('/help')} accessibilityLabel="Help">
