@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import QRCode from 'react-qr-code';
 import { User, Mail, Phone, BookOpen, Building2, Lock, ArrowLeft, LogOut, AlertTriangle, Moon, CircleHelp, ChevronRight } from 'lucide-react';
 import { useStudentTheme } from '../../components/useStudentTheme';
+import { logoutStudent } from '../../components/studentSession';
 
 // Mirrors mobile/app/student/settings.jsx
 const Settings = () => {
@@ -11,6 +12,7 @@ const Settings = () => {
     const [studentInfo, setStudentInfo] = useState(null);
     const [loading, setLoading] = useState(true);
     const [showLogoutModal, setShowLogoutModal] = useState(false);
+    const [loggingOut, setLoggingOut] = useState(false);
     const user = JSON.parse(localStorage.getItem('user') || '{}');
 
     useEffect(() => {
@@ -32,9 +34,10 @@ const Settings = () => {
         fetchStudentInfo();
     }, [user.username]);
 
-    const logout = () => {
-        localStorage.removeItem('user');
-        navigate('/login', { replace: true });
+    // Stops a running service timer first (hours served so far are kept)
+    const logout = async () => {
+        setLoggingOut(true);
+        await logoutStudent(navigate);
     };
 
     const theme = isDarkMode ? 'dark' : 'light';
@@ -180,13 +183,13 @@ const Settings = () => {
                             <AlertTriangle size={24} className="text-[var(--s-danger)]" />
                             <h3 className="ml-2 text-lg font-black uppercase tracking-[1px] text-[var(--s-danger)]">Log Out</h3>
                         </div>
-                        <p className="mb-6 text-sm leading-5 text-[var(--s-text)]">Are you sure you want to log out?</p>
+                        <p className="mb-6 text-sm leading-5 text-[var(--s-text)]">Are you sure you want to log out? A running service timer will stop.</p>
                         <div className="flex gap-3">
                             <button onClick={() => setShowLogoutModal(false)} className="flex-1 rounded-xl bg-[var(--s-bg)] p-3.5 font-bold text-[var(--s-muted)]">
                                 Cancel
                             </button>
-                            <button onClick={logout} className="flex-1 rounded-xl bg-[var(--s-danger)] p-3.5 text-sm font-bold text-white">
-                                Log Out
+                            <button onClick={logout} disabled={loggingOut} className="flex-1 rounded-xl bg-[var(--s-danger)] p-3.5 text-sm font-bold text-white disabled:opacity-60">
+                                {loggingOut ? 'Logging out…' : 'Log Out'}
                             </button>
                         </div>
                     </div>
