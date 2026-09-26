@@ -402,6 +402,7 @@ export default function Dashboard() {
     };
 
     const displayName = user?.name?.split(' ')[0] || user?.username || 'User';
+    const assignedSite = (tickets.find(t => t.status === 'Ongoing') || tickets.find(t => t.status === 'Active'))?.assigned_site;
 
     return (
         <View style={{ flex: 1 }}>
@@ -551,9 +552,16 @@ export default function Dashboard() {
                                 <QrCode size={48} color={colors.border} strokeWidth={1.5} />
                             </View>
                             <Text style={styles.noSessionTitle}>No Active Session</Text>
-                            <Text style={styles.noSessionSubtitle}>
-                                Scan an activity QR code to start{'\n'}tracking your community service hours.
-                            </Text>
+                            {assignedSite ? (
+                                // Assigned by the admin: only this site's QR starts the timer
+                                <Text style={styles.noSessionSubtitle}>
+                                    Go to <Text style={{ fontWeight: '900', color: colors.text }}>{assignedSite.name}</Text> and scan{'\n'}the QR code posted there to start.
+                                </Text>
+                            ) : (
+                                <Text style={styles.noSessionSubtitle}>
+                                    Scan an activity QR code to start{'\n'}tracking your community service hours.
+                                </Text>
+                            )}
                             <TouchableOpacity style={styles.scanCta} onPress={startScan}>
                                 <Text style={styles.scanCtaText}>Scan QR Code</Text>
                             </TouchableOpacity>

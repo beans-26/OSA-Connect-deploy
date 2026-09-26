@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import Sidebar from '../../components/Sidebar';
-import QRCode from 'react-qr-code';
-import { Settings as SettingsIcon, Shield, Clock, QrCode, Bell, Lock, User, Search, Key, AlertTriangle, Save, LogOut, CheckCircle, MapPin } from 'lucide-react';
+import { Settings as SettingsIcon, Shield, Clock, Bell, Lock, User, Search, Key, AlertTriangle, Save, LogOut, CheckCircle, MapPin } from 'lucide-react';
 import GlobalSearch from '../../components/GlobalSearch';
 import ServiceSites from './ServiceSites';
 
@@ -18,7 +17,7 @@ const LiveTimer = ({ remainingHours }) => {
 
 const StaffSettings = () => {
     const userRole = JSON.parse(localStorage.getItem('user') || '{}').role || 'staff';
-    const [activeSection, setActiveSection] = useState('codes');
+    const [activeSection, setActiveSection] = useState('sites');
     const [searchId, setSearchId] = useState('');
     const [lookupResult, setLookupResult] = useState(null);
     const [loadingLookup, setLoadingLookup] = useState(false);
@@ -46,7 +45,6 @@ const StaffSettings = () => {
     const ADMIN_SECRET = "OSA-2026";
 
     const sections = [
-        { id: 'codes', label: 'Action Codes', icon: QrCode, description: 'Service control QR codes' },
         { id: 'sites', label: 'Service Sites', icon: MapPin, description: 'Register locations by GPS' },
         { id: 'account', label: 'Account', icon: User, description: 'Manage your profile' },
         { id: 'security', label: 'Security', icon: Lock, description: 'Password and access' },
@@ -212,32 +210,6 @@ const StaffSettings = () => {
         setTimeout(() => setActionMessage({ text: '', type: '' }), 3000);
     };
 
-    const downloadRegistrationQR = () => {
-        const svg = document.getElementById('reg-qr-code-svg');
-        if (!svg) return;
-
-        const svgData = new XMLSerializer().serializeToString(svg);
-        const canvas = document.createElement('canvas');
-        const ctx = canvas.getContext('2d');
-        const img = new Image();
-
-        img.onload = () => {
-            canvas.width = 256;
-            canvas.height = 256;
-            ctx.fillStyle = "white";
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-            ctx.drawImage(img, 0, 0);
-
-            const pngFile = canvas.toDataURL('image/png');
-            const downloadLink = document.createElement('a');
-            downloadLink.download = `registration_poster_qr.png`;
-            downloadLink.href = pngFile;
-            downloadLink.click();
-        };
-
-        img.src = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgData)));
-    };
-
     return (
         <div className="flex bg-slate-50 dark:bg-slate-900 min-h-screen relative font-sans">
             <Sidebar role={userRole} />
@@ -302,47 +274,6 @@ const StaffSettings = () => {
 
                     {/* Content Area */}
                     <div className="lg:col-span-3">
-                        {activeSection === 'codes' && (
-                            <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                                <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl border border-slate-100 dark:border-slate-700 shadow-sm">
-                                    <div className="flex items-center gap-3 mb-6 pb-4 border-b border-slate-50">
-                                        <div className="p-2 bg-indigo-50 text-indigo-500 rounded-xl">
-                                            <QrCode size={20} />
-                                        </div>
-                                        <div>
-                                            <h3 className="text-xl font-black text-slate-900 dark:text-white uppercase tracking-tight">Service Control QR</h3>
-                                            <p className="text-slate-500 dark:text-slate-400 text-xs font-bold uppercase tracking-widest">Live identification codes</p>
-                                        </div>
-                                    </div>
-
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                        <div className="bg-rose-950 p-6 flex flex-col items-center justify-center text-center rounded-2xl shadow-md border-2 border-rose-800/30 group hover:border-rose-500 transition-all duration-500">
-                                            <h4 className="font-black text-lg uppercase tracking-tighter text-rose-400 mb-4 flex items-center gap-2">
-                                                <Shield size={16} /> Stop Service
-                                            </h4>
-                                            <div className="bg-white dark:bg-slate-800 p-4 rounded-xl mb-4 shadow-lg group-hover:scale-105 transition-transform duration-500">
-                                                <QRCode value="VNZMXBCALSKDJFHGQPWIEURYT" size={100} level="H" />
-                                            </div>
-                                            <div className="bg-rose-900/50 text-rose-300 rounded-xl px-4 py-2 font-mono font-black text-[9px] border border-rose-700/50 tracking-widest uppercase">
-                                                VNZMXBCALSKDJFHGQPWIEURYT
-                                            </div>
-                                            <p className="text-rose-400/60 text-[9px] font-bold mt-3 uppercase tracking-widest">End Session Immediately</p>
-                                        </div>
-
-                                        <div className="bg-blue-950/30 p-6 flex flex-col items-center justify-center text-center rounded-2xl shadow-sm border border-dashed border-blue-900/30">
-                                            <h4 className="font-black text-sm uppercase tracking-widest text-blue-400 mb-6 flex items-center gap-2">
-                                                <User size={16} /> Public Registration QR
-                                            </h4>
-                                            <div className="bg-white dark:bg-slate-800 p-4 rounded-2xl mb-4 shadow-lg cursor-pointer transition-transform hover:scale-110" onClick={downloadRegistrationQR}>
-                                                <QRCode id="reg-qr-code-svg" value={`http://${window.location.hostname}:5173/register`} size={100} level="H" />
-                                            </div>
-                                            <button onClick={downloadRegistrationQR} className="text-blue-400 font-black text-[10px] uppercase tracking-[0.2em] hover:text-blue-300">Download Poster</button>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        )}
-
                         {activeSection === 'sites' && <ServiceSites />}
 
                         {/* Tickets section removed */}

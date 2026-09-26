@@ -85,6 +85,22 @@ def _registration_details_error(data, require_all):
     return None
 
 
+def _resolve_service_site(value):
+    """The active service site picked in an "Assign Building" dropdown (by site code, or by name for older clients)."""
+    value = str(value or '').strip()
+    if not value:
+        return None
+    return (ServiceSite.objects.filter(site_code=value.upper(), is_active=True).first()
+            or ServiceSite.objects.filter(name__iexact=value, is_active=True).first())
+
+
+def _site_ticket_fields(site):
+    """E-ticket fields for a ticket assigned to `site`: the site to scan, and its geofence up front for the map."""
+    if not site:
+        return {}
+    return {'assigned_site_code': site.site_code, 'lat': site.latitude, 'lng': site.longitude, 'radius': float(site.radius_m)}
+
+
 class StudentViewSet(viewsets.ModelViewSet):
     lookup_field = 'student_id'
     queryset = Student.objects.all()
@@ -477,10 +493,12 @@ class ViolationViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=['post'])
     def bulk_create(self, request):
         data = request.data
+        # The building dropdown lists service sites (their site code); older clients send a name
+        assigned_site = _resolve_service_site(data.get('assigned_building'))
         student_ids = data.get('student_ids', [])
         # Rules: Predefined violation type for bulk reports
         violation_type = "Failure to attend mandatory campus event"
-        assigned_building = data.get('assigned_building')
+        assigned_building = assigned_site.name if assigned_site else data.get('assigned_building')
         reporter = data.get('reporter', 'OSA Administrator')
         
         if not student_ids:
@@ -523,7 +541,8 @@ class ViolationViewSet(viewsets.ModelViewSet):
                         assigned_location=assigned_building,
                         total_hours_required=hours,
                         remaining_hours=hours,
-                        status="Active"
+                        status="Active",
+                        **_site_ticket_fields(assigned_site)
                     ).save()
                     
                 results.append({"student_id": sid, "status": "success"})
@@ -628,6 +647,10 @@ class ViolationViewSet(viewsets.ModelViewSet):
             assigned_building = request.data.get('assigned_building')
             if not assigned_building:
                 return Response({"error": "Please assign a building before approval"}, status=status.HTTP_400_BAD_REQUEST)
+            # The building dropdown lists service sites (their site code); older clients send a name
+            assigned_site = _resolve_service_site(assigned_building)
+            if assigned_site:
+                assigned_building = assigned_site.name
             
             if violation.status == "Approved" or violation.status == "Completed":
                 return Response({"error": "Violation is already approved or completed."}, status=status.HTTP_400_BAD_REQUEST)
@@ -654,7 +677,8 @@ class ViolationViewSet(viewsets.ModelViewSet):
                     assigned_location=assigned_building,
                     total_hours_required=hours,
                     remaining_hours=hours,
-                    status="Active"
+                    status="Active",
+                    **_site_ticket_fields(assigned_site)
                 ).save()
                 print(f"Violation {violation_id} APPROVED. Assigned to {assigned_building}. E-Ticket {ticket.id} created.")
                 return Response({"message": f"Violation approved and assigned to {assigned_building}."}, status=status.HTTP_200_OK)
@@ -860,6 +884,13 @@ class TimeLogViewSet(viewsets.ModelViewSet):
                 lng = request.data.get('lng')
                 radius = request.data.get('radius')
                 site_code = str(request.data.get('site_code') or '').strip().upper()
+
+                # Assigned to a site: only that site's QR starts the timer (not other sites or the old OSA codes)
+                assigned_code = getattr(eticket, 'assigned_site_code', None)
+                if assigned_code and site_code != assigned_code:
+                    assigned = ServiceSite.objects.filter(site_code=assigned_code).first()
+                    label = f"{assigned.name} ({assigned_code})" if assigned else assigned_code
+                    return Response({"error": f"You're assigned to {label}. Scan the QR code posted there to start your timer."}, status=status.HTTP_400_BAD_REQUEST)
 
                 if site_code:
                     # Registered service site: the geofence comes from the saved site, never from the phone

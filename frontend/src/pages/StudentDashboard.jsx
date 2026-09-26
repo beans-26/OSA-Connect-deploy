@@ -675,9 +675,16 @@ const StudentDashboard = () => {
                                 <QrCode size={48} strokeWidth={1.5} />
                             </div>
                             <h2 className="mb-2 text-lg font-black text-[var(--s-text)]">No Active Session</h2>
-                            <p className="mb-5 text-sm font-medium leading-5 text-[var(--s-muted)]">
-                                Scan an activity QR code to start<br />tracking your community service hours.
-                            </p>
+                            {activeTicket?.assigned_site ? (
+                                // Assigned by the admin: only this site's QR starts the timer
+                                <p className="mb-5 text-sm font-medium leading-5 text-[var(--s-muted)]">
+                                    Go to <span className="font-black text-[var(--s-text)]">{activeTicket.assigned_site.name}</span> and scan<br />the QR code posted there to start.
+                                </p>
+                            ) : (
+                                <p className="mb-5 text-sm font-medium leading-5 text-[var(--s-muted)]">
+                                    Scan an activity QR code to start<br />tracking your community service hours.
+                                </p>
+                            )}
                             <button onClick={() => setIsScanning(true)} className="rounded-xl bg-[var(--s-primary)] px-7 py-3 text-[13px] font-bold tracking-[0.5px] text-white">
                                 Scan QR Code
                             </button>
