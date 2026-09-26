@@ -141,3 +141,27 @@ export const distanceMeters = (a, b) => {
 
 /** True when `point` is inside the circle around `site` ({ latitude, longitude, radius_m }). */
 export const isWithinSite = (point, site) => distanceMeters(point, site) <= site.radius_m;
+
+/** Compass direction from `from` to `to` ({ latitude, longitude }), e.g. "northeast". */
+export const compassDirection = (from, to) => {
+    const toRad = (d) => (d * Math.PI) / 180;
+    const dLng = toRad(to.longitude - from.longitude);
+    const y = Math.sin(dLng) * Math.cos(toRad(to.latitude));
+    const x =
+        Math.cos(toRad(from.latitude)) * Math.sin(toRad(to.latitude)) -
+        Math.sin(toRad(from.latitude)) * Math.cos(toRad(to.latitude)) * Math.cos(dLng);
+    const bearing = ((Math.atan2(y, x) * 180) / Math.PI + 360) % 360;
+    return ['north', 'northeast', 'east', 'southeast', 'south', 'southwest', 'west', 'northwest'][Math.round(bearing / 45) % 8];
+};
+
+/** "85 m" or "1.2 km" */
+export const formatDistance = (meters) =>
+    meters < 1000 ? `${Math.round(meters)} m` : `${(meters / 1000).toFixed(1)} km`;
+
+/** Walking directions to a point in the phone's maps app (Apple Maps on iPhone, Google Maps elsewhere). */
+export const directionsUrl = ({ latitude, longitude }) => {
+    const isApple = typeof navigator !== 'undefined' && /iPhone|iPad|iPod/i.test(navigator.userAgent);
+    return isApple
+        ? `https://maps.apple.com/?daddr=${latitude},${longitude}&dirflg=w`
+        : `https://www.google.com/maps/dir/?api=1&destination=${latitude},${longitude}&travelmode=walking`;
+};
