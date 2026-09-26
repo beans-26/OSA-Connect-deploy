@@ -18,6 +18,8 @@ import Help from './pages/Help';
 import FacultyDashboard from './pages/faculty/FacultyDashboard';
 import LandingPage from './pages/LandingPage';
 import AdminLogin from './pages/AdminLogin';
+import StudentIdleGuard from './components/StudentIdleGuard';
+import { stopActiveSession } from './components/studentSession';
 
 const ProtectedRoute = ({ element, allowedRoles }) => {
   const userStr = localStorage.getItem('user');
@@ -49,7 +51,7 @@ const ProtectedRoute = ({ element, allowedRoles }) => {
               {user.role === 'admin' && (
                 <a href="/admin/overview" className="block w-full bg-ustp-blue text-white py-4 rounded-xl font-black uppercase text-xs tracking-widest hover:bg-blue-700 transition shadow-lg shadow-blue-200">Admin Dashboard</a>
               )}
-              <button onClick={() => { localStorage.removeItem('user'); window.location.href = '/login'; }} className="block w-full bg-slate-100 text-slate-500 py-4 rounded-xl font-black uppercase text-xs tracking-widest hover:bg-slate-200 transition">Log Out</button>
+              <button onClick={async () => { if (user.role === 'student') await stopActiveSession(user.username); localStorage.removeItem('user'); window.location.href = '/login'; }} className="block w-full bg-slate-100 text-slate-500 py-4 rounded-xl font-black uppercase text-xs tracking-widest hover:bg-slate-200 transition">Log Out</button>
             </div>
           </div>
         </div>
@@ -84,6 +86,7 @@ function App() {
   return (
     <Router>
       <div className="min-h-screen bg-slate-50 text-slate-900">
+        <StudentIdleGuard />
         <PageFade>
         <Routes>
           <Route path="/login" element={<Login />} />

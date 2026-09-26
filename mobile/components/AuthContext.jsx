@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router } from 'expo-router';
+import { stopActiveSession } from './studentSession';
 
 const AuthContext = createContext();
 
@@ -48,6 +49,8 @@ export const AuthProvider = ({ children }) => {
     };
 
     const logout = async () => {
+        // A student's running service session stops at logout, on this phone and on the website
+        if (user?.role === 'student') await stopActiveSession(user.username);
         try {
             await AsyncStorage.removeItem('user');
             setUser(null);
