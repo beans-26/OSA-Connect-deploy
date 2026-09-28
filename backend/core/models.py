@@ -57,7 +57,8 @@ class ViolationReport(Document):
     meta = {'collection': 'violation_reports', 'auto_create_index': False}
 
 class ETicket(Document):
-    violation = ReferenceField(ViolationReport, required=True)
+    # One e-ticket per violation: a unique index, created once in the database (ETicket.ensure_indexes())
+    violation = ReferenceField(ViolationReport, required=True, unique=True)
     assigned_location = StringField(required=True)
     total_hours_required = FloatField(required=True)
     remaining_hours = FloatField(required=True)

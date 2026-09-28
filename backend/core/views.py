@@ -6,8 +6,9 @@ from rest_framework.permissions import AllowAny
 from .models import Student, ViolationReport, ETicket, TimeLog, SystemUser, ServiceSite, utc_now
 from .serializers import StudentSerializer, ViolationReportSerializer, ETicketSerializer, TimeLogSerializer
 from .passwords import hash_password, verify_password, check_and_upgrade
+from .emails import send_code_email, send_violation_notice
 from .auth import issue_token, forget_account, IsAdmin, IsReporter, IsStudent, IsLoggedIn, owns_ticket, role_of
-from mongoengine.errors import ValidationError as MongoValidationError
+from mongoengine.errors import ValidationError as MongoValidationError, NotUniqueError
 from bson.errors import InvalidId
 import datetime
 import re
@@ -64,19 +65,29 @@ def login_view(request):
     # Default rejection
     return Response({"error": "Invalid credentials"}, status=status.HTTP_401_UNAUTHORIZED)
 
+def student_id_error(sid):
+    """Error for a Student ID that can't be a USTP ID (numbers only, 6-12 digits), else None."""
+    if not (sid.isdigit() and 6 <= len(sid) <= 12):
+        return "Student ID must be numbers only, like 2023303188."
+    return None
+
+
 def _registration_details_error(data, require_all):
-    """Returns an error message for a taken Student ID / name or a bad contact number, else None."""
+    """Returns an error message for a taken or malformed Student ID or a bad contact number, else None.
+    A record made from a guard's report (no password yet) doesn't count as taken: registering claims it.
+    Names may repeat; the Student ID tells students apart."""
     sid = str(data.get('student_id', '')).strip()
     contact = str(data.get('contact_number', '')).strip()
-    name = str(data.get('name', '')).strip()
 
     if require_all and not sid:
         return "Student ID is required."
-    if sid and Student.objects.filter(student_id=sid).first():
-        return f"Student ID {sid} is already registered."
-
-    if name and Student.objects.filter(name__iexact=name).first():
-        return f"A student named '{name}' is already registered."
+    if sid:
+        format_error = student_id_error(sid)
+        if format_error:
+            return format_error
+        existing = Student.objects.filter(student_id=sid).first()
+        if existing and existing.password:
+            return f"Student ID {sid} is already registered."
 
     if require_all and not contact:
         return "Contact number is required."
@@ -187,7 +198,9 @@ class StudentViewSet(viewsets.ModelViewSet):
         if not email:
             return Response({"error": "Email is required"}, status=status.HTTP_400_BAD_REQUEST)
             
-        if Student.objects.filter(email__iexact=email).first():
+        # (A guard's report may already hold this email on the student's own unregistered record)
+        sid = str(request.data.get('student_id') or '').strip()
+        if Student.objects.filter(email__iexact=email, student_id__ne=sid).first():
             return Response({"error": "This email is already registered to another student."}, status=status.HTTP_400_BAD_REQUEST)
 
         # Checked here too so the student finds out before waiting for the email code.
@@ -203,16 +216,9 @@ class StudentViewSet(viewsets.ModelViewSet):
         
         OTPVerification(email=email, otp=otp).save()
         
-        message = f"Your OSAConnect registration verification code is: {otp}\n\nThis code will expire in 5 minutes."
-        
         try:
-            send_mail(
-                subject="OSAConnect: Email Verification Code",
-                message=message,
-                from_email=settings.DEFAULT_FROM_EMAIL,
-                recipient_list=[email],
-                fail_silently=False,
-            )
+            # name is optional (older app builds don't send it); used only for the greeting
+            send_code_email(email, otp, 'register', name=request.data.get('name'))
             return Response({"message": "OTP sent successfully"})
         except Exception as e:
             error_msg = f"Failed to send email: {str(e)}" if settings.DEBUG else "Failed to send email. Check your connection."
@@ -264,17 +270,23 @@ class StudentViewSet(viewsets.ModelViewSet):
         # Proceed with registration
         sid = str(data.get('student_id', '')).strip()
         name = data.get('name', '').strip()
+        if Student.objects.filter(email__iexact=email, student_id__ne=sid).first():
+            return Response({"error": "This email is already registered to another student."}, status=status.HTTP_400_BAD_REQUEST)
 
-        student = Student(
-            student_id=sid,
-            name=name,
-            course=data.get('course', ''),
-            department=data.get('department', ''),
-            year_level=data.get('year_level', ''),
-            email=email,
-            contact_number=str(data.get('contact_number', '')).strip(),
-            password=hash_password(data.get('password', ''))
-        ).save()
+        # A guard may have reported this ID before the student registered: that record becomes the
+        # student's account, so the violations already filed stay attached to them
+        student = Student.objects.filter(student_id=sid).first()
+        if student and student.password:
+            return Response({"error": f"Student ID {sid} is already registered."}, status=status.HTTP_400_BAD_REQUEST)
+        student = student or Student(student_id=sid)
+        student.name = name
+        student.course = data.get('course', '')
+        student.department = data.get('department', '')
+        student.year_level = data.get('year_level', '')
+        student.email = email
+        student.contact_number = str(data.get('contact_number', '')).strip()
+        student.password = hash_password(data.get('password', ''))
+        student.save()
         
         return Response(StudentSerializer(student).data, status=status.HTTP_201_CREATED)
 
@@ -298,13 +310,7 @@ class StudentViewSet(viewsets.ModelViewSet):
         OTPVerification(email=email, otp=otp).save()
         
         try:
-            send_mail(
-                subject="OSAConnect: Password Reset Code",
-                message=f"Your password reset code is: {otp}\n\nIf you did not request this, please ignore this email.",
-                from_email=settings.DEFAULT_FROM_EMAIL,
-                recipient_list=[student.email],
-                fail_silently=False,
-            )
+            send_code_email(student.email, otp, 'reset', name=student.name)
             return Response({"message": "Reset code sent to your email."})
         except Exception as e:
             error_msg = f"Failed to send email: {str(e)}" if settings.DEBUG else "Failed to send email. Check your connection."
@@ -404,14 +410,7 @@ class StudentViewSet(viewsets.ModelViewSet):
         OTPVerification.objects.filter(email=new_email).delete()
         OTPVerification(email=new_email, otp=otp).save()
         try:
-            send_mail(
-                subject="OSAConnect: Confirm Your New Email",
-                message=f"Hi {student.name},\n\nYour OSAConnect code to change your email to this address is: {otp}\n\n"
-                        f"This code will expire in 5 minutes. If you didn't ask for this, you can ignore this email.",
-                from_email=settings.DEFAULT_FROM_EMAIL,
-                recipient_list=[new_email],
-                fail_silently=False,
-            )
+            send_code_email(new_email, otp, 'email_change', name=student.name)
         except Exception as e:
             error_msg = f"Failed to send email: {str(e)}" if settings.DEBUG else "Failed to send email. Check your connection."
             return Response({"error": error_msg}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
@@ -470,9 +469,7 @@ class StudentViewSet(viewsets.ModelViewSet):
         if sid and Student.objects.filter(student_id=sid).first():
             return Response({"error": f"Student ID '{sid}' is already in use."}, status=status.HTTP_400_BAD_REQUEST)
         
-        if name and Student.objects.filter(name__iexact=name).first():
-            return Response({"error": f"A student named '{name}' is already registered."}, status=status.HTTP_400_BAD_REQUEST)
-            
+        # Names may repeat; the Student ID tells students apart
         return super().create(request, *args, **kwargs)
 
     def update(self, request, *args, **kwargs):
@@ -480,11 +477,9 @@ class StudentViewSet(viewsets.ModelViewSet):
             student = self.get_object()
             data = request.data
             
-            # 1. Validate Name Uniqueness if changing
+            # 1. Name (may repeat; the Student ID tells students apart)
             new_name = data.get('name', '').strip()
-            if new_name and new_name.lower() != student.name.lower():
-                if Student.objects.filter(name__iexact=new_name).first():
-                    return Response({"error": f"A student named '{new_name}' is already registered."}, status=status.HTTP_400_BAD_REQUEST)
+            if new_name:
                 student.name = new_name
 
             # 2. Validate Student ID Uniqueness if changing
@@ -582,40 +577,9 @@ def send_violation_email(report):
         print(f"EMAIL NOT SENT: No email registered for student {student.student_id}")
         return False
         
-    subject = f"OSAConnect: Notice of Campus Incident Report"
-    
-    # Saved as UTC; the email shows Philippine time (UTC+8, no daylight saving)
-    ph_time = report.created_at.replace(tzinfo=datetime.timezone.utc).astimezone(datetime.timezone(datetime.timedelta(hours=8))) if report.created_at else None
-    date_str = ph_time.strftime("%B %d, %Y at %I:%M %p") if ph_time else "Unknown"
-    location = report.location if hasattr(report, 'location') and report.location else "Campus Premises"
-    
-    message = f"""Dear {student.name},
-
-You are receiving this official notification because an incident report has been filed under your name by a campus security guard or staff member.
-
-Incident Details:
-- Violation Type: {report.violation_type}
-- Date & Time: {date_str}
-- Location: {location}
-- Description: {report.description or 'No additional description provided.'}
-- Reported By: {report.reporting_guard}
-
-Your report has been forwarded to the Office of Student Affairs (OSA) for review. 
-Please log in to the OSAConnect portal to view your status, respond to the report, and check if any community service obligations or disciplinary actions are required.
-
-This is an automated message. Please do not reply to this email.
-
-Regards,
-Office of Student Affairs
-"""
     try:
-        send_mail(
-            subject=subject,
-            message=message,
-            from_email=settings.DEFAULT_FROM_EMAIL,
-            recipient_list=[student.email],
-            fail_silently=False,
-        )
+        # Wording, Philippine time and the plain + HTML versions live in core/emails.py
+        send_violation_notice(report)
         print(f"EMAIL SUCCESS: Notification sent to {student.email}")
         return True
     except Exception as e:
@@ -777,33 +741,26 @@ class ViolationViewSet(viewsets.ModelViewSet):
             
         if not student_id:
             return Response({"error": "student_id is required"}, status=status.HTTP_400_BAD_REQUEST)
-        
-        # 1. ORM: Find or Create Student to ensure link exists
-        try:
-            student = Student.objects.get(student_id=student_id)
-            print(f"DB MATCH: Existing student record found: {student.name}")
-        except Student.DoesNotExist:
-            # CHECK FOR DUPLICATE NAME (Prevent duplicate accounts for same person with different ID)
-            provided_name = data.get('name', 'New Student').strip()
-            # Normalize ID as well just in case
-            student_id = student_id.strip()
-            
-            existing_student_by_name = Student.objects.filter(name__iexact=provided_name).first()
-            
-            if existing_student_by_name:
-                print(f"DB LINK: Student {provided_name} exists under different ID. Linking report to existing account.")
-                student = existing_student_by_name
-            else:
-                print(f"DB SYNC: Creating missing student profile for {student_id}...")
-                student = Student(
-                    student_id=student_id,
-                    name=provided_name,
-                    course=data.get('course', 'Unknown'),
-                    department=data.get('department', 'Unknown'),
-                    contact_number=data.get('contact', ''),
-                    email=data.get('email', '')
-                ).save()
-                print(f"DB SUCCESS: New student registered: {student.name}")
+        student_id = str(student_id).strip()
+        id_error = student_id_error(student_id)
+        if id_error:
+            return Response({"error": id_error}, status=status.HTTP_400_BAD_REQUEST)
+
+        # 1. The report goes to the student with this ID, and only by ID: names can repeat, and
+        # matching by name used to attach reports to the wrong person
+        student = Student.objects.filter(student_id=student_id).first()
+        if not student:
+            # Not registered yet: keep the report under the ID with the details the guard entered.
+            # This record can't log in; when the student registers with this ID it becomes their
+            # account and keeps this report (StudentViewSet.register_with_otp).
+            student = Student(
+                student_id=student_id,
+                name=str(data.get('name') or 'Unregistered student').strip(),
+                course=data.get('course', 'Unknown'),
+                department=data.get('department', 'Unknown'),
+                contact_number=data.get('contact', ''),
+                email=str(data.get('email') or '').strip().lower(),
+            ).save()
             
         # 2. Calculate offense count and punishment
         violation_type = data.get('violation_type', data.get('violation', 'Other'))
@@ -863,8 +820,8 @@ class ViolationViewSet(viewsets.ModelViewSet):
             if assigned_site:
                 assigned_building = assigned_site.name
             
-            if violation.status == "Approved" or violation.status == "Completed":
-                return Response({"error": "Violation is already approved or completed."}, status=status.HTTP_400_BAD_REQUEST)
+            if violation.status != "Pending OSA Review":
+                return Response({"error": "This violation was already reviewed by someone else."}, status=status.HTTP_409_CONFLICT)
 
             # Get custom hours if provided
             custom_hours = request.data.get('custom_hours')
@@ -883,22 +840,29 @@ class ViolationViewSet(viewsets.ModelViewSet):
             if full:
                 return full
 
-            violation.status = "Approved"
-            violation.assigned_building = assigned_building
-            violation.punishment = punishment
-            
-            violation.save()
-            
+            # Claim the case in one database step: it only changes if it's still pending. When two admins
+            # act at the same moment (approve + approve, or approve + dismiss), exactly one claim succeeds
+            # and only an approval that won makes the e-ticket; the other admin is told it was reviewed.
+            claimed = ViolationReport.objects(id=violation.id, status="Pending OSA Review").update_one(
+                set__status="Approved", set__assigned_building=assigned_building, set__punishment=punishment)
+            if not claimed:
+                return Response({"error": "This violation was already reviewed by someone else."}, status=status.HTTP_409_CONFLICT)
+            violation.reload()
+
             # Only create E-Ticket if there are hours to serve
             if hours > 0:
-                ticket = ETicket(
-                    violation=violation,
-                    assigned_location=assigned_building,
-                    total_hours_required=hours,
-                    remaining_hours=hours,
-                    status="Active",
-                    **_site_ticket_fields(assigned_site)
-                ).save()
+                try:
+                    ticket = ETicket(
+                        violation=violation,
+                        assigned_location=assigned_building,
+                        total_hours_required=hours,
+                        remaining_hours=hours,
+                        status="Active",
+                        **_site_ticket_fields(assigned_site)
+                    ).save()
+                except NotUniqueError:
+                    # The database allows one e-ticket per violation (the backup for the claim above)
+                    return Response({"error": "This violation already has an e-ticket."}, status=status.HTTP_409_CONFLICT)
                 print(f"Violation {violation_id} APPROVED. Assigned to {assigned_building}. E-Ticket {ticket.id} created.")
                 return Response({"message": f"Violation approved and assigned to {assigned_building}."}, status=status.HTTP_200_OK)
             
@@ -945,9 +909,11 @@ class ViolationViewSet(viewsets.ModelViewSet):
     def dismiss(self, request, *args, **kwargs):
         try:
             violation_id = kwargs.get('id') or kwargs.get('pk')
-            violation = ViolationReport.objects.get(id=violation_id)
-            violation.status = "Dismissed"
-            violation.save()
+            # Same one-step claim as approve: only a still-pending case can be dismissed, so an approve
+            # and a dismiss at the same moment can't both happen
+            dismissed = ViolationReport.objects(id=violation_id, status="Pending OSA Review").update_one(set__status="Dismissed")
+            if not dismissed:
+                return Response({"error": "This violation was already reviewed by someone else."}, status=status.HTTP_409_CONFLICT)
             print(f"Violation {violation_id} DISMISSED.")
             return Response({"message": "Violation Dismissed."}, status=status.HTTP_200_OK)
         except Exception as e:

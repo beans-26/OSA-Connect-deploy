@@ -94,7 +94,9 @@ export default function Register() {
             const response = await api.post('/students/request_otp/', {
                 email: studentData.email,
                 student_id: studentData.student_id,
-                contact_number: studentData.contact_number
+                contact_number: studentData.contact_number,
+                // Only used to greet the student in the code email
+                name: studentData.first_name
             });
             setStep(2);
             startCooldown();
