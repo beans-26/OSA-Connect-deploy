@@ -21,7 +21,7 @@ export const stopActiveSession = async (studentId, reason = 'logout') => {
     } catch {
         return false;
     } finally {
-        // Logged out: stop checking location in the background (offline, the server ends it after 3 minutes)
+        // Logged out: stop checking location in the background (offline, the server ends it after 30 seconds)
         await stopTracking();
     }
 };

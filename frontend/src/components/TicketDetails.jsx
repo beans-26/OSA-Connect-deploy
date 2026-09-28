@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
 import { X, ChevronDown, MapPin, LogIn } from 'lucide-react';
-import { SessionReceiptBody, receiptDate, receiptTime, formatDuration, FLAGGED_ENDS } from './SessionReceipt';
+import { SessionReceiptBody, receiptDate, formatDuration, FLAGGED_ENDS } from './SessionReceipt';
 
 // Opened by tapping an e-ticket on the student dashboard: the ticket, then its service log grouped by
-// date. Each date is a toggle listing that day's sessions by time in; tapping a time in opens its
+// date. Each date is a toggle listing that day's sessions (Session 1, 2, ...); tapping one opens its
 // receipt (several can be open at once). Mirrors mobile/components/TicketDetails.jsx.
 const TicketDetails = ({ ticket, onClose }) => {
     const [receipts, setReceipts] = useState(null);
@@ -18,13 +18,16 @@ const TicketDetails = ({ ticket, onClose }) => {
         return next;
     });
 
+    const [attempt, setAttempt] = useState(0);
     useEffect(() => {
         if (!ticket) return;
+        setError('');
+        setReceipts(null);
         fetch(`/api/timelogs/receipts/?eticket_id=${ticket.id}`)
-            .then((r) => (r.ok ? r.json() : Promise.reject()))
+            .then((r) => (r.ok ? r.json() : Promise.reject(new Error('server'))))
             .then((data) => setReceipts(Array.isArray(data) ? data : []))
-            .catch(() => setError("Couldn't load your service log."));
-    }, [ticket?.id]);
+            .catch((e) => setError(e.message === 'server' ? "Couldn't load your service log." : "Can't reach the server. Check your connection."));
+    }, [ticket?.id, attempt]);
 
     if (!ticket) return null;
 
@@ -41,7 +44,7 @@ const TicketDetails = ({ ticket, onClose }) => {
     const remaining = ticket.base_remaining_hours ?? ticket.remaining_hours ?? 0;
 
     return (
-        <div className="fixed inset-0 z-[70] flex items-end justify-center bg-black/50 sm:items-center sm:p-4" role="dialog" aria-modal="true" aria-labelledby="ticket-title" onClick={onClose}>
+        <div className="fixed inset-0 z-[70] flex items-end justify-center bg-black/40 backdrop-blur-sm sm:items-center sm:p-4" role="dialog" aria-modal="true" aria-labelledby="ticket-title" onClick={onClose}>
             <div className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-t-3xl bg-[var(--s-card)] p-5 shadow-2xl sm:rounded-3xl" onClick={(e) => e.stopPropagation()}>
                 <div className="mb-4 flex items-start justify-between gap-3">
                     <div className="min-w-0">
@@ -70,7 +73,12 @@ const TicketDetails = ({ ticket, onClose }) => {
 
                 <p className="mb-2 text-[10px] font-black uppercase tracking-[2px] text-[var(--s-muted)]">Service Log</p>
                 {error ? (
-                    <p className="text-sm font-semibold text-red-500">{error}</p>
+                    <div className="flex flex-col items-center gap-2.5 py-3">
+                        <p className="text-center text-sm font-semibold text-red-500">{error}</p>
+                        <button onClick={() => setAttempt((n) => n + 1)} className="rounded-lg border border-[var(--s-border)] px-4 py-2 text-[11px] font-black uppercase tracking-[1px] text-[var(--s-primary)]">
+                            Try Again
+                        </button>
+                    </div>
                 ) : !receipts ? (
                     <div className="flex justify-center py-6">
                         <span className="h-5 w-5 animate-spin rounded-full border-2 border-[var(--s-primary)] border-t-transparent" />
@@ -101,7 +109,7 @@ const TicketDetails = ({ ticket, onClose }) => {
                                     </button>
                                     {open && (
                                         <div className="space-y-2 border-t border-[var(--s-border)] bg-[var(--s-bg)] p-3">
-                                            {sessions.map((r) => {
+                                            {sessions.map((r, i) => {
                                                 const sessionOpen = openSessions.has(r.id);
                                                 const stopped = FLAGGED_ENDS.includes(r.end_reason);
                                                 return (
@@ -113,7 +121,7 @@ const TicketDetails = ({ ticket, onClose }) => {
                                                         >
                                                             <LogIn size={15} className={`shrink-0 ${stopped ? 'text-red-500' : 'text-[var(--s-primary)]'}`} />
                                                             <span className="flex-1 text-[13px] font-bold text-[var(--s-text)]">
-                                                                Time In <span className="font-semibold text-[var(--s-muted)]">· {receiptTime(r.time_in)}</span>
+                                                                Session {i + 1}
                                                             </span>
                                                             <ChevronDown size={16} className={`shrink-0 text-[var(--s-muted)] transition-transform ${sessionOpen ? 'rotate-180' : ''}`} />
                                                         </button>
