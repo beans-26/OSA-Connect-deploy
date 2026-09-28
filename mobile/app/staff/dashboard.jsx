@@ -11,7 +11,7 @@ import { parseStudentQr, NOT_A_STUDENT_QR } from '../../components/studentQr';
 import api from '../../services/api';
 import { useAuth } from '../../components/AuthContext';
 import { useTheme } from '../../components/ThemeContext';
-import { COURSES, DEPARTMENTS } from '../../constants/Data';
+import { DEPARTMENTS, departmentForCourse, courseOptionsFor } from '../../constants/Data';
 
 // Same options as the website's Guard Report (frontend/src/pages/guard/ReportViolation.jsx);
 // values match PUNISHMENT_SYSTEM in backend/core/views.py
@@ -104,6 +104,8 @@ export default function PersonnelDashboard() {
             student_id: student.studentId,
             name: student.name || prev.name,
             course: student.course || prev.course,
+            // The QR only carries the course; its department follows from it
+            department: departmentForCourse(student.course) || prev.department,
         }));
         await fetchStudentData(student.studentId);
     };
@@ -206,23 +208,29 @@ export default function PersonnelDashboard() {
                                     value={form.name}
                                     onChangeText={(t) => setForm({ ...form, name: t })}
                                 />
-                                {/* Side by side on wide screens; stacked on phones so long course/college names fit */}
+                                {/* Department first, then only its courses (same as registration).
+                                    Side by side on wide screens; stacked on phones so long names fit */}
                                 <View style={wide ? styles.row : styles.stack}>
-                                    <SelectField
-                                        value={form.course}
-                                        options={COURSES}
-                                        placeholder="Course"
-                                        title="Select Course"
-                                        searchable
-                                        onChange={(v) => setForm((prev) => ({ ...prev, course: v }))}
-                                        style={[styles.field, wide && { flex: 1 }]}
-                                    />
                                     <SelectField
                                         value={form.department}
                                         options={DEPARTMENTS}
-                                        placeholder="Dept"
-                                        title="Select College"
-                                        onChange={(v) => setForm((prev) => ({ ...prev, department: v }))}
+                                        placeholder="Department"
+                                        title="Select Department"
+                                        onChange={(v) => setForm((prev) => ({
+                                            ...prev,
+                                            department: v,
+                                            course: courseOptionsFor(v).includes(prev.course) ? prev.course : '',
+                                        }))}
+                                        style={[styles.field, wide && { flex: 1 }]}
+                                    />
+                                    <SelectField
+                                        value={form.course}
+                                        options={courseOptionsFor(form.department, form.course)}
+                                        placeholder={form.department ? 'Course' : 'Choose department first'}
+                                        title="Select Course"
+                                        searchable={courseOptionsFor(form.department).length > 6}
+                                        disabled={!form.department}
+                                        onChange={(v) => setForm((prev) => ({ ...prev, course: v }))}
                                         style={[styles.field, wide && { flex: 1 }]}
                                     />
                                 </View>
