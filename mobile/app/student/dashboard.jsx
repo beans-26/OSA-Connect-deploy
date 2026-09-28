@@ -4,7 +4,7 @@ import {
 } from 'react-native';
 import { showAlert } from '../../components/showAlert';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { QrCode, Play, AlertTriangle, X, Clock, FileText, User, CircleQuestionMark, Navigation } from 'lucide-react-native';
+import { QrCode, Play, AlertTriangle, X, Clock, FileText, User, CircleQuestionMark, Navigation, ChevronRight } from 'lucide-react-native';
 import { useCameraPermissions } from 'expo-camera';
 import * as Location from 'expo-location';
 import { useAuth } from '../../components/AuthContext';
@@ -15,7 +15,14 @@ import { onCameraResult } from '../../components/cameraResults';
 import { parseServiceQr, serviceQrAction, NOT_A_START_QR, NOT_A_STOP_QR } from '../../components/serviceQr';
 import { useTheme } from '../../components/ThemeContext';
 import { timeGreeting, todayLabel, studentStatusLine } from '../../components/greeting';
-import { compassDirection, formatDistance, directionsUrl } from '../../components/geo';
+import { compassDirection, formatDistance, directionsUrl, outsideSiteMessage } from '../../components/geo';
+import SessionReceipt from '../../components/SessionReceipt';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { startTracking, stopTracking, isTrackingSession, sendLocationPing, notifyTimerStopped, LAST_RECEIPT_KEY } from '../../components/backgroundTracking';
+import TicketDetails from '../../components/TicketDetails';
+
+// Out of the area (or location off) this long stops the session; same as the website
+const OUT_OF_BOUNDS_S = 30;
 
 // Haversine formula
 const getDistance = (lat1, lon1, lat2, lon2) => {
@@ -58,11 +65,18 @@ export default function Dashboard() {
     const [isOutOfBounds, setIsOutOfBounds] = useState(false);
     const [currentDistance, setCurrentDistance] = useState(0);
     const [scanCooldown, setScanCooldown] = useState(0);
-    const [outOfBoundsTimer, setOutOfBoundsTimer] = useState(0);
+    // Seconds left before an out-of-area / location-off session is stopped (null when fine)
+    const [warningCountdown, setWarningCountdown] = useState(null);
+    // Time-out receipt shown after a session ends
+    const [receipt, setReceipt] = useState(null);
+    // E-ticket opened from the list (its details and service log)
+    const [openedTicket, setOpenedTicket] = useState(null);
+    const lastFixRef = useRef({ lat: null, lng: null, distance: null });
+    const problemRef = useRef(null);
+    const autoStoppingRef = useRef(false);
     const [locationEnabled, setLocationEnabled] = useState(true);
     const [elapsedSeconds, setElapsedSeconds] = useState(0);
     const cooldownRef = useRef(null);
-    const outOfBoundsIntervalRef = useRef(null);
     const locationSubscription = useRef(null);
 
     // Keyed on the user: AuthContext restores the session asynchronously, so it may be null on first render.
@@ -93,8 +107,9 @@ export default function Dashboard() {
         if (!user?.username) return;
         try {
             const [violationRes, ticketRes] = await Promise.all([
-                api.get('/violations/'),
-                api.get('/etickets/')
+                // Only this student's records (the API used to send everyone's on every 5 s poll)
+                api.get('/violations/', { params: { student_id: user.username } }),
+                api.get('/etickets/', { params: { student_id: user.username } })
             ]);
             const studentViolations = Array.isArray(violationRes.data)
                 ? violationRes.data.filter(v => v.student_details?.student_id === user.username)
@@ -107,6 +122,14 @@ export default function Dashboard() {
             // Same ticket selection and countdown source as the web dashboard
             const activeTicket = studentTickets.find(t => t.status === 'Ongoing')
                 || studentTickets.find(t => t.status === 'Active');
+            // Ended while the app was closed (background tracking saved its receipt)
+            const saved = await AsyncStorage.getItem(LAST_RECEIPT_KEY);
+            if (saved) {
+                await AsyncStorage.removeItem(LAST_RECEIPT_KEY);
+                setReceipt(JSON.parse(saved));
+            }
+            const running = studentTickets.find(t => t.active_time_in);
+            if (!running && await isTrackingSession()) await stopTracking();
             if (!activeTicket) {
                 setTimerActive(false);
                 setStartTime(null);
@@ -161,31 +184,69 @@ export default function Dashboard() {
         }
     };
 
-    useEffect(() => {
-        if (isOutOfBounds && timerActive) {
-            if (!outOfBoundsIntervalRef.current) {
-                outOfBoundsIntervalRef.current = setInterval(() => {
-                    setOutOfBoundsTimer(prev => {
-                        if (prev >= 20) return 20;
-                        return prev + 1;
-                    });
-                }, 1000);
-            }
-        } else {
-            if (outOfBoundsIntervalRef.current) {
-                clearInterval(outOfBoundsIntervalRef.current);
-                outOfBoundsIntervalRef.current = null;
-            }
-            setOutOfBoundsTimer(0);
-        }
+    const openTicket = tickets.find(t => t.status === 'Ongoing') || tickets.find(t => t.status === 'Active');
 
-        return () => {
-            if (outOfBoundsIntervalRef.current) {
-                clearInterval(outOfBoundsIntervalRef.current);
-                outOfBoundsIntervalRef.current = null;
-            }
-        };
-    }, [isOutOfBounds, timerActive]);
+    // Records something that happened during the session for the time-out receipt
+    const logSessionEvent = (type) => {
+        if (!openTicket) return;
+        const { lat, lng, distance } = lastFixRef.current;
+        api.post('/timelogs/log_event/', { eticket_id: openTicket.id, type, lat, lng, distance_m: distance }).catch(() => {});
+    };
+
+    // Ends the session for the student and shows the receipt (the ref stops a double send)
+    const autoStopSession = async (endReason) => {
+        if (!openTicket || autoStoppingRef.current) return;
+        autoStoppingRef.current = true;
+        const { lat, lng, distance } = lastFixRef.current;
+        try {
+            const { data } = await api.post('/timelogs/log_time/', {
+                eticket_id: openTicket.id, action: 'out', end_reason: endReason, lat, lng, distance_m: distance,
+            });
+            await stopTracking();
+            await notifyTimerStopped(endReason); // only shows when the app isn't on screen
+            setTimerActive(false);
+            setStartTime(null);
+            setScanCooldown(0);
+            setWarningCountdown(null);
+            if (data?.receipt) setReceipt(data.receipt);
+            else showAlert('Session stopped', endReason === 'location_off'
+                ? 'Your location was off for too long, so your timer was stopped.'
+                : `You were outside your service area for more than ${OUT_OF_BOUNDS_S} seconds, so your timer was stopped.`);
+            fetchData();
+        } catch (e) {
+            showAlert('Error', e.response?.data?.error || 'Could not stop the session. Check your connection.');
+        } finally {
+            autoStoppingRef.current = false;
+        }
+    };
+
+    // Out of the area or location off: count down from OUT_OF_BOUNDS_S and stop the session at 0.
+    // Leaving, coming back, and location off/on are recorded for the receipt.
+    const problem = !timerActive ? null : !locationEnabled ? 'location_off' : isOutOfBounds ? 'left_area' : null;
+    useEffect(() => {
+        const previous = problemRef.current;
+        problemRef.current = problem;
+        if (timerActive && previous !== problem) {
+            if (previous === 'left_area') logSessionEvent('returned');
+            if (previous === 'location_off') logSessionEvent('location_on');
+            if (problem) logSessionEvent(problem);
+        }
+        if (!problem) {
+            setWarningCountdown(null);
+            return;
+        }
+        const since = Date.now();
+        setWarningCountdown(OUT_OF_BOUNDS_S);
+        const timer = setInterval(() => {
+            setWarningCountdown(Math.max(0, OUT_OF_BOUNDS_S - Math.floor((Date.now() - since) / 1000)));
+        }, 250);
+        return () => clearInterval(timer);
+    }, [problem]);
+
+    useEffect(() => {
+        if (warningCountdown === 0 && problem) autoStopSession(problem);
+    }, [warningCountdown]);
+
 
     useEffect(() => {
         const checkLocationActive = async () => {
@@ -193,13 +254,10 @@ export default function Dashboard() {
                 const enabled = await Location.hasServicesEnabledAsync();
                 const { status } = await Location.getForegroundPermissionsAsync();
                 const isActive = enabled && status === 'granted';
+                // Location off is its own warning and countdown (see `problem`), not "out of bounds"
                 setLocationEnabled(isActive);
-                if (!isActive) {
-                    setIsOutOfBounds(true);
-                }
             } catch (e) {
                 setLocationEnabled(false);
-                setIsOutOfBounds(true);
                 console.log(e);
             }
         };
@@ -232,11 +290,11 @@ export default function Dashboard() {
             }
 
             const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
-            setLocation(loc.coords);
+            setLocation({ ...loc.coords, timestamp: loc.timestamp });
             locationSubscription.current = await Location.watchPositionAsync(
                 { accuracy: Location.Accuracy.High, timeInterval: 1000, distanceInterval: 0 },
                 (newLoc) => {
-                    setLocation(newLoc.coords);
+                    setLocation({ ...newLoc.coords, timestamp: newLoc.timestamp });
                 }
             );
         } catch (e) {
@@ -249,7 +307,21 @@ export default function Dashboard() {
         if (!location || !targetLocation || !timerActive || !locationEnabled) return;
         const dist = getDistance(location.latitude, location.longitude, targetLocation.lat, targetLocation.lng);
         setCurrentDistance(dist);
-        setIsOutOfBounds(dist > targetLocation.radius);
+        lastFixRef.current = { lat: location.latitude, lng: location.longitude, distance: Math.round(dist) };
+        // Radius plus a GPS accuracy buffer, the same rule as the website
+        setIsOutOfBounds(dist > targetLocation.radius + (location.accuracy || 0) * 0.7);
+        // The server keeps the session only while it keeps hearing where the student is
+        sendLocationPing({ lat: location.latitude, lng: location.longitude, accuracy_m: location.accuracy })
+            .then((res) => {
+                if (res?.state === 'stopped') {
+                    setTimerActive(false);
+                    setStartTime(null);
+                    if (res.receipt) setReceipt(res.receipt);
+                    AsyncStorage.removeItem(LAST_RECEIPT_KEY);
+                    fetchData();
+                }
+            })
+            .catch(() => {});
     }, [location, targetLocation, timerActive, locationEnabled]);
 
     const handleBarCodeScanned = async ({ data }) => {
@@ -266,6 +338,38 @@ export default function Dashboard() {
             return;
         }
         const scannedData = { eticket_id: activeTicket.id, lat: code.lat, lng: code.lng, radius: code.radius, siteCode: code.siteCode || null };
+        if (action === 'in') {
+            // Where the student is right now; the server only starts the timer inside the site's radius
+            // A fix from the watcher in the last 10 s is used as is; only otherwise wait for GPS
+            let coords = location?.timestamp && Date.now() - location.timestamp < 10000 ? location : null;
+            if (!coords) {
+                try {
+                    coords = (await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High })).coords;
+                } catch {
+                    coords = location; // the last reading, however old
+                }
+            }
+            if (!coords) {
+                showAlert('Location Required', "We couldn't get your location. Turn on location and try again.");
+                return;
+            }
+            // Outside the site: say so right away (the server checks this too)
+            const assigned = activeTicket.assigned_site;
+            const station = activeTicket.station || {};
+            const site = code.siteCode
+                ? (assigned?.site_code === code.siteCode && station.lat != null
+                    ? { latitude: station.lat, longitude: station.lng, radius: station.radius || 50 }
+                    : null)
+                : (code.lat != null ? { latitude: code.lat, longitude: code.lng, radius: code.radius || 5 } : null);
+            const outside = site && outsideSiteMessage(coords, site, code.siteCode ? assigned?.name : 'the service point');
+            if (outside) {
+                showAlert('Not at your service site', outside);
+                return;
+            }
+            scannedData.studentLat = coords.latitude;
+            scannedData.studentLng = coords.longitude;
+            scannedData.accuracy = coords.accuracy;
+        }
         // Starts or stops the timer right away (no photo step)
         submitLog(action, scannedData);
     };
@@ -274,7 +378,7 @@ export default function Dashboard() {
         if (!scannedData) return;
         setLoading(true);
         try {
-            await api.post('/timelogs/log_time/', {
+            const { data } = await api.post('/timelogs/log_time/', {
                 eticket_id: scannedData.eticket_id,
                 action: actionType,
                 // The hub from the QR code, as the website sends it. Never the phone's own position:
@@ -283,7 +387,13 @@ export default function Dashboard() {
                 lng: scannedData.lng,
                 radius: scannedData.radius,
                 // Registered service site: the server looks up its location and radius from the code
-                site_code: scannedData.siteCode
+                site_code: scannedData.siteCode,
+                // Where the student is (time-in only); outside the site's radius the server refuses to start
+                student_lat: scannedData.studentLat ?? null,
+                student_lng: scannedData.studentLng ?? null,
+                accuracy_m: scannedData.accuracy ?? null,
+                // This app keeps sending the location, also in the background
+                track_location: actionType === 'in'
             });
             if (actionType === 'in') {
                 setTimerActive(true);
@@ -300,14 +410,20 @@ export default function Dashboard() {
                         return prev - 1;
                     });
                 }, 1000);
-                showAlert('Success', 'Timer Started!');
+                // Keep checking the location while the app is in the background
+                const { background } = await startTracking(scannedData.eticket_id);
+                showAlert('Timer Started!', background
+                    ? 'You can leave the app. Your location is still checked; if you leave your service area or turn off location, your timer stops and you get a notification.'
+                    : 'Keep OSAConnect open while you serve. To leave the app, allow location "All the time" for OSAConnect in your phone settings. Without it, your timer stops after 3 minutes.');
                 setTimeout(() => fetchData(), 2000);
             } else {
+                await stopTracking();
                 setTimerActive(false);
                 setStartTime(null);
                 setScanCooldown(0);
                 if (cooldownRef.current) clearInterval(cooldownRef.current);
-                showAlert('Success', 'Timer Stopped!');
+                if (data?.receipt) setReceipt(data.receipt);
+                else showAlert('Success', 'Timer Stopped!');
                 fetchData();
             }
         } catch (error) {
@@ -333,11 +449,11 @@ export default function Dashboard() {
         if (!location) {
             try {
                 const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
-                setLocation(loc.coords);
+                setLocation({ ...loc.coords, timestamp: loc.timestamp });
                 locationSubscription.current = await Location.watchPositionAsync(
                     { accuracy: Location.Accuracy.High, timeInterval: 1000, distanceInterval: 0 },
                     (newLoc) => {
-                        setLocation(newLoc.coords);
+                        setLocation({ ...newLoc.coords, timestamp: newLoc.timestamp });
                     }
                 );
             } catch (e) {
@@ -370,6 +486,8 @@ export default function Dashboard() {
 
     return (
         <View style={{ flex: 1 }}>
+        <SessionReceipt receipt={receipt} onClose={() => setReceipt(null)} />
+        <TicketDetails ticket={openedTicket} onClose={() => setOpenedTicket(null)} />
         <SafeAreaView style={styles.safeArea}>
             <StatusBar barStyle={isDarkMode ? "light-content" : "dark-content"} backgroundColor={colors.background} />
             <ScrollView
@@ -483,7 +601,7 @@ export default function Dashboard() {
                                         </View>
                                     </View>
                                     <View style={styles.redWarningTimerBox}>
-                                        <Text style={styles.redWarningTimerText}>{outOfBoundsTimer}</Text>
+                                        <Text style={styles.redWarningTimerText}>{warningCountdown ?? OUT_OF_BOUNDS_S}</Text>
                                     </View>
                                 </View>
                             )}
@@ -494,10 +612,15 @@ export default function Dashboard() {
                                         <View style={styles.redWarningTextContainer}>
                                             <Text style={styles.redWarningTitle}>GPS SIGNAL LOST</Text>
                                             <Text style={[styles.redWarningSubtitle, { color: '#fef3c7' }]}>
-                                                Enable location services to resume timer!
+                                                Turn location back on or your timer stops!
                                             </Text>
                                         </View>
                                     </View>
+                                    {timerActive && warningCountdown != null && (
+                                        <View style={styles.redWarningTimerBox}>
+                                            <Text style={[styles.redWarningTimerText, { color: '#f59e0b' }]}>{warningCountdown}</Text>
+                                        </View>
+                                    )}
                                 </View>
                             )}
                             <TouchableOpacity
@@ -591,7 +714,7 @@ export default function Dashboard() {
                 {/* E-Tickets */}
                 <View style={styles.section}>
                     <Text style={styles.sectionTitle}>E-Tickets</Text>
-                    <Text style={styles.sectionSubtitle}>Your violation tickets</Text>
+                    <Text style={styles.sectionSubtitle}>Tap a ticket to see its service log</Text>
 
                     {loading ? (
                         <ActivityIndicator color={colors.primary} style={{ marginTop: 16 }} />
@@ -602,7 +725,7 @@ export default function Dashboard() {
                         </View>
                     ) : (
                         tickets.map((ticket, idx) => (
-                            <View key={ticket.id || idx} style={styles.logRow}>
+                            <TouchableOpacity key={ticket.id || idx} style={styles.logRow} onPress={() => setOpenedTicket(ticket)} accessibilityRole="button">
                                 <View style={[styles.logDot, ticket.status === 'Active' && styles.logDotActive]} />
                                 <View style={styles.logInfo}>
                                     <Text style={styles.logTicket}>Ticket #{ticket.id}</Text>
@@ -626,7 +749,8 @@ export default function Dashboard() {
                                         {ticket.status || 'Pending'}
                                     </Text>
                                 </View>
-                            </View>
+                                <ChevronRight size={16} color={colors.textMuted} style={{ marginLeft: 8 }} />
+                            </TouchableOpacity>
                         ))
                     )}
                 </View>

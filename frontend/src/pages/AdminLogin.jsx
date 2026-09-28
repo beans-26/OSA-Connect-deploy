@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
+import { STUDENT_LOGIN } from '../lib/portals';
 import { 
     User, 
     Eye, 
@@ -73,7 +74,7 @@ const AdminLogin = () => {
                         <CSSLogo />
                     </div>
                     <div className="space-y-1">
-                        <h1 className="text-2xl font-bold text-slate-800 dark:text-slate-200">Admin Portal</h1>
+                        <h1 className="text-2xl font-bold text-slate-800 dark:text-slate-200">Admin Login</h1>
                         <p className="text-slate-500 dark:text-slate-400 text-sm font-medium">Smart student violation management</p>
                     </div>
                 </div>
@@ -141,7 +142,7 @@ const AdminLogin = () => {
                             {loading ? (
                                 <Loader2 className="animate-spin text-blue-400" size={18} />
                             ) : (
-                                <>Sign In <ChevronRight size={16} /></>
+                                <>Login <ChevronRight size={16} /></>
                             )}
                         </button>
                     </form>
@@ -150,7 +151,7 @@ const AdminLogin = () => {
                 {/* Footer Links */}
                 <div className="text-center pt-2">
                     <p className="text-slate-400 dark:text-slate-500 font-bold text-[9px] uppercase tracking-[0.2em]">
-                        Admin Interface • <Link to="/login" className="text-blue-900 hover:text-blue-700 font-black underline underline-offset-4">Return</Link>
+                        Admin Interface • <Link to={STUDENT_LOGIN} className="text-blue-900 hover:text-blue-700 font-black underline underline-offset-4">Return</Link>
                     </p>
                 </div>
             </div>

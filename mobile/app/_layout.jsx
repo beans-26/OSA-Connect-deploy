@@ -5,6 +5,8 @@ import { StatusBar } from 'expo-status-bar';
 import { useAutoUpdate } from '../components/useAutoUpdate';
 import { View } from 'react-native';
 import { useStudentActivityGuard, markActivity } from '../components/useStudentActivityGuard';
+// Registers the background location task at startup (Android can wake it without the UI)
+import '../components/backgroundTracking';
 
 function RootContent() {
     const { isDarkMode, colors } = useTheme();

@@ -195,14 +195,14 @@ const ForgotPassword = () => {
                                 <h3 className="text-xl font-bold text-slate-900 dark:text-white">Password Reset Success</h3>
                                 <p className="text-slate-500 dark:text-slate-400 text-sm">Your security credentials have been updated successfully.</p>
                             </div>
-                            <button onClick={() => navigate('/login')} className="w-full h-12 bg-slate-900 text-white rounded-lg font-bold text-xs uppercase tracking-widest">Back to Login</button>
+                            <button onClick={() => navigate('/student')} className="w-full h-12 bg-slate-900 text-white rounded-lg font-bold text-xs uppercase tracking-widest">Back to Login</button>
                         </div>
                     )}
                 </div>
 
                 {step < 4 && (
                     <div className="text-center">
-                        <Link to="/login" className="inline-flex items-center gap-2 text-slate-400 dark:text-slate-500 font-bold text-[10px] uppercase tracking-widest hover:text-slate-600 dark:text-slate-400">
+                        <Link to="/student" className="inline-flex items-center gap-2 text-slate-400 dark:text-slate-500 font-bold text-[10px] uppercase tracking-widest hover:text-slate-600 dark:text-slate-400">
                             <ArrowLeft size={12} /> Back to Login
                         </Link>
                     </div>

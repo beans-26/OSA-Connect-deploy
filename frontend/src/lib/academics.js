@@ -1,4 +1,4 @@
-// USTP departments, the courses each offers, and year levels. Same data as frontend/src/lib/academics.js;
+// USTP departments, the courses each offers, and year levels. Same data as mobile/constants/Data.js;
 // keep the two in sync. Registration picks the department first and only shows its courses.
 
 export const DEPARTMENT_COURSES = {

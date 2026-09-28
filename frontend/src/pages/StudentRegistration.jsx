@@ -9,25 +9,8 @@ import {
 } from 'lucide-react';
 import QRCode from 'react-qr-code';
 import { Link } from 'react-router-dom';
+import { DEPARTMENTS, DEPARTMENT_COURSES, yearLevelsFor } from '../lib/academics';
 
-const COURSES = [
-    "BS Civil Engineering", "BS Electronics Engineering", "BS Electrical Engineering", "BS Mechanical Engineering",
-    "BS Computer Engineering", "BS Geodetic Engineering", "BS Food Technology", "BS Information Technology",
-    "BS Computer Science", "BS Data Science", "BS Technology Communication Management", "BS Applied Physics",
-    "BS Applied Mathematics", "BS Chemistry", "BS Environmental Science", "BS Secondary Education Major in Science",
-    "Major in Mathematics", "B. Tech & Livelihood Education (Home Economics)", "B. Tech & Livelihood Education (Industrial Arts)",
-    "Bachelor in Technical-Vocational Teacher Education Major in Computer System Servicing", "Major in Fashion and Garments",
-    "Major in Food Service Management", "BS AutoTronics", "BS Electro-Mechanical Technology", "BS Electronics Technology",
-    "BS Energy Systems and Management", "BS Manufacturing Engineering Technology", "College of Medicine", "Senior High School"
-];
-
-const DEPARTMENTS = [
-    "College of Engineering and Architecture (CEA)", "College of Information Technology and Computing (CITC)",
-    "College of Science and Mathematics (CSM)", "College of Science and Technology Education (CSTE)",
-    "College of Technology (CT)", "College of Medicine (COM)", "Senior High School (SHS)"
-];
-
-const YEAR_LEVELS = ['1', '2', '3', '4', '5'];
 const OFFLINE_MESSAGE = "Can't reach the server. Check your internet connection and try again.";
 
 const inputClass = "w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-600 rounded-lg p-3 outline-none font-semibold text-slate-700 dark:text-slate-300 placeholder:text-slate-400/40 dark:placeholder:text-slate-400/30 focus:bg-white dark:bg-slate-800 focus:border-blue-600 text-sm transition-none";
@@ -67,6 +50,18 @@ const StudentRegistration = () => {
     // Kept outside studentData so it isn't sent to the API
     const [confirmPassword, setConfirmPassword] = useState('');
     const passwordMismatch = confirmPassword.length > 0 && confirmPassword !== studentData.password;
+    const courseOptions = DEPARTMENT_COURSES[studentData.department] || [];
+    const yearOptions = yearLevelsFor(studentData.department);
+
+    // A new department clears the course and year level when they don't belong to it
+    const changeDepartment = (department) => {
+        setStudentData((prev) => ({
+            ...prev,
+            department,
+            course: (DEPARTMENT_COURSES[department] || []).includes(prev.course) ? prev.course : '',
+            year_level: yearLevelsFor(department).some((y) => y.value === prev.year_level) ? prev.year_level : '',
+        }));
+    };
 
     const CSSLogo = ({ className = "" }) => (
         <div className={`flex items-center gap-2 ${className}`}>
@@ -229,22 +224,23 @@ ${OFFLINE_MESSAGE}`);
                                 </Section>
 
                                 <Section title="Academic Information">
-                                    <Field label="Course">
-                                        <select required value={studentData.course} onChange={(e) => setStudentData({...studentData, course: e.target.value})} className={`${inputClass} appearance-none ${studentData.course ? '' : '!text-slate-400/50'}`}>
-                                            <option value="" disabled hidden>Course</option>
-                                            {COURSES.map((o) => <option key={o} value={o}>{o}</option>)}
-                                        </select>
-                                    </Field>
+                                    {/* Department first; it decides the course list and year levels (Grade 11/12 for SHS) */}
                                     <Field label="Department">
-                                        <select required value={studentData.department} onChange={(e) => setStudentData({...studentData, department: e.target.value})} className={`${inputClass} appearance-none ${studentData.department ? '' : '!text-slate-400/50'}`}>
+                                        <select required value={studentData.department} onChange={(e) => changeDepartment(e.target.value)} className={`${inputClass} appearance-none ${studentData.department ? '' : '!text-slate-400/50'}`}>
                                             <option value="" disabled hidden>Department</option>
                                             {DEPARTMENTS.map((o) => <option key={o} value={o}>{o}</option>)}
                                         </select>
                                     </Field>
+                                    <Field label="Course">
+                                        <select required disabled={!studentData.department} value={studentData.course} onChange={(e) => setStudentData({...studentData, course: e.target.value})} className={`${inputClass} appearance-none disabled:cursor-not-allowed disabled:opacity-60 ${studentData.course ? '' : '!text-slate-400/50'}`}>
+                                            <option value="" disabled hidden>{studentData.department ? 'Course' : 'Choose a department first'}</option>
+                                            {courseOptions.map((o) => <option key={o} value={o}>{o}</option>)}
+                                        </select>
+                                    </Field>
                                     <Field label="Year Level">
-                                        <select required value={studentData.year_level} onChange={(e) => setStudentData({...studentData, year_level: e.target.value})} className={`${inputClass} appearance-none ${studentData.year_level ? '' : '!text-slate-400/50'}`}>
-                                            <option value="" disabled hidden>Year Level</option>
-                                            {YEAR_LEVELS.map((y) => <option key={y} value={y}>Year {y}</option>)}
+                                        <select required disabled={!studentData.department} value={studentData.year_level} onChange={(e) => setStudentData({...studentData, year_level: e.target.value})} className={`${inputClass} appearance-none disabled:cursor-not-allowed disabled:opacity-60 ${studentData.year_level ? '' : '!text-slate-400/50'}`}>
+                                            <option value="" disabled hidden>{studentData.department ? 'Year Level' : 'Choose a department first'}</option>
+                                            {yearOptions.map((y) => <option key={y.value} value={y.value}>{y.label}</option>)}
                                         </select>
                                     </Field>
                                 </Section>
@@ -273,7 +269,7 @@ ${OFFLINE_MESSAGE}`);
                             </form>
 
                             <div className="text-center pt-4 border-t border-slate-100 dark:border-slate-700/50">
-                                <p className="text-slate-400 dark:text-slate-500 font-bold text-[10px] uppercase tracking-widest">Already have an account? <Link to="/login" className="text-blue-900 font-bold underline underline-offset-4">Log in</Link></p>
+                                <p className="text-slate-400 dark:text-slate-500 font-bold text-[10px] uppercase tracking-widest">Already have an account? <Link to="/student" className="text-blue-900 font-bold underline underline-offset-4">Log in</Link></p>
                             </div>
                         </div>
                     ) : step === 2 ? (
@@ -335,7 +331,7 @@ ${OFFLINE_MESSAGE}`);
                                 <button onClick={downloadQR} className="h-14 flex-1 bg-blue-900 text-white rounded-lg font-bold text-[10px] uppercase tracking-widest shadow-sm flex items-center justify-center gap-3 hover:bg-slate-800 transition-colors">
                                     <Download size={18} /> Download QR ID
                                 </button>
-                                <Link to="/login" className="h-14 flex-1 bg-slate-100 text-slate-500 dark:text-slate-400 rounded-lg font-bold text-[10px] uppercase tracking-widest flex items-center justify-center gap-3 hover:bg-slate-200 transition-colors">
+                                <Link to="/student" className="h-14 flex-1 bg-slate-100 text-slate-500 dark:text-slate-400 rounded-lg font-bold text-[10px] uppercase tracking-widest flex items-center justify-center gap-3 hover:bg-slate-200 transition-colors">
                                     Continue to Login
                                 </Link>
                             </div>

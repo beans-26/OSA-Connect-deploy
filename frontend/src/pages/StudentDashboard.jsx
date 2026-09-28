@@ -1,10 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { AlertTriangle, User, Play, QrCode, FileText, CircleHelp, Clock, Navigation } from 'lucide-react';
+import { AlertTriangle, User, Play, QrCode, FileText, CircleHelp, Clock, Navigation, ChevronRight } from 'lucide-react';
 import QrScannerModal from '../components/QrScannerModal';
+import SessionReceipt from '../components/SessionReceipt';
+import TicketDetails from '../components/TicketDetails';
 import { useStudentTheme } from '../components/useStudentTheme';
 import { timeGreeting, todayLabel, studentStatusLine } from '../lib/greeting';
-import { distanceMeters, compassDirection, formatDistance, directionsUrl } from '../lib/geo';
+import { distanceMeters, compassDirection, formatDistance, directionsUrl, outsideSiteMessage } from '../lib/geo';
 
 // Service site QR codes hold only the site code, e.g. "LIB-01" (same rule as backend/core/site_views.py).
 // Checked after the OSA action/building codes, which look similar ("OSA-START", "CITC-DEPT").
@@ -124,6 +126,10 @@ const StudentDashboard = () => {
     const [monitoringLocation, setMonitoringLocation] = useState(false);
     const [currentDistance, setCurrentDistance] = useState(0);
     const [warningCountdown, setWarningCountdown] = useState(null);
+    // Time-out receipt shown after a session ends (scanned out or stopped automatically)
+    const [receipt, setReceipt] = useState(null);
+    // E-ticket opened from the list (its details and service log)
+    const [openTicket, setOpenTicket] = useState(null);
     const watchIdRef = React.useRef(null);
 
     // Starts or stops the timer right after a valid scan (no photo step)
@@ -139,7 +145,11 @@ const StudentDashboard = () => {
                     lng: pendingActionData.forcedLng,
                     radius: pendingActionData.forcedRadius,
                     // Registered service site: the server looks up its location and radius from the code
-                    site_code: pendingActionData.siteCode || null
+                    site_code: pendingActionData.siteCode || null,
+                    // Where the student is; the server only starts the timer inside the site's radius
+                    student_lat: pendingActionData.studentLat ?? null,
+                    student_lng: pendingActionData.studentLng ?? null,
+                    accuracy_m: pendingActionData.accuracy ?? null
                 }),
             });
 
@@ -152,7 +162,9 @@ const StudentDashboard = () => {
                     setTimerActive(false);
                     setStartTime(null);
                     setElapsed(0);
-                    alert("TIMER STOPPED");
+                    const data = await response.json().catch(() => ({}));
+                    if (data.receipt) setReceipt(data.receipt);
+                    else alert("TIMER STOPPED");
                 }
                 fetchStudentData();
             } else {
@@ -197,7 +209,7 @@ const StudentDashboard = () => {
                 // Auto-stop when hours reach zero
                 const currentRemaining = displayHours - (secondsSinceStart / 3600);
                 if (currentRemaining <= 0) {
-                    autoStopTimer("Service obligation completed! The system has automatically recorded your completion.");
+                    autoStopTimer("Service obligation completed! The system has automatically recorded your completion.", 'completed');
                 }
             }, 1000);
         }
@@ -206,11 +218,17 @@ const StudentDashboard = () => {
 
     // Before a session: show where the student is relative to their site (no geofence yet)
     const approachWatchRef = useRef(null);
+    // Latest GPS fix from either watcher: reused when scanning to start (no wait for a new fix),
+    // and read by the auto-stop and event logging without re-running effects
+    const lastFixRef = useRef({ lat: null, lng: null, accuracy: null, at: 0, distance: null });
     useEffect(() => {
         const hasSite = activeTicket?.lat != null && activeTicket?.lng != null;
         if (timerActive || !hasSite || !navigator.geolocation) return;
         approachWatchRef.current = navigator.geolocation.watchPosition(
-            ({ coords }) => setLocation({ lat: coords.latitude, lng: coords.longitude }),
+            ({ coords }) => {
+                setLocation({ lat: coords.latitude, lng: coords.longitude });
+                lastFixRef.current = { lat: coords.latitude, lng: coords.longitude, accuracy: coords.accuracy, at: Date.now(), distance: null };
+            },
             () => {}, // Permission is asked again (with an explanation) when they scan
             { enableHighAccuracy: true, timeout: 15000, maximumAge: 5000 }
         );
@@ -219,6 +237,61 @@ const StudentDashboard = () => {
             approachWatchRef.current = null;
         };
     }, [timerActive, activeTicket?.id, activeTicket?.lat, activeTicket?.lng]);
+
+    // Sends the student's position to the server (every 15 s while the page is open, and right away on
+    // return). The server ends the session after 30 s outside the site or when location is off; then
+    // the receipt shows here. Browsers pause the page in the background, so nothing is sent then.
+    const lastPingRef = useRef(0);
+    const sendLocationPing = async (body, force = false) => {
+        if (!activeTicket || (!force && Date.now() - lastPingRef.current < 14000)) return;
+        lastPingRef.current = Date.now();
+        try {
+            const response = await fetch('/api/timelogs/location_ping/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ eticket_id: activeTicket.id, ...body }),
+            });
+            const data = await response.json().catch(() => ({}));
+            if (data.state === 'stopped' || data.state === 'none') {
+                setTimerActive(false);
+                setStartTime(null);
+                setElapsed(0);
+                setWarningCountdown(null);
+                if (data.state === 'stopped' && data.receipt) setReceipt(data.receipt);
+                fetchStudentData();
+            }
+        } catch {
+            // Offline: the next ping tries again
+        }
+    };
+
+    // Back on the page during a session: check the location right away
+    useEffect(() => {
+        if (!timerActive) return;
+        const onVisible = () => {
+            if (document.visibilityState !== 'visible' || !navigator.geolocation) return;
+            navigator.geolocation.getCurrentPosition(
+                ({ coords }) => sendLocationPing({ lat: coords.latitude, lng: coords.longitude, accuracy_m: coords.accuracy }, true),
+                (err) => {
+                    // Location turned off while away: only the time up to the last confirmed location counts
+                    if (err.code === 1 || err.code === 2) sendLocationPing({ location_off: true }, true);
+                },
+                { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+            );
+        };
+        document.addEventListener('visibilitychange', onVisible);
+        return () => document.removeEventListener('visibilitychange', onVisible);
+    }, [timerActive, activeTicket?.id]);
+
+    const logSessionEvent = (type, extra = {}) => {
+        if (!activeTicket) return;
+        const { lat, lng, distance } = lastFixRef.current;
+        fetch('/api/timelogs/log_event/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ eticket_id: activeTicket.id, type, lat, lng, distance_m: distance, ...extra }),
+        }).catch(() => {});
+    };
 
     // Location Monitoring Effect (Leaflet watchPosition)
     useEffect(() => {
@@ -243,23 +316,21 @@ const StudentDashboard = () => {
                         activeTicket.lng
                     );
                     setCurrentDistance(dist);
+                    lastFixRef.current = { lat: latitude, lng: longitude, accuracy, at: Date.now(), distance: Math.round(dist) };
+                    sendLocationPing({ lat: latitude, lng: longitude, accuracy_m: accuracy });
 
-                    // 15-meter limit with GPS accuracy buffer
+                    // Site radius plus a GPS accuracy buffer. Only sets the flag: the countdown effect
+                    // below does the counting, so repeated GPS fixes can't restart it.
                     const accuracyBuffer = accuracy * 0.7;
                     const effectiveRadius = (activeTicket.radius || 15) + accuracyBuffer;
-                    const isOut = dist > effectiveRadius;
-                    setIsOutOfBounds(isOut);
-
-                    // Automatically stop session if more than 15 meters away
-                    if (isOut) {
-                        handleBoundaryViolation();
-                    }
+                    setIsOutOfBounds(dist > effectiveRadius);
                 },
                 (err) => {
                     console.error("Location tracking error:", err);
                     // Automatically stop timer if location is disabled or permission is revoked
                     if (err.code === 1 || err.code === 2) {
-                        autoStopTimer("Security Alert: Location services must remain ON. Your session has been stopped.");
+                        logSessionEvent('location_off');
+                        autoStopTimer("Security Alert: Location services must remain ON. Your session has been stopped.", 'location_off');
                     }
                 },
                 options
@@ -281,32 +352,37 @@ const StudentDashboard = () => {
         // Keyed on the ticket's fields so the 5s poll (new objects each time) doesn't restart GPS tracking
     }, [timerActive, activeTicket?.id, activeTicket?.lat, activeTicket?.lng, activeTicket?.radius]);
 
-    const handleBoundaryViolation = async () => {
-        if (warningCountdown === null) {
-            setWarningCountdown(30); // Start a 30s countdown
-        }
-    };
-
-    // Warning Countdown Effect (TICKER)
+    // Out of bounds: count down from OUT_OF_BOUNDS_S, stop the session at 0, reset when back inside.
+    // Also records leaving and coming back for the time-out receipt.
+    const OUT_OF_BOUNDS_S = 30;
+    const wasOutRef = useRef(false);
     useEffect(() => {
-        let timer;
-        if (isOutOfBounds && timerActive) {
-            if (warningCountdown === null) setWarningCountdown(30);
-            timer = setInterval(() => {
-                setWarningCountdown(prev => {
-                    if (prev === null) return 30;
-                    if (prev <= 1) {
-                        autoStopTimer("Geofencing restriction: You were out of bounds for more than 30 seconds.");
-                        return 0;
-                    }
-                    return prev - 1;
-                });
-            }, 1000);
-        } else {
+        if (!timerActive) {
+            wasOutRef.current = false;
             setWarningCountdown(null);
+            return;
         }
+        if (!isOutOfBounds) {
+            if (wasOutRef.current) logSessionEvent('returned');
+            wasOutRef.current = false;
+            setWarningCountdown(null);
+            return;
+        }
+        wasOutRef.current = true;
+        logSessionEvent('left_area');
+        const leftAt = Date.now();
+        setWarningCountdown(OUT_OF_BOUNDS_S);
+        const timer = setInterval(() => {
+            setWarningCountdown(Math.max(0, OUT_OF_BOUNDS_S - Math.floor((Date.now() - leftAt) / 1000)));
+        }, 250);
         return () => clearInterval(timer);
     }, [isOutOfBounds, timerActive]);
+
+    useEffect(() => {
+        if (warningCountdown === 0) {
+            autoStopTimer(`Geofencing restriction: You were out of bounds for more than ${OUT_OF_BOUNDS_S} seconds.`, 'left_area');
+        }
+    }, [warningCountdown]);
 
     const calculateDistance = (lat1, lon1, lat2, lon2) => {
         const R = 6371e3; // Earth radius in meters
@@ -323,21 +399,32 @@ const StudentDashboard = () => {
         return R * c; // Distance in meters
     };
 
-    const autoStopTimer = async (reason) => {
-        if (!timerActive || !activeTicket) return;
+    // Ends the session for the student (left the area, location off, hours done) and shows the receipt.
+    // The ref stops the countdown, GPS errors and the completion check from sending it twice.
+    const autoStoppingRef = useRef(false);
+    const autoStopTimer = async (reason, endReason) => {
+        if (!timerActive || !activeTicket || autoStoppingRef.current) return;
+        autoStoppingRef.current = true;
         try {
-            const ticketId = activeTicket.id;
-            await fetch('/api/timelogs/log_time/', {
+            const { lat, lng, distance } = lastFixRef.current;
+            const response = await fetch('/api/timelogs/log_time/', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ eticket_id: ticketId, action: 'out' }),
+                body: JSON.stringify({ eticket_id: activeTicket.id, action: 'out', end_reason: endReason, lat, lng, distance_m: distance }),
             });
+            const data = await response.json().catch(() => ({}));
             setTimerActive(false);
             setStartTime(null);
             setElapsed(0);
+            setWarningCountdown(null);
             fetchStudentData();
+            if (data.receipt) setReceipt(data.receipt);
+            else alert(reason);
+        } catch (e) {
             alert(reason);
-        } catch (e) { }
+        } finally {
+            autoStoppingRef.current = false;
+        }
     };
 
     const fetchStudentData = async () => {
@@ -346,8 +433,9 @@ const StudentDashboard = () => {
             // Both at once (they used to load one after the other, followed by every student's
             // time logs and photos, which this page never used and which took the longest)
             const [allViolations, allTickets] = await Promise.all([
-                fetch('/api/violations/').then((r) => r.json()),
-                fetch('/api/etickets/?t=' + Date.now()).then((r) => r.json()).catch(() => []),
+                // Only this student's records (the API used to send everyone's on every 5 s poll)
+                fetch(`/api/violations/?student_id=${encodeURIComponent(user.username)}`).then((r) => r.json()),
+                fetch(`/api/etickets/?student_id=${encodeURIComponent(user.username)}&t=${Date.now()}`).then((r) => r.json()).catch(() => []),
             ]);
 
             const studentViolations = allViolations.filter(v =>
@@ -468,7 +556,8 @@ const StudentDashboard = () => {
             return;
         }
         try {
-            // SECURITY REQUIREMENT: Mandatory location check for all Time-In actions
+            // Time-in needs the student's position: the server checks they're inside the site's radius
+            let position = null;
             if (actionType === 'in') {
                 if (!navigator.geolocation) {
                     alert("SECURITY BLOCK: Geocation is not supported by this browser.");
@@ -476,14 +565,17 @@ const StudentDashboard = () => {
                 }
 
                 try {
-                    // This "ping" ensures location is active and permissions are granted
-                    await new Promise((resolve, reject) => {
-                        navigator.geolocation.getCurrentPosition(resolve, reject, {
-                            enableHighAccuracy: true,
-                            timeout: 8000,
-                            maximumAge: 0
+                    // A fix from the last 10 s is used as is; only otherwise wait for GPS
+                    const fix = lastFixRef.current;
+                    position = fix.at && Date.now() - fix.at < 10000
+                        ? { coords: { latitude: fix.lat, longitude: fix.lng, accuracy: fix.accuracy } }
+                        : await new Promise((resolve, reject) => {
+                            navigator.geolocation.getCurrentPosition(resolve, reject, {
+                                enableHighAccuracy: true,
+                                timeout: 8000,
+                                maximumAge: 10000
+                            });
                         });
-                    });
                 } catch (locErr) {
                     if (locErr.code === 1) {
                         alert("ACCESS DENIED: You must enable Location Services to start your service timer.");
@@ -494,6 +586,19 @@ const StudentDashboard = () => {
                     }
                     return;
                 }
+
+                // Outside the site: say so right away (the server checks this too)
+                const assigned = activeTicket.assigned_site;
+                const site = siteCode
+                    ? (assigned?.site_code === siteCode && activeTicket.lat != null
+                        ? { latitude: activeTicket.lat, longitude: activeTicket.lng, radius: activeTicket.radius || 50 }
+                        : null)
+                    : (forcedLat != null ? { latitude: forcedLat, longitude: forcedLng, radius: forcedRadius || 5 } : null);
+                const outside = site && outsideSiteMessage(position.coords, site, siteCode ? assigned?.name : 'the service point');
+                if (outside) {
+                    alert(outside);
+                    return;
+                }
             }
 
             await submitAction({
@@ -502,7 +607,10 @@ const StudentDashboard = () => {
                 forcedLat,
                 forcedLng,
                 forcedRadius,
-                siteCode
+                siteCode,
+                studentLat: position?.coords.latitude,
+                studentLng: position?.coords.longitude,
+                accuracy: position?.coords.accuracy
             });
         } catch (err) {
             console.error(err);
@@ -578,6 +686,9 @@ const StudentDashboard = () => {
                     onResult={(text) => { setIsScanning(false); processCode(text); }}
                 />
             )}
+
+            <SessionReceipt receipt={receipt} onClose={() => setReceipt(null)} />
+            <TicketDetails ticket={openTicket} onClose={() => setOpenTicket(null)} />
 
             {/* QR Scanner (end) */}
             {showStopScanner && (
@@ -731,7 +842,7 @@ const StudentDashboard = () => {
                 {/* E-Tickets */}
                 <section className="mb-6">
                     <h2 className="mb-1 text-lg font-black text-[var(--s-text)]">E-Tickets</h2>
-                    <p className="mb-4 text-sm font-medium text-[var(--s-muted)]">Your violation tickets</p>
+                    <p className="mb-4 text-sm font-medium text-[var(--s-muted)]">Tap a ticket to see its service log</p>
 
                     {loading ? (
                         <div className="mt-4 flex justify-center">
@@ -744,7 +855,11 @@ const StudentDashboard = () => {
                         </div>
                     ) : (
                         tickets.map((ticket, idx) => (
-                            <div key={ticket.id || idx} className="mb-2 flex items-center rounded-xl border border-[var(--s-border)] bg-[var(--s-card)] p-3.5 shadow-[0_1px_4px_rgba(0,0,0,0.04)]">
+                            <button
+                                key={ticket.id || idx}
+                                onClick={() => setOpenTicket(ticket)}
+                                className="mb-2 flex w-full items-center rounded-xl border border-[var(--s-border)] bg-[var(--s-card)] p-3.5 text-left shadow-[0_1px_4px_rgba(0,0,0,0.04)] hover:border-[var(--s-primary)]"
+                            >
                                 <span className={`mr-3 h-2 w-2 shrink-0 rounded-full ${ticket.status === 'Active' ? 'bg-[#ff6b35]' : 'bg-[var(--s-success)]'}`} />
                                 <div className="min-w-0 flex-1">
                                     <p className="truncate text-[13px] font-bold text-[var(--s-text)]">Ticket #{ticket.id}</p>
@@ -754,7 +869,8 @@ const StudentDashboard = () => {
                                 <span className={`rounded-full px-2.5 py-1 text-[10px] font-bold ${ticketBadge(ticket.status)}`}>
                                     {ticket.status || 'Pending'}
                                 </span>
-                            </div>
+                                <ChevronRight size={16} className="ml-2 shrink-0 text-[var(--s-muted)]" />
+                            </button>
                         ))
                     )}
                 </section>

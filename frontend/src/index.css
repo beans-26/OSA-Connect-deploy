@@ -122,8 +122,11 @@ body {
   to { opacity: 1; transform: none; }
 }
 
+/* "backwards", not "both": a transform that stays applied after the animation turns the page into the
+   containing block for position: fixed, trapping modals (Pending Reviews, All Students) under the sticky
+   search bar and scrolling them with the page */
 .page-enter {
-  animation: page-enter 0.3s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: page-enter 0.3s cubic-bezier(0.22, 1, 0.36, 1) backwards;
 }
 
 @media (prefers-reduced-motion: reduce) {

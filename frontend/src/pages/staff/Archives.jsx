@@ -12,7 +12,6 @@ const Archives = () => {
     const [logs, setLogs] = useState([]);
     const [searchTerm, setSearchTerm] = useState('');
     const [filterType, setFilterType] = useState('All');
-    const [showDismissed, setShowDismissed] = useState(false);
     // 'loading' until the first response, so an empty list isn't shown as "No Archived Records" too early
     const [loadState, setLoadState] = useState('loading'); // loading | ready | error
 
@@ -43,21 +42,19 @@ const Archives = () => {
         }
     };
 
-    // Show completed violations (those with a Completed ticket) AND dismissed violations
+    // Completed violations only (a Completed status or ticket); dismissed cases aren't archived
     const archivedViolations = violations.filter(v => {
         const isDismissed = (v.status || '').toLowerCase() === 'dismissed';
+        if (isDismissed) return false;
         const isCompletedStatus = (v.status || '').toLowerCase() === 'completed';
         const isFinishedStatus = (v.status || '').toLowerCase() === 'finished';
         const ticket = tickets.find(t => t.violation_details?.id === v.id || t.violation === v.id);
         const isCompletedTicket = ticket && (ticket.status === 'Completed' || ticket.status === 'Finished' || ticket.remaining_hours <= 0.001);
-        return isDismissed || isCompletedStatus || isFinishedStatus || isCompletedTicket;
+        return isCompletedStatus || isFinishedStatus || isCompletedTicket;
     });
 
     // Apply search & filter
     const filtered = archivedViolations.filter(v => {
-        const isDismissed = v.status?.toLowerCase() === 'dismissed';
-        if (showDismissed && !isDismissed) return false;
-        if (!showDismissed && isDismissed) return false;
         const matchesSearch = !searchTerm
             || v.student_details?.name?.toLowerCase().includes(searchTerm.toLowerCase())
             || v.student_details?.student_id?.toLowerCase().includes(searchTerm.toLowerCase());
@@ -215,7 +212,7 @@ const Archives = () => {
                             <h1 className="text-2xl md:text-4xl font-extrabold text-slate-900 dark:text-white tracking-tight flex items-center gap-3">
                                 Violation Archives
                             </h1>
-                            <p className="text-slate-500 dark:text-slate-400 mt-2 font-medium text-sm">Immutable historical record of completed and dismissed violations.</p>
+                            <p className="text-slate-500 dark:text-slate-400 mt-2 font-medium text-sm">Immutable historical record of completed violations.</p>
                         </div>
                         <div className="flex gap-3 print:hidden">
                             <button
@@ -227,21 +224,6 @@ const Archives = () => {
                         </div>
                     </div>
                 </header>
-
-                <div className="flex gap-3 mb-6 print:hidden">
-                    <button
-                        onClick={() => setShowDismissed(false)}
-                        className={`px-6 py-3 rounded-xl font-semibold text-sm ${!showDismissed ? 'bg-ustp-blue text-white shadow-lg' : 'bg-slate-50 dark:bg-slate-900 text-slate-600 dark:text-slate-400 border-2 border-slate-100 dark:border-slate-700'}`}
-                    >
-                        Completed
-                    </button>
-                    <button
-                        onClick={() => setShowDismissed(true)}
-                        className={`px-6 py-3 rounded-xl font-semibold text-sm ${showDismissed ? 'bg-red-500 text-white shadow-lg' : 'bg-slate-50 dark:bg-slate-900 text-slate-600 dark:text-slate-400 border-2 border-slate-100 dark:border-slate-700'}`}
-                    >
-                        Dismissed
-                    </button>
-                </div>
 
                 <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 mb-4 print:hidden">
                     <div className="flex-1 relative">

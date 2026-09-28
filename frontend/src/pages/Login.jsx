@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { ACTIVITY_KEY } from '../components/studentSession';
+import { STUDENT_LOGIN, GUARD_STAFF_LOGIN, homePathFor } from '../lib/portals';
 import { 
     User, 
     Eye, 
@@ -10,7 +11,24 @@ import {
     Loader2
 } from 'lucide-react';
 
-const Login = () => {
+// Text and allowed roles for the two public login pages; admins use AdminLogin at /admin
+const PORTALS = {
+    student: {
+        roles: ['student'],
+        title: 'Student Login',
+        idLabel: 'Student ID',
+        wrongPortal: 'This is the student login. Guards and staff log in at /guardnstaff.',
+    },
+    guardnstaff: {
+        roles: ['guard', 'staff'],
+        title: 'Guard & Staff Login',
+        idLabel: 'Username',
+        wrongPortal: 'This login is for guards and staff. Students log in at /student.',
+    },
+};
+
+const Login = ({ portal = 'student' }) => {
+    const config = PORTALS[portal];
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
@@ -32,10 +50,13 @@ const Login = () => {
             });
             const data = await response.json();
             if (response.ok) {
-                // Treat Admin as invalid on public login
+                // Admins don't get a hint here; their login page stays unadvertised
                 if (data.role === 'admin') {
                     setError('Invalid credentials');
-                    setLoading(false);
+                    return;
+                }
+                if (!config.roles.includes(data.role)) {
+                    setError(config.wrongPortal);
                     return;
                 }
 
@@ -49,11 +70,7 @@ const Login = () => {
                 // StudentIdleGuard counts inactivity from this login
                 localStorage.setItem(ACTIVITY_KEY, String(Date.now()));
                 
-                if (data.role === 'admin') navigate('/admin/overview');
-                else if (data.role === 'staff') navigate('/staff/report');
-                else if (data.role === 'guard') navigate('/guard/report');
-                else if (data.role === 'student') navigate('/student/dashboard');
-                else setError(`Unknown Role: ${data.role}`);
+                navigate(homePathFor(data.role));
             } else {
                 setError(data.error || 'Invalid credentials');
             }
@@ -83,7 +100,7 @@ const Login = () => {
                         <CSSLogo />
                     </div>
                     <div className="space-y-1">
-                        <h1 className="text-2xl font-bold text-slate-800 dark:text-slate-200">Login to Portal</h1>
+                        <h1 className="text-2xl font-bold text-slate-800 dark:text-slate-200">{config.title}</h1>
                         <p className="text-slate-500 dark:text-slate-400 text-sm font-medium">Smart student violation management</p>
                     </div>
                 </div>
@@ -105,7 +122,7 @@ const Login = () => {
                         <div className="space-y-4">
                             {/* Input Field */}
                             <div className="space-y-1.5">
-                                <label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-1">Student ID / Username</label>
+                                <label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-1">{config.idLabel}</label>
                                 <div className="relative border border-slate-200 dark:border-slate-600 rounded-lg bg-slate-50 dark:bg-slate-900 overflow-hidden focus-within:bg-white dark:bg-slate-800 focus-within:border-blue-600 transition-none">
                                     <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500">
                                         <User size={18} />
@@ -114,7 +131,7 @@ const Login = () => {
                                         type="text"
                                         value={username}
                                         onChange={(e) => setUsername(e.target.value)}
-                                        placeholder="Student ID / Username"
+                                        placeholder={config.idLabel}
                                         className="w-full bg-transparent p-3.5 pl-11 outline-none font-semibold text-slate-700 dark:text-slate-300 placeholder:text-slate-400/40 dark:placeholder:text-slate-400/30 text-sm"
                                         required
                                     />
@@ -144,11 +161,14 @@ const Login = () => {
                                         {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                                     </button>
                                 </div>
-                                <div className="text-right px-1">
-                                    <Link to="/forgot-password" size={18} className="text-[10px] font-bold text-blue-700 uppercase tracking-widest hover:text-blue-900 transition-colors">
-                                        Forgot Password?
-                                    </Link>
-                                </div>
+                                {/* Password reset is by student email only */}
+                                {portal === 'student' && (
+                                    <div className="text-right px-1">
+                                        <Link to="/forgot-password" className="text-[10px] font-bold text-blue-700 uppercase tracking-widest hover:text-blue-900 transition-colors">
+                                            Forgot Password?
+                                        </Link>
+                                    </div>
+                                )}
                             </div>
                         </div>
 
@@ -160,17 +180,26 @@ const Login = () => {
                             {loading ? (
                                 <Loader2 className="animate-spin" size={18} />
                             ) : (
-                                <>Sign In Portal <ChevronRight size={16} /></>
+                                <>Login <ChevronRight size={16} /></>
                             )}
                         </button>
                     </form>
                 </div>
 
                 {/* Footer Links */}
-                <div className="text-center pt-2">
+                <div className="text-center pt-2 space-y-3">
+                    {portal === 'student' && (
+                        <p className="text-slate-400 dark:text-slate-500 font-bold text-[10px] uppercase tracking-widest">
+                            Don't have an ID?{' '}
+                            <Link to="/register" className="text-blue-700 hover:text-blue-900 font-bold">Register Now</Link>
+                        </p>
+                    )}
                     <p className="text-slate-400 dark:text-slate-500 font-bold text-[10px] uppercase tracking-widest">
-                        Don't have an ID?{' '}
-                        <Link to="/register" className="text-blue-700 hover:text-blue-900 font-bold">Register Now</Link>
+                        {portal === 'student' ? (
+                            <>Guard or staff? <Link to={GUARD_STAFF_LOGIN} className="text-blue-700 hover:text-blue-900 font-bold">Login here</Link></>
+                        ) : (
+                            <>Student? <Link to={STUDENT_LOGIN} className="text-blue-700 hover:text-blue-900 font-bold">Login here</Link></>
+                        )}
                     </p>
                 </div>
             </div>
