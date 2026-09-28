@@ -19,23 +19,18 @@ SITE_CODE_PATTERN = re.compile(r'^[A-Z0-9]{2,10}-[A-Z0-9]{1,6}$')
 
 
 def _admin_from_request(request):
-    """The admin making the request, or None.
-
-    The app has no server-side sessions yet: the website sends the logged-in username in the
-    X-OSA-User header (like the rest of the API trusts localStorage). We at least require that it
-    names a real admin account, and registered_by always comes from here, never the request body.
-    """
-    username = (request.headers.get('X-OSA-User') or '').strip()
-    if not username:
+    """The admin making the request (from the login token, core/auth.py), or None.
+    registered_by always comes from here, never the request body."""
+    if getattr(request.user, 'role', None) != 'admin':
         return None
-    return SystemUser.objects.filter(username__iexact=username, role='admin').first()
+    return SystemUser.objects.filter(username=request.user.username, role='admin').first()
 
 
 def _forbidden():
     return Response({"error": "Admin access required."}, status=status.HTTP_403_FORBIDDEN)
 
 
-def _serialize(site, counts=None):
+def _serialize(site, counts=None, usernames=None):
     if counts is None:
         from .views import site_assigned_counts
         counts = site_assigned_counts()
@@ -52,10 +47,22 @@ def _serialize(site, counts=None):
         "accuracy_m": site.accuracy_m,
         "sample_count": site.sample_count,
         "is_active": site.is_active,
-        "registered_by": site.registered_by.username if site.registered_by else None,
+        "registered_by": _registered_by(site, usernames),
         "registered_at": site.registered_at.isoformat() if site.registered_at else None,
         "updated_at": site.updated_at.isoformat() if site.updated_at else None,
     }
+
+
+def _registered_by(site, usernames=None):
+    """Username of the admin who registered the site. With `usernames` ({user id: username}, loaded
+    once for a whole list) this avoids one account lookup per site."""
+    ref = site.to_mongo().get('registered_by')
+    if not ref:
+        return None
+    ref_id = getattr(ref, 'id', ref)
+    if usernames is not None:
+        return usernames.get(ref_id)
+    return site.registered_by.username if site.registered_by else None
 
 
 def _suggest_code(name):
@@ -136,14 +143,19 @@ def _bad_request(errors):
 @api_view(['GET', 'POST'])
 @permission_classes([AllowAny])
 def sites(request):
+    if request.method == 'GET':
+        # The login check already says who this is; no account lookup needed just to list
+        if getattr(request.user, 'role', None) != 'admin':
+            return _forbidden()
+        from .views import site_assigned_counts
+        all_sites = list(ServiceSite.objects.all())
+        counts = site_assigned_counts(all_sites)
+        usernames = {u.id: u.username for u in SystemUser.objects.only('username')}
+        return Response([_serialize(s, counts, usernames) for s in all_sites])
+
     admin = _admin_from_request(request)
     if not admin:
         return _forbidden()
-
-    if request.method == 'GET':
-        from .views import site_assigned_counts
-        counts = site_assigned_counts()
-        return Response([_serialize(s, counts) for s in ServiceSite.objects.all()])
 
     data = request.data
     errors = []

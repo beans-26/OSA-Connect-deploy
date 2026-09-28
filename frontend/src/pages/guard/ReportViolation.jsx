@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { Scan, Send, CheckCircle2, ClipboardList, Clock, X, LogOut, HelpCircle } from 'lucide-react';
 import QrScannerModal from '../../components/QrScannerModal';
 import { parseStudentQr, NOT_A_STUDENT_QR } from '../../components/studentQr';
-import { DEPARTMENTS, COURSES } from '../../lib/academics';
+import { DEPARTMENTS, departmentForCourse, courseOptionsFor } from '../../lib/academics';
 import { GUARD_STAFF_LOGIN } from '../../lib/portals';
 
 const inputClass = "w-full bg-slate-50 dark:bg-slate-900 border-2 border-slate-100 dark:border-slate-700 rounded-xl px-3 py-2.5 md:p-3.5 font-bold focus:border-ustp-blue outline-none transition-all text-sm";
@@ -36,6 +36,8 @@ const ReportViolation = () => {
             student_id: student.studentId,
             name: student.name || prev.name,
             course: student.course || prev.course,
+            // The QR only carries the course; its department follows from it
+            department: departmentForCourse(student.course) || prev.department,
         }));
         fetchStudentData(student.studentId);
     };
@@ -217,14 +219,18 @@ const ReportViolation = () => {
                                             </div>
                                         </div>
                                         <input required placeholder="Student Full Name" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} className={inputClass} />
+                                        {/* Department first, then only its courses (same as registration) */}
                                         <div className="grid grid-cols-2 gap-2.5">
-                                            <select required value={form.course} onChange={e => setForm({ ...form, course: e.target.value })} className={`${inputClass} appearance-none truncate`}>
-                                                <option value="">Course</option>
-                                                {COURSES.map(c => <option key={c} value={c}>{c}</option>)}
-                                            </select>
-                                            <select required value={form.department} onChange={e => setForm({ ...form, department: e.target.value })} className={`${inputClass} appearance-none truncate`}>
-                                                <option value="">Dept</option>
+                                            <select required value={form.department} onChange={e => {
+                                                const department = e.target.value;
+                                                setForm({ ...form, department, course: courseOptionsFor(department).includes(form.course) ? form.course : '' });
+                                            }} className={`${inputClass} appearance-none truncate`}>
+                                                <option value="">Department</option>
                                                 {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
+                                            </select>
+                                            <select required disabled={!form.department} value={form.course} onChange={e => setForm({ ...form, course: e.target.value })} className={`${inputClass} appearance-none truncate disabled:cursor-not-allowed disabled:opacity-60`}>
+                                                <option value="">{form.department ? 'Course' : 'Choose department first'}</option>
+                                                {courseOptionsFor(form.department, form.course).map(c => <option key={c} value={c}>{c}</option>)}
                                             </select>
                                         </div>
                                         <input required type="email" placeholder="Email Address" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} className={inputClass} />
