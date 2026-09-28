@@ -125,8 +125,12 @@ CORS_ALLOWED_ORIGINS = [
 CORS_ALLOW_ALL_ORIGINS = True # Broaden for dev to be 100% sure
 
 REST_FRAMEWORK = {
+    # Signed login tokens (core/auth.py). Anything not opened up per view is admin-only.
     'DEFAULT_AUTHENTICATION_CLASSES': (
-        'rest_framework_simplejwt.authentication.JWTAuthentication',
+        'core.auth.TokenAuthentication',
+    ),
+    'DEFAULT_PERMISSION_CLASSES': (
+        'core.auth.IsAdmin',
     ),
 }
 

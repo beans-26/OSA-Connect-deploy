@@ -88,7 +88,15 @@ class ETicketSerializer(serializers.DocumentSerializer):
 class TimeLogSerializer(serializers.DocumentSerializer):
     class Meta:
         model = TimeLog
-        fields = '__all__'
+        # The ticket is sent as its id (below): loading each log's ticket took one query per log
+        exclude = ('eticket', 'photo_proof_in', 'photo_proof_out')
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        data['id'] = str(instance.id)
+        ref = instance.to_mongo().get('eticket')
+        data['eticket'] = str(getattr(ref, 'id', ref)) if ref else None
+        return data
 
 class SystemUserSerializer(serializers.DocumentSerializer):
     class Meta:

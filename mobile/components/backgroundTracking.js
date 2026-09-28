@@ -3,6 +3,7 @@ import * as TaskManager from 'expo-task-manager';
 import * as Location from 'expo-location';
 import * as Notifications from 'expo-notifications';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import Constants from 'expo-constants';
 import api from '../services/api';
 
 // Keeps checking the student's location (every 10 s) while a service session runs, also when the app is in the
@@ -105,16 +106,35 @@ const startWatchdog = () => {
  * Starts tracking the session for `eticketId`. Returns { background } — false when background location
  * isn't allowed or available (Expo Go), in which case pings only go out while the app is open.
  */
-export const startTracking = async (eticketId) => {
-    await AsyncStorage.setItem(SESSION_KEY, JSON.stringify({ eticketId }));
-    startWatchdog();
+/**
+ * Whether this phone can keep checking the location with the app closed: a real app build (Expo Go
+ * can't run background location) with location allowed "All the time". Asked before timing in, so
+ * the server only applies its "no location heard" rule to sessions that really are tracked.
+ */
+export const canTrackInBackground = async () => {
     try {
         await Notifications.requestPermissionsAsync();
     } catch { /* no notification permission: tracking still works */ }
+    if (Constants.executionEnvironment === 'storeClient') return false; // Expo Go
     try {
         let bg = await Location.getBackgroundPermissionsAsync();
         if (!bg.granted) bg = await Location.requestBackgroundPermissionsAsync();
-        if (!bg.granted) return { background: false };
+        return bg.granted;
+    } catch {
+        return false;
+    }
+};
+
+/**
+ * Starts tracking the session for `eticketId`. With `background` (from canTrackInBackground) the
+ * location is sent every 10 s even with the app closed; without it, only while the app is open, and
+ * the dashboard checks the location again when the student comes back. Returns { background }.
+ */
+export const startTracking = async (eticketId, background) => {
+    await AsyncStorage.setItem(SESSION_KEY, JSON.stringify({ eticketId }));
+    startWatchdog();
+    if (!background) return { background: false };
+    try {
         if (!(await Location.hasStartedLocationUpdatesAsync(TRACKING_TASK))) {
             await Location.startLocationUpdatesAsync(TRACKING_TASK, {
                 accuracy: Location.Accuracy.High,

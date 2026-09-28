@@ -1,33 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import Sidebar from '../../components/Sidebar';
 import { Lock, AlertTriangle, Save, LogOut, CheckCircle, MapPin } from 'lucide-react';
 import GlobalSearch from '../../components/GlobalSearch';
 import ServiceSites from './ServiceSites';
 
-const LiveTimer = ({ remainingHours }) => {
-    const formatTime = (hours) => {
-        if (!hours) return '00:00:00';
-        const h = Math.floor(hours);
-        const m = Math.floor((hours - h) * 60);
-        const s = Math.floor(((hours - h) * 60 - m) * 60);
-        return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
-    };
-    return <span className="font-mono text-green-600 font-black tracking-tighter">{formatTime(remainingHours)}</span>;
-};
-
 const StaffSettings = () => {
     const userRole = JSON.parse(localStorage.getItem('user') || '{}').role || 'staff';
     const [activeSection, setActiveSection] = useState('sites');
-    const [searchId, setSearchId] = useState('');
-    const [lookupResult, setLookupResult] = useState(null);
-    const [loadingLookup, setLoadingLookup] = useState(false);
-    const [adminCode, setAdminCode] = useState('');
-    const [tickets, setTickets] = useState([]);
-    const [violations, setViolations] = useState([]);
-    const [deductHours, setDeductHours] = useState('');
-    const [manualStudentId, setManualStudentId] = useState('');
-    const [manualMessage, setManualMessage] = useState('');
-    const [manualCode, setManualCode] = useState('');
     const [actionMessage, setActionMessage] = useState({ text: '', type: '' });
 
     const [currentUser] = useState(JSON.parse(localStorage.getItem('user') || '{}'));
@@ -39,29 +18,10 @@ const StaffSettings = () => {
 
     const [saveStatus, setSaveStatus] = useState({ msg: '', type: '' });
 
-    const ADMIN_SECRET = "OSA-2026";
-
     const sections = [
         { id: 'sites', label: 'Service Sites', icon: MapPin, description: 'Register locations by GPS' },
         { id: 'security', label: 'Security', icon: Lock, description: 'Password and access' },
     ];
-
-    useEffect(() => {
-        // Removed tickets polling
-    }, [activeSection]);
-
-    const fetchAdminData = async () => {
-        try {
-            const [vResp, tResp] = await Promise.all([
-                fetch('/api/violations/?t=' + Date.now()),
-                fetch('/api/etickets/?t=' + Date.now())
-            ]);
-            setViolations(await vResp.json());
-            setTickets(await tResp.json());
-        } catch (e) {
-            console.error(e);
-        }
-    };
 
     const handleChangePassword = async (e) => {
         e.preventDefault();
@@ -75,7 +35,7 @@ const StaffSettings = () => {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    username: currentUser.username,
+                    // The account comes from the login token
                     old_password: oldPassword,
                     new_password: newPassword
                 })
@@ -93,88 +53,6 @@ const StaffSettings = () => {
             setSaveStatus({ msg: 'Network error', type: 'error' });
         }
         setTimeout(() => setSaveStatus({ msg: '', type: '' }), 3000);
-    };
-
-    const handleManualTimeIn = async () => {
-        if (!manualStudentId || !manualCode) {
-            setManualMessage('Please enter Student ID and Code');
-            return;
-        }
-        try {
-            const response = await fetch('/api/etickets/manual_time_in/', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ student_id: manualStudentId, code: manualCode })
-            });
-            if (response.ok) {
-                setManualMessage('Timer Started!');
-                setManualCode('');
-                fetchAdminData();
-            } else { setManualMessage('Error starting timer'); }
-        } catch (e) { setManualMessage('Network error'); }
-        setTimeout(() => setManualMessage(''), 3000);
-    };
-
-    const handleManualTimeOut = async () => {
-        if (!manualStudentId) {
-            setManualMessage('Please enter Student ID');
-            return;
-        }
-        try {
-            const response = await fetch('/api/etickets/manual_time_out/', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ student_id: manualStudentId })
-            });
-            const data = await response.json();
-            if (response.ok) {
-                setManualMessage(data.message);
-                fetchAdminData();
-            } else { setManualMessage(data.error || 'Error'); }
-        } catch (e) { setManualMessage('Network error'); }
-        setTimeout(() => setManualMessage(''), 3000);
-    };
-
-    const handleLookup = async () => {
-        if (!searchId) return;
-        setLoadingLookup(true);
-        try {
-            const resp = await fetch('/api/etickets/');
-            const data = await resp.json();
-            const cleanSearchId = String(searchId).trim().toLowerCase();
-            const studentTicket = data.find(t =>
-                String(t.violation_details?.student_details?.student_id).trim().toLowerCase() === cleanSearchId &&
-                t.status !== 'Completed'
-            );
-            setLookupResult(studentTicket || 'Not Found');
-        } catch (e) { setLookupResult('Error'); }
-        finally { setLoadingLookup(false); }
-    };
-
-    const handleSyncLog = async (action, deductHrs = 0) => {
-        setActionMessage({ text: '', type: '' });
-        if (adminCode !== ADMIN_SECRET) {
-            setActionMessage({ text: 'Error: Invalid Admin Override Code!', type: 'error' });
-            return;
-        }
-        try {
-            const resp = await fetch('/api/timelogs/log_time/', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    eticket_id: lookupResult.id,
-                    action: action,
-                    deduct_hours: deductHrs
-                }),
-            });
-            if (resp.ok) {
-                setActionMessage({ text: 'Hours successfully deducted!', type: 'success' });
-                setAdminCode('');
-                handleLookup();
-                fetchAdminData();
-            } else { setActionMessage({ text: "Failed to sync.", type: 'error' }); }
-        } catch (e) { setActionMessage({ text: "Network error.", type: 'error' }); }
-        setTimeout(() => setActionMessage({ text: '', type: '' }), 3000);
     };
 
     return (

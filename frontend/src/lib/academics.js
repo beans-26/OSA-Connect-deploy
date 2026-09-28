@@ -36,3 +36,13 @@ export const yearLevelsFor = (department) =>
     department === SHS_DEPARTMENT
         ? [{ value: 'Grade 11', label: 'Grade 11' }, { value: 'Grade 12', label: 'Grade 12' }]
         : ['1', '2', '3', '4', '5'].map((y) => ({ value: y, label: `Year ${y}` }));
+
+/** Department that offers `course` (e.g. from a scanned QR, which only carries the course), or ''. */
+export const departmentForCourse = (course) =>
+    DEPARTMENTS.find((d) => DEPARTMENT_COURSES[d].includes(course)) || '';
+
+/** Course choices for `department`, plus `current` when it's an older name no longer on the list. */
+export const courseOptionsFor = (department, current) => {
+    const list = DEPARTMENT_COURSES[department] || [];
+    return current && !list.includes(current) ? [...list, current] : list;
+};
