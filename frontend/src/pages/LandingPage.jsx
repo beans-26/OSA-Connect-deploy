@@ -129,8 +129,8 @@ const LandingPage = () => {
                                 {link.name}
                             </a>
                         ))}
-                        <Link to="/login" className="px-8 py-3 bg-blue-900 text-white rounded-xl text-sm font-bold hover:bg-slate-800 transition-colors shadow-lg shadow-blue-900/10">
-                            Sign In
+                        <Link to="/student" className="px-8 py-3 bg-blue-900 text-white rounded-xl text-sm font-bold hover:bg-slate-800 transition-colors shadow-lg shadow-blue-900/10">
+                            Login
                         </Link>
                     </div>
 
@@ -145,7 +145,7 @@ const LandingPage = () => {
                         {navLinks.map((link) => (
                             <a key={link.name} href={link.href} onClick={() => setMobileMenuOpen(false)} className="text-sm font-bold text-slate-700 dark:text-slate-300">{link.name}</a>
                         ))}
-                        <Link to="/login" className="px-6 py-3 bg-blue-900 text-white rounded-lg text-center font-bold text-sm">Login</Link>
+                        <Link to="/student" className="px-6 py-3 bg-blue-900 text-white rounded-lg text-center font-bold text-sm">Login</Link>
                     </div>
                 )}
             </nav>
@@ -172,7 +172,7 @@ const LandingPage = () => {
                             <Link to="/register" className="px-8 py-3 bg-blue-900 text-white rounded-lg font-bold text-sm hover:bg-slate-800 transition-colors flex items-center gap-2">
                                 Get Started <ArrowRight size={16} />
                             </Link>
-                            <Link to="/login" className="px-8 py-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-400 rounded-lg font-bold text-sm hover:bg-slate-50 dark:bg-slate-900 transition-colors">
+                            <Link to="/student" className="px-8 py-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-400 rounded-lg font-bold text-sm hover:bg-slate-50 dark:bg-slate-900 transition-colors">
                                 Login Portal
                             </Link>
                         </div>
@@ -269,7 +269,7 @@ const LandingPage = () => {
                         </div>
                         <div className="flex flex-col gap-3">
                             <p className="text-[10px] font-bold uppercase tracking-widest text-slate-300 dark:text-slate-600">Account</p>
-                            <Link to="/login" className="text-xs font-medium text-slate-500 dark:text-slate-400 hover:text-blue-900">Login</Link>
+                            <Link to="/student" className="text-xs font-medium text-slate-500 dark:text-slate-400 hover:text-blue-900">Login</Link>
                             <Link to="/register" className="text-xs font-medium text-slate-500 dark:text-slate-400 hover:text-blue-900">Register</Link>
                         </div>
                     </div>

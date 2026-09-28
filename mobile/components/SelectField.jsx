@@ -9,7 +9,7 @@ import { useTheme } from './ThemeContext';
 //
 // options: array of strings or { label, value }. A value that isn't in the list (e.g. an older
 // course name on a student record) is still displayed as-is.
-export default function SelectField({ value, options, placeholder, placeholderColor, onChange, title, style, textStyle, iconColor, searchable = false }) {
+export default function SelectField({ value, options, placeholder, placeholderColor, onChange, title, style, textStyle, iconColor, searchable = false, disabled = false }) {
     const { colors } = useTheme();
     const insets = useSafeAreaInsets();
     const styles = getStyles(colors);
@@ -33,8 +33,10 @@ export default function SelectField({ value, options, placeholder, placeholderCo
     return (
         <>
             <TouchableOpacity
-                style={[styles.field, style]}
+                style={[styles.field, style, disabled && styles.fieldDisabled]}
                 onPress={() => setOpen(true)}
+                disabled={disabled}
+                accessibilityState={{ disabled }}
                 accessibilityRole="button"
                 accessibilityLabel={title || placeholder}
             >
@@ -102,6 +104,9 @@ const getStyles = (colors) => StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'space-between',
         gap: 8,
+    },
+    fieldDisabled: {
+        opacity: 0.6,
     },
     fieldText: {
         flex: 1,

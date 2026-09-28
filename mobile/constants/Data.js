@@ -1,16 +1,38 @@
-export const COURSES = [
-    "BS Civil Engineering", "BS Electronics Engineering", "BS Electrical Engineering", "BS Mechanical Engineering",
-    "BS Computer Engineering", "BS Geodetic Engineering", "BS Food Technology", "BS Information Technology",
-    "BS Computer Science", "BS Data Science", "BS Technology Communication Management", "BS Applied Physics",
-    "BS Applied Mathematics", "BS Chemistry", "BS Environmental Science", "BS Secondary Education Major in Science",
-    "Major in Mathematics", "B. Tech & Livelihood Education (Home Economics)", "B. Tech & Livelihood Education (Industrial Arts)",
-    "Bachelor in Technical-Vocational Teacher Education Major in Computer System Servicing", "Major in Fashion and Garments",
-    "Major in Food Service Management", "BS AutoTronics", "BS Electro-Mechanical Technology", "BS Electronics Technology",
-    "BS Energy Systems and Management", "BS Manufacturing Engineering Technology", "College of Medicine", "Senior High School"
-];
+// USTP departments, the courses each offers, and year levels. Same data as frontend/src/lib/academics.js;
+// keep the two in sync. Registration picks the department first and only shows its courses.
 
-export const DEPARTMENTS = [
-    "College of Engineering and Architecture (CEA)", "College of Information Technology and Computing (CITC)",
-    "College of Science and Mathematics (CSM)", "College of Science and Technology Education (CSTE)",
-    "College of Technology (CT)", "College of Medicine (COM)", "Senior High School (SHS)"
-];
+export const DEPARTMENT_COURSES = {
+    'College of Engineering and Architecture (CEA)': [
+        'BS Civil Engineering', 'BS Electronics Engineering', 'BS Electrical Engineering',
+        'BS Mechanical Engineering', 'BS Computer Engineering', 'BS Geodetic Engineering',
+    ],
+    'College of Information Technology and Computing (CITC)': [
+        'BS Information Technology', 'BS Computer Science', 'BS Data Science', 'BS Technology Communication Management',
+    ],
+    'College of Science and Mathematics (CSM)': [
+        'BS Applied Physics', 'BS Applied Mathematics', 'BS Chemistry', 'BS Environmental Science', 'BS Food Technology',
+    ],
+    'College of Science and Technology Education (CSTE)': [
+        'BS Secondary Education Major in Science', 'Major in Mathematics',
+        'B. Tech & Livelihood Education (Home Economics)', 'B. Tech & Livelihood Education (Industrial Arts)',
+        'Bachelor in Technical-Vocational Teacher Education Major in Computer System Servicing',
+        'Major in Fashion and Garments', 'Major in Food Service Management',
+    ],
+    'College of Technology (CT)': [
+        'BS AutoTronics', 'BS Electro-Mechanical Technology', 'BS Electronics Technology',
+        'BS Energy Systems and Management', 'BS Manufacturing Engineering Technology',
+    ],
+    'College of Medicine (COM)': ['College of Medicine'],
+    'Senior High School (SHS)': ['STEM'],
+};
+
+export const DEPARTMENTS = Object.keys(DEPARTMENT_COURSES);
+export const COURSES = DEPARTMENTS.flatMap((d) => DEPARTMENT_COURSES[d]);
+
+export const SHS_DEPARTMENT = 'Senior High School (SHS)';
+
+/** Year level choices as { value, label }: Grade 11/12 for SHS, Year 1–5 for college. */
+export const yearLevelsFor = (department) =>
+    department === SHS_DEPARTMENT
+        ? [{ value: 'Grade 11', label: 'Grade 11' }, { value: 'Grade 12', label: 'Grade 12' }]
+        : ['1', '2', '3', '4', '5'].map((y) => ({ value: y, label: `Year ${y}` }));

@@ -17,6 +17,11 @@ import {
     BookOpen,
     Hash,
     MapPin,
+    Building2,
+    Pencil,
+    ChevronDown,
+    Mail,
+    Phone,
     Award,
     Timer,
     Bell,
@@ -27,9 +32,16 @@ import {
 } from 'lucide-react';
 import GlobalSearch from '../components/GlobalSearch';
 import { timeGreeting, todayLabel, adminStatusLine } from '../lib/greeting';
+import { useServiceSites, ServiceSiteOptions, postAssignment } from '../components/useServiceSites';
 
 /* ─── Violation Detail Modal ──────────────────────────────────────── */
-const ViolationModal = ({ report, ticket, activeLog, onClose, onAction }) => {
+const ViolationModal = ({ report, ticket, activeLog, onClose, onAction, onReassigned }) => {
+    const [showProfile, setShowProfile] = useState(false);
+    const [editingBuilding, setEditingBuilding] = useState(false);
+    const [newBuilding, setNewBuilding] = useState('');
+    const [savingBuilding, setSavingBuilding] = useState(false);
+    const [buildingError, setBuildingError] = useState('');
+    const serviceSites = useServiceSites();
     if (!report) return null;
     const student = report.student_details || {};
 
@@ -63,8 +75,29 @@ const ViolationModal = ({ report, ticket, activeLog, onClose, onAction }) => {
 
     const currentStatus = ticket ? ticket.status : report.status;
     const remainingHours = ticket?.remaining_hours;
-    const isOngoing = ticket?.status === 'Ongoing';
     const isPending = (report.status || '').toLowerCase().includes('pending');
+    // Service site chosen on approval; older reports only have it on the e-ticket
+    const assignedBuilding = report.assigned_building || ticket?.assigned_location;
+    const canChangeBuilding = !isPending && ticket?.status !== 'Ongoing';
+
+    // Moves the violation (and its ticket) to another service site; asks first if that site is full
+    const saveBuilding = async () => {
+        setSavingBuilding(true);
+        setBuildingError('');
+        try {
+            const { ok, cancelled, data } = await postAssignment(`/api/violations/${report.id}/reassign/`, { assigned_building: newBuilding });
+            if (ok) {
+                setEditingBuilding(false);
+                onReassigned(data.assigned_building);
+            } else if (!cancelled) {
+                setBuildingError(data.error || "Couldn't change the building.");
+            }
+        } catch {
+            setBuildingError("Can't reach the server. Please try again.");
+        } finally {
+            setSavingBuilding(false);
+        }
+    };
 
     const Row = ({ icon: Icon, label, value, accent }) => (
         <div className="flex items-center gap-4 p-4 border-b border-slate-200/60 dark:border-slate-800/60 last:border-0 hover:bg-slate-100/50 dark:hover:bg-slate-800/30 transition-colors">
@@ -80,15 +113,15 @@ const ViolationModal = ({ report, ticket, activeLog, onClose, onAction }) => {
 
     return (
         <div
-            className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-slate-900/80 backdrop-blur-md"
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-slate-900/80 backdrop-blur-md"
             onClick={onClose}
         >
             <div
-                className="bg-white dark:bg-slate-800 rounded-[28px] shadow-2xl w-full max-w-lg overflow-hidden animate-in zoom-in duration-300"
+                className="bg-white dark:bg-slate-800 rounded-[28px] shadow-2xl w-full max-w-lg max-h-[92vh] flex flex-col overflow-hidden animate-in zoom-in duration-300"
                 onClick={e => e.stopPropagation()}
             >
                 {/* Header */}
-                <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-slate-900 dark:to-slate-800 border-b border-blue-100 dark:border-slate-700/50 p-6 md:p-8 relative">
+                <div className="shrink-0 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-slate-900 dark:to-slate-800 border-b border-blue-100 dark:border-slate-700/50 p-6 md:p-8 relative">
                     <div className="flex items-center gap-5">
                         <div className="w-14 h-14 rounded-[18px] bg-white dark:bg-slate-800 flex items-center justify-center shadow-md border border-blue-100 dark:border-slate-700">
                             <User size={26} className="text-blue-600 dark:text-blue-400" />
@@ -105,23 +138,38 @@ const ViolationModal = ({ report, ticket, activeLog, onClose, onAction }) => {
                                     {currentStatus}
                                 </span>
                             </div>
+                            <button
+                                onClick={() => setShowProfile((v) => !v)}
+                                aria-expanded={showProfile}
+                                className="mt-2 flex items-center gap-1.5 rounded-full border border-blue-200 dark:border-slate-600 bg-white/70 dark:bg-slate-800 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-ustp-blue dark:text-blue-400 hover:border-ustp-blue"
+                            >
+                                <User size={12} /> {showProfile ? 'Hide' : 'Show'} Student Profile
+                                <ChevronDown size={13} className={`transition-transform ${showProfile ? 'rotate-180' : ''}`} />
+                            </button>
                         </div>
                     </div>
                 </div>
 
-                {/* Body */}
-                <div className="p-6 md:p-8 max-h-[60vh] overflow-y-auto custom-scrollbar space-y-6">
-                    <div>
-                        <h4 className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 dark:text-slate-500 mb-3 ml-2">
-                            <User size={12} /> Student Profile
-                        </h4>
-                        <div className="bg-slate-50 dark:bg-slate-900/40 rounded-[24px] border border-slate-200/80 dark:border-slate-700/60 overflow-hidden shadow-sm">
-                            <Row icon={BookOpen} label="Course" value={student.course} />
-                            <Row icon={MapPin} label="Department" value={student.department} />
-                            <Row icon={Hash} label="Year Level" value={student.year_level} />
+                {/* Body scrolls under the fixed header; the profile (toggle under the ID) opens at its top */}
+                <div className="flex-1 min-h-0 p-6 md:p-8 overflow-y-auto custom-scrollbar space-y-6">
+                    {showProfile && (
+                        <div className="grid grid-cols-2 gap-x-4 gap-y-3 rounded-2xl border border-blue-100 dark:border-slate-700/60 bg-blue-50/50 dark:bg-slate-900/40 p-4">
+                            {[
+                                ['Course', student.course, BookOpen, 2],
+                                ['Department', student.department, MapPin, 2],
+                                ['Year Level', /^\d+$/.test(student.year_level || '') ? `Year ${student.year_level}` : student.year_level, Hash, 1],
+                                ['Contact Number', student.contact_number, Phone, 1],
+                                ['Email', student.email, Mail, 2],
+                            ].map(([label, value, Icon, span]) => (
+                                <div key={label} className={`min-w-0 ${span === 2 ? 'col-span-2' : ''}`}>
+                                    <p className="flex items-center gap-1.5 text-[9px] font-black uppercase tracking-[0.15em] text-slate-400 dark:text-slate-500">
+                                        <Icon size={11} /> {label}
+                                    </p>
+                                    <p className="mt-0.5 text-sm font-bold text-slate-800 dark:text-slate-200 break-words">{value || '—'}</p>
+                                </div>
+                            ))}
                         </div>
-                    </div>
-
+                    )}
                     <div>
                         <h4 className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 dark:text-slate-500 mb-3 ml-2">
                             <AlertTriangle size={12} /> Incident Details
@@ -131,29 +179,70 @@ const ViolationModal = ({ report, ticket, activeLog, onClose, onAction }) => {
                             <Row icon={FileText} label="Description" value={report.description || 'No description provided'} />
                             <Row icon={Hash} label="Offense Count" value={report.offense_count ? `#${report.offense_count} Offense` : '—'} />
                             <Row icon={Shield} label="Reported By" value={report.reporting_guard} />
-                        </div>
-                    </div>
-
-                    <div>
-                        <h4 className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 dark:text-slate-500 mb-3 ml-2">
-                            <Clock size={12} /> Time Log
-                        </h4>
-                        <div className="bg-slate-50 dark:bg-slate-900/40 rounded-[24px] border border-slate-200/80 dark:border-slate-700/60 overflow-hidden shadow-sm">
                             <Row icon={Calendar} label="Date Caught" value={caught.date} />
                             <Row icon={Clock} label="Time Caught" value={caught.time} />
                         </div>
                     </div>
 
-                    {(report.punishment || isOngoing) && (
+                    {(assignedBuilding || report.punishment || ticket) && (
                         <div>
                             <h4 className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 dark:text-slate-500 mb-3 ml-2">
                                 <Award size={12} /> Required Action
                             </h4>
                             <div className="bg-slate-50 dark:bg-slate-900/40 rounded-[24px] border border-slate-200/80 dark:border-slate-700/60 overflow-hidden shadow-sm">
+                                <div className="flex items-center gap-4 p-4 border-b border-slate-200/60 dark:border-slate-800/60 last:border-0">
+                                    <div className="w-10 h-10 rounded-xl bg-white dark:bg-slate-800 flex items-center justify-center flex-shrink-0 shadow-sm border border-slate-100 dark:border-slate-700">
+                                        <Building2 size={18} className="text-ustp-blue dark:text-blue-400" />
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <p className="text-[10px] font-black uppercase tracking-[0.15em] text-slate-400 dark:text-slate-500">Assigned Building</p>
+                                        {editingBuilding ? (
+                                            <div className="mt-1.5 space-y-2">
+                                                <select
+                                                    value={newBuilding}
+                                                    onChange={(e) => setNewBuilding(e.target.value)}
+                                                    className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-xs font-bold text-slate-700 dark:text-slate-300 focus:border-ustp-blue outline-none"
+                                                >
+                                                    <ServiceSiteOptions {...serviceSites} placeholder="Choose a building..." />
+                                                </select>
+                                                {buildingError && <p className="text-[11px] font-bold text-red-500">{buildingError}</p>}
+                                                <div className="flex gap-2">
+                                                    <button
+                                                        onClick={saveBuilding}
+                                                        disabled={!newBuilding || savingBuilding}
+                                                        className="flex-1 py-2 bg-ustp-blue hover:bg-blue-800 text-white rounded-lg font-black text-[10px] uppercase tracking-widest disabled:opacity-50 disabled:cursor-not-allowed"
+                                                    >
+                                                        {savingBuilding ? 'Saving…' : 'Save'}
+                                                    </button>
+                                                    <button
+                                                        onClick={() => { setEditingBuilding(false); setBuildingError(''); }}
+                                                        className="flex-1 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-300 rounded-lg font-black text-[10px] uppercase tracking-widest"
+                                                    >
+                                                        Cancel
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        ) : (
+                                            <p className="text-sm font-bold mt-0.5 text-slate-800 dark:text-slate-200">{assignedBuilding || '—'}</p>
+                                        )}
+                                    </div>
+                                    {/* Buildings change day to day; not while the student is serving */}
+                                    {!editingBuilding && canChangeBuilding && (
+                                        <button
+                                            onClick={() => { setEditingBuilding(true); setNewBuilding(''); setBuildingError(''); }}
+                                            className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-ustp-blue dark:text-blue-400 font-black text-[10px] uppercase tracking-widest hover:border-ustp-blue"
+                                        >
+                                            <Pencil size={12} /> Change
+                                        </button>
+                                    )}
+                                </div>
+                                {ticket?.status === 'Ongoing' && (
+                                    <p className="px-4 pb-3 -mt-1 text-[10px] font-semibold text-slate-400">Serving now. The building can be changed after they stop.</p>
+                                )}
                                 {report.punishment && (
                                     <Row icon={Award} label="Sanction" value={report.punishment} accent="text-blue-600 dark:text-blue-400" />
                                 )}
-                                {isOngoing && remainingHours !== undefined && remainingHours !== null && (
+                                {ticket && remainingHours !== undefined && remainingHours !== null && (
                                     <Row
                                         icon={Timer}
                                         label="Time Remaining"
@@ -164,10 +253,11 @@ const ViolationModal = ({ report, ticket, activeLog, onClose, onAction }) => {
                             </div>
                         </div>
                     )}
+
                 </div>
 
                 {/* Footer Actions */}
-                <div className="px-6 pb-6 pt-2 flex flex-col gap-2">
+                <div className="shrink-0 px-6 pb-6 pt-2 flex flex-col gap-2">
                     {isPending && (
                         <div className="grid grid-cols-2 gap-3 mb-2">
                             <button
@@ -440,11 +530,21 @@ const userRole = JSON.parse(localStorage.getItem('user') || '{}').role || 'staff
                                         const ticket = allTickets.find(t => t.violation_details?.id === report.id || t.violation === report.id);
                                         const isOngoing = ticket?.status === 'Ongoing';
                                         const isPending = (report.status || '').toLowerCase().includes('pending');
+                                        const openDetails = () => {
+                                            const activeLog = logs.find(l =>
+                                                (ticket && (l.eticket === ticket.id || l.eticket?.id === ticket.id)) && !l.time_out
+                                            );
+                                            setSelectedViolation({ report, ticket, activeLog });
+                                        };
 
                                         return (
                                             <div
                                                 key={report.id}
-                                                className={`p-4 border shadow-sm rounded-3xl transition-all ${isOngoing ? 'bg-green-50/50 dark:bg-green-900/10 border-green-200 dark:border-green-500/20' : 'bg-white dark:bg-slate-900 border-slate-100 dark:border-slate-800'}`}
+                                                role="button"
+                                                tabIndex={0}
+                                                onClick={openDetails}
+                                                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openDetails(); } }}
+                                                className={`p-4 border shadow-sm rounded-3xl transition-all cursor-pointer hover:border-ustp-blue focus:outline-none focus-visible:border-ustp-blue ${isOngoing ? 'bg-green-50/50 dark:bg-green-900/10 border-green-200 dark:border-green-500/20' : 'bg-white dark:bg-slate-900 border-slate-100 dark:border-slate-800'}`}
                                             >
                                                 <div className="flex gap-4 items-center">
                                                     <div className={`w-12 h-12 rounded-full flex items-center justify-center shadow-sm flex-shrink-0 ${isOngoing ? 'bg-green-100 text-green-600 dark:bg-green-500/20 dark:text-green-400' : 'bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-400'}`}>
@@ -458,10 +558,16 @@ const userRole = JSON.parse(localStorage.getItem('user') || '{}').role || 'staff
                                                             <span className={`text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-md ${isOngoing ? 'bg-green-200 text-green-800 dark:bg-green-500/20 dark:text-green-400' : isPending ? 'bg-orange-100 text-orange-800 dark:bg-orange-500/20 dark:text-orange-400' : 'bg-blue-50 text-blue-900 dark:bg-blue-500/20 dark:text-blue-400'}`}>
                                                                 {ticket ? ticket.status : report.status}
                                                             </span>
+                                                            {(report.assigned_building || ticket?.assigned_location) && (
+                                                                <span className="flex items-center gap-1 min-w-0 text-[10px] font-semibold text-slate-500 dark:text-slate-400">
+                                                                    <Building2 size={12} className="shrink-0" />
+                                                                    <span className="truncate">{report.assigned_building || ticket?.assigned_location}</span>
+                                                                </span>
+                                                            )}
                                                          </div>
                                                     </div>
 
-                                                    <div className="flex gap-4 flex-shrink-0 relative z-10 items-center">
+                                                    <div className="flex gap-4 flex-shrink-0 relative z-10 items-center" onClick={(e) => e.stopPropagation()}>
                                                         {isPending && (
                                                             <>
                                                                 <button
@@ -481,12 +587,7 @@ const userRole = JSON.parse(localStorage.getItem('user') || '{}').role || 'staff
                                                             </>
                                                         )}
                                                         <button
-                                                            onClick={() => {
-                                                                const activeLog = logs.find(l => 
-                                                                    (ticket && (l.eticket === ticket.id || l.eticket?.id === ticket.id)) && !l.time_out
-                                                                );
-                                                                setSelectedViolation({ report, ticket, activeLog });
-                                                            }}
+                                                            onClick={openDetails}
                                                             title="Details"
                                                             className="flex items-center justify-center text-slate-700 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors cursor-pointer"
                                                         >
@@ -593,6 +694,14 @@ const userRole = JSON.parse(localStorage.getItem('user') || '{}').role || 'staff
                     activeLog={selectedViolation.activeLog}
                     onClose={() => setSelectedViolation(null)}
                     onAction={handleAction}
+                    onReassigned={(building) => {
+                        setSelectedViolation((prev) => prev && ({
+                            ...prev,
+                            report: { ...prev.report, assigned_building: building },
+                            ticket: prev.ticket && { ...prev.ticket, assigned_location: building },
+                        }));
+                        fetchDashboardData();
+                    }}
                 />
             )}
         </div>

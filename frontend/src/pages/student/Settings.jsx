@@ -110,21 +110,13 @@ const Settings = () => {
                         </div>
                     </section>
 
-                    {/* Contact Details */}
-                    <section className="mb-4 rounded-2xl border-2 border-[var(--s-border)] bg-[var(--s-card)] p-5">
-                        <div className="mb-5 flex items-center">
-                            <Mail size={18} className="text-[var(--s-primary)]" />
-                            <span className={cardTitle}>Contact Details</span>
-                        </div>
-                        <div className="mb-4">
-                            <p className={infoLabel}>Institutional Email</p>
-                            <p className={infoValue}>{studentInfo.email || 'N/A'}</p>
-                        </div>
-                        <div className="mb-4">
-                            <p className={`${infoLabel} flex items-center gap-1.5`}><Phone size={12} /> Primary Contact</p>
-                            <p className={infoValue}>{studentInfo.contact_number || 'N/A'}</p>
-                        </div>
-                    </section>
+                    <ContactDetailsSection
+                        studentInfo={studentInfo}
+                        onUpdated={(changes) => setStudentInfo((prev) => ({ ...prev, ...changes }))}
+                        cardTitle={cardTitle}
+                        infoLabel={infoLabel}
+                        infoValue={infoValue}
+                    />
 
                     {/* Appearance */}
                     <section className="mb-4 rounded-2xl border-2 border-[var(--s-border)] bg-[var(--s-card)] p-5">
@@ -196,6 +188,151 @@ const Settings = () => {
                 </div>
             )}
         </div>
+    );
+};
+
+const postJson = async (url, body) => {
+    const response = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    const data = await response.json().catch(() => ({}));
+    return { ok: response.ok, data };
+};
+
+// Email and contact number, each with a "Change" form. A new email only saves after the 6-digit
+// code sent to it is entered. Both ask for the current password. Mirrors mobile/app/student/settings.jsx.
+const ContactDetailsSection = ({ studentInfo, onUpdated, cardTitle, infoLabel, infoValue }) => {
+    const [editing, setEditing] = useState(null); // 'email' | 'contact' | null
+    const [form, setForm] = useState({ value: '', password: '', code: '' });
+    const [codeSentTo, setCodeSentTo] = useState('');
+    const [busy, setBusy] = useState(false);
+    const [message, setMessage] = useState({ type: '', text: '' });
+
+    const open = (field) => {
+        setEditing(field);
+        setForm({ value: '', password: '', code: '' });
+        setCodeSentTo('');
+        setMessage({ type: '', text: '' });
+    };
+    const close = () => setEditing(null);
+
+    const run = async (action) => {
+        setBusy(true);
+        setMessage({ type: '', text: '' });
+        try {
+            await action();
+        } catch {
+            setMessage({ type: 'error', text: "Can't reach the server. Check your connection." });
+        } finally {
+            setBusy(false);
+        }
+    };
+
+    const sendEmailCode = (e) => {
+        e.preventDefault();
+        run(async () => {
+            const { ok, data } = await postJson('/api/students/request_email_change/', {
+                student_id: studentInfo.student_id, current_password: form.password, new_email: form.value.trim(),
+            });
+            if (!ok) return setMessage({ type: 'error', text: data.error || "Couldn't send the code." });
+            setCodeSentTo(form.value.trim().toLowerCase());
+            setMessage({ type: 'success', text: data.message || 'Code sent.' });
+        });
+    };
+
+    const confirmEmail = (e) => {
+        e.preventDefault();
+        run(async () => {
+            const { ok, data } = await postJson('/api/students/confirm_email_change/', {
+                student_id: studentInfo.student_id, new_email: codeSentTo, otp: form.code.trim(),
+            });
+            if (!ok) return setMessage({ type: 'error', text: data.error || "Couldn't verify the code." });
+            onUpdated({ email: data.email });
+            close();
+            setMessage({ type: 'success', text: 'Email updated.' });
+        });
+    };
+
+    const saveContact = (e) => {
+        e.preventDefault();
+        run(async () => {
+            const { ok, data } = await postJson('/api/students/update_contact/', {
+                student_id: studentInfo.student_id, current_password: form.password, contact_number: form.value,
+            });
+            if (!ok) return setMessage({ type: 'error', text: data.error || "Couldn't update the number." });
+            onUpdated({ contact_number: data.contact_number });
+            close();
+            setMessage({ type: 'success', text: 'Contact number updated.' });
+        });
+    };
+
+    const input = 'w-full rounded-lg border border-[var(--s-border)] bg-[var(--s-bg)] p-3 font-semibold text-[var(--s-text)] outline-none placeholder:text-slate-400/40 focus:border-[var(--s-primary)]';
+    const primaryBtn = 'h-11 flex-1 rounded-lg bg-[var(--s-primary)] text-[10px] font-bold uppercase tracking-[2px] text-white disabled:opacity-60';
+    const cancelBtn = 'h-11 flex-1 rounded-lg bg-[var(--s-bg)] text-[10px] font-bold uppercase tracking-[2px] text-[var(--s-muted)]';
+    const changeBtn = 'shrink-0 rounded-lg border border-[var(--s-border)] px-3 py-1.5 text-[10px] font-black uppercase tracking-[1px] text-[var(--s-primary)]';
+
+    return (
+        <section className="mb-4 rounded-2xl border-2 border-[var(--s-border)] bg-[var(--s-card)] p-5">
+            <div className="mb-5 flex items-center">
+                <Mail size={18} className="text-[var(--s-primary)]" />
+                <span className={cardTitle}>Contact Details</span>
+            </div>
+
+            {message.text && (
+                <div className={`mb-4 rounded-lg border p-3 text-center text-xs font-bold ${message.type === 'success' ? 'border-emerald-200 bg-emerald-50 text-emerald-600' : 'border-red-200 bg-red-50 text-red-600'}`}>
+                    {message.text}
+                </div>
+            )}
+
+            <div className="mb-4">
+                <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                        <p className={infoLabel}>Institutional Email</p>
+                        <p className={infoValue}>{studentInfo.email || 'N/A'}</p>
+                    </div>
+                    {editing !== 'email' && <button onClick={() => open('email')} className={changeBtn}>Change</button>}
+                </div>
+                {editing === 'email' && (
+                    !codeSentTo ? (
+                        <form onSubmit={sendEmailCode} className="mt-3 space-y-3">
+                            <input required type="email" autoComplete="email" placeholder="New Email" value={form.value} onChange={(e) => setForm({ ...form, value: e.target.value })} className={input} />
+                            <input required type="password" autoComplete="current-password" placeholder="Current Password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} className={input} />
+                            <div className="flex gap-2">
+                                <button type="button" onClick={close} className={cancelBtn}>Cancel</button>
+                                <button type="submit" disabled={busy} className={primaryBtn}>{busy ? 'Sending…' : 'Send Code'}</button>
+                            </div>
+                        </form>
+                    ) : (
+                        <form onSubmit={confirmEmail} className="mt-3 space-y-3">
+                            <p className="text-xs text-[var(--s-muted)]">Enter the 6-digit code sent to <span className="font-bold text-[var(--s-text)]">{codeSentTo}</span>. It expires in 5 minutes.</p>
+                            <input required inputMode="numeric" maxLength={6} placeholder="6-Digit Code" value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value.replace(/\D/g, '') })} className={`${input} text-center tracking-[0.4em]`} />
+                            <div className="flex gap-2">
+                                <button type="button" onClick={() => setCodeSentTo('')} className={cancelBtn}>Back</button>
+                                <button type="submit" disabled={busy || form.code.length < 6} className={primaryBtn}>{busy ? 'Verifying…' : 'Verify & Save'}</button>
+                            </div>
+                        </form>
+                    )
+                )}
+            </div>
+
+            <div>
+                <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                        <p className={`${infoLabel} flex items-center gap-1.5`}><Phone size={12} /> Primary Contact</p>
+                        <p className={infoValue}>{studentInfo.contact_number || 'N/A'}</p>
+                    </div>
+                    {editing !== 'contact' && <button onClick={() => open('contact')} className={changeBtn}>Change</button>}
+                </div>
+                {editing === 'contact' && (
+                    <form onSubmit={saveContact} className="mt-3 space-y-3">
+                        <input required type="tel" inputMode="numeric" maxLength={11} placeholder="New Contact Number" value={form.value} onChange={(e) => setForm({ ...form, value: e.target.value.replace(/\D/g, '').slice(0, 11) })} className={input} />
+                        <input required type="password" autoComplete="current-password" placeholder="Current Password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} className={input} />
+                        <div className="flex gap-2">
+                            <button type="button" onClick={close} className={cancelBtn}>Cancel</button>
+                            <button type="submit" disabled={busy || form.value.length !== 11} className={primaryBtn}>{busy ? 'Saving…' : 'Save'}</button>
+                        </div>
+                    </form>
+                )}
+            </div>
+        </section>
     );
 };
 

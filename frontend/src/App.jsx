@@ -15,15 +15,17 @@ import Analytics from './pages/staff/Analytics';
 import StudentDashboard from './pages/StudentDashboard';
 import Settings from './pages/student/Settings';
 import Help from './pages/Help';
-import FacultyDashboard from './pages/faculty/FacultyDashboard';
 import LandingPage from './pages/LandingPage';
 import AdminLogin from './pages/AdminLogin';
 import StudentIdleGuard from './components/StudentIdleGuard';
+import LoginSwitchGuard from './components/LoginSwitchGuard';
 import { stopActiveSession } from './components/studentSession';
+import { STUDENT_LOGIN, GUARD_STAFF_LOGIN, ADMIN_LOGIN, loginPathFor, loginPathForUrl } from './lib/portals';
 
 const ProtectedRoute = ({ element, allowedRoles }) => {
+  const { pathname } = useLocation();
   const userStr = localStorage.getItem('user');
-  if (!userStr) return <Navigate to="/login" replace />;
+  if (!userStr) return <Navigate to={loginPathForUrl(pathname)} replace />;
 
   try {
     const user = JSON.parse(userStr);
@@ -45,13 +47,10 @@ const ProtectedRoute = ({ element, allowedRoles }) => {
               {user.role === 'guard' && (
                 <a href="/guard/report" className="block w-full bg-ustp-blue text-white py-4 rounded-xl font-black uppercase text-xs tracking-widest hover:bg-blue-700 transition shadow-lg shadow-blue-200">Guard Dashboard</a>
               )}
-              {user.role === 'faculty' && (
-                <a href="/faculty/report" className="block w-full bg-ustp-blue text-white py-4 rounded-xl font-black uppercase text-xs tracking-widest hover:bg-blue-700 transition shadow-lg shadow-blue-200">Faculty Dashboard</a>
-              )}
               {user.role === 'admin' && (
                 <a href="/admin/overview" className="block w-full bg-ustp-blue text-white py-4 rounded-xl font-black uppercase text-xs tracking-widest hover:bg-blue-700 transition shadow-lg shadow-blue-200">Admin Dashboard</a>
               )}
-              <button onClick={async () => { if (user.role === 'student') await stopActiveSession(user.username); localStorage.removeItem('user'); window.location.href = '/login'; }} className="block w-full bg-slate-100 text-slate-500 py-4 rounded-xl font-black uppercase text-xs tracking-widest hover:bg-slate-200 transition">Log Out</button>
+              <button onClick={async () => { if (user.role === 'student') await stopActiveSession(user.username); localStorage.removeItem('user'); window.location.href = loginPathFor(user.role); }} className="block w-full bg-slate-100 text-slate-500 py-4 rounded-xl font-black uppercase text-xs tracking-widest hover:bg-slate-200 transition">Log Out</button>
             </div>
           </div>
         </div>
@@ -59,9 +58,11 @@ const ProtectedRoute = ({ element, allowedRoles }) => {
     }
     return element;
   } catch (error) {
-    return <Navigate to="/login" replace />;
+    return <Navigate to={loginPathForUrl(pathname)} replace />;
   }
 };
+
+const OldLoginRedirect = ({ to }) => <Navigate to={to} replace state={useLocation().state} />;
 
 // Pages with a sidebar animate only their <main> (the .page-enter class) so the sidebar stays still
 const SIDEBAR_PAGES = /^\/(admin\/|help$|guard\/history$)/;
@@ -89,8 +90,14 @@ function App() {
         <StudentIdleGuard />
         <PageFade>
         <Routes>
-          <Route path="/login" element={<Login />} />
-          <Route path="/login/admin" element={<AdminLogin />} />
+          {/* One login URL per group */}
+          {/* Logged in and opening another group's login: asks before logging out */}
+          <Route path={STUDENT_LOGIN} element={<LoginSwitchGuard portal="student"><Login portal="student" /></LoginSwitchGuard>} />
+          <Route path={GUARD_STAFF_LOGIN} element={<LoginSwitchGuard portal="guardnstaff"><Login portal="guardnstaff" /></LoginSwitchGuard>} />
+          <Route path={ADMIN_LOGIN} element={<LoginSwitchGuard portal="admin"><AdminLogin /></LoginSwitchGuard>} />
+          {/* Old login links; state keeps the idle-logout notice */}
+          <Route path="/login" element={<OldLoginRedirect to={STUDENT_LOGIN} />} />
+          <Route path="/login/admin" element={<Navigate to={ADMIN_LOGIN} replace />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/register" element={<StudentRegistration />} />
 
@@ -116,7 +123,7 @@ function App() {
           <Route path="/student/settings" element={<ProtectedRoute element={<Settings />} allowedRoles={['student']} />} />
           <Route path="/student/*" element={<Navigate to="/student/dashboard" replace />} />
           {/* Old link from when students were mobile-only */}
-          <Route path="/mobile-only" element={<Navigate to="/login" replace />} />
+          <Route path="/mobile-only" element={<Navigate to={STUDENT_LOGIN} replace />} />
 
           <Route path="/" element={<LandingPage />} />
         </Routes>

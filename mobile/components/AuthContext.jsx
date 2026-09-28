@@ -48,9 +48,10 @@ export const AuthProvider = ({ children }) => {
         }
     };
 
-    const logout = async () => {
+    const logout = async (reason = 'logout') => {
         // A student's running service session stops at logout, on this phone and on the website
-        if (user?.role === 'student') await stopActiveSession(user.username);
+        // onPress={logout} passes the press event, not a reason
+        if (user?.role === 'student') await stopActiveSession(user.username, typeof reason === 'string' ? reason : 'logout');
         try {
             await AsyncStorage.removeItem('user');
             setUser(null);

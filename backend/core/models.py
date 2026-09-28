@@ -1,4 +1,4 @@
-from mongoengine import Document, StringField, DateTimeField, IntField, ReferenceField, EnumField, FloatField, BooleanField
+from mongoengine import Document, StringField, DateTimeField, IntField, ReferenceField, EnumField, FloatField, BooleanField, ListField, DictField
 import datetime
 from enum import Enum
 
@@ -71,6 +71,20 @@ class TimeLog(Document):
     duration_seconds = FloatField()
     photo_proof_in = StringField() # Base64 image when starting
     photo_proof_out = StringField() # Base64 image when stopping
+    # Session receipt: where it was served, how it ended, and what happened in between
+    site_code = StringField()
+    site_name = StringField()
+    end_reason = StringField()  # one of TIMELOG_END_REASONS in views.py
+    out_lat = FloatField()
+    out_lng = FloatField()
+    out_distance_m = FloatField()  # distance from the site when the session ended
+    events = ListField(DictField())  # {type, at, lat, lng, distance_m}: left_area, returned, location_off, location_on
+    # Location tracking (sessions started by clients that send location pings, also from the background)
+    tracked = BooleanField(default=False)
+    last_ping_at = DateTimeField()  # last time the student's position was confirmed
+    last_lat = FloatField()
+    last_lng = FloatField()
+    outside_since = DateTimeField()  # set while the student is outside the site
     meta = {'collection': 'timelogs', 'auto_create_index': False}
 
 class SystemUser(Document):
@@ -91,6 +105,7 @@ class ServiceSite(Document):
     latitude = FloatField(required=True, min_value=-90, max_value=90)  # stored rounded to 7 decimals
     longitude = FloatField(required=True, min_value=-180, max_value=180)
     radius_m = IntField(default=50, min_value=10, max_value=300)
+    capacity = IntField(default=10, min_value=1, max_value=500)  # students with an unfinished ticket here at once
     accuracy_m = IntField()  # averaged GPS accuracy at capture time
     sample_count = IntField()  # number of GPS readings averaged
     is_active = BooleanField(default=True)
