@@ -2,6 +2,12 @@ from mongoengine import Document, StringField, DateTimeField, IntField, Referenc
 import datetime
 from enum import Enum
 
+
+def utc_now():
+    """Current time as naive UTC. Every saved time uses this, so records written by the laptop's backend
+    (Philippine time) and by Vercel (UTC) agree; the API sends them marked as UTC ("...Z")."""
+    return datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None)
+
 # Every model sets auto_create_index False: otherwise mongoengine asks for the Atlas primary before the
 # first query on each collection, and each Vercel cold start stalls whenever the primary is slow to answer.
 # The indexes (unique student_id, username, otp email, site_code) already exist in the database;
@@ -10,7 +16,7 @@ from enum import Enum
 class OTPVerification(Document):
     email = StringField(required=True, unique=True)
     otp = StringField(required=True)
-    created_at = DateTimeField(default=datetime.datetime.now)
+    created_at = DateTimeField(default=utc_now)
     attempts = IntField(default=0)
     meta = {'collection': 'otp_verifications', 'auto_create_index': False}
 
@@ -47,7 +53,7 @@ class ViolationReport(Document):
     offense_count = IntField(default=1)
     punishment = StringField()
     assigned_building = StringField() # New field for OSA review
-    created_at = DateTimeField(default=datetime.datetime.now)
+    created_at = DateTimeField(default=utc_now)
     meta = {'collection': 'violation_reports', 'auto_create_index': False}
 
 class ETicket(Document):
@@ -61,12 +67,12 @@ class ETicket(Document):
     radius = FloatField(default=100.0) # Allowed Radius in Meters
     site_code = StringField() # Service site of the current session, when started from a site QR
     assigned_site_code = StringField() # Site the admin assigned; the timer only starts with this site's QR
-    created_at = DateTimeField(default=datetime.datetime.now)
+    created_at = DateTimeField(default=utc_now)
     meta = {'collection': 'etickets', 'auto_create_index': False}
 
 class TimeLog(Document):
     eticket = ReferenceField(ETicket, required=True)
-    time_in = DateTimeField(default=datetime.datetime.now)
+    time_in = DateTimeField(default=utc_now)
     time_out = DateTimeField()
     duration_seconds = FloatField()
     photo_proof_in = StringField() # Base64 image when starting
@@ -89,10 +95,12 @@ class TimeLog(Document):
 
 class SystemUser(Document):
     username = StringField(required=True, unique=True)
-    password = StringField(required=True) # In production, this should be hashed!
+    password = StringField(required=True)  # Django password hash (core/passwords.py); older accounts: plain until next login
     full_name = StringField(default="OSA Administrator")
     bio = StringField(default="University of Science and Technology of Southern Philippines Personnel")
-    role = StringField(required=True, choices=['admin', 'guard', 'student', 'staff', 'faculty'])
+    # admin = OSA staff; staff = faculty and other school staff (teachers, instructors); guard = campus guards
+    role = StringField(required=True, choices=['admin', 'guard', 'student', 'staff'])
+    is_active = BooleanField(default=True)  # disabled accounts can't log in (manage.py create_account --disable)
     meta = {'collection': 'system_users', 'auto_create_index': False}
 
 
@@ -110,6 +118,6 @@ class ServiceSite(Document):
     sample_count = IntField()  # number of GPS readings averaged
     is_active = BooleanField(default=True)
     registered_by = ReferenceField(SystemUser)
-    registered_at = DateTimeField(default=datetime.datetime.now)
-    updated_at = DateTimeField(default=datetime.datetime.now)
+    registered_at = DateTimeField(default=utc_now)
+    updated_at = DateTimeField(default=utc_now)
     meta = {'collection': 'service_sites', 'ordering': ['-registered_at'], 'auto_create_index': False}

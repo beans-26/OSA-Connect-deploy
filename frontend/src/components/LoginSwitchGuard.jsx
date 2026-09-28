@@ -4,7 +4,7 @@ import { LogOut } from 'lucide-react';
 import { homePathFor, rolesForLogin } from '../lib/portals';
 import { ACTIVITY_KEY, stopActiveSession } from './studentSession';
 
-const ROLE_NAMES = { student: 'student', guard: 'guard', staff: 'staff', admin: 'admin', faculty: 'faculty' };
+const ROLE_NAMES = { student: 'student', guard: 'guard', staff: 'faculty & staff', admin: 'OSA admin' };
 const PORTAL_NAMES = { student: 'student login', guardnstaff: 'guard & staff login', admin: 'admin login' };
 
 // Wraps a login page. Someone already logged in who opens their own group's login goes straight to
