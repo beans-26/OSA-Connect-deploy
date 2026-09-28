@@ -1,13 +1,14 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, Modal, ScrollView, TouchableOpacity, Pressable, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, Modal, ScrollView, TouchableOpacity, Pressable, ActivityIndicator, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { X, ChevronDown, MapPin, LogIn } from 'lucide-react-native';
+import { BlurView } from 'expo-blur';
 import { useTheme } from './ThemeContext';
 import api from '../services/api';
-import { SessionReceiptBody, receiptDate, receiptTime, formatDuration, FLAGGED_ENDS } from './SessionReceipt';
+import { SessionReceiptBody, receiptDate, formatDuration, FLAGGED_ENDS } from './SessionReceipt';
 
 // Opened by tapping an e-ticket on the student dashboard: the ticket, then its service log grouped by
-// date. Each date is a toggle listing that day's sessions by time in; tapping a time in opens its
+// date. Each date is a toggle listing that day's sessions (Session 1, 2, ...); tapping one opens its
 // receipt (several can be open at once). Mirrors frontend/src/components/TicketDetails.jsx.
 export default function TicketDetails({ ticket, onClose }) {
     const { colors } = useTheme();
@@ -25,12 +26,15 @@ export default function TicketDetails({ ticket, onClose }) {
         return next;
     });
 
+    const [attempt, setAttempt] = useState(0);
     useEffect(() => {
         if (!ticket) return;
-        api.get('/timelogs/receipts/', { params: { eticket_id: ticket.id } })
+        setError('');
+        setReceipts(null);
+        api.get('/timelogs/receipts/', { params: { eticket_id: ticket.id }, timeout: 20000 })
             .then(({ data }) => setReceipts(Array.isArray(data) ? data : []))
-            .catch(() => setError("Couldn't load your service log."));
-    }, [ticket?.id]);
+            .catch((e) => setError(e.response ? "Couldn't load your service log." : "Can't reach the server. Check your connection."));
+    }, [ticket?.id, attempt]);
 
     if (!ticket) return null;
 
@@ -47,8 +51,11 @@ export default function TicketDetails({ ticket, onClose }) {
     const remaining = ticket.base_remaining_hours ?? ticket.remaining_hours ?? 0;
 
     return (
-        <Modal visible transparent animationType="slide" onRequestClose={onClose}>
-            <Pressable style={styles.backdrop} onPress={onClose} />
+        <Modal visible transparent animationType="fade" statusBarTranslucent onRequestClose={onClose}>
+            {/* The sheet sits inside a full-screen dimmed, blurred layer so only the ticket is in focus */}
+            <View style={styles.overlay}>
+            <BlurView intensity={40} tint="dark" style={StyleSheet.absoluteFill} />
+            <Pressable style={StyleSheet.absoluteFill} onPress={onClose} accessibilityLabel="Close" />
             <View style={[styles.sheet, { paddingBottom: insets.bottom + 12 }]}>
                 <View style={styles.header}>
                     <View style={{ flex: 1 }}>
@@ -81,7 +88,12 @@ export default function TicketDetails({ ticket, onClose }) {
 
                     <Text style={styles.sectionTitle}>SERVICE LOG</Text>
                     {error ? (
-                        <Text style={styles.error}>{error}</Text>
+                        <View style={styles.errorBox}>
+                            <Text style={styles.error}>{error}</Text>
+                            <TouchableOpacity onPress={() => setAttempt((n) => n + 1)} style={styles.retry}>
+                                <Text style={styles.retryText}>TRY AGAIN</Text>
+                            </TouchableOpacity>
+                        </View>
                     ) : !receipts ? (
                         <ActivityIndicator color={colors.primary} style={{ marginVertical: 20 }} />
                     ) : days.length === 0 ? (
@@ -104,7 +116,7 @@ export default function TicketDetails({ ticket, onClose }) {
                                 </TouchableOpacity>
                                 {open && (
                                     <View style={styles.dayBody}>
-                                        {sessions.map((r) => {
+                                        {sessions.map((r, i) => {
                                             const sessionOpen = openSessions.has(r.id);
                                             const stopped = FLAGGED_ENDS.includes(r.end_reason);
                                             return (
@@ -112,7 +124,7 @@ export default function TicketDetails({ ticket, onClose }) {
                                                     <TouchableOpacity style={styles.sessionHeader} onPress={() => toggleSession(r.id)} accessibilityState={{ expanded: sessionOpen }}>
                                                         <LogIn size={15} color={stopped ? '#ef4444' : colors.primary} />
                                                         <Text style={styles.sessionTitle}>
-                                                            Time In <Text style={styles.sessionTime}>· {receiptTime(r.time_in)}</Text>
+                                                            Session {i + 1}
                                                         </Text>
                                                         <ChevronDown size={16} color={colors.textMuted} style={sessionOpen && styles.flipped} />
                                                     </TouchableOpacity>
@@ -131,12 +143,13 @@ export default function TicketDetails({ ticket, onClose }) {
                     })}
                 </ScrollView>
             </View>
+            </View>
         </Modal>
     );
 }
 
 const getStyles = (colors) => StyleSheet.create({
-    backdrop: { flex: 1, backgroundColor: 'rgba(15, 23, 42, 0.5)' },
+    overlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: Platform.OS === 'android' ? 'rgba(15,23,42,0.6)' : 'rgba(15,23,42,0.35)' },
     sheet: { maxHeight: '85%', backgroundColor: colors.card, borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingTop: 8, width: '100%', maxWidth: 576, alignSelf: 'center' },
     header: { flexDirection: 'row', alignItems: 'flex-start', paddingHorizontal: 20, paddingVertical: 12, gap: 12 },
     kicker: { fontSize: 10, fontWeight: '900', letterSpacing: 2, color: colors.textMuted },
@@ -148,7 +161,10 @@ const getStyles = (colors) => StyleSheet.create({
     tileLabel: { fontSize: 10, fontWeight: '900', letterSpacing: 1, color: colors.textMuted },
     tileValue: { fontSize: 14, fontWeight: '700', color: colors.text, marginTop: 2 },
     sectionTitle: { fontSize: 10, fontWeight: '900', letterSpacing: 2, color: colors.textMuted, marginTop: 12, marginBottom: 8 },
-    error: { fontSize: 13, fontWeight: '600', color: '#dc2626' },
+    errorBox: { alignItems: 'center', gap: 10, paddingVertical: 12 },
+    error: { fontSize: 13, fontWeight: '600', color: '#dc2626', textAlign: 'center' },
+    retry: { borderWidth: 1, borderColor: colors.border, borderRadius: 8, paddingHorizontal: 16, paddingVertical: 8 },
+    retryText: { fontSize: 11, fontWeight: '900', letterSpacing: 1, color: colors.primary },
     empty: { fontSize: 13, fontStyle: 'italic', color: colors.textMuted, textAlign: 'center', backgroundColor: colors.background, borderRadius: 12, padding: 16 },
     day: { borderWidth: 1, borderColor: colors.border, borderRadius: 12, marginBottom: 8, overflow: 'hidden' },
     dayHeader: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14 },
@@ -159,7 +175,6 @@ const getStyles = (colors) => StyleSheet.create({
     session: { backgroundColor: colors.card, borderRadius: 12, overflow: 'hidden' },
     sessionHeader: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 12 },
     sessionTitle: { flex: 1, fontSize: 13, fontWeight: '700', color: colors.text },
-    sessionTime: { fontWeight: '600', color: colors.textMuted },
     sessionBody: { borderTopWidth: 1, borderTopColor: colors.border, paddingHorizontal: 14, paddingBottom: 8 },
     flipped: { transform: [{ rotate: '180deg' }] },
 });

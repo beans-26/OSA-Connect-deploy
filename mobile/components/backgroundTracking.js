@@ -5,7 +5,7 @@ import * as Notifications from 'expo-notifications';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import api from '../services/api';
 
-// Keeps checking the student's location while a service session runs, also when the app is in the
+// Keeps checking the student's location (every 10 s) while a service session runs, also when the app is in the
 // background (Android foreground service, "Allow all the time" location). Every fix goes to
 // POST /timelogs/location_ping/, and the server decides: 30 s outside the site or location turned
 // off ends the session. When that happens the student gets a notification.
@@ -15,7 +15,8 @@ import api from '../services/api';
 export const TRACKING_TASK = 'osaconnect-session-tracking';
 const SESSION_KEY = 'trackedSession'; // { eticketId }
 export const LAST_RECEIPT_KEY = 'lastStoppedReceipt'; // shown when the app is opened again
-const PING_EVERY_MS = 15000;
+// The server stops a session after 30 s without a location, so ping often enough to survive a missed one
+const PING_EVERY_MS = 10000;
 const WATCHDOG_EVERY_MS = 10000;
 
 Notifications.setNotificationHandler({
@@ -77,7 +78,7 @@ if (!TaskManager.isTaskDefined(TRACKING_TASK)) {
         if (error) {
             try {
                 if (!(await Location.hasServicesEnabledAsync())) await sendLocationPing({ location_off: true }, { force: true });
-            } catch { /* offline; the server stops silent sessions after 3 minutes */ }
+            } catch { /* offline; the server stops silent sessions after 30 seconds */ }
             return;
         }
         const latest = data?.locations?.[data.locations.length - 1];

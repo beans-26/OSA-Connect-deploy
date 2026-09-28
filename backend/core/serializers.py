@@ -1,11 +1,12 @@
 from rest_framework_mongoengine import serializers
-from .models import Student, ViolationReport, ETicket, TimeLog, SystemUser
+from .models import Student, ViolationReport, ETicket, TimeLog, SystemUser, utc_now
 from datetime import datetime
 
 class StudentSerializer(serializers.DocumentSerializer):
     class Meta:
         model = Student
-        fields = '__all__'
+        # Never send the password (hash) to any client; it's only set through the password actions
+        exclude = ('password',)
 
     def to_representation(self, instance):
         data = super().to_representation(instance)
@@ -51,7 +52,7 @@ class ETicketSerializer(serializers.DocumentSerializer):
                 open_log = TimeLog.objects.filter(eticket=instance, time_out=None).first()
                 if open_log and open_log.time_in:
                     data['active_time_in'] = open_log.time_in.isoformat()
-                    elapsed = (datetime.now() - open_log.time_in).total_seconds() / 3600
+                    elapsed = (utc_now() - open_log.time_in).total_seconds() / 3600
                     data['remaining_hours'] = max(0, instance.remaining_hours - elapsed)
             except: pass
 

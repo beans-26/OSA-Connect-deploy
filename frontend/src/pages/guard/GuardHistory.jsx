@@ -57,7 +57,7 @@ const GuardHistory = () => {
             <main className="page-enter flex-1 p-3 md:p-6 pt-20 md:pt-20 lg:pt-6 w-full max-w-full h-screen overflow-hidden flex flex-col">
                 <header className="mb-4 text-center md:text-left shrink-0">
                     <h1 className="text-xl md:text-2xl font-extrabold text-slate-900 dark:text-white tracking-tight">
-                        {userRole === 'faculty' ? 'Faculty Submission History' : 'Violation History'}
+                        Violation History
                     </h1>
                     <p className="text-slate-500 dark:text-slate-400 mt-1 font-medium italic text-xs">
                         {loading ? 'Syncing history...' : `Viewing ${filteredViolations.length} records`}

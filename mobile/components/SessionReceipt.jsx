@@ -1,6 +1,7 @@
 import React from 'react';
-import { View, Text, StyleSheet, Modal, ScrollView, TouchableOpacity, Pressable } from 'react-native';
+import { View, Text, StyleSheet, Modal, ScrollView, TouchableOpacity, Pressable, Platform } from 'react-native';
 import { AlertTriangle, CheckCircle2 } from 'lucide-react-native';
+import { BlurView } from 'expo-blur';
 import { useTheme } from './ThemeContext';
 
 // Time-out receipt for one service session (timelog_receipt in backend/core/views.py).
@@ -63,9 +64,11 @@ export default function SessionReceipt({ receipt, onClose }) {
     const accent = flagged ? '#dc2626' : '#059669';
 
     return (
-        <Modal visible transparent animationType="fade" onRequestClose={onClose}>
-            <Pressable style={styles.backdrop} onPress={onClose} />
-            <View style={styles.center} pointerEvents="box-none">
+        <Modal visible transparent animationType="fade" statusBarTranslucent onRequestClose={onClose}>
+            {/* The card sits inside a full-screen dimmed, blurred layer so only the receipt is in focus */}
+            <View style={styles.overlay}>
+                <BlurView intensity={40} tint="dark" style={StyleSheet.absoluteFill} />
+                <Pressable style={StyleSheet.absoluteFill} onPress={onClose} accessibilityLabel="Close receipt" />
                 <View style={styles.card}>
                     <ScrollView contentContainerStyle={{ padding: 20 }}>
                         <View style={[styles.iconCircle, { backgroundColor: flagged ? 'rgba(239,68,68,0.12)' : 'rgba(16,185,129,0.12)' }]}>
@@ -73,7 +76,7 @@ export default function SessionReceipt({ receipt, onClose }) {
                         </View>
                         <Text style={styles.title}>Time-Out Receipt</Text>
                         <Text style={styles.subtitle}>
-                            {flagged ? 'Your timer was stopped automatically.' : 'Your session was recorded.'}
+                            {receipt.already_ended ? 'Your timer had already stopped.' : flagged ? 'Your timer was stopped automatically.' : 'Your session was recorded.'}
                             {receipt.remaining_hours != null ? ` ${formatDuration(receipt.remaining_hours * 3600)} left to serve.` : ''}
                         </Text>
 
@@ -90,8 +93,7 @@ export default function SessionReceipt({ receipt, onClose }) {
 }
 
 const getStyles = (colors) => StyleSheet.create({
-    backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.5)' },
-    center: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 16 },
+    overlay: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 16, backgroundColor: Platform.OS === 'android' ? 'rgba(15,23,42,0.6)' : 'rgba(15,23,42,0.35)' },
     card: { width: '100%', maxWidth: 400, maxHeight: '90%', backgroundColor: colors.card, borderRadius: 20 },
     iconCircle: { width: 48, height: 48, borderRadius: 24, alignSelf: 'center', alignItems: 'center', justifyContent: 'center', marginBottom: 8 },
     title: { fontSize: 18, fontWeight: '900', color: colors.text, textAlign: 'center' },
