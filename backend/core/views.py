@@ -6,6 +6,7 @@ from rest_framework.permissions import AllowAny
 from .models import Student, ViolationReport, ETicket, TimeLog, SystemUser, ServiceSite, utc_now
 from .serializers import StudentSerializer, ViolationReportSerializer, ETicketSerializer, TimeLogSerializer
 from .passwords import hash_password, verify_password, check_and_upgrade
+from .auth import issue_token, forget_account, IsAdmin, IsReporter, IsStudent, IsLoggedIn, owns_ticket, role_of
 from mongoengine.errors import ValidationError as MongoValidationError
 from bson.errors import InvalidId
 import datetime
@@ -32,6 +33,7 @@ def login_view(request):
         if check_and_upgrade(user, password):
             return Response({
                 "success": True,
+                "token": issue_token(user.role, user.username, user.password),
                 "role": user.role,
                 "username": user.username,
                 "full_name": user.full_name,
@@ -52,6 +54,7 @@ def login_view(request):
         if check_and_upgrade(student, password):
             return Response({
                 "success": True,
+                "token": issue_token('student', student.student_id, student.password),
                 "role": "student",
                 "username": student.student_id,
                 "student_id": student.student_id,
@@ -106,9 +109,11 @@ def _assigned_site_code(eticket):
 OPEN_TICKET_STATUSES = ('Active', 'Ongoing')
 
 
-def site_assigned_counts():
-    """{site_code: students with an open ticket there}. Older tickets only saved the site's name."""
-    code_by_name = {s.name.lower(): s.site_code for s in ServiceSite.objects.only('name', 'site_code')}
+def site_assigned_counts(sites=None):
+    """{site_code: students with an open ticket there}. Older tickets only saved the site's name.
+    Pass `sites` when they're already loaded, to save a query."""
+    sites = sites if sites is not None else ServiceSite.objects.only('name', 'site_code')
+    code_by_name = {s.name.lower(): s.site_code for s in sites}
     counts = {}
     for t in ETicket.objects(status__in=OPEN_TICKET_STATUSES).only('assigned_site_code', 'assigned_location'):
         code = t.assigned_site_code or code_by_name.get((t.assigned_location or '').lower())
@@ -151,7 +156,25 @@ class StudentViewSet(viewsets.ModelViewSet):
     lookup_field = 'student_id'
     queryset = Student.objects.all()
     serializer_class = StudentSerializer
-    permission_classes = [AllowAny]
+
+    # Registration and password reset work without logging in; the rest needs the right login
+    PUBLIC_ACTIONS = ('request_otp', 'register_with_otp', 'request_password_reset', 'reset_password')
+    SELF_ACTIONS = ('change_password', 'request_email_change', 'confirm_email_change', 'update_contact')
+
+    def get_permissions(self):
+        if self.action in self.PUBLIC_ACTIONS:
+            return [AllowAny()]
+        if self.action in self.SELF_ACTIONS:
+            return [IsStudent()]
+        if self.action == 'retrieve':
+            return [IsLoggedIn()]
+        return [IsAdmin()]
+
+    def retrieve(self, request, *args, **kwargs):
+        # A student sees only their own profile; guards, staff and admins look students up by ID
+        if role_of(request) == 'student' and kwargs.get('student_id') != request.user.username:
+            return Response({"error": "You can only view your own profile."}, status=status.HTTP_403_FORBIDDEN)
+        return super().retrieve(request, *args, **kwargs)
 
     @action(detail=False, methods=['post'])
     def request_otp(self, request):
@@ -321,6 +344,7 @@ class StudentViewSet(viewsets.ModelViewSet):
         if not student:
             return Response({"error": "No account found with this email address."}, status=status.HTTP_404_NOT_FOUND)
         student.password = hash_password(new_password)
+        forget_account(student.student_id)  # old logins stop working now
         student.save()
         verification.delete()
         
@@ -329,7 +353,7 @@ class StudentViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=['post'])
     def change_password(self, request):
         data = request.data
-        student_id = data.get('student_id')
+        student_id = request.user.username  # the logged-in student, never one named in the request
         current_password = data.get('current_password')
         new_password = data.get('new_password')
         
@@ -344,6 +368,7 @@ class StudentViewSet(viewsets.ModelViewSet):
             return Response({"error": "Incorrect current password"}, status=status.HTTP_400_BAD_REQUEST)
 
         student.password = hash_password(new_password)
+        forget_account(student.student_id)  # old logins stop working now
         student.save()
         return Response({"message": "Password updated successfully"})
 
@@ -351,7 +376,7 @@ class StudentViewSet(viewsets.ModelViewSet):
 
     def _student_with_password(self, data):
         """(student, error Response). Account changes need the current password."""
-        student = Student.objects.filter(student_id=str(data.get('student_id') or '').strip()).first()
+        student = Student.objects.filter(student_id=self.request.user.username).first()
         if not student:
             return None, Response({"error": "Student not found"}, status=status.HTTP_404_NOT_FOUND)
         if not check_and_upgrade(student, data.get('current_password')):
@@ -396,7 +421,7 @@ class StudentViewSet(viewsets.ModelViewSet):
     def confirm_email_change(self, request):
         from .models import OTPVerification
 
-        student = Student.objects.filter(student_id=str(request.data.get('student_id') or '').strip()).first()
+        student = Student.objects.filter(student_id=request.user.username).first()
         if not student:
             return Response({"error": "Student not found"}, status=status.HTTP_404_NOT_FOUND)
         new_email = str(request.data.get('new_email') or '').strip().lower()
@@ -609,9 +634,26 @@ def _student_filter(request):
 class ViolationViewSet(viewsets.ModelViewSet):
     queryset = ViolationReport.objects.all()
     serializer_class = ViolationReportSerializer
-    permission_classes = [AllowAny]
+
+    def get_permissions(self):
+        if self.action == 'punishments':
+            return [AllowAny()]  # the penalty table on the Help pages
+        if self.action == 'create':
+            return [IsReporter()]
+        if self.action == 'list':
+            return [IsLoggedIn()]
+        return [IsAdmin()]  # approve, dismiss, reassign, bulk reports, analytics, edits
 
     def get_queryset(self):
+        role = role_of(self.request)
+        if self.action == 'list' and role == 'student':
+            # A student only ever gets their own violations
+            me = Student.objects(student_id=self.request.user.username).first()
+            return ViolationReport.objects(student=me).select_related() if me else ViolationReport.objects.none()
+        if self.action == 'list' and role in ('guard', 'staff'):
+            # Guards and faculty & staff see the reports they filed
+            names = [n for n in (self.request.user.name, self.request.user.username) if n]
+            return ViolationReport.objects(reporting_guard__in=names).select_related()
         # select_related loads the students in one query instead of one per violation
         student = _student_filter(self.request)
         if student is False:
@@ -779,7 +821,9 @@ class ViolationViewSet(viewsets.ModelViewSet):
                 student=student,
                 violation_type=violation_type,
                 description=data.get('description', ''),
-                reporting_guard=data.get('reporting_guard', 'Gate Guard'),
+                # Who filed it comes from the login (only admins may name someone else)
+                reporting_guard=(data.get('reporting_guard') or 'OSA Administrator') if role_of(request) == 'admin'
+                else (request.user.name or request.user.username),
                 status=violation_status,
                 offense_count=offense_count,
                 punishment=punishment_info["punishment"],
@@ -826,6 +870,8 @@ class ViolationViewSet(viewsets.ModelViewSet):
             custom_hours = request.data.get('custom_hours')
             if custom_hours is not None and str(custom_hours).strip() != '':
                 hours = float(custom_hours)
+                if not 0 <= hours <= 100:
+                    return Response({"error": "Required hours must be between 0 and 100."}, status=status.HTTP_400_BAD_REQUEST)
                 punishment = f"{hours} hours community service"
             else:
                 punishment_info = get_punishment(violation.violation_type, violation.offense_count)
@@ -910,9 +956,20 @@ class ViolationViewSet(viewsets.ModelViewSet):
 class ETicketViewSet(viewsets.ModelViewSet):
     queryset = ETicket.objects.all()
     serializer_class = ETicketSerializer
-    permission_classes = [AllowAny]
+
+    def get_permissions(self):
+        # Students list their own tickets; changing tickets is admin-only
+        return [IsLoggedIn()] if self.action == 'list' else [IsAdmin()]
 
     def get_queryset(self):
+        role = role_of(self.request)
+        if role == 'student':
+            me = Student.objects(student_id=self.request.user.username).first()
+            if not me:
+                return ETicket.objects.none()
+            return ETicket.objects(violation__in=ViolationReport.objects(student=me).only('id')).select_related(max_depth=2)
+        if role != 'admin':
+            return ETicket.objects.none()
         # select_related(2) loads each ticket's violation and its student in bulk, not one query each
         student = _student_filter(self.request)
         if student is False:
@@ -938,128 +995,6 @@ class ETicketViewSet(viewsets.ModelViewSet):
             if ref_id in students:
                 v._data['student'] = students[ref_id]
         return Response(self.get_serializer(tickets, many=True).data)
-
-    @action(detail=False, methods=['post'])
-    def manual_time_in(self, request):
-        """Admin can manually force time in for a student using a code"""
-        student_id = request.data.get('student_id')
-        code = request.data.get('code', '').upper()
-
-        valid_codes = ['OSA-START', 'OSA-RESUME', 'OSA-IN']
-
-        if code not in valid_codes:
-            return Response({"error": "Invalid code. Use OSA-START to begin service."}, status=status.HTTP_400_BAD_REQUEST)
-
-        try:
-            # Find the student
-            student = Student.objects.get(student_id=student_id)
-
-            # Find the student's active ticket
-            ticket = None
-            for t in ETicket.objects.all():
-                try:
-                    if t.violation.student.student_id == student_id and t.status in ['Active', 'Ongoing']:
-                        ticket = t
-                        break
-                except:
-                    pass
-
-            if not ticket:
-                return Response({"error": "No active E-Ticket found for this student"}, status=status.HTTP_404_NOT_FOUND)
-
-            # Check if timer already running
-            open_log = TimeLog.objects.filter(eticket=ticket, time_out=None).first()
-            if open_log:
-                return Response({"error": "Timer already running for this student"}, status=status.HTTP_400_BAD_REQUEST)
-
-            # Close any existing open time logs first
-            open_logs = TimeLog.objects.filter(eticket=ticket, time_out=None)
-            for log in open_logs:
-                log.time_out = utc_now()
-                duration = (log.time_out - log.time_in).total_seconds()
-                log.duration_seconds = duration
-                log.save()
-                ticket.remaining_hours = max(0, ticket.remaining_hours - (duration / 3600))
-                
-                if ticket.remaining_hours <= 0.001:
-                    ticket.remaining_hours = 0
-                    ticket.status = "Finished"
-                    ticket.violation.status = "Finished"
-                    ticket.violation.save()
-
-            if ticket.remaining_hours > 0:
-                # Start timer - use remaining hours from ticket
-                ticket.status = "Ongoing"
-                ticket.save()
-                # Create a new time log
-                log = TimeLog(eticket=ticket).save()
-            else:
-                ticket.save()
-
-            return Response({
-                "message": f"Timer started for student {student_id}",
-                "remaining_hours": ticket.remaining_hours,
-                "status": ticket.status
-            })
-
-        except Student.DoesNotExist:
-            return Response({"error": "Student not found"}, status=status.HTTP_404_NOT_FOUND)
-        except Exception as e:
-            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
-
-    @action(detail=False, methods=['post'])
-    def manual_time_out(self, request):
-        """Admin can manually force time out for a student"""
-        student_id = request.data.get('student_id')
-
-        try:
-            # Find the student
-            student = Student.objects.get(student_id=student_id)
-
-            # Find the student's ongoing ticket
-            ticket = None
-            for t in ETicket.objects.all():
-                try:
-                    if t.violation.student.student_id == student_id and t.status == 'Ongoing':
-                        ticket = t
-                        break
-                except:
-                    pass
-
-            if not ticket:
-                return Response({"error": "No active timer found for this student"}, status=status.HTTP_404_NOT_FOUND)
-
-            # Find and close the open time log
-            open_log = TimeLog.objects.filter(eticket=ticket, time_out=None).first()
-            if open_log:
-                open_log.time_out = utc_now()
-                duration = (open_log.time_out - open_log.time_in).total_seconds()
-                open_log.duration_seconds = duration
-                open_log.save()
-
-                # Deduct hours
-                hours_to_deduct = duration / 3600
-                ticket.remaining_hours = max(0, ticket.remaining_hours - hours_to_deduct)
-                
-                if ticket.remaining_hours <= 0.001:
-                    ticket.remaining_hours = 0
-                    ticket.status = "Finished"
-                    ticket.violation.status = "Finished"
-                    ticket.violation.save()
-                else:
-                    ticket.status = "Active"
-                ticket.save()
-
-            return Response({
-                "message": f"Timer stopped for student {student_id}",
-                "remaining_hours": ticket.remaining_hours,
-                "status": ticket.status
-            })
-
-        except Student.DoesNotExist:
-            return Response({"error": "Student not found"}, status=status.HTTP_404_NOT_FOUND)
-        except Exception as e:
-            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
 
 # Starting a session: the student must be inside the site's circle. GPS accuracy adds up to
@@ -1162,10 +1097,14 @@ def timelog_receipt(log, eticket=None):
     }
 
 
-# Tracked sessions: outside the site this long ends the session (same as the dashboards' countdown);
-# no confirmed location for this long (location off, phone off, app killed) ends it too.
+# Tracked sessions: outside the site this long ends the session (same as the dashboards' countdown).
+# Turning location off is reported by the app within seconds and ends the session right away.
+# Hearing nothing at all is different: Android delays background location to save battery, so a
+# silent phone gets NO_LOCATION_LIMIT_S before the session ends as "location lost".
 OUT_OF_AREA_LIMIT_S = 30
-NO_LOCATION_LIMIT_S = 30
+NO_LOCATION_LIMIT_S = 120
+SILENT_CHECK_EVERY_S = 15  # the check below runs at most this often per server process
+_last_silent_check = [0.0]
 
 
 def end_session(log, eticket, reason, time_out=None, lat=None, lng=None, distance=None):
@@ -1197,7 +1136,12 @@ def end_session(log, eticket, reason, time_out=None, lat=None, lng=None, distanc
 
 def stop_silent_sessions():
     """Ends tracked sessions that haven't confirmed a location for NO_LOCATION_LIMIT_S. Only the time up to
-    the last confirmed location counts. Runs whenever tickets are listed (dashboards poll every 5 s)."""
+    the last confirmed location counts. Runs when tickets are listed (dashboards poll every 5 s),
+    at most every SILENT_CHECK_EVERY_S so the polls don't each pay for an extra query."""
+    import time
+    if time.monotonic() - _last_silent_check[0] < SILENT_CHECK_EVERY_S:
+        return
+    _last_silent_check[0] = time.monotonic()
     cutoff = utc_now() - datetime.timedelta(seconds=NO_LOCATION_LIMIT_S)
     for log in TimeLog.objects(time_out=None, tracked=True, last_ping_at__lt=cutoff):
         try:
@@ -1210,7 +1154,15 @@ class TimeLogViewSet(viewsets.ModelViewSet):
     # Selfie proofs were dropped; old ones made this list many MB, so the photo fields are never loaded
     queryset = TimeLog.objects.exclude('photo_proof_in', 'photo_proof_out')
     serializer_class = TimeLogSerializer
-    permission_classes = [AllowAny]
+
+    def get_permissions(self):
+        # Timing actions: a student on their own ticket (checked in each action) or an admin
+        if self.action in ('log_time', 'location_ping', 'log_event', 'receipts'):
+            return [IsLoggedIn()]
+        return [IsAdmin()]
+
+    def _forbidden_ticket(self):
+        return Response({"error": "This isn't your e-ticket."}, status=status.HTTP_403_FORBIDDEN)
 
     @action(detail=False, methods=['post'])
     def log_time(self, request):
@@ -1219,7 +1171,13 @@ class TimeLogViewSet(viewsets.ModelViewSet):
         
         try:
             eticket = ETicket.objects.get(id=eticket_id)
-            
+            if not owns_ticket(request, eticket):
+                return self._forbidden_ticket()
+
+            # 'custom' and 'set_start' used to set a ticket's remaining hours directly
+            if action_type in ('custom', 'set_start'):
+                return Response({"error": "This action is no longer available."}, status=status.HTTP_400_BAD_REQUEST)
+
             if action_type == 'custom':
                 hours = float(request.data.get('deduct_hours', 0))
                 eticket.remaining_hours = max(0, eticket.remaining_hours - hours)
@@ -1349,6 +1307,8 @@ class TimeLogViewSet(viewsets.ModelViewSet):
             eticket = ETicket.objects.get(id=request.data.get('eticket_id'))
         except Exception:
             return Response({"error": "Ticket not found"}, status=status.HTTP_404_NOT_FOUND)
+        if not owns_ticket(request, eticket):
+            return self._forbidden_ticket()
         log = TimeLog.objects.filter(eticket=eticket, time_out=None).order_by('-time_in').first()
         if not log:
             # Already ended (e.g. from the other device); the latest receipt says how
@@ -1402,6 +1362,8 @@ class TimeLogViewSet(viewsets.ModelViewSet):
             eticket = ETicket.objects.get(id=request.data.get('eticket_id'))
         except Exception:
             return Response({"error": "Ticket not found"}, status=status.HTTP_404_NOT_FOUND)
+        if not owns_ticket(request, eticket):
+            return self._forbidden_ticket()
         log = TimeLog.objects.filter(eticket=eticket, time_out=None).order_by('-time_in').first()
         if not log:
             return Response({"error": "No active session"}, status=status.HTTP_400_BAD_REQUEST)
@@ -1420,8 +1382,15 @@ class TimeLogViewSet(viewsets.ModelViewSet):
         """Time-out receipts, newest first, for one student (?student_id=) or one ticket (?eticket_id=)."""
         student_id = request.query_params.get('student_id')
         eticket_id = request.query_params.get('eticket_id')
+        if role_of(request) == 'student':
+            student_id = request.user.username  # students only see their own receipts
         if eticket_id:
-            tickets = list(ETicket.objects(id=eticket_id))
+            try:
+                tickets = list(ETicket.objects(id=eticket_id))
+            except (MongoValidationError, InvalidId):
+                tickets = []
+            if tickets and not owns_ticket(request, tickets[0]):
+                return self._forbidden_ticket()
         elif student_id:
             student = Student.objects.filter(student_id=student_id).first()
             if not student:
@@ -1440,8 +1409,13 @@ from .serializers import SystemUserSerializer
 class SystemUserViewSet(viewsets.ModelViewSet):
     queryset = SystemUser.objects.all()
     serializer_class = SystemUserSerializer
-    permission_classes = [AllowAny]
     lookup_field = 'username'
+
+    def get_permissions(self):
+        # Staff, guards and admins change their own password/profile; listing accounts is admin-only
+        if self.action in ('change_password', 'update_profile'):
+            return [IsReporter()]
+        return [IsAdmin()]
 
     # Anyone could POST an admin account here. Accounts are made with `manage.py create_account`
     # (later an admin-only Accounts tab); only the profile/password actions below stay open.
@@ -1451,7 +1425,7 @@ class SystemUserViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=['post'])
     def update_profile(self, request):
-        username = request.data.get('username')
+        username = request.user.username  # always the logged-in account
         full_name = request.data.get('full_name')
         bio = request.data.get('bio')
         
@@ -1470,7 +1444,7 @@ class SystemUserViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=['post'])
     def change_password(self, request):
-        username = request.data.get('username')
+        username = request.user.username  # always the logged-in account
         old_password = request.data.get('old_password')
         new_password = request.data.get('new_password')
         
@@ -1478,6 +1452,7 @@ class SystemUserViewSet(viewsets.ModelViewSet):
             user = SystemUser.objects.get(username=username)
             if verify_password(user.password, old_password)[0] and str(new_password or '').strip():
                 user.password = hash_password(new_password)
+                forget_account(user.username)  # old logins stop working now
                 user.save()
                 return Response({"success": True, "message": "Password updated successfully"})
             return Response({"error": "Incorrect old password"}, status=400)

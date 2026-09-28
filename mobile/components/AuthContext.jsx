@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router } from 'expo-router';
 import { stopActiveSession } from './studentSession';
+import { setLoginRejectedHandler } from '../services/api';
 
 const AuthContext = createContext();
 
@@ -13,6 +14,19 @@ export const AuthProvider = ({ children }) => {
 
     useEffect(() => {
         loadUser();
+        // The server no longer accepts the saved login: clear it and go to the login screen
+        let handling = false;
+        setLoginRejectedHandler(async () => {
+            if (handling) return;
+            handling = true;
+            try {
+                await AsyncStorage.removeItem('user');
+                setUser(null);
+                router.replace('/login');
+            } finally {
+                handling = false;
+            }
+        });
     }, []);
 
     const loadUser = async () => {
