@@ -29,8 +29,29 @@ export const ServiceSiteOptions = ({ sites, loading, error, placeholder }) => {
         <>
             <option value="">{placeholder}</option>
             {sites.map((s) => (
-                <option key={s.id} value={s.site_code}>{s.name} ({s.site_code})</option>
+                <option key={s.id} value={s.site_code}>
+                    {s.name} ({s.site_code}) · {s.assigned_count ?? 0}/{s.capacity ?? 10}{(s.assigned_count ?? 0) >= (s.capacity ?? 10) ? ' Full' : ''}
+                </option>
             ))}
         </>
     );
+};
+
+// POSTs an assignment (approve, bulk report, change building). When the building is already at its
+// capacity the backend answers 409; the admin can then assign anyway, which resends with
+// allow_over_capacity. Returns { ok, data }; ok is false when the admin cancels or the request fails.
+export const postAssignment = async (url, body) => {
+    const send = (extra = {}) => fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...body, ...extra }),
+    });
+    let response = await send();
+    let data = await response.json().catch(() => ({}));
+    if (response.status === 409 && data.code === 'site_full') {
+        if (!window.confirm(`${data.error}\n\nAssign anyway?`)) return { ok: false, cancelled: true, data };
+        response = await send({ allow_over_capacity: true });
+        data = await response.json().catch(() => ({}));
+    }
+    return { ok: response.ok, data };
 };

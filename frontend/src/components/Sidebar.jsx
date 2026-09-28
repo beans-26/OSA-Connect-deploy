@@ -1,14 +1,27 @@
 import React, { useState, useEffect } from 'react';
-import { NavLink, Link } from 'react-router-dom';
+import { NavLink, Link, useNavigate } from 'react-router-dom';
 import { Shield, LayoutDashboard, User, AlertTriangle, Clock, LogOut, Menu, X, Users, History, BarChart3, Settings, HelpCircle, ChevronDown, ChevronRight } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import logo from '../assets/logo.png';
+import { loginPathFor } from '../lib/portals';
+import { logoutStudent } from './studentSession';
 
 // Every page renders its own Sidebar, so it remounts on each navigation.
 // Only slide it in the first time; after that it should stay put while the content animates.
 let hasSlidIn = false;
 
 const Sidebar = ({ role }) => {
+    const navigate = useNavigate();
+    // Clears the saved login (a student's running session is stopped too) and goes to that role's login page
+    const logOut = () => {
+        setMobileOpen(false);
+        if (role === 'student') {
+            logoutStudent(navigate);
+            return;
+        }
+        localStorage.removeItem('user');
+        navigate(loginPathFor(role), { replace: true });
+    };
     const [slideIn] = useState(() => {
         const first = !hasSlidIn;
         hasSlidIn = true;
@@ -128,10 +141,10 @@ const Sidebar = ({ role }) => {
                         <span className="font-bold text-sm">Help</span>
                     </Link>
                 )}
-                <Link to="/login" onClick={() => setMobileOpen(false)} className="flex items-center gap-3 px-4 py-3 mx-3 text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 hover:text-red-600 rounded-xl transition-all group">
+                <button type="button" onClick={logOut} className="w-[calc(100%-1.5rem)] flex items-center gap-3 px-4 py-3 mx-3 text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 hover:text-red-600 rounded-xl transition-all group">
                     <LogOut size={20} className="group-hover:-translate-x-1 transition-transform" />
                     <span className="font-bold text-sm">Log Out</span>
-                </Link>
+                </button>
             </div>
         </>
     );

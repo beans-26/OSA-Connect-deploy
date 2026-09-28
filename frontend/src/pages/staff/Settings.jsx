@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import Sidebar from '../../components/Sidebar';
-import { Settings as SettingsIcon, Shield, Clock, Bell, Lock, User, Search, Key, AlertTriangle, Save, LogOut, CheckCircle, MapPin } from 'lucide-react';
+import { Lock, AlertTriangle, Save, LogOut, CheckCircle, MapPin } from 'lucide-react';
 import GlobalSearch from '../../components/GlobalSearch';
 import ServiceSites from './ServiceSites';
 
@@ -30,10 +30,7 @@ const StaffSettings = () => {
     const [manualCode, setManualCode] = useState('');
     const [actionMessage, setActionMessage] = useState({ text: '', type: '' });
 
-    // Profile State
-    const [currentUser, setCurrentUser] = useState(JSON.parse(localStorage.getItem('user') || '{}'));
-    const [profileName, setProfileName] = useState(currentUser.full_name || 'OSA Administrator');
-    const [profileBio, setProfileBio] = useState(currentUser.bio || 'University of Science and Technology of Southern Philippines Personnel');
+    const [currentUser] = useState(JSON.parse(localStorage.getItem('user') || '{}'));
 
     // Security State
     const [oldPassword, setOldPassword] = useState('');
@@ -46,9 +43,7 @@ const StaffSettings = () => {
 
     const sections = [
         { id: 'sites', label: 'Service Sites', icon: MapPin, description: 'Register locations by GPS' },
-        { id: 'account', label: 'Account', icon: User, description: 'Manage your profile' },
         { id: 'security', label: 'Security', icon: Lock, description: 'Password and access' },
-        { id: 'notifications', label: 'Notifications', icon: Bell, description: 'System alerts' },
     ];
 
     useEffect(() => {
@@ -66,34 +61,6 @@ const StaffSettings = () => {
         } catch (e) {
             console.error(e);
         }
-    };
-
-    const handleUpdateProfile = async (e) => {
-        e.preventDefault();
-        setSaveStatus({ msg: 'Saving...', type: 'info' });
-        try {
-            const response = await fetch('/api/users/update_profile/', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    username: currentUser.username,
-                    full_name: profileName,
-                    bio: profileBio
-                })
-            });
-            const data = await response.json();
-            if (response.ok) {
-                const updatedUser = { ...currentUser, full_name: data.full_name, bio: data.bio };
-                localStorage.setItem('user', JSON.stringify(updatedUser));
-                setCurrentUser(updatedUser);
-                setSaveStatus({ msg: 'Profile updated successfully!', type: 'success' });
-            } else {
-                setSaveStatus({ msg: data.error || 'Update failed', type: 'error' });
-            }
-        } catch (error) {
-            setSaveStatus({ msg: 'Network error', type: 'error' });
-        }
-        setTimeout(() => setSaveStatus({ msg: '', type: '' }), 3000);
     };
 
     const handleChangePassword = async (e) => {
@@ -278,49 +245,6 @@ const StaffSettings = () => {
 
                         {/* Tickets section removed */}
 
-                        {activeSection === 'account' && (
-                            <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                                <div className="card-premium p-6 rounded-2xl">
-                                    <div className="flex flex-col md:flex-row gap-8">
-                                        <div className="flex flex-col items-center gap-3">
-                                            <div className="w-24 h-24 bg-slate-100 rounded-2xl flex items-center justify-center border-2 border-white shadow-md">
-                                                <User size={48} className="text-slate-300 dark:text-slate-600" />
-                                            </div>
-                                            <span className="px-4 py-1.5 bg-ustp-blue/10 text-ustp-blue text-[10px] font-black uppercase tracking-widest rounded-full">
-                                                {currentUser.role} Account
-                                            </span>
-                                        </div>
-
-                                        <form onSubmit={handleUpdateProfile} className="flex-1 space-y-6">
-                                            <div className="space-y-4">
-                                                <div>
-                                                    <label className="text-[9px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-1 block ml-1">Display Name</label>
-                                                    <input
-                                                        className="w-full bg-slate-50 dark:bg-slate-900 border-2 border-slate-100 dark:border-slate-700 rounded-xl p-3 text-sm font-semibold text-slate-600 dark:text-slate-400 placeholder:text-slate-400 dark:placeholder:text-slate-500 outline-none focus:border-ustp-blue"
-                                                        value={profileName}
-                                                        onChange={(e) => setProfileName(e.target.value)}
-                                                        placeholder="Enter full name"
-                                                    />
-                                                </div>
-                                                <div>
-                                                    <label className="text-[9px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-1 block ml-1">Biography / Designations</label>
-                                                    <textarea
-                                                        className="w-full bg-slate-50 dark:bg-slate-900 border-2 border-slate-100 dark:border-slate-700 rounded-xl p-3 text-sm font-semibold text-slate-600 dark:text-slate-400 placeholder:text-slate-400 dark:placeholder:text-slate-500 outline-none focus:border-ustp-blue min-h-[100px]"
-                                                        value={profileBio}
-                                                        onChange={(e) => setProfileBio(e.target.value)}
-                                                        placeholder="Brief detail about yourself..."
-                                                    />
-                                                </div>
-                                            </div>
-                                            <button type="submit" className="btn-premium bg-ustp-blue text-white px-6 py-3 rounded-xl flex items-center justify-center gap-2 shadow-md hover:shadow-lg shadow-blue-200 text-xs w-full md:w-auto">
-                                                <Save size={16} /> Update Profile
-                                            </button>
-                                        </form>
-                                    </div>
-                                </div>
-                            </div>
-                        )}
-
                         {activeSection === 'security' && (
                             <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
                                 <div className="card-premium p-6 rounded-2xl max-w-xl">
@@ -378,24 +302,17 @@ const StaffSettings = () => {
                                         <button
                                             onClick={() => {
                                                 localStorage.removeItem('user');
-                                                window.location.href = '/login';
+                                                window.location.href = '/admin';
                                             }}
                                             className="flex items-center gap-3 text-red-500 font-black text-[10px] uppercase tracking-widest hover:text-red-600 transition-colors"
                                         >
-                                            <LogOut size={16} /> Sign out from all devices
+                                            <LogOut size={16} /> Log out from all devices
                                         </button>
                                     </div>
                                 </div>
                             </div>
                         )}
 
-                        {activeSection === 'notifications' && (
-                            <div className="card-premium py-20 flex flex-col items-center justify-center text-center opacity-50 animate-in fade-in duration-500">
-                                <Shield size={48} className="text-slate-200 mb-4" />
-                                <h4 className="font-black text-slate-300 dark:text-slate-600 lowercase uppercase tracking-[0.2em] text-sm">Experimental Section</h4>
-                                <p className="text-slate-400 dark:text-slate-500 text-xs font-medium mt-2">System alert configuration is currently under development.</p>
-                            </div>
-                        )}
                     </div>
                 </div>
             </main>

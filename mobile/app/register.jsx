@@ -5,11 +5,10 @@ import { Link, router } from 'expo-router';
 import { UserPlus, Mail, KeyRound, ChevronRight, CheckCircle2, Download, IdCard, GraduationCap, Building2, Layers, Phone, Lock } from 'lucide-react-native';
 import QRCode from 'react-native-qrcode-svg';
 import { Colors } from '../constants/Colors';
-import { COURSES, DEPARTMENTS } from '../constants/Data';
+import { DEPARTMENTS, DEPARTMENT_COURSES, yearLevelsFor } from '../constants/Data';
 import SelectField from '../components/SelectField';
 import api from '../services/api';
 
-const YEAR_LEVELS = ['1', '2', '3', '4', '5'].map((y) => ({ label: `Year ${y}`, value: y }));
 // Using TextInputs instead of picker for simplicity without adding dependencies
 
 const CSSLogo = () => (
@@ -42,6 +41,18 @@ export default function Register() {
     // Kept outside studentData so it isn't sent to the API
     const [confirmPassword, setConfirmPassword] = useState('');
     const passwordMismatch = confirmPassword.length > 0 && confirmPassword !== studentData.password;
+    const courseOptions = DEPARTMENT_COURSES[studentData.department] || [];
+    const yearOptions = yearLevelsFor(studentData.department);
+
+    // A new department clears the course and year level when they don't belong to it (same as the website)
+    const changeDepartment = (department) => {
+        setStudentData((prev) => ({
+            ...prev,
+            department,
+            course: (DEPARTMENT_COURSES[department] || []).includes(prev.course) ? prev.course : '',
+            year_level: yearLevelsFor(department).some((y) => y.value === prev.year_level) ? prev.year_level : '',
+        }));
+    };
     // Placeholders repeat the field name as faint, see-through text (same as the website)
     const faintPlaceholder = 'rgba(148,163,184,0.4)';
 
@@ -171,20 +182,7 @@ export default function Register() {
                             </View>
 
                             <Text style={styles.sectionTitle}>Academic Information</Text>
-                            <View style={styles.formGroup}>
-                                <Text style={styles.label}>Course</Text>
-                                {/* Same USTP lists as the website's registration (constants/Data.js) */}
-                                <SelectField
-                                    value={studentData.course}
-                                    options={COURSES}
-                                    placeholder="Course"
-                                    placeholderColor={faintPlaceholder}
-                                    title="Select Course"
-                                    searchable
-                                    onChange={(v) => setStudentData((prev) => ({ ...prev, course: v }))}
-                                    style={[styles.input, styles.selectInput]}
-                                />
-                            </View>
+                            {/* Department first; it decides the course list and year levels (Grade 11/12 for SHS) */}
                             <View style={styles.formGroup}>
                                 <Text style={styles.label}>Department</Text>
                                 <SelectField
@@ -193,19 +191,33 @@ export default function Register() {
                                     placeholder="Department"
                                     placeholderColor={faintPlaceholder}
                                     title="Select Department"
-                                    onChange={(v) => setStudentData((prev) => ({ ...prev, department: v }))}
+                                    onChange={changeDepartment}
+                                    style={[styles.input, styles.selectInput]}
+                                />
+                            </View>
+                            <View style={styles.formGroup}>
+                                <Text style={styles.label}>Course</Text>
+                                <SelectField
+                                    value={studentData.course}
+                                    options={courseOptions}
+                                    placeholder={studentData.department ? 'Course' : 'Choose a department first'}
+                                    placeholderColor={faintPlaceholder}
+                                    title="Select Course"
+                                    searchable={courseOptions.length > 6}
+                                    disabled={!studentData.department}
+                                    onChange={(v) => setStudentData((prev) => ({ ...prev, course: v }))}
                                     style={[styles.input, styles.selectInput]}
                                 />
                             </View>
                             <View style={styles.formGroup}>
                                 <Text style={styles.label}>Year Level</Text>
-                                {/* Same choices as the website: saved as "1"–"5", shown as "Year 1"–"Year 5" */}
                                 <SelectField
                                     value={studentData.year_level}
-                                    options={YEAR_LEVELS}
-                                    placeholder="Year Level"
+                                    options={yearOptions}
+                                    placeholder={studentData.department ? 'Year Level' : 'Choose a department first'}
                                     placeholderColor={faintPlaceholder}
                                     title="Select Year Level"
+                                    disabled={!studentData.department}
                                     onChange={(v) => setStudentData((prev) => ({ ...prev, year_level: v }))}
                                     style={[styles.input, styles.selectInput]}
                                 />

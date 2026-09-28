@@ -165,3 +165,17 @@ export const directionsUrl = ({ latitude, longitude }) => {
         ? `https://maps.apple.com/?daddr=${latitude},${longitude}&dirflg=w`
         : `https://www.google.com/maps/dir/?api=1&destination=${latitude},${longitude}&travelmode=walking`;
 };
+
+// Starting a session: the student must be inside the site's circle, plus 0.7 x GPS accuracy (at most
+// 20 m). Same rule and wording as _outside_site_error in backend/core/views.py, which enforces it;
+// checking here too shows the message right away instead of after a server round trip.
+const START_ACCURACY_FACTOR = 0.7;
+const START_ACCURACY_MAX_M = 20;
+
+/** Message when `point` ({ latitude, longitude, accuracy }) is outside `site` ({ latitude, longitude, radius }), else null. */
+export const outsideSiteMessage = (point, site, placeName) => {
+    const distance = distanceMeters(point, site);
+    const allowed = site.radius + Math.min(Math.max(point.accuracy || 0, 0) * START_ACCURACY_FACTOR, START_ACCURACY_MAX_M);
+    if (distance <= allowed) return null;
+    return `You're ${Math.round(distance)} m away from ${placeName || 'your service site'}. Go inside the service area (within ${Math.round(site.radius)} m) and scan again to start your timer.`;
+};

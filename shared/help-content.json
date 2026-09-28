@@ -33,7 +33,7 @@
             "q": "How do I start a session?",
             "a": [
               "On your dashboard, tap Scan QR Code. The app first checks that location services are on and asks for location and camera permission.",
-              "Scan the QR code posted at your service location, then take a live selfie with the front camera. The countdown starts once the selfie is uploaded.",
+              "Scan the QR code posted at your assigned building. You must be inside its service area when you scan; if you're outside, the timer doesn't start and the app tells you how far away you are.",
               "You need an Active e-ticket. If you don't have one, the app shows \"You don't have any active service tickets.\""
             ]
           },
@@ -41,7 +41,9 @@
             "q": "How do I end a session?",
             "a": [
               "Tap Scan to End Service, scan the OSA stop code, and take another selfie. The time since you started is then deducted from your remaining hours.",
-              "The end button unlocks 20 seconds after you start, so you can't end a session immediately."
+              "The end button unlocks 20 seconds after you start, so you can't end a session immediately.",
+              "After you time out, a receipt shows the date, your assigned building, time in and out, time served, and how the session ended (you scanned the QR code, left the area, turned off location, and so on).",
+              "To see past sessions, tap an e-ticket on your dashboard. Its service log is grouped by date: tap a date to list that day's time-ins, then tap a time in to open its receipt."
             ]
           },
           {
@@ -54,13 +56,14 @@
             "q": "What does \"Out of bounds\" mean?",
             "a": [
               "Your service area is a circle with a 50-meter radius around the spot where your phone was when you started the session. If your phone's GPS puts you outside that circle, the session card turns red and shows how far away you are.",
-              "Go back inside the area. The app currently keeps your session running while you're out of bounds; it doesn't end it for you."
+              "Go back inside the area right away. A 30-second countdown starts when you leave; if you're still outside when it reaches 0, your timer stops and the hours served so far are kept. If that happens, your time-out receipt says you left the area and how far away you were."
             ]
           },
           {
             "q": "Why did my session end by itself?",
             "a": [
-              "The mobile app never ends a session automatically. It only ends when a stop code is scanned on your account.",
+              "Your timer stops by itself if you stay outside your service area for 30 seconds, turn off location, log out, or finish your hours. The time-out receipt says which one it was.",
+              "You can leave the app while serving. The Android app keeps checking your location in the background (allow location \"All the time\" when asked) and sends a notification if your timer stops. On the website, your location is checked again as soon as you come back to the page; if location was turned off, only the time until then counts.",
               "If your dashboard shows no active session and you didn't end it, it was ended from another device signed in to your account or by OSA. Contact OSA if you think this was a mistake."
             ]
           },
@@ -117,7 +120,7 @@
           {
             "q": "How do I change my email or contact number?",
             "a": [
-              "You can't change these in the app. Your details in Profile Settings are read-only. Ask OSA to update your record."
+              "Open Profile Settings and tap Change next to your email or contact number, then enter your current password. For a new email, we send a 6-digit code to that address; enter it within 5 minutes to save it. You can change your password in Security Settings."
             ]
           },
           {
@@ -243,7 +246,9 @@
         "title": "Approving or dismissing reports",
         "a": [
           "Go to Pending Reviews and open a report. To approve, choose the building where the student will serve and the required hours (3, 5, or 6), then tap Approve. This creates the student's e-ticket.",
-          "Tap Dismiss to reject a report. Dismissed reports move to Archives.",
+          "Tap Dismiss to reject a report. Dismissed reports are not kept in Archives.",
+          "Each building takes up to 10 students at once (change this per building in Settings > Service Sites). If a building is full, you can still assign the student after confirming.",
+          "To move an approved student to another building, open their violation from the Overview feed and tap Change next to Assigned Building. This can't be done while they are serving.",
           "Use Pending Reviews for approvals. The quick Approve button in the Overview feed doesn't send a building, so the approval is rejected."
         ]
       },
@@ -257,7 +262,7 @@
       {
         "title": "Archives and PDF export",
         "a": [
-          "Archives lists completed cases. Turn on the dismissed toggle to see dismissed reports instead. You can search by name or ID and filter by violation type.",
+          "Archives lists completed cases. You can search by name or ID and filter by violation type.",
           "Tap Download PDF to export the records currently shown as a landscape A4 \"Community Service Log\" with the USTP and OSA headers."
         ]
       },

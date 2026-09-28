@@ -4,49 +4,15 @@ import { Users, Search, ClipboardList, QrCode, CheckCircle, Edit2, Eye, UserX, U
 import QRCode from 'react-qr-code';
 import { Shield, AlertCircle, CheckCircle2, Send, Clock, LocateFixed } from 'lucide-react';
 import GlobalSearch from '../../components/GlobalSearch';
-import { useServiceSites, ServiceSiteOptions } from '../../components/useServiceSites';
+import { useServiceSites, ServiceSiteOptions, postAssignment } from '../../components/useServiceSites';
+import { DEPARTMENTS, DEPARTMENT_COURSES, yearLevelsFor } from '../../lib/academics';
 
-const COURSES = [
-    "BS Civil Engineering",
-    "BS Electronics Engineering",
-    "BS Electrical Engineering",
-    "BS Mechanical Engineering",
-    "BS Computer Engineering",
-    "BS Geodetic Engineering",
-    "BS Food Technology",
-    "BS Information Technology",
-    "BS Computer Science",
-    "BS Data Science",
-    "BS Technology Communication Management",
-    "BS Applied Physics",
-    "BS Applied Mathematics",
-    "BS Chemistry",
-    "BS Environmental Science",
-    "BS Secondary Education Major in Science",
-    "Major in Mathematics",
-    "B. Tech & Livelihood Education (Home Economics)",
-    "B. Tech & Livelihood Education (Industrial Arts)",
-    "Bachelor in Technical-Vocational Teacher Education Major in Computer System Servicing",
-    "Major in Fashion and Garments",
-    "Major in Food Service Management",
-    "BS AutoTronics",
-    "BS Electro-Mechanical Technology",
-    "BS Electronics Technology",
-    "BS Energy Systems and Management",
-    "BS Manufacturing Engineering Technology",
-    "College of Medicine",
-    "Senior High School"
-];
-
-const DEPARTMENTS = [
-    "College of Engineering and Architecture (CEA)",
-    "College of Information Technology and Computing (CITC)",
-    "College of Science and Mathematics (CSM)",
-    "College of Science and Technology Education (CSTE)",
-    "College of Technology (CT)",
-    "College of Medicine (COM)",
-    "Senior High School (SHS)"
-];
+// Course <option>s grouped under their department
+const CourseOptions = () => DEPARTMENTS.map((dept) => (
+    <optgroup key={dept} label={dept}>
+        {DEPARTMENT_COURSES[dept].map((course) => <option key={course} value={course}>{course}</option>)}
+    </optgroup>
+));
 
 const PRESET_LOCATIONS = [
     { name: 'OSA Admin Office (5-Foot Test)', lat: 8.4855, lng: 124.6564, radius: 2 },
@@ -76,6 +42,12 @@ const AllStudents = () => {
         email: '',
         contact_number: ''
     });
+    // Grade 11/12 for SHS, Year 1–5 otherwise; an older saved value that isn't in the list still shows
+    const editYearOptions = (() => {
+        const options = yearLevelsFor(editStudent.department);
+        const current = editStudent.year_level;
+        return current && !options.some((y) => y.value === current) ? [...options, { value: current, label: current }] : options;
+    })();
     const [selectedIds, setSelectedIds] = useState([]);
     const [showBulkModal, setShowBulkModal] = useState(false);
     const [saving, setSaving] = useState(false);
@@ -177,25 +149,20 @@ const AllStudents = () => {
         }
 
         try {
-            const response = await fetch('/api/violations/bulk_create/', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    student_ids: finalIds,
-                    assigned_building: bulkForm.assigned_building,
-                    reporter: reporter
-                })
+            // Asks "assign anyway?" when the building can't fit this many more students
+            const { ok, cancelled, data } = await postAssignment('/api/violations/bulk_create/', {
+                student_ids: finalIds,
+                assigned_building: bulkForm.assigned_building,
+                reporter: reporter
             });
 
-            if (response.ok) {
-                const result = await response.json();
-                alert(result.message || 'Bulk reporting completed successfully');
+            if (ok) {
+                alert(data.message || 'Bulk reporting completed successfully');
                 setSelectedIds([]);
                 setBulkForm({ assigned_building: '', manual_ids: '' });
                 setShowBulkModal(false);
-            } else {
-                const errorData = await response.json();
-                alert(`Bulk reporting failed: ${errorData.error || 'Unknown error'}`);
+            } else if (!cancelled) {
+                alert(`Bulk reporting failed: ${data.error || 'Unknown error'}`);
             }
         } catch (error) {
             alert('Server error during bulk reporting');
@@ -332,9 +299,7 @@ const AllStudents = () => {
                             className="bg-slate-50 dark:bg-slate-900 border-2 border-slate-100 dark:border-slate-700 rounded-xl px-4 py-3 focus:border-ustp-blue focus:outline-none md:max-w-xs text-sm font-semibold text-slate-600 dark:text-slate-400"
                         >
                             <option value="">All Programs</option>
-                            {COURSES.map(course => (
-                                <option key={course} value={course}>{course}</option>
-                            ))}
+                            <CourseOptions />
                         </select>
                         <select
                             value={filterYear}
@@ -347,6 +312,8 @@ const AllStudents = () => {
                             <option value="3">3rd Year</option>
                             <option value="4">4th Year</option>
                             <option value="5">5th Year</option>
+                            <option value="Grade 11">Grade 11</option>
+                            <option value="Grade 12">Grade 12</option>
                         </select>
                     </div>
                 </div>
@@ -545,9 +512,7 @@ const AllStudents = () => {
                                         className="w-full px-4 py-3 border-2 border-slate-100 dark:border-slate-700 rounded-2xl focus:border-ustp-blue focus:outline-none bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white"
                                     >
                                         <option value="">Select Course</option>
-                                        {COURSES.map(course => (
-                                            <option key={course} value={course}>{course}</option>
-                                        ))}
+                                        <CourseOptions />
                                     </select>
                                 </div>
                                 <div>
@@ -572,11 +537,7 @@ const AllStudents = () => {
                                     className="w-full px-4 py-3 border-2 border-slate-100 dark:border-slate-700 rounded-2xl focus:border-ustp-blue focus:outline-none bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white"
                                 >
                                     <option value="">Select Year</option>
-                                    <option value="1">1st Year</option>
-                                    <option value="2">2nd Year</option>
-                                    <option value="3">3rd Year</option>
-                                    <option value="4">4th Year</option>
-                                    <option value="5">5th Year</option>
+                                    {editYearOptions.map((y) => <option key={y.value} value={y.value}>{y.label}</option>)}
                                 </select>
                             </div>
                             <div>

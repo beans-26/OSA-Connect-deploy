@@ -13,6 +13,9 @@ import { captureLocation, getLocationPermission, GEO_MESSAGES } from '../../lib/
 
 const RADIUS_MIN = 10;
 const RADIUS_MAX = 300;
+// Students with an unfinished ticket at a site at once; the backend asks before going over
+const CAPACITY_MIN = 1;
+const CAPACITY_MAX = 500;
 const WEAK_ACCURACY_M = 15;
 
 const inputClass = "w-full bg-slate-50 dark:bg-slate-900 border-2 border-slate-100 dark:border-slate-700 rounded-xl p-3 text-sm font-semibold text-slate-700 dark:text-slate-300 placeholder:text-slate-400 dark:placeholder:text-slate-500 outline-none focus:border-ustp-blue";
@@ -40,6 +43,7 @@ const formatDate = (iso) =>
     iso ? new Date(iso).toLocaleDateString([], { year: 'numeric', month: 'short', day: 'numeric' }) : '—';
 
 const clampRadius = (value) => Math.min(RADIUS_MAX, Math.max(RADIUS_MIN, Number(value) || 50));
+const clampCapacity = (value) => Math.min(CAPACITY_MAX, Math.max(CAPACITY_MIN, Math.round(Number(value)) || 10));
 
 /* ---------- GPS capture (shared by new sites and re-captures) ---------- */
 
@@ -268,7 +272,7 @@ const ServiceSites = () => {
     const [loadError, setLoadError] = useState('');
     // { mode: 'new' | 'edit' | 'recapture' | 'qr', site? }
     const [panel, setPanel] = useState(null);
-    const [form, setForm] = useState({ name: '', description: '', radius_m: 50, site_code: '', is_active: true });
+    const [form, setForm] = useState({ name: '', description: '', radius_m: 50, capacity: 10, site_code: '', is_active: true });
     const [capture, setCapture] = useState(null);
     const [saving, setSaving] = useState(false);
     const [formError, setFormError] = useState('');
@@ -300,8 +304,8 @@ const ServiceSites = () => {
         setFormError('');
         setCapture(null);
         setForm(site
-            ? { name: site.name, description: site.description, radius_m: site.radius_m, site_code: site.site_code, is_active: site.is_active }
-            : { name: '', description: '', radius_m: 50, site_code: '', is_active: true });
+            ? { name: site.name, description: site.description, radius_m: site.radius_m, capacity: site.capacity ?? 10, site_code: site.site_code, is_active: site.is_active }
+            : { name: '', description: '', radius_m: 50, capacity: 10, site_code: '', is_active: true });
         setPanel({ mode, site });
     };
 
@@ -322,6 +326,7 @@ const ServiceSites = () => {
                     name: form.name.trim(),
                     description: form.description.trim(),
                     radius_m: clampRadius(form.radius_m),
+                    capacity: clampCapacity(form.capacity),
                     site_code: form.site_code.trim().toUpperCase(),
                     latitude: capture.latitude,
                     longitude: capture.longitude,
@@ -366,6 +371,7 @@ const ServiceSites = () => {
             name: form.name.trim(),
             description: form.description.trim(),
             radius_m: clampRadius(form.radius_m),
+            capacity: clampCapacity(form.capacity),
             is_active: form.is_active,
         }, 'Site updated');
         if (ok) setPanel(null);
@@ -411,6 +417,23 @@ const ServiceSites = () => {
                 className={inputClass}
             />
             <p className="ml-1 mt-1 text-[10px] font-semibold text-slate-400">{RADIUS_MIN}–{RADIUS_MAX} m. Students must stay inside this circle.</p>
+        </div>
+    );
+
+    const capacityField = (
+        <div>
+            <label className={labelClass}>Max Students</label>
+            <input
+                type="number"
+                inputMode="numeric"
+                min={CAPACITY_MIN}
+                max={CAPACITY_MAX}
+                value={form.capacity}
+                onChange={(e) => setForm({ ...form, capacity: e.target.value })}
+                onBlur={() => setForm((f) => ({ ...f, capacity: clampCapacity(f.capacity) }))}
+                className={inputClass}
+            />
+            <p className="ml-1 mt-1 text-[10px] font-semibold text-slate-400">Students assigned here at once. You can still go over it when assigning.</p>
         </div>
     );
 
@@ -490,7 +513,13 @@ const ServiceSites = () => {
                                         {site.is_active ? 'Active' : 'Inactive'}
                                     </span>
                                 </div>
-                                <div className="mt-3 grid grid-cols-3 gap-2 text-center">
+                                <div className="mt-3 grid grid-cols-2 sm:grid-cols-4 gap-2 text-center">
+                                    <div className="rounded-xl bg-slate-50 p-2 dark:bg-slate-900">
+                                        <p className={`text-sm font-black ${(site.assigned_count ?? 0) >= (site.capacity ?? 10) ? 'text-red-500' : 'text-slate-800 dark:text-slate-200'}`}>
+                                            {site.assigned_count ?? 0} / {site.capacity ?? 10}
+                                        </p>
+                                        <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Students</p>
+                                    </div>
                                     <div className="rounded-xl bg-slate-50 p-2 dark:bg-slate-900">
                                         <p className="text-sm font-black text-slate-800 dark:text-slate-200">{site.radius_m} m</p>
                                         <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Radius</p>
@@ -536,6 +565,7 @@ const ServiceSites = () => {
                         {nameFields}
                         <div className="grid grid-cols-2 gap-3">
                             {radiusField}
+                            {capacityField}
                             <div>
                                 <label className={labelClass}>Site Code</label>
                                 <input
@@ -562,6 +592,7 @@ const ServiceSites = () => {
                     <div className="space-y-4">
                         {nameFields}
                         {radiusField}
+                            {capacityField}
                         <label className="flex items-center justify-between rounded-xl border-2 border-slate-100 p-3 dark:border-slate-700">
                             <span className="text-sm font-bold text-slate-700 dark:text-slate-300">Active (students can use this site)</span>
                             <input type="checkbox" checked={form.is_active} onChange={(e) => setForm({ ...form, is_active: e.target.checked })} className="h-5 w-5 accent-ustp-blue" />

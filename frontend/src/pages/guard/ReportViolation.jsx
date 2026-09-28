@@ -3,23 +3,8 @@ import { Link } from 'react-router-dom';
 import { Scan, Send, CheckCircle2, ClipboardList, Clock, X, LogOut, HelpCircle } from 'lucide-react';
 import QrScannerModal from '../../components/QrScannerModal';
 import { parseStudentQr, NOT_A_STUDENT_QR } from '../../components/studentQr';
-
-const COURSES = [
-    "BS Civil Engineering", "BS Electronics Engineering", "BS Electrical Engineering", "BS Mechanical Engineering",
-    "BS Computer Engineering", "BS Geodetic Engineering", "BS Food Technology", "BS Information Technology",
-    "BS Computer Science", "BS Data Science", "BS Technology Communication Management", "BS Applied Physics",
-    "BS Applied Mathematics", "BS Chemistry", "BS Environmental Science", "BS Secondary Education Major in Science",
-    "Major in Mathematics", "B. Tech & Livelihood Education (Home Economics)", "B. Tech & Livelihood Education (Industrial Arts)",
-    "Bachelor in Technical-Vocational Teacher Education Major in Computer System Servicing", "Major in Fashion and Garments",
-    "Major in Food Service Management", "BS AutoTronics", "BS Electro-Mechanical Technology", "BS Electronics Technology",
-    "BS Energy Systems and Management", "BS Manufacturing Engineering Technology", "College of Medicine", "Senior High School"
-];
-
-const DEPARTMENTS = [
-    "College of Engineering and Architecture (CEA)", "College of Information Technology and Computing (CITC)",
-    "College of Science and Mathematics (CSM)", "College of Science and Technology Education (CSTE)",
-    "College of Technology (CT)", "College of Medicine (COM)", "Senior High School (SHS)"
-];
+import { DEPARTMENTS, COURSES } from '../../lib/academics';
+import { GUARD_STAFF_LOGIN } from '../../lib/portals';
 
 const inputClass = "w-full bg-slate-50 dark:bg-slate-900 border-2 border-slate-100 dark:border-slate-700 rounded-xl px-3 py-2.5 md:p-3.5 font-bold focus:border-ustp-blue outline-none transition-all text-sm";
 const labelClass = "text-[9px] uppercase font-black text-slate-400 dark:text-slate-500 tracking-[0.2em] ml-1 mb-1 block";
@@ -202,7 +187,7 @@ const ReportViolation = () => {
                             <HelpCircle size={14} /> <span className="hidden sm:inline">Help</span>
                         </Link>
                         <button
-                            onClick={() => { localStorage.clear(); window.location.href = '/login'; }}
+                            onClick={() => { localStorage.clear(); window.location.href = GUARD_STAFF_LOGIN; }}
                             aria-label="Log Out"
                             className="flex items-center gap-1.5 px-3 py-1.5 bg-white dark:bg-slate-800 shadow-sm border border-slate-200 dark:border-slate-600 rounded-full text-red-500 hover:bg-red-50 font-bold text-xs"
                         >
