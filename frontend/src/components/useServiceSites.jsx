@@ -1,15 +1,14 @@
 import { useEffect, useState } from 'react';
 
 // Active service sites (Settings > Service Sites) for the "Assign Building" dropdowns.
-// The sites API checks the X-OSA-User header names an admin account, like ServiceSites.jsx.
+// The sites API is admin-only (checked from the login token).
 export const useServiceSites = () => {
     const [sites, setSites] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
 
     useEffect(() => {
-        const user = JSON.parse(localStorage.getItem('user') || '{}');
-        fetch('/api/admin/sites/', { headers: { 'X-OSA-User': user.username || '' } })
+        fetch('/api/admin/sites/')
             .then((r) => (r.ok ? r.json() : Promise.reject(r.status)))
             .then((data) => setSites((Array.isArray(data) ? data : []).filter((s) => s.is_active)))
             .catch(() => setError("Couldn't load service sites."))

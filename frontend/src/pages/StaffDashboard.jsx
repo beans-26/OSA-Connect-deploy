@@ -35,7 +35,7 @@ import { timeGreeting, todayLabel, adminStatusLine } from '../lib/greeting';
 import { useServiceSites, ServiceSiteOptions, postAssignment } from '../components/useServiceSites';
 
 /* ─── Violation Detail Modal ──────────────────────────────────────── */
-const ViolationModal = ({ report, ticket, activeLog, onClose, onAction, onReassigned }) => {
+const ViolationModal = ({ report, ticket, onClose, onAction, onReassigned }) => {
     const [showProfile, setShowProfile] = useState(false);
     const [editingBuilding, setEditingBuilding] = useState(false);
     const [newBuilding, setNewBuilding] = useState('');
@@ -312,7 +312,6 @@ const StaffDashboard = () => {
     const [stats, setStats] = useState({ pending: 0, active: 0, completed: 0, warnings: 0 });
     const [violators, setViolators] = useState([]);
     const [allTickets, setAllTickets] = useState([]);
-    const [logs, setLogs] = useState([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedViolation, setSelectedViolation] = useState(null);
@@ -338,20 +337,11 @@ const StaffDashboard = () => {
 
     const fetchDashboardData = async () => {
         try {
-            const vResponse = await fetch('/api/violations/?t=' + Date.now());
-            const violations = await vResponse.json();
-
-            let tickets = [];
-            try {
-                const tResponse = await fetch('/api/etickets/?t=' + Date.now());
-                tickets = await tResponse.json();
-            } catch (e) { console.log('ETickets error', e); }
-
-            let fetchedLogs = [];
-            try {
-                const lResponse = await fetch('/api/timelogs/?t=' + Date.now());
-                fetchedLogs = await lResponse.json();
-            } catch (e) { console.log('Timelogs error', e); }
+            // Both at once. (Every time log used to be downloaded here too, every 5 s, but nothing used it.)
+            const [violations, tickets] = await Promise.all([
+                fetch('/api/violations/?t=' + Date.now()).then((r) => r.json()),
+                fetch('/api/etickets/?t=' + Date.now()).then((r) => r.json()).catch(() => []),
+            ]);
 
             const today = new Date().toDateString();
 
@@ -434,7 +424,6 @@ const StaffDashboard = () => {
 
             setViolators(violations);
             setAllTickets(tickets);
-            setLogs(fetchedLogs);
         } catch (error) {
             console.error('Error fetching dashboard stats:', error);
         } finally {
@@ -530,12 +519,7 @@ const userRole = JSON.parse(localStorage.getItem('user') || '{}').role || 'staff
                                         const ticket = allTickets.find(t => t.violation_details?.id === report.id || t.violation === report.id);
                                         const isOngoing = ticket?.status === 'Ongoing';
                                         const isPending = (report.status || '').toLowerCase().includes('pending');
-                                        const openDetails = () => {
-                                            const activeLog = logs.find(l =>
-                                                (ticket && (l.eticket === ticket.id || l.eticket?.id === ticket.id)) && !l.time_out
-                                            );
-                                            setSelectedViolation({ report, ticket, activeLog });
-                                        };
+                                        const openDetails = () => setSelectedViolation({ report, ticket });
 
                                         return (
                                             <div
@@ -691,7 +675,6 @@ const userRole = JSON.parse(localStorage.getItem('user') || '{}').role || 'staff
                 <ViolationModal
                     report={selectedViolation.report}
                     ticket={selectedViolation.ticket}
-                    activeLog={selectedViolation.activeLog}
                     onClose={() => setSelectedViolation(null)}
                     onAction={handleAction}
                     onReassigned={(building) => {

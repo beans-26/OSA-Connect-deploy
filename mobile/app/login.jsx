@@ -50,6 +50,8 @@ export default function Login() {
             }
 
             const userData = {
+                // Sent with every API request (services/api.js)
+                token: response.data.token,
                 username: response.data.username,
                 role: response.data.role,
                 student_id: response.data.student_id,

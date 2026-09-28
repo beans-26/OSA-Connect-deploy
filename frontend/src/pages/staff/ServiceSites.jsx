@@ -23,10 +23,9 @@ const labelClass = "text-[9px] font-black uppercase tracking-widest text-slate-4
 
 // The backend checks this header names an admin account; registered_by is taken from it server-side
 const apiFetch = (path, options = {}) => {
-    const user = JSON.parse(localStorage.getItem('user') || '{}');
     return fetch(`/api/admin/sites/${path}`, {
         ...options,
-        headers: { 'Content-Type': 'application/json', 'X-OSA-User': user.username || '', ...(options.headers || {}) },
+        headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
     });
 };
 

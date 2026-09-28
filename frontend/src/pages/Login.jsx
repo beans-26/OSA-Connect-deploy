@@ -61,7 +61,10 @@ const Login = ({ portal = 'student' }) => {
                 }
 
                 const userData = {
+                    // Sent with every API request (lib/apiAuth.js)
+                    token: data.token,
                     username: data.username,
+                    full_name: data.full_name,
                     role: data.role,
                     student_id: data.student_id,
                     name: data.name

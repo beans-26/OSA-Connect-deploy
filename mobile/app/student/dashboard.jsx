@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
-  View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, StatusBar, Platform, Linking
+  View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, StatusBar, Platform, Linking, AppState
 } from 'react-native';
 import { showAlert } from '../../components/showAlert';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -18,7 +18,7 @@ import { timeGreeting, todayLabel, studentStatusLine } from '../../components/gr
 import { compassDirection, formatDistance, directionsUrl, outsideSiteMessage } from '../../components/geo';
 import SessionReceipt from '../../components/SessionReceipt';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { startTracking, stopTracking, isTrackingSession, sendLocationPing, notifyTimerStopped, LAST_RECEIPT_KEY } from '../../components/backgroundTracking';
+import { canTrackInBackground, startTracking, stopTracking, isTrackingSession, sendLocationPing, notifyTimerStopped, LAST_RECEIPT_KEY } from '../../components/backgroundTracking';
 import TicketDetails from '../../components/TicketDetails';
 
 // Out of the area (or location off) this long stops the session; same as the website
@@ -302,6 +302,34 @@ export default function Dashboard() {
         }
     };
 
+    // Back in the app during a session: check the location right away (sessions not tracked in the
+    // background are only checked here; tracked ones get an extra up-to-date reading)
+    useEffect(() => {
+        if (!timerActive) return;
+        const sub = AppState.addEventListener('change', async (state) => {
+            if (state !== 'active') return;
+            try {
+                let res;
+                if (!(await Location.hasServicesEnabledAsync())) {
+                    res = await sendLocationPing({ location_off: true }, { force: true });
+                } else {
+                    const { coords } = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
+                    res = await sendLocationPing({ lat: coords.latitude, lng: coords.longitude, accuracy_m: coords.accuracy }, { force: true });
+                }
+                if (res?.state === 'stopped' || res?.state === 'none') {
+                    setTimerActive(false);
+                    setStartTime(null);
+                    if (res.receipt) setReceipt(res.receipt);
+                    AsyncStorage.removeItem(LAST_RECEIPT_KEY);
+                    fetchData();
+                }
+            } catch {
+                // Offline: the regular checks continue once the connection is back
+            }
+        });
+        return () => sub.remove();
+    }, [timerActive]);
+
     // Recomputed on every change; the watchPositionAsync callback would otherwise see stale state
     useEffect(() => {
         if (!location || !targetLocation || !timerActive || !locationEnabled) return;
@@ -369,6 +397,8 @@ export default function Dashboard() {
             scannedData.studentLat = coords.latitude;
             scannedData.studentLng = coords.longitude;
             scannedData.accuracy = coords.accuracy;
+            // Asked now so the server knows whether this session is tracked with the app closed
+            scannedData.trackLocation = await canTrackInBackground();
         }
         // Starts or stops the timer right away (no photo step)
         submitLog(action, scannedData);
@@ -393,7 +423,7 @@ export default function Dashboard() {
                 student_lng: scannedData.studentLng ?? null,
                 accuracy_m: scannedData.accuracy ?? null,
                 // This app keeps sending the location, also in the background
-                track_location: actionType === 'in'
+                track_location: actionType === 'in' && !!scannedData.trackLocation
             });
             if (actionType === 'in') {
                 setTimerActive(true);
@@ -411,10 +441,10 @@ export default function Dashboard() {
                     });
                 }, 1000);
                 // Keep checking the location while the app is in the background
-                const { background } = await startTracking(scannedData.eticket_id);
+                const { background } = await startTracking(scannedData.eticket_id, scannedData.trackLocation);
                 showAlert('Timer Started!', background
                     ? 'You can leave the app. Your location is still checked; if you leave your service area or turn off location, your timer stops and you get a notification.'
-                    : 'Keep OSAConnect open while you serve. To leave the app, allow location "All the time" for OSAConnect in your phone settings. Without it, your timer stops 30 seconds after you leave the app.');
+                    : 'You can leave the app. When you come back, your location is checked right away: if location was turned off, only the time until then counts, and if you are outside your service area, the 30-second countdown starts.');
                 setTimeout(() => fetchData(), 2000);
             } else {
                 await stopTracking();
