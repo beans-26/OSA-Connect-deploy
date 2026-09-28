@@ -3,8 +3,11 @@ from rest_framework.response import Response
 from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework import status
 from rest_framework.permissions import AllowAny
-from .models import Student, ViolationReport, ETicket, TimeLog, SystemUser, ServiceSite
+from .models import Student, ViolationReport, ETicket, TimeLog, SystemUser, ServiceSite, utc_now
 from .serializers import StudentSerializer, ViolationReportSerializer, ETicketSerializer, TimeLogSerializer
+from .passwords import hash_password, verify_password, check_and_upgrade
+from mongoengine.errors import ValidationError as MongoValidationError
+from bson.errors import InvalidId
 import datetime
 import re
 from django.core.mail import send_mail
@@ -25,8 +28,8 @@ def login_view(request):
     
     # Check SystemUser first (admin, guard, staff)
     user = SystemUser.objects.filter(username__iexact=username).first()
-    if user:
-        if user.password == password:
+    if user and user.is_active is not False:
+        if check_and_upgrade(user, password):
             return Response({
                 "success": True,
                 "role": user.role,
@@ -41,18 +44,12 @@ def login_view(request):
         student = Student.objects.filter(email__iexact=username).first()
 
     if student:
-        # Get custom password if set
-        stored_pw = getattr(student, 'password', None)
-        
-        is_valid = False
-        if stored_pw and str(stored_pw).strip():
-            # Match against custom password
-            is_valid = (str(stored_pw) == str(password))
-        else:
-            # Match against fallback Student ID
-            is_valid = (str(student.student_id) == str(password))
-
-        if is_valid:
+        # Records made from a guard's report have no password until the student registers; the student
+        # ID used to work as the password there, but it's printed in the student's QR code
+        if not student.password:
+            return Response({"error": "This student ID isn't registered yet. Tap Register to create your account."},
+                            status=status.HTTP_401_UNAUTHORIZED)
+        if check_and_upgrade(student, password):
             return Response({
                 "success": True,
                 "role": "student",
@@ -223,7 +220,7 @@ class StudentViewSet(viewsets.ModelViewSet):
             return Response({"error": "No OTP requested for this email or it has expired"}, status=status.HTTP_400_BAD_REQUEST)
             
         # Check expiration (5 minutes)
-        time_elapsed = (datetime.datetime.now() - verification.created_at).total_seconds()
+        time_elapsed = (utc_now() - verification.created_at).total_seconds()
         if time_elapsed > 300:
             verification.delete()
             return Response({"error": "OTP has expired. Please request a new one."}, status=status.HTTP_400_BAD_REQUEST)
@@ -253,7 +250,7 @@ class StudentViewSet(viewsets.ModelViewSet):
             year_level=data.get('year_level', ''),
             email=email,
             contact_number=str(data.get('contact_number', '')).strip(),
-            password=data.get('password', '')
+            password=hash_password(data.get('password', ''))
         ).save()
         
         return Response(StudentSerializer(student).data, status=status.HTTP_201_CREATED)
@@ -304,18 +301,26 @@ class StudentViewSet(viewsets.ModelViewSet):
             return Response({"error": "All fields are required"}, status=status.HTTP_400_BAD_REQUEST)
             
         verification = OTPVerification.objects.filter(email=email).first()
-        if not verification or verification.otp != otp_input:
+        if not verification:
+            return Response({"error": "Invalid or expired reset code."}, status=status.HTTP_400_BAD_REQUEST)
+        # Same limit as registration: 5 wrong codes and it has to be requested again
+        if verification.attempts >= 5:
+            verification.delete()
+            return Response({"error": "Too many wrong codes. Please request a new one."}, status=status.HTTP_400_BAD_REQUEST)
+        if verification.otp != otp_input:
+            verification.attempts += 1
+            verification.save()
             return Response({"error": "Invalid or expired reset code."}, status=status.HTTP_400_BAD_REQUEST)
             
         # Check expiration (5 minutes)
-        if (datetime.datetime.now() - verification.created_at).total_seconds() > 300:
+        if (utc_now() - verification.created_at).total_seconds() > 300:
             verification.delete()
             return Response({"error": "Reset code has expired."}, status=status.HTTP_400_BAD_REQUEST)
             
         student = Student.objects.filter(email__iexact=email).first()
         if not student:
             return Response({"error": "No account found with this email address."}, status=status.HTTP_404_NOT_FOUND)
-        student.password = new_password
+        student.password = hash_password(new_password)
         student.save()
         verification.delete()
         
@@ -335,11 +340,10 @@ class StudentViewSet(viewsets.ModelViewSet):
         if not student:
             return Response({"error": "Student not found"}, status=status.HTTP_404_NOT_FOUND)
             
-        stored_password = student.password if hasattr(student, 'password') and student.password else student.student_id
-        if stored_password != current_password:
+        if not verify_password(student.password, current_password)[0]:
             return Response({"error": "Incorrect current password"}, status=status.HTTP_400_BAD_REQUEST)
-            
-        student.password = new_password
+
+        student.password = hash_password(new_password)
         student.save()
         return Response({"message": "Password updated successfully"})
 
@@ -350,8 +354,7 @@ class StudentViewSet(viewsets.ModelViewSet):
         student = Student.objects.filter(student_id=str(data.get('student_id') or '').strip()).first()
         if not student:
             return None, Response({"error": "Student not found"}, status=status.HTTP_404_NOT_FOUND)
-        stored_password = student.password or student.student_id
-        if stored_password != data.get('current_password'):
+        if not check_and_upgrade(student, data.get('current_password')):
             return None, Response({"error": "Incorrect current password"}, status=status.HTTP_400_BAD_REQUEST)
         return student, None
 
@@ -403,7 +406,7 @@ class StudentViewSet(viewsets.ModelViewSet):
         verification = OTPVerification.objects.filter(email=new_email).first()
         if not verification:
             return Response({"error": "No code was requested for this email or it has expired."}, status=status.HTTP_400_BAD_REQUEST)
-        if (datetime.datetime.now() - verification.created_at).total_seconds() > 300:
+        if (utc_now() - verification.created_at).total_seconds() > 300:
             verification.delete()
             return Response({"error": "The code has expired. Please request a new one."}, status=status.HTTP_400_BAD_REQUEST)
         if verification.attempts >= 5:
@@ -556,7 +559,9 @@ def send_violation_email(report):
         
     subject = f"OSAConnect: Notice of Campus Incident Report"
     
-    date_str = report.created_at.strftime("%B %d, %Y at %I:%M %p") if report.created_at else "Unknown"
+    # Saved as UTC; the email shows Philippine time (UTC+8, no daylight saving)
+    ph_time = report.created_at.replace(tzinfo=datetime.timezone.utc).astimezone(datetime.timezone(datetime.timedelta(hours=8))) if report.created_at else None
+    date_str = ph_time.strftime("%B %d, %Y at %I:%M %p") if ph_time else "Unknown"
     location = report.location if hasattr(report, 'location') and report.location else "Campus Premises"
     
     message = f"""Dear {student.name},
@@ -610,8 +615,11 @@ class ViolationViewSet(viewsets.ModelViewSet):
         # select_related loads the students in one query instead of one per violation
         student = _student_filter(self.request)
         if student is False:
-            return ViolationReport.objects.all().select_related()
-        return ViolationReport.objects(student=student).select_related() if student else ViolationReport.objects.none()
+            qs = ViolationReport.objects.all()
+        else:
+            qs = ViolationReport.objects(student=student) if student else ViolationReport.objects.none()
+        # select_related returns a plain list, which single-record routes (/violations/<id>/) can't use
+        return qs.select_related() if self.action == 'list' and student is not None else qs
 
 
     @action(detail=False, methods=['get'])
@@ -684,7 +692,7 @@ class ViolationViewSet(viewsets.ModelViewSet):
                     assigned_building=assigned_building,
                     offense_count=offense_count,
                     punishment=punishment,
-                    created_at=datetime.datetime.now()
+                    created_at=utc_now()
                 ).save()
                 
                 # Send Email Notification
@@ -775,7 +783,7 @@ class ViolationViewSet(viewsets.ModelViewSet):
                 status=violation_status,
                 offense_count=offense_count,
                 punishment=punishment_info["punishment"],
-                created_at=datetime.datetime.now()
+                created_at=utc_now()
             )
             report.save()
             
@@ -908,10 +916,13 @@ class ETicketViewSet(viewsets.ModelViewSet):
         # select_related(2) loads each ticket's violation and its student in bulk, not one query each
         student = _student_filter(self.request)
         if student is False:
-            return ETicket.objects.all().select_related(max_depth=2)
-        if not student:
+            qs = ETicket.objects.all()
+        elif not student:
             return ETicket.objects.none()
-        return ETicket.objects(violation__in=ViolationReport.objects(student=student).only('id')).select_related(max_depth=2)
+        else:
+            qs = ETicket.objects(violation__in=ViolationReport.objects(student=student).only('id'))
+        # select_related returns a plain list, which single-record routes (/etickets/<id>/) can't use
+        return qs.select_related(max_depth=2) if self.action == 'list' else qs
 
     def list(self, request, *args, **kwargs):
         stop_silent_sessions()
@@ -964,7 +975,7 @@ class ETicketViewSet(viewsets.ModelViewSet):
             # Close any existing open time logs first
             open_logs = TimeLog.objects.filter(eticket=ticket, time_out=None)
             for log in open_logs:
-                log.time_out = datetime.datetime.now()
+                log.time_out = utc_now()
                 duration = (log.time_out - log.time_in).total_seconds()
                 log.duration_seconds = duration
                 log.save()
@@ -1021,7 +1032,7 @@ class ETicketViewSet(viewsets.ModelViewSet):
             # Find and close the open time log
             open_log = TimeLog.objects.filter(eticket=ticket, time_out=None).first()
             if open_log:
-                open_log.time_out = datetime.datetime.now()
+                open_log.time_out = utc_now()
                 duration = (open_log.time_out - open_log.time_in).total_seconds()
                 open_log.duration_seconds = duration
                 open_log.save()
@@ -1097,9 +1108,9 @@ MAX_EVENTS_PER_SESSION = 200
 
 
 def _aware_iso(dt):
-    """Times are saved as the server's naive local time (UTC on Vercel, PH time locally); adding the
-    server's offset lets every browser and phone show the right time."""
-    return dt.astimezone().isoformat() if dt else None
+    """Saved times are naive UTC (models.utc_now); marking them as UTC lets every browser and phone
+    show the right local time."""
+    return dt.replace(tzinfo=datetime.timezone.utc).isoformat() if dt else None
 
 
 def _float_or_none(value):
@@ -1154,12 +1165,12 @@ def timelog_receipt(log, eticket=None):
 # Tracked sessions: outside the site this long ends the session (same as the dashboards' countdown);
 # no confirmed location for this long (location off, phone off, app killed) ends it too.
 OUT_OF_AREA_LIMIT_S = 30
-NO_LOCATION_LIMIT_S = 180
+NO_LOCATION_LIMIT_S = 30
 
 
 def end_session(log, eticket, reason, time_out=None, lat=None, lng=None, distance=None):
     """Closes a running session, deducts the time served, and returns its receipt."""
-    log.time_out = max(time_out or datetime.datetime.now(), log.time_in)
+    log.time_out = max(time_out or utc_now(), log.time_in)
     duration = (log.time_out - log.time_in).total_seconds()
     log.duration_seconds = duration
     log.end_reason = reason if reason in TIMELOG_END_REASONS else 'scanned_out'
@@ -1187,7 +1198,7 @@ def end_session(log, eticket, reason, time_out=None, lat=None, lng=None, distanc
 def stop_silent_sessions():
     """Ends tracked sessions that haven't confirmed a location for NO_LOCATION_LIMIT_S. Only the time up to
     the last confirmed location counts. Runs whenever tickets are listed (dashboards poll every 5 s)."""
-    cutoff = datetime.datetime.now() - datetime.timedelta(seconds=NO_LOCATION_LIMIT_S)
+    cutoff = utc_now() - datetime.timedelta(seconds=NO_LOCATION_LIMIT_S)
     for log in TimeLog.objects(time_out=None, tracked=True, last_ping_at__lt=cutoff):
         try:
             end_session(log, log.eticket, 'location_off', time_out=log.last_ping_at, lat=log.last_lat, lng=log.last_lng)
@@ -1226,7 +1237,7 @@ class TimeLogViewSet(viewsets.ModelViewSet):
                 # Close any existing open time logs for this ticket
                 open_logs = TimeLog.objects.filter(eticket=eticket, time_out=None)
                 for old_log in open_logs:
-                    old_log.time_out = datetime.datetime.now()
+                    old_log.time_out = utc_now()
                     old_log.duration_seconds = 0  # Don't count old partial sessions
                     old_log.save()
                 
@@ -1294,7 +1305,7 @@ class TimeLogViewSet(viewsets.ModelViewSet):
                 tracked = str(request.data.get('track_location')).lower() in ('true', '1')
                 log = TimeLog(
                     eticket=eticket, site_code=log_site_code, site_name=log_site_name, tracked=tracked,
-                    last_ping_at=datetime.datetime.now() if tracked else None,
+                    last_ping_at=utc_now() if tracked else None,
                     last_lat=_float_or_none(request.data.get('student_lat')),
                     last_lng=_float_or_none(request.data.get('student_lng')),
                 ).save()
@@ -1320,8 +1331,12 @@ class TimeLogViewSet(viewsets.ModelViewSet):
                         distance=_float_or_none(request.data.get('distance_m')),
                     )
                     return Response({**TimeLogSerializer(log).data, 'receipt': receipt})
+                # Already stopped (left the area, location off, other device): show how it ended
+                last = TimeLog.objects(eticket=eticket).exclude('photo_proof_in', 'photo_proof_out').order_by('-time_in').first()
+                if last:
+                    return Response({'already_ended': True, 'receipt': {**timelog_receipt(last, eticket), 'already_ended': True}})
                 return Response({"error": "No active session"}, status=status.HTTP_400_BAD_REQUEST)
-        except ETicket.DoesNotExist:
+        except (ETicket.DoesNotExist, MongoValidationError, InvalidId):
             return Response({"error": "Ticket not found"}, status=status.HTTP_404_NOT_FOUND)
 
     @action(detail=False, methods=['post'])
@@ -1340,7 +1355,7 @@ class TimeLogViewSet(viewsets.ModelViewSet):
             last = TimeLog.objects(eticket=eticket).exclude('photo_proof_in', 'photo_proof_out').order_by('-time_in').first()
             return Response({"state": "none", "receipt": timelog_receipt(last, eticket) if last else None})
 
-        now = datetime.datetime.now()
+        now = utc_now()
         if str(request.data.get('location_off')).lower() in ('true', '1'):
             TimeLog.objects(id=log.id).update_one(push__events={'type': 'location_off', 'at': now})
             log.reload()
@@ -1392,7 +1407,7 @@ class TimeLogViewSet(viewsets.ModelViewSet):
             return Response({"error": "No active session"}, status=status.HTTP_400_BAD_REQUEST)
         if len(log.events or []) >= MAX_EVENTS_PER_SESSION:
             return Response({"ok": True, "dropped": True})
-        event = {'type': event_type, 'at': datetime.datetime.now()}
+        event = {'type': event_type, 'at': utc_now()}
         for key in ('lat', 'lng', 'distance_m'):
             value = _float_or_none(request.data.get(key))
             if value is not None:
@@ -1428,6 +1443,12 @@ class SystemUserViewSet(viewsets.ModelViewSet):
     permission_classes = [AllowAny]
     lookup_field = 'username'
 
+    # Anyone could POST an admin account here. Accounts are made with `manage.py create_account`
+    # (later an admin-only Accounts tab); only the profile/password actions below stay open.
+    def _closed(self, *args, **kwargs):
+        return Response({"error": "Accounts are managed by OSA administrators."}, status=status.HTTP_405_METHOD_NOT_ALLOWED)
+    create = update = partial_update = destroy = _closed
+
     @action(detail=False, methods=['post'])
     def update_profile(self, request):
         username = request.data.get('username')
@@ -1455,8 +1476,8 @@ class SystemUserViewSet(viewsets.ModelViewSet):
         
         try:
             user = SystemUser.objects.get(username=username)
-            if user.password == old_password:
-                user.password = new_password
+            if verify_password(user.password, old_password)[0] and str(new_password or '').strip():
+                user.password = hash_password(new_password)
                 user.save()
                 return Response({"success": True, "message": "Password updated successfully"})
             return Response({"error": "Incorrect old password"}, status=400)
@@ -1470,42 +1491,14 @@ def health_check(request):
     try:
         # Check if we can reach the database
         user_count = SystemUser.objects.count()
-        
-        # AUTO-SEED TRIGGER: If live DB is empty, fill it once!
-        if user_count == 0:
-            print("HEALTH: Empty DB detected, seeding...")
-            # Create Default Users
-            SystemUser(username="admin", password="admin", role="admin").save()
-            SystemUser(username="guard", password="guard", role="guard").save()
-            SystemUser(username="faculty", password="faculty", role="faculty").save()
-            # Create Students
-            initial_students = [
-                {"id": "2023303188", "name": "Vincent Dagaraga", "contact": "09358541420", "email": "vinsdagaraga@gmail.com"},
-                {"id": "2023303189", "name": "Mark Tajeros", "contact": "09358731470", "email": "marktajeros@gmail.com"},
-                {"id": "2023303199", "name": "Nyko Quezon", "contact": "09356782310", "email": "nykoquezon@gmail.com"},
-                {"id": "2023303179", "name": "Christian James Ambongan", "contact": "09356730509", "email": "cjambongan@gmail.com"},
-                {"id": "2023303178", "name": "Dominic Wacan", "contact": "09358359302", "email": "dominicwacan@gmail.com"}
-            ]
-            for s in initial_students:
-                # UPSERT: Find existing or create new
-                student = Student.objects.filter(student_id=s["id"]).first()
-                if not student:
-                    student = Student(student_id=s["id"])
-                
-                # Always update fields to match latest seed data
-                student.name = s["name"]
-                student.course = "BSIT"
-                student.department = "CITC"
-                student.contact_number = s.get("contact", "")
-                student.email = s.get("email", "")
-                student.save()
-            user_count = SystemUser.objects.count()
+
+        # (It used to create admin/admin, guard/guard and sample students whenever the
+        # accounts list was empty. Accounts are now made with `manage.py create_account`.)
 
         return Response({
             "status": "healthy", 
             "database": "connected", 
             "users": user_count,
-            "seeding": "Success" if user_count > 0 else "Pending"
         })
     except Exception as e:
         return Response({"status": "error", "message": f"Database check failed: {str(e)}"}, status=500)

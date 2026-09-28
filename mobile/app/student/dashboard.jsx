@@ -8,7 +8,7 @@ import { QrCode, Play, AlertTriangle, X, Clock, FileText, User, CircleQuestionMa
 import { useCameraPermissions } from 'expo-camera';
 import * as Location from 'expo-location';
 import { useAuth } from '../../components/AuthContext';
-import api from '../../services/api';
+import api, { API_URL } from '../../services/api';
 import { useRouter } from 'expo-router';
 import MapViewComponent from '../../components/MapViewComponent';
 import { onCameraResult } from '../../components/cameraResults';
@@ -414,7 +414,7 @@ export default function Dashboard() {
                 const { background } = await startTracking(scannedData.eticket_id);
                 showAlert('Timer Started!', background
                     ? 'You can leave the app. Your location is still checked; if you leave your service area or turn off location, your timer stops and you get a notification.'
-                    : 'Keep OSAConnect open while you serve. To leave the app, allow location "All the time" for OSAConnect in your phone settings. Without it, your timer stops after 3 minutes.');
+                    : 'Keep OSAConnect open while you serve. To leave the app, allow location "All the time" for OSAConnect in your phone settings. Without it, your timer stops 30 seconds after you leave the app.');
                 setTimeout(() => fetchData(), 2000);
             } else {
                 await stopTracking();
@@ -427,7 +427,10 @@ export default function Dashboard() {
                 fetchData();
             }
         } catch (error) {
-            showAlert('Error', error.response?.data?.error || 'Failed to log time');
+            // Say whether the server refused (its message), crashed, or couldn't be reached at all
+            showAlert('Error', error.response
+                ? (error.response.data?.error || `Server error (${error.response.status}). Please try again.`)
+                : `Can't reach the server (${API_URL.replace(/^https?:\/\//, '').replace(/\/api$/, '')}). Check your internet connection and try again.`);
         } finally {
             setLoading(false);
         }

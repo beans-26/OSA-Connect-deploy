@@ -30,7 +30,9 @@ load_dotenv(BASE_DIR.parent / '.env') # Handle /api bridge folder parent loads
 SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-default-key-change-this')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = os.getenv('DEBUG', 'True') == 'True'
+# Off unless DEBUG=True is set (backend/.env on a dev laptop). With it on, error pages show settings,
+# including the database connection string.
+DEBUG = os.getenv('DEBUG', 'False') == 'True'
 
 ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', '*').split(',')
 

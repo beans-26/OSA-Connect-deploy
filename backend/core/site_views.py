@@ -11,7 +11,7 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 
-from .models import ServiceSite, SystemUser
+from .models import ServiceSite, SystemUser, utc_now
 
 RADIUS_MIN, RADIUS_MAX, RADIUS_DEFAULT = 10, 300, 50
 CAPACITY_MIN, CAPACITY_MAX, CAPACITY_DEFAULT = 1, 500, 10
@@ -164,7 +164,7 @@ def sites(request):
     elif ServiceSite.objects.filter(site_code=code).first():
         return _bad_request([f"Site code {code} is already used by another site."])
 
-    now = datetime.datetime.now()
+    now = utc_now()
     try:
         site = ServiceSite(
             site_code=code,
@@ -228,7 +228,7 @@ def site_detail(request, site_id):
     if errors:
         return _bad_request(errors)
 
-    site.updated_at = datetime.datetime.now()
+    site.updated_at = utc_now()
     site.save()
     return Response(_serialize(site))
 
@@ -249,7 +249,7 @@ def site_location(request, site_id):
         return _bad_request(errors)
     for key, value in location.items():
         setattr(site, key, value)
-    site.updated_at = datetime.datetime.now()
+    site.updated_at = utc_now()
     site.save()
     return Response(_serialize(site))
 

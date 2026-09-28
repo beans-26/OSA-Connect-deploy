@@ -43,7 +43,7 @@
               "Tap Scan to End Service, scan the OSA stop code, and take another selfie. The time since you started is then deducted from your remaining hours.",
               "The end button unlocks 20 seconds after you start, so you can't end a session immediately.",
               "After you time out, a receipt shows the date, your assigned building, time in and out, time served, and how the session ended (you scanned the QR code, left the area, turned off location, and so on).",
-              "To see past sessions, tap an e-ticket on your dashboard. Its service log is grouped by date: tap a date to list that day's time-ins, then tap a time in to open its receipt."
+              "To see past sessions, tap an e-ticket on your dashboard. Its service log is grouped by date: tap a date to list that day's sessions (Session 1, Session 2, ...), then tap a session to open its receipt."
             ]
           },
           {
