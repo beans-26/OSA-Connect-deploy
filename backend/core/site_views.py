@@ -14,6 +14,7 @@ from rest_framework.response import Response
 from .models import ServiceSite, SystemUser
 
 RADIUS_MIN, RADIUS_MAX, RADIUS_DEFAULT = 10, 300, 50
+CAPACITY_MIN, CAPACITY_MAX, CAPACITY_DEFAULT = 1, 500, 10
 SITE_CODE_PATTERN = re.compile(r'^[A-Z0-9]{2,10}-[A-Z0-9]{1,6}$')
 
 
@@ -34,7 +35,10 @@ def _forbidden():
     return Response({"error": "Admin access required."}, status=status.HTTP_403_FORBIDDEN)
 
 
-def _serialize(site):
+def _serialize(site, counts=None):
+    if counts is None:
+        from .views import site_assigned_counts
+        counts = site_assigned_counts()
     return {
         "id": str(site.id),
         "site_code": site.site_code,
@@ -43,6 +47,8 @@ def _serialize(site):
         "latitude": site.latitude,
         "longitude": site.longitude,
         "radius_m": site.radius_m,
+        "capacity": site.capacity or CAPACITY_DEFAULT,
+        "assigned_count": counts.get(site.site_code, 0),
         "accuracy_m": site.accuracy_m,
         "sample_count": site.sample_count,
         "is_active": site.is_active,
@@ -110,6 +116,19 @@ def _parse_radius(value, errors):
     return radius
 
 
+def _parse_capacity(value, errors):
+    if value in (None, ''):
+        return CAPACITY_DEFAULT
+    try:
+        capacity = int(float(value))
+    except (TypeError, ValueError):
+        errors.append("Capacity must be a whole number of students.")
+        return None
+    if not CAPACITY_MIN <= capacity <= CAPACITY_MAX:
+        errors.append(f"Capacity must be between {CAPACITY_MIN} and {CAPACITY_MAX} students.")
+    return capacity
+
+
 def _bad_request(errors):
     return Response({"error": " ".join(errors)}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -122,7 +141,9 @@ def sites(request):
         return _forbidden()
 
     if request.method == 'GET':
-        return Response([_serialize(s) for s in ServiceSite.objects.all()])
+        from .views import site_assigned_counts
+        counts = site_assigned_counts()
+        return Response([_serialize(s, counts) for s in ServiceSite.objects.all()])
 
     data = request.data
     errors = []
@@ -130,6 +151,7 @@ def sites(request):
     if not name:
         errors.append("Site name is required.")
     radius = _parse_radius(data.get('radius_m'), errors)
+    capacity = _parse_capacity(data.get('capacity'), errors)
     location = _parse_location(data, errors)
 
     code = str(data.get('site_code') or '').strip().upper()
@@ -149,6 +171,7 @@ def sites(request):
             name=name,
             description=str(data.get('description') or '').strip(),
             radius_m=radius,
+            capacity=capacity,
             registered_by=admin,
             registered_at=now,
             updated_at=now,
@@ -179,7 +202,7 @@ def _get_site(site_id):
 @api_view(['PUT'])
 @permission_classes([AllowAny])
 def site_detail(request, site_id):
-    """Edit name, description, radius and active status. The site code never changes here,
+    """Edit name, description, radius, capacity and active status. The site code never changes here,
     so QR codes that are already printed keep working."""
     if not _admin_from_request(request):
         return _forbidden()
@@ -198,6 +221,8 @@ def site_detail(request, site_id):
         site.description = str(data.get('description') or '').strip()
     if 'radius_m' in data:
         site.radius_m = _parse_radius(data.get('radius_m'), errors)
+    if 'capacity' in data:
+        site.capacity = _parse_capacity(data.get('capacity'), errors)
     if 'is_active' in data:
         site.is_active = data.get('is_active') in (True, 'true', 'True', 1, '1')
     if errors:

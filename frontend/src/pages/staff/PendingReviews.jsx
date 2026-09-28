@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import Sidebar from '../../components/Sidebar';
 import { Search, Check, X, ShieldAlert, User, Eye, AlertCircle } from 'lucide-react';
 import GlobalSearch from '../../components/GlobalSearch';
-import { useServiceSites, ServiceSiteOptions } from '../../components/useServiceSites';
+import { useServiceSites, ServiceSiteOptions, postAssignment } from '../../components/useServiceSites';
 
 const PendingReviews = () => {
     const userRole = JSON.parse(localStorage.getItem('user') || '{}').role || 'staff';
@@ -44,14 +44,17 @@ const PendingReviews = () => {
 
         try {
             const endpoint = newStatus === 'Approved' ? 'approve' : 'dismiss';
-            const response = await fetch(`/api/violations/${reportId}/${endpoint}/`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ assigned_building, custom_hours })
-            });
-            if (response.ok) fetchReports();
+            // Approving into a full building asks "assign anyway?" first
+            const { ok, cancelled, data } = await postAssignment(`/api/violations/${reportId}/${endpoint}/`, { assigned_building, custom_hours });
+            if (ok) {
+                setSelectedReport(null);
+                fetchReports();
+            } else if (!cancelled) {
+                alert(data.error || 'Something went wrong. Please try again.');
+            }
         } catch (error) {
             console.error('Error executing action:', error);
+            alert("Can't reach the server. Please try again.");
         }
     };
 
@@ -189,9 +192,9 @@ const PendingReviews = () => {
                                 </div>
                             </div>
                             <div className="p-6 pt-0 flex gap-3">
-                                <button onClick={() => { handleAction(selectedReport.id, 'Dismissed'); setSelectedReport(null); }} className="flex-1 py-3 bg-red-50 text-red-600 dark:bg-red-900/20 dark:text-red-400 rounded-xl font-bold text-[10px] uppercase tracking-widest hover:bg-red-500 hover:text-white transition-all">Dismiss Case</button>
+                                <button onClick={() => handleAction(selectedReport.id, 'Dismissed')} className="flex-1 py-3 bg-red-50 text-red-600 dark:bg-red-900/20 dark:text-red-400 rounded-xl font-bold text-[10px] uppercase tracking-widest hover:bg-red-500 hover:text-white transition-all">Dismiss Case</button>
                                 <button 
-                                    onClick={() => { handleAction(selectedReport.id, 'Approved'); if (assignedBuildings[selectedReport.id] && customHours[selectedReport.id]) setSelectedReport(null); }} 
+                                    onClick={() => handleAction(selectedReport.id, 'Approved')}
                                     disabled={!assignedBuildings[selectedReport.id] || !customHours[selectedReport.id]}
                                     className={`flex-1 py-3 rounded-xl font-bold text-[10px] uppercase tracking-widest transition-all ${
                                         assignedBuildings[selectedReport.id] && customHours[selectedReport.id]

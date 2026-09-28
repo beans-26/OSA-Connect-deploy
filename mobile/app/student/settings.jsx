@@ -8,6 +8,7 @@ import { useRouter } from 'expo-router';
 import { useAuth } from '../../components/AuthContext';
 import { useTheme } from '../../components/ThemeContext';
 import api from '../../services/api';
+import ContactDetailsCard from '../../components/ContactDetailsCard';
 
 export default function Settings() {
     const { user, logout } = useAuth();
@@ -142,26 +143,13 @@ export default function Settings() {
                     </View>
                 </View>
 
-                {/* Contact Details */}
-                <View style={styles.card}>
-                    <View style={styles.cardHeader}>
-                        <Mail size={18} color={colors.primary} />
-                        <Text style={styles.cardTitle}>Contact Details</Text>
-                    </View>
-
-                    <View style={styles.infoGroup}>
-                        <Text style={styles.infoLabel}>Institutional Email</Text>
-                        <Text style={styles.infoValue}>{studentInfo.email || 'N/A'}</Text>
-                    </View>
-
-                    <View style={styles.infoGroup}>
-                        <View style={styles.labelRow}>
-                            <Phone size={12} color={colors.textMuted} style={styles.labelIcon}/>
-                            <Text style={styles.infoLabel}>Primary Contact</Text>
-                        </View>
-                        <Text style={styles.infoValue}>{studentInfo.contact_number || 'N/A'}</Text>
-                    </View>
-                </View>
+                {/* Contact Details: email (verified by code) and contact number can be changed */}
+                <ContactDetailsCard
+                    studentInfo={studentInfo}
+                    onUpdated={(changes) => setStudentInfo((prev) => ({ ...prev, ...changes }))}
+                    styles={styles}
+                    colors={colors}
+                />
 
                 {/* Appearance Settings */}
                 <View style={styles.card}>

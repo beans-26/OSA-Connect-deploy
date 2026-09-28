@@ -6,6 +6,7 @@ from rest_framework.permissions import AllowAny
 from .models import Student, ViolationReport, ETicket, TimeLog, SystemUser, ServiceSite
 from .serializers import StudentSerializer, ViolationReportSerializer, ETicketSerializer, TimeLogSerializer
 import datetime
+import re
 from django.core.mail import send_mail
 from django.conf import settings
 import os
@@ -102,6 +103,44 @@ def _assigned_site_code(eticket):
         return code
     site = _resolve_service_site(eticket.assigned_location) if eticket.assigned_location else None
     return site.site_code if site else None
+
+
+# Tickets still being served; these count against a site's capacity
+OPEN_TICKET_STATUSES = ('Active', 'Ongoing')
+
+
+def site_assigned_counts():
+    """{site_code: students with an open ticket there}. Older tickets only saved the site's name."""
+    code_by_name = {s.name.lower(): s.site_code for s in ServiceSite.objects.only('name', 'site_code')}
+    counts = {}
+    for t in ETicket.objects(status__in=OPEN_TICKET_STATUSES).only('assigned_site_code', 'assigned_location'):
+        code = t.assigned_site_code or code_by_name.get((t.assigned_location or '').lower())
+        if code:
+            counts[code] = counts.get(code, 0) + 1
+    return counts
+
+
+def _over_capacity(site, adding, request, exclude_ticket=None):
+    """A 409 response when `adding` more students would overfill `site`, unless the admin chose
+    "assign anyway" (allow_over_capacity). None when it fits."""
+    if not site or adding <= 0:
+        return None
+    if str(request.data.get('allow_over_capacity')).lower() in ('true', '1'):
+        return None
+    assigned = site_assigned_counts().get(site.site_code, 0)
+    # Moving a ticket that already counts at this site doesn't take a new place
+    if exclude_ticket is not None and _assigned_site_code(exclude_ticket) == site.site_code:
+        assigned -= 1
+    capacity = site.capacity or 10
+    if assigned + adding <= capacity:
+        return None
+    return Response({
+        "error": f"{site.name} is full ({assigned}/{capacity} students).",
+        "code": "site_full",
+        "site": site.name,
+        "assigned": assigned,
+        "capacity": capacity,
+    }, status=status.HTTP_409_CONFLICT)
 
 
 def _site_ticket_fields(site):
@@ -304,6 +343,97 @@ class StudentViewSet(viewsets.ModelViewSet):
         student.save()
         return Response({"message": "Password updated successfully"})
 
+    # ── Student Settings: email (verified by a code sent to the new address) and contact number ──
+
+    def _student_with_password(self, data):
+        """(student, error Response). Account changes need the current password."""
+        student = Student.objects.filter(student_id=str(data.get('student_id') or '').strip()).first()
+        if not student:
+            return None, Response({"error": "Student not found"}, status=status.HTTP_404_NOT_FOUND)
+        stored_password = student.password or student.student_id
+        if stored_password != data.get('current_password'):
+            return None, Response({"error": "Incorrect current password"}, status=status.HTTP_400_BAD_REQUEST)
+        return student, None
+
+    @action(detail=False, methods=['post'])
+    def request_email_change(self, request):
+        """Emails a 6-digit code to the new address; confirm_email_change saves it."""
+        import random
+        from .models import OTPVerification
+
+        student, error = self._student_with_password(request.data)
+        if error:
+            return error
+        new_email = str(request.data.get('new_email') or '').strip().lower()
+        if not re.match(r'^[^@\s]+@[^@\s]+\.[^@\s]+$', new_email):
+            return Response({"error": "Enter a valid email address."}, status=status.HTTP_400_BAD_REQUEST)
+        if new_email == (student.email or '').lower():
+            return Response({"error": "That is already your email."}, status=status.HTTP_400_BAD_REQUEST)
+        if Student.objects.filter(email__iexact=new_email).first():
+            return Response({"error": "This email is already registered to another student."}, status=status.HTTP_400_BAD_REQUEST)
+
+        otp = str(random.randint(100000, 999999))
+        OTPVerification.objects.filter(email=new_email).delete()
+        OTPVerification(email=new_email, otp=otp).save()
+        try:
+            send_mail(
+                subject="OSAConnect: Confirm Your New Email",
+                message=f"Hi {student.name},\n\nYour OSAConnect code to change your email to this address is: {otp}\n\n"
+                        f"This code will expire in 5 minutes. If you didn't ask for this, you can ignore this email.",
+                from_email=settings.DEFAULT_FROM_EMAIL,
+                recipient_list=[new_email],
+                fail_silently=False,
+            )
+        except Exception as e:
+            error_msg = f"Failed to send email: {str(e)}" if settings.DEBUG else "Failed to send email. Check your connection."
+            return Response({"error": error_msg}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        return Response({"message": f"We sent a 6-digit code to {new_email}."})
+
+    @action(detail=False, methods=['post'])
+    def confirm_email_change(self, request):
+        from .models import OTPVerification
+
+        student = Student.objects.filter(student_id=str(request.data.get('student_id') or '').strip()).first()
+        if not student:
+            return Response({"error": "Student not found"}, status=status.HTTP_404_NOT_FOUND)
+        new_email = str(request.data.get('new_email') or '').strip().lower()
+        otp_input = str(request.data.get('otp') or '').strip()
+
+        # Same rules as registration: 5 minutes, 5 tries
+        verification = OTPVerification.objects.filter(email=new_email).first()
+        if not verification:
+            return Response({"error": "No code was requested for this email or it has expired."}, status=status.HTTP_400_BAD_REQUEST)
+        if (datetime.datetime.now() - verification.created_at).total_seconds() > 300:
+            verification.delete()
+            return Response({"error": "The code has expired. Please request a new one."}, status=status.HTTP_400_BAD_REQUEST)
+        if verification.attempts >= 5:
+            verification.delete()
+            return Response({"error": "Too many failed attempts. Please request a new code."}, status=status.HTTP_400_BAD_REQUEST)
+        if verification.otp != otp_input:
+            verification.attempts += 1
+            verification.save()
+            return Response({"error": "Invalid code"}, status=status.HTTP_400_BAD_REQUEST)
+        verification.delete()
+
+        # Someone else may have registered it in the meantime
+        if Student.objects.filter(email__iexact=new_email, id__ne=student.id).first():
+            return Response({"error": "This email is already registered to another student."}, status=status.HTTP_400_BAD_REQUEST)
+        student.email = new_email
+        student.save()
+        return Response({"message": "Email updated.", "email": new_email})
+
+    @action(detail=False, methods=['post'])
+    def update_contact(self, request):
+        student, error = self._student_with_password(request.data)
+        if error:
+            return error
+        contact = str(request.data.get('contact_number') or '').strip()
+        if not (contact.isdigit() and len(contact) == 11):
+            return Response({"error": "Contact number must be exactly 11 digits (e.g. 09123456789)."}, status=status.HTTP_400_BAD_REQUEST)
+        student.contact_number = contact
+        student.save()
+        return Response({"message": "Contact number updated.", "contact_number": contact})
+
     def create(self, request, *args, **kwargs):
         data = request.data
         sid = data.get('student_id', '').strip()
@@ -462,10 +592,26 @@ Office of Student Affairs
         print(f"EMAIL ERROR: Failed to send to {student.email}. Error: {str(e)}")
         return False
 
+def _student_filter(request):
+    """The Student named by ?student_id= (student dashboards ask only for their own records), False when
+    the parameter isn't given (admin pages list everything), or None for an unknown student."""
+    student_id = request.query_params.get('student_id') if request.method == 'GET' else None
+    if not student_id:
+        return False
+    return Student.objects.filter(student_id=student_id.strip()).first()
+
+
 class ViolationViewSet(viewsets.ModelViewSet):
     queryset = ViolationReport.objects.all()
     serializer_class = ViolationReportSerializer
     permission_classes = [AllowAny]
+
+    def get_queryset(self):
+        # select_related loads the students in one query instead of one per violation
+        student = _student_filter(self.request)
+        if student is False:
+            return ViolationReport.objects.all().select_related()
+        return ViolationReport.objects(student=student).select_related() if student else ViolationReport.objects.none()
 
 
     @action(detail=False, methods=['get'])
@@ -516,7 +662,10 @@ class ViolationViewSet(viewsets.ModelViewSet):
             
         if not assigned_building:
             return Response({"error": "Please assign a building for the bulk report"}, status=status.HTTP_400_BAD_REQUEST)
-            
+        full = _over_capacity(assigned_site, len(student_ids), request)
+        if full:
+            return full
+
         results = []
         for sid in student_ids:
             try:
@@ -665,18 +814,24 @@ class ViolationViewSet(viewsets.ModelViewSet):
             if violation.status == "Approved" or violation.status == "Completed":
                 return Response({"error": "Violation is already approved or completed."}, status=status.HTTP_400_BAD_REQUEST)
 
-            violation.status = "Approved"
-            violation.assigned_building = assigned_building
-            
             # Get custom hours if provided
             custom_hours = request.data.get('custom_hours')
             if custom_hours is not None and str(custom_hours).strip() != '':
                 hours = float(custom_hours)
-                violation.punishment = f"{hours} hours community service"
+                punishment = f"{hours} hours community service"
             else:
                 punishment_info = get_punishment(violation.violation_type, violation.offense_count)
                 hours = punishment_info["hours"]
-                violation.punishment = punishment_info["punishment"]
+                punishment = punishment_info["punishment"]
+
+            # Only students who get a ticket take a place at the site
+            full = _over_capacity(assigned_site, 1 if hours > 0 else 0, request)
+            if full:
+                return full
+
+            violation.status = "Approved"
+            violation.assigned_building = assigned_building
+            violation.punishment = punishment
             
             violation.save()
             
@@ -700,6 +855,39 @@ class ViolationViewSet(viewsets.ModelViewSet):
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
     @action(detail=True, methods=['post'])
+    def reassign(self, request, *args, **kwargs):
+        """Move an approved violation to another service site (sites change day to day).
+        The ticket is re-linked to the new site, so only that site's QR starts the timer."""
+        try:
+            violation = ViolationReport.objects.get(id=kwargs.get('id') or kwargs.get('pk'))
+        except Exception:
+            return Response({"error": "Violation not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        site = _resolve_service_site(request.data.get('assigned_building'))
+        if not site:
+            return Response({"error": "Choose an active service site."}, status=status.HTTP_400_BAD_REQUEST)
+        if (violation.status or '').lower().startswith('pending'):
+            return Response({"error": "Approve the violation first; the building is set on approval."}, status=status.HTTP_400_BAD_REQUEST)
+
+        ticket = ETicket.objects(violation=violation).order_by('-created_at').first()
+        if ticket and ticket.status == 'Ongoing':
+            return Response({"error": "The student is serving right now. Change the building after they stop."}, status=status.HTTP_400_BAD_REQUEST)
+
+        open_ticket = ticket if ticket and ticket.status in OPEN_TICKET_STATUSES else None
+        full = _over_capacity(site, 1 if open_ticket else 0, request, exclude_ticket=open_ticket)
+        if full:
+            return full
+
+        violation.assigned_building = site.name
+        violation.save()
+        if ticket:
+            ticket.assigned_location = site.name
+            for field, value in _site_ticket_fields(site).items():
+                setattr(ticket, field, value)
+            ticket.save()
+        return Response({"message": f"Assigned to {site.name}.", "assigned_building": site.name}, status=status.HTTP_200_OK)
+
+    @action(detail=True, methods=['post'])
     def dismiss(self, request, *args, **kwargs):
         try:
             violation_id = kwargs.get('id') or kwargs.get('pk')
@@ -717,7 +905,28 @@ class ETicketViewSet(viewsets.ModelViewSet):
     permission_classes = [AllowAny]
 
     def get_queryset(self):
-        return ETicket.objects.all()
+        # select_related(2) loads each ticket's violation and its student in bulk, not one query each
+        student = _student_filter(self.request)
+        if student is False:
+            return ETicket.objects.all().select_related(max_depth=2)
+        if not student:
+            return ETicket.objects.none()
+        return ETicket.objects(violation__in=ViolationReport.objects(student=student).only('id')).select_related(max_depth=2)
+
+    def list(self, request, *args, **kwargs):
+        stop_silent_sessions()
+        # Every ticket shows its student: load them all in one query rather than one per ticket
+        tickets = list(self.get_queryset())
+        violations = [t.violation for t in tickets if isinstance(t.violation, ViolationReport)]
+        student_ids = {v._data.get('student').id if hasattr(v._data.get('student'), 'id') else v._data.get('student')
+                       for v in violations if v._data.get('student') is not None}
+        students = {s.id: s for s in Student.objects(id__in=list(student_ids))}
+        for v in violations:
+            ref = v._data.get('student')
+            ref_id = getattr(ref, 'id', ref)
+            if ref_id in students:
+                v._data['student'] = students[ref_id]
+        return Response(self.get_serializer(tickets, many=True).data)
 
     @action(detail=False, methods=['post'])
     def manual_time_in(self, request):
@@ -842,6 +1051,150 @@ class ETicketViewSet(viewsets.ModelViewSet):
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
 
+# Starting a session: the student must be inside the site's circle. GPS accuracy adds up to
+# MAX_ACCURACY_BUFFER_M, the same 0.7 x accuracy allowance the dashboards use for auto-stop.
+ACCURACY_BUFFER_FACTOR = 0.7
+MAX_ACCURACY_BUFFER_M = 20
+
+
+def _distance_m(lat1, lng1, lat2, lng2):
+    """Great-circle distance in meters."""
+    import math
+    r = 6371000
+    p1, p2 = math.radians(lat1), math.radians(lat2)
+    dp, dl = math.radians(lat2 - lat1), math.radians(lng2 - lng1)
+    a = math.sin(dp / 2) ** 2 + math.cos(p1) * math.cos(p2) * math.sin(dl / 2) ** 2
+    return 2 * r * math.asin(math.sqrt(a))
+
+
+def _outside_site_error(request, lat, lng, radius, place):
+    """Error message when the student's position (sent with the scan) isn't inside the site, else None."""
+    student_lat = _float_or_none(request.data.get('student_lat'))
+    student_lng = _float_or_none(request.data.get('student_lng'))
+    if student_lat is None or student_lng is None:
+        return "We couldn't get your location. Turn on location and try again."
+    accuracy = _float_or_none(request.data.get('accuracy_m')) or 0
+    allowed = float(radius) + min(max(accuracy, 0) * ACCURACY_BUFFER_FACTOR, MAX_ACCURACY_BUFFER_M)
+    distance = _distance_m(student_lat, student_lng, lat, lng)
+    if distance <= allowed:
+        return None
+    return (f"You're {round(distance)} m away from {place}. Go inside the service area "
+            f"(within {round(float(radius))} m) and scan again to start your timer.")
+
+
+# How a session ended, shown on the time-out receipt
+TIMELOG_END_REASONS = {
+    'scanned_out': 'Scanned the time-out QR',
+    'left_area': 'Left the service area',
+    'location_off': 'Location turned off or lost',
+    'app_closed': 'Left the app',
+    'logout': 'Logged out',
+    'idle': 'Logged out for inactivity',
+    'completed': 'Finished the required hours',
+}
+TIMELOG_EVENT_TYPES = ('left_area', 'returned', 'location_off', 'location_on')
+MAX_EVENTS_PER_SESSION = 200
+
+
+def _aware_iso(dt):
+    """Times are saved as the server's naive local time (UTC on Vercel, PH time locally); adding the
+    server's offset lets every browser and phone show the right time."""
+    return dt.astimezone().isoformat() if dt else None
+
+
+def _float_or_none(value):
+    try:
+        return round(float(value), 7) if value not in (None, '') else None
+    except (TypeError, ValueError):
+        return None
+
+
+def _session_site(eticket):
+    """(site_code, site_name) of where this ticket's session is served."""
+    code = eticket.site_code or _assigned_site_code(eticket)
+    site = ServiceSite.objects.filter(site_code=code).first() if code else None
+    return code, (site.name if site else eticket.assigned_location)
+
+
+def timelog_receipt(log, eticket=None):
+    """Time-out receipt: date, building, time in/out, duration, how it ended, and the session's events."""
+    eticket = eticket or log.eticket
+    code, name = log.site_code, log.site_name
+    if not name and eticket:
+        code, name = _session_site(eticket)
+    events = []
+    for e in (log.events or []):
+        events.append({**e, 'at': _aware_iso(e.get('at')) if isinstance(e.get('at'), datetime.datetime) else e.get('at')})
+    reason = log.end_reason or ('scanned_out' if log.time_out else None)
+    violation = eticket.violation if eticket else None
+    student = violation.student if violation else None
+    return {
+        'id': str(log.id),
+        'eticket_id': str(eticket.id) if eticket else None,
+        'student_id': student.student_id if student else None,
+        'student_name': student.name if student else None,
+        'violation_type': violation.violation_type if violation else None,
+        'site_code': code,
+        'building': name,
+        'time_in': _aware_iso(log.time_in),
+        'time_out': _aware_iso(log.time_out),
+        'duration_seconds': round(log.duration_seconds or 0),
+        'end_reason': reason,
+        'end_reason_label': TIMELOG_END_REASONS.get(reason, 'Still running' if not log.time_out else reason),
+        'out_lat': log.out_lat,
+        'out_lng': log.out_lng,
+        'out_distance_m': round(log.out_distance_m) if log.out_distance_m is not None else None,
+        'events': events,
+        'left_area_count': sum(1 for e in events if e.get('type') == 'left_area'),
+        'remaining_hours': eticket.remaining_hours if eticket else None,
+        'ticket_status': eticket.status if eticket else None,
+    }
+
+
+# Tracked sessions: outside the site this long ends the session (same as the dashboards' countdown);
+# no confirmed location for this long (location off, phone off, app killed) ends it too.
+OUT_OF_AREA_LIMIT_S = 30
+NO_LOCATION_LIMIT_S = 180
+
+
+def end_session(log, eticket, reason, time_out=None, lat=None, lng=None, distance=None):
+    """Closes a running session, deducts the time served, and returns its receipt."""
+    log.time_out = max(time_out or datetime.datetime.now(), log.time_in)
+    duration = (log.time_out - log.time_in).total_seconds()
+    log.duration_seconds = duration
+    log.end_reason = reason if reason in TIMELOG_END_REASONS else 'scanned_out'
+    log.out_lat, log.out_lng, log.out_distance_m = lat, lng, distance
+    log.outside_since = None
+    if not log.site_name:
+        log.site_code, log.site_name = _session_site(eticket)
+    log.save()
+
+    eticket.remaining_hours = max(0, eticket.remaining_hours - duration / 3600)
+    if eticket.remaining_hours <= 0.01:
+        eticket.remaining_hours = 0
+        eticket.status = "Completed"
+        eticket.violation.status = "Completed"
+        eticket.violation.save()
+    else:
+        eticket.status = "Active"
+    eticket.save()
+    if eticket.status == "Completed" and log.end_reason == 'scanned_out':
+        log.end_reason = 'completed'
+        log.save()
+    return timelog_receipt(log, eticket)
+
+
+def stop_silent_sessions():
+    """Ends tracked sessions that haven't confirmed a location for NO_LOCATION_LIMIT_S. Only the time up to
+    the last confirmed location counts. Runs whenever tickets are listed (dashboards poll every 5 s)."""
+    cutoff = datetime.datetime.now() - datetime.timedelta(seconds=NO_LOCATION_LIMIT_S)
+    for log in TimeLog.objects(time_out=None, tracked=True, last_ping_at__lt=cutoff):
+        try:
+            end_session(log, log.eticket, 'location_off', time_out=log.last_ping_at, lat=log.last_lat, lng=log.last_lng)
+        except Exception as e:
+            print(f"stop_silent_sessions: {e}")
+
+
 class TimeLogViewSet(viewsets.ModelViewSet):
     # Selfie proofs were dropped; old ones made this list many MB, so the photo fields are never loaded
     queryset = TimeLog.objects.exclude('photo_proof_in', 'photo_proof_out')
@@ -902,18 +1255,27 @@ class TimeLogViewSet(viewsets.ModelViewSet):
                     label = f"{assigned.name} ({assigned_code})" if assigned else assigned_code
                     return Response({"error": f"You're assigned to {label}. Scan the QR code posted there to start your timer."}, status=status.HTTP_400_BAD_REQUEST)
 
+                running = TimeLog.objects.filter(eticket=eticket, time_out=None).first()
+
                 if site_code:
                     # Registered service site: the geofence comes from the saved site, never from the phone
                     site = ServiceSite.objects.filter(site_code=site_code, is_active=True).first()
                     if not site:
                         return Response({"error": f"{site_code} is not an active service site."}, status=status.HTTP_400_BAD_REQUEST)
-                    if not TimeLog.objects.filter(eticket=eticket, time_out=None).first():
+                    # The timer only starts when the student is at the site
+                    outside = None if running else _outside_site_error(request, site.latitude, site.longitude, site.radius_m, site.name)
+                    if outside:
+                        return Response({"error": outside, "code": "outside_site"}, status=status.HTTP_400_BAD_REQUEST)
+                    if not running:
                         eticket.lat = site.latitude
                         eticket.lng = site.longitude
                         eticket.radius = float(site.radius_m)
                         eticket.site_code = site.site_code
                         eticket.save()
                 elif lat is not None and lng is not None:
+                    outside = None if running else _outside_site_error(request, float(lat), float(lng), float(radius or 5), "the service point")
+                    if outside:
+                        return Response({"error": outside, "code": "outside_site"}, status=status.HTTP_400_BAD_REQUEST)
                     eticket.lat = float(lat)
                     eticket.lng = float(lng)
                     eticket.radius = float(radius or 5)
@@ -926,8 +1288,16 @@ class TimeLogViewSet(viewsets.ModelViewSet):
                     # Timer already running, just return the existing log
                     return Response(TimeLogSerializer(existing_log).data)
                 
-                # Create new session only if none exists
-                log = TimeLog(eticket=eticket).save()
+                # Create new session only if none exists; the site is kept for the receipt
+                log_site_code, log_site_name = _session_site(eticket)
+                # Clients that send location pings (also from the background) ask for tracking
+                tracked = str(request.data.get('track_location')).lower() in ('true', '1')
+                log = TimeLog(
+                    eticket=eticket, site_code=log_site_code, site_name=log_site_name, tracked=tracked,
+                    last_ping_at=datetime.datetime.now() if tracked else None,
+                    last_lat=_float_or_none(request.data.get('student_lat')),
+                    last_lng=_float_or_none(request.data.get('student_lng')),
+                ).save()
                 eticket.status = "Ongoing"
                 eticket.save()
                 return Response(TimeLogSerializer(log).data)
@@ -940,26 +1310,115 @@ class TimeLogViewSet(viewsets.ModelViewSet):
                     return Response({"error": f"{site_code} is not a service site."}, status=status.HTTP_400_BAD_REQUEST)
                 log = TimeLog.objects.filter(eticket=eticket, time_out=None).order_by('-time_in').first()
                 if log:
-                    log.time_out = datetime.datetime.now()
-                    duration = (log.time_out - log.time_in).total_seconds()
-                    log.duration_seconds = duration
-                    log.save()
-                    
-                    hours_to_deduct = duration / 3600
-                    eticket.remaining_hours = max(0, eticket.remaining_hours - hours_to_deduct)
-                    if eticket.remaining_hours <= 0.01:
-                        eticket.remaining_hours = 0
-                        eticket.status = "Completed"
-                        eticket.violation.status = "Completed"
-                        eticket.violation.save()
-                    else:
-                        eticket.status = "Active"
-                    eticket.save()
-                    
-                    return Response(TimeLogSerializer(log).data)
+                    reason = request.data.get('end_reason')
+                    # Location off: only the time up to the last confirmed location counts
+                    time_out = log.last_ping_at if reason == 'location_off' and log.last_ping_at else None
+                    receipt = end_session(
+                        log, eticket, reason, time_out=time_out,
+                        lat=_float_or_none(request.data.get('lat')) if not site_code else None,
+                        lng=_float_or_none(request.data.get('lng')) if not site_code else None,
+                        distance=_float_or_none(request.data.get('distance_m')),
+                    )
+                    return Response({**TimeLogSerializer(log).data, 'receipt': receipt})
                 return Response({"error": "No active session"}, status=status.HTTP_400_BAD_REQUEST)
         except ETicket.DoesNotExist:
             return Response({"error": "Ticket not found"}, status=status.HTTP_404_NOT_FOUND)
+
+    @action(detail=False, methods=['post'])
+    def location_ping(self, request):
+        """The student's position during a tracked session, sent every ~15 s by the Android background
+        task and the open website. The server decides: outside the site for OUT_OF_AREA_LIMIT_S ends the
+        session ("Left the service area"); location_off ends it at the last confirmed position.
+        Returns {state: 'running' | 'stopped' | 'none', ...}; 'stopped' includes the receipt."""
+        try:
+            eticket = ETicket.objects.get(id=request.data.get('eticket_id'))
+        except Exception:
+            return Response({"error": "Ticket not found"}, status=status.HTTP_404_NOT_FOUND)
+        log = TimeLog.objects.filter(eticket=eticket, time_out=None).order_by('-time_in').first()
+        if not log:
+            # Already ended (e.g. from the other device); the latest receipt says how
+            last = TimeLog.objects(eticket=eticket).exclude('photo_proof_in', 'photo_proof_out').order_by('-time_in').first()
+            return Response({"state": "none", "receipt": timelog_receipt(last, eticket) if last else None})
+
+        now = datetime.datetime.now()
+        if str(request.data.get('location_off')).lower() in ('true', '1'):
+            TimeLog.objects(id=log.id).update_one(push__events={'type': 'location_off', 'at': now})
+            log.reload()
+            receipt = end_session(log, eticket, 'location_off', time_out=log.last_ping_at,
+                                  lat=log.last_lat, lng=log.last_lng)
+            return Response({"state": "stopped", "reason": "location_off", "receipt": receipt})
+
+        lat = _float_or_none(request.data.get('lat'))
+        lng = _float_or_none(request.data.get('lng'))
+        if lat is None or lng is None or eticket.lat is None or eticket.lng is None:
+            return Response({"state": "running"})
+        accuracy = _float_or_none(request.data.get('accuracy_m')) or 0
+        allowed = float(eticket.radius or 50) + min(max(accuracy, 0) * ACCURACY_BUFFER_FACTOR, MAX_ACCURACY_BUFFER_M)
+        distance = round(_distance_m(lat, lng, eticket.lat, eticket.lng))
+
+        log.last_ping_at, log.last_lat, log.last_lng = now, lat, lng
+        if distance <= allowed:
+            if log.outside_since:
+                log.events = (log.events or []) + [{'type': 'returned', 'at': now, 'lat': lat, 'lng': lng, 'distance_m': distance}]
+                log.outside_since = None
+            log.save()
+            return Response({"state": "running", "inside": True, "distance_m": distance})
+
+        if not log.outside_since:
+            log.outside_since = now
+            log.events = (log.events or []) + [{'type': 'left_area', 'at': now, 'lat': lat, 'lng': lng, 'distance_m': distance}]
+            log.save()
+        outside_s = (now - log.outside_since).total_seconds()
+        if outside_s >= OUT_OF_AREA_LIMIT_S:
+            receipt = end_session(log, eticket, 'left_area', lat=lat, lng=lng, distance=distance)
+            return Response({"state": "stopped", "reason": "left_area", "receipt": receipt})
+        log.save()
+        return Response({"state": "running", "inside": False, "distance_m": distance,
+                         "seconds_left": max(0, round(OUT_OF_AREA_LIMIT_S - outside_s))})
+
+    @action(detail=False, methods=['post'])
+    def log_event(self, request):
+        """Records something that happened during a running session (left the area, came back,
+        location off/on) so the time-out receipt can show it."""
+        event_type = request.data.get('type')
+        if event_type not in TIMELOG_EVENT_TYPES:
+            return Response({"error": "Unknown event type."}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            eticket = ETicket.objects.get(id=request.data.get('eticket_id'))
+        except Exception:
+            return Response({"error": "Ticket not found"}, status=status.HTTP_404_NOT_FOUND)
+        log = TimeLog.objects.filter(eticket=eticket, time_out=None).order_by('-time_in').first()
+        if not log:
+            return Response({"error": "No active session"}, status=status.HTTP_400_BAD_REQUEST)
+        if len(log.events or []) >= MAX_EVENTS_PER_SESSION:
+            return Response({"ok": True, "dropped": True})
+        event = {'type': event_type, 'at': datetime.datetime.now()}
+        for key in ('lat', 'lng', 'distance_m'):
+            value = _float_or_none(request.data.get(key))
+            if value is not None:
+                event[key] = round(value) if key == 'distance_m' else value
+        TimeLog.objects(id=log.id).update_one(push__events=event)
+        return Response({"ok": True})
+
+    @action(detail=False, methods=['get'])
+    def receipts(self, request):
+        """Time-out receipts, newest first, for one student (?student_id=) or one ticket (?eticket_id=)."""
+        student_id = request.query_params.get('student_id')
+        eticket_id = request.query_params.get('eticket_id')
+        if eticket_id:
+            tickets = list(ETicket.objects(id=eticket_id))
+        elif student_id:
+            student = Student.objects.filter(student_id=student_id).first()
+            if not student:
+                return Response([])
+            violations = ViolationReport.objects(student=student)
+            tickets = list(ETicket.objects(violation__in=violations))
+        else:
+            return Response({"error": "student_id or eticket_id is required"}, status=status.HTTP_400_BAD_REQUEST)
+        by_id = {t.id: t for t in tickets}
+        logs = TimeLog.objects(eticket__in=tickets).exclude('photo_proof_in', 'photo_proof_out').order_by('-time_in').limit(50)
+        return Response([timelog_receipt(log, by_id.get(log.to_mongo().get("eticket"))) for log in logs])
+
 
 from .serializers import SystemUserSerializer
 

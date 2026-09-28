@@ -95,12 +95,12 @@ export default function Login() {
                     ) : null}
 
                     <View style={styles.inputGroup}>
-                        <Text style={styles.label}>Student ID / Username</Text>
+                        <Text style={styles.label}>Student ID</Text>
                         <View style={styles.inputContainer}>
                             <User size={18} color={colors.textMuted} style={styles.inputIcon} />
                             <TextInput
                                 style={styles.input}
-                                placeholder="Student ID / Username"
+                                placeholder="Student ID"
                                 placeholderTextColor={faintPlaceholder}
                                 value={username}
                                 onChangeText={setUsername}

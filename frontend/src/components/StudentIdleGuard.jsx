@@ -61,7 +61,7 @@ const StudentIdleGuard = () => {
                 endingRef.current = true;
                 warningRef.current = false;
                 setSecondsLeft(null);
-                await logoutStudent(navigate, 'You were logged out after 1 hour of inactivity. Any running service timer was stopped.');
+                await logoutStudent(navigate, 'You were logged out after 1 hour of inactivity. Any running service timer was stopped.', 'idle');
                 endingRef.current = false;
             } else if (idle >= IDLE_LIMIT_MS) {
                 warningRef.current = true;

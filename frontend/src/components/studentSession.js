@@ -12,10 +12,11 @@ const fetchWithTimeout = (url, options = {}, ms = 8000) => {
 
 // Ends the student's running service session, if any: the same 'out' call as scanning the end QR,
 // so the hours served so far are kept and the student scans the start QR again to continue.
-export const stopActiveSession = async (studentId) => {
+// reason is saved as how the session ended, for the time-out receipt ('logout', 'idle')
+export const stopActiveSession = async (studentId, reason = 'logout') => {
     if (!studentId) return false;
     try {
-        const tickets = await fetchWithTimeout('/api/etickets/?t=' + Date.now()).then((r) => r.json());
+        const tickets = await fetchWithTimeout(`/api/etickets/?student_id=${encodeURIComponent(studentId)}&t=${Date.now()}`).then((r) => r.json());
         const running = (Array.isArray(tickets) ? tickets : []).filter((t) =>
             t.violation_details?.student_details?.student_id === studentId && t.active_time_in
         );
@@ -23,7 +24,7 @@ export const stopActiveSession = async (studentId) => {
             await fetchWithTimeout('/api/timelogs/log_time/', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ eticket_id: ticket.id, action: 'out' }),
+                body: JSON.stringify({ eticket_id: ticket.id, action: 'out', end_reason: reason }),
             });
         }
         return running.length > 0;
@@ -33,10 +34,10 @@ export const stopActiveSession = async (studentId) => {
 };
 
 // Stops the timer, clears the saved session, and goes to the login page (with an optional notice)
-export const logoutStudent = async (navigate, notice) => {
+export const logoutStudent = async (navigate, notice, reason = 'logout') => {
     const user = JSON.parse(localStorage.getItem('user') || '{}');
-    await stopActiveSession(user.username);
+    await stopActiveSession(user.username, reason);
     localStorage.removeItem('user');
     localStorage.removeItem(ACTIVITY_KEY);
-    navigate('/login', { replace: true, state: notice ? { notice } : undefined });
+    navigate('/student', { replace: true, state: notice ? { notice } : undefined });
 };
