@@ -11,6 +11,8 @@ from .deadlines import apply_missed_day_hours
 from .auth import issue_token, forget_account, IsAdmin, IsReporter, IsStudent, IsLoggedIn, owns_ticket, role_of
 from mongoengine.errors import ValidationError as MongoValidationError, NotUniqueError
 from bson.errors import InvalidId
+import base64
+import binascii
 import datetime
 import re
 from django.core import signing
@@ -987,9 +989,12 @@ class ViolationViewSet(viewsets.ModelViewSet):
         name = CLEARANCE_FILES[kind]
         if request.method == 'GET':
             proof = ClearanceProof.objects(violation=violation, kind=kind).first()
+            if not proof and violation.photos_removed_at:
+                return Response({"error": f"The photo of the {name} was removed {PHOTO_KEEP_LABEL} after the case "
+                                          f"was cleared, to save space. The case record is kept."}, status=status.HTTP_410_GONE)
             if not proof:
                 return Response({"error": f"No {name} uploaded yet."}, status=status.HTTP_404_NOT_FOUND)
-            return Response({"kind": kind, "image": proof.image, "uploaded_at": _aware_iso(proof.uploaded_at), "uploaded_by": proof.uploaded_by})
+            return Response({"kind": kind, "image": _proof_data_url(proof), "uploaded_at": _aware_iso(proof.uploaded_at), "uploaded_by": proof.uploaded_by})
 
         return _save_clearance_file(violation, kind, request.data.get('image'), request.user.name or request.user.username)
 
@@ -1040,8 +1045,43 @@ CAPTURE_SALT = 'clearance-capture'
 CAPTURE_LINK_MAX_AGE_S = 30 * 60
 
 # The browser shrinks each clearance photo to about 50-90 KB (frontend lib/photo.js); anything over
-# ~200 KB (as base64 text) didn't come through that and is refused, so a violation stays well under 0.5 MB
-MAX_CLEARANCE_PHOTO_CHARS = 270_000
+# 200 KB didn't come through that and is refused. Photos are saved as the file's bytes, not the base64
+# text the browser sends (a third smaller), so a cleared case takes about 0.2 MB at most.
+MAX_CLEARANCE_PHOTO_BYTES = 200_000
+DATA_URL = re.compile(r'^data:(image/(?:jpeg|png|webp));base64,(.+)$', re.S)
+
+# Photos of a cleared case are deleted this long after it was cleared, to keep the database small;
+# the case itself (who, what, hours, dates) stays in the archives. Runs with the ticket list, a few times a day.
+PHOTO_KEEP_DAYS = 365
+PHOTO_KEEP_LABEL = 'one year'
+PHOTO_CLEANUP_EVERY_S = 6 * 3600
+_last_photo_cleanup = [0.0]
+
+
+def _proof_data_url(proof):
+    """The photo as a data URL, the form both dashboards show."""
+    if proof.data:
+        return f"data:{proof.content_type or 'image/jpeg'};base64,{base64.b64encode(proof.data).decode('ascii')}"
+    return proof.image  # saved as text before 2026-09-30
+
+
+def remove_old_clearance_photos(force=False):
+    """Deletes the photos of cases cleared more than PHOTO_KEEP_DAYS ago. Returns how many cases it did."""
+    import time
+    if not force and time.monotonic() - _last_photo_cleanup[0] < PHOTO_CLEANUP_EVERY_S:
+        return 0
+    _last_photo_cleanup[0] = time.monotonic()
+    try:
+        cutoff = utc_now() - datetime.timedelta(days=PHOTO_KEEP_DAYS)
+        ids = [v.id for v in ViolationReport.objects(status="Cleared", cleared_at__lt=cutoff, photos_removed_at=None).only('id')]
+        if not ids:
+            return 0
+        ClearanceProof.objects(violation__in=ids).delete()
+        ViolationReport.objects(id__in=ids).update(set__photos_removed_at=utc_now())
+        return len(ids)
+    except Exception as e:
+        print(f"remove_old_clearance_photos: {e}")
+        return 0
 
 
 def _clearance_upload_error(violation):
@@ -1055,18 +1095,24 @@ def _clearance_upload_error(violation):
 
 
 def _save_clearance_file(violation, kind, image, uploader):
-    """Saves (or replaces) one clearance photo, a JPEG/PNG data URL, and returns the Response."""
+    """Saves (or replaces) one clearance photo, sent as a JPEG/PNG/WebP data URL, and returns the Response."""
     error = _clearance_upload_error(violation)
     if error:
         return Response({"error": error}, status=status.HTTP_400_BAD_REQUEST)
-    image = str(image or '')
-    if not re.match(r'^data:image/(jpeg|png|webp);base64,', image):
+    match = DATA_URL.match(str(image or ''))
+    try:
+        # the length check first, so a huge upload isn't decoded
+        data = base64.b64decode(match.group(2), validate=True) if match and len(match.group(2)) <= MAX_CLEARANCE_PHOTO_BYTES * 4 // 3 + 4 else None
+    except (binascii.Error, ValueError):
+        match = None
+    if not match:
         return Response({"error": f"Upload a photo of the {CLEARANCE_FILES[kind]} (JPG or PNG)."}, status=status.HTTP_400_BAD_REQUEST)
-    if len(image) > MAX_CLEARANCE_PHOTO_CHARS:
+    if data is None or len(data) > MAX_CLEARANCE_PHOTO_BYTES:
         return Response({"error": "The photo is too large. Try again with a smaller photo."}, status=status.HTTP_400_BAD_REQUEST)
     now = utc_now()
     ClearanceProof.objects(violation=violation, kind=kind).update_one(
-        set__image=image, set__uploaded_at=now, set__uploaded_by=uploader, upsert=True)
+        set__data=data, set__content_type=match.group(1), unset__image=True,
+        set__uploaded_at=now, set__uploaded_by=uploader, upsert=True)
     setattr(violation, f'{kind}_uploaded_at', now)
     violation.save()
     return Response({"kind": kind, "uploaded_at": _aware_iso(now), "uploaded_by": uploader})
@@ -1151,6 +1197,7 @@ class ETicketViewSet(viewsets.ModelViewSet):
     def list(self, request, *args, **kwargs):
         stop_silent_sessions()
         apply_missed_day_hours()
+        remove_old_clearance_photos()
         # Every ticket shows its student: load them all in one query rather than one per ticket
         tickets = list(self.get_queryset())
         violations = [t.violation for t in tickets if isinstance(t.violation, ViolationReport)]

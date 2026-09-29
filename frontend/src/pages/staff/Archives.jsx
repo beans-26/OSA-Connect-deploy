@@ -309,7 +309,12 @@ const Archives = () => {
                                                 <span className={`${isDismissed ? 'bg-red-100 text-red-700' : 'bg-emerald-100 text-emerald-700'} text-[9px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full whitespace-nowrap`}>
                                                     {isDismissed ? 'Dismissed' : violation.status === 'Cleared' ? 'Cleared' : 'Completed'}
                                                 </span>
-                                                {[['iso_form', 'ISO form'], ['reflection', 'Reflection paper']].map(([kind, label]) => violation[`${kind}_uploaded_at`] && (
+                                                {violation.photos_removed_at && (
+                                                    <span title="The photos are deleted one year after a case is cleared, to save space. The record is kept." className="text-[9px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full whitespace-nowrap bg-slate-100 text-slate-500 dark:bg-slate-700 dark:text-slate-300">
+                                                        Photos removed
+                                                    </span>
+                                                )}
+                                                {!violation.photos_removed_at && [['iso_form', 'ISO form'], ['reflection', 'Reflection paper']].map(([kind, label]) => violation[`${kind}_uploaded_at`] && (
                                                     <button key={kind} onClick={() => openClearanceFile(violation, kind, label)} className="text-[9px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full whitespace-nowrap bg-blue-50 text-ustp-blue hover:bg-blue-100 dark:bg-blue-500/10 dark:text-blue-300">
                                                         {label}
                                                     </button>
