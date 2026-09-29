@@ -15,6 +15,7 @@ import base64
 import binascii
 import datetime
 import re
+import urllib.parse
 from django.core import signing
 from django.conf import settings
 
@@ -1123,6 +1124,8 @@ def _save_clearance_file(violation, kind, image, uploader):
 def clearance_capture(request, token):
     """The phone page opened from the capture QR code. GET: whose violation it is and what's uploaded.
     POST {kind, image}: saves a photo. The signed token is the permission (see capture_link)."""
+    # The page sends the token URL-encoded (its ':' as %3A) and Vercel passes the path on without decoding it
+    token = urllib.parse.unquote(token)
     try:
         data = signing.loads(token, salt=CAPTURE_SALT, max_age=CAPTURE_LINK_MAX_AGE_S)
     except signing.SignatureExpired:
