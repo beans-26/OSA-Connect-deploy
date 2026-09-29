@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { AlertTriangle, User, Play, QrCode, FileText, CircleHelp, Clock, Navigation, ChevronRight } from 'lucide-react';
+import { AlertTriangle, User, Play, QrCode, FileText, CircleHelp, Clock, Navigation, ChevronRight, Download, Loader2 } from 'lucide-react';
+import { isoFormPdf } from '../lib/isoFormPdf';
 import QrScannerModal from '../components/QrScannerModal';
 import SessionReceipt from '../components/SessionReceipt';
 import TicketDetails from '../components/TicketDetails';
@@ -670,6 +671,35 @@ const StudentDashboard = () => {
         ? compassDirection({ latitude: location.lat, longitude: location.lng }, { latitude: hub.lat, longitude: hub.lng })
         : '';
 
+    // Blank FM-USTP-OSA-013 time log (PDF) for the office head to fill in by hand. Downloaded once per
+    // open ticket (the server keeps track); clicking again only shows ISO_ONCE. Same as the mobile app.
+    const ISO_ONCE = 'The ISO form can only be downloaded once. Go to the OSA office to request another one.';
+    const [isoBusy, setIsoBusy] = useState(false);
+    const downloadIsoForm = async () => {
+        if (!activeTicket || isoBusy) return;
+        if (activeTicket.iso_form_printed_at) {
+            alert(ISO_ONCE);
+            return;
+        }
+        setIsoBusy(true);
+        try {
+            // Made before the server counts the download
+            const pdf = await isoFormPdf();
+            const response = await fetch(`/api/etickets/${activeTicket.id}/print_iso_form/`, { method: 'POST' });
+            const data = await response.json().catch(() => ({}));
+            if (!response.ok) {
+                alert(data.error || "Couldn't download the ISO form. Try again.");
+                return;
+            }
+            pdf.save('FM-USTP-OSA-013.pdf');
+        } catch (e) {
+            alert(e.message === 'Failed to fetch' ? "Can't reach the server. Check your connection." : "Couldn't make the ISO form. Try again.");
+        } finally {
+            setIsoBusy(false);
+            fetchStudentData();
+        }
+    };
+
     const ticketBadge = (status) =>
         status === 'Active' ? 'bg-[#dcfce7] text-[#10b981]' :
         status === 'Completed' ? 'bg-[#f1f5f9] text-[#64748b]' :
@@ -841,7 +871,19 @@ const StudentDashboard = () => {
 
                 {/* E-Tickets */}
                 <section className="mb-6">
-                    <h2 className="mb-1 text-lg font-black text-[var(--s-text)]">E-Tickets</h2>
+                    <div className="mb-1 flex items-center justify-between gap-3">
+                        <h2 className="text-lg font-black text-[var(--s-text)]">E-Tickets</h2>
+                        {/* Only with an active violation */}
+                        {activeTicket && (
+                            <button
+                                onClick={downloadIsoForm}
+                                disabled={isoBusy}
+                                className="flex items-center gap-1.5 rounded-xl border border-[var(--s-border)] bg-[var(--s-card)] px-3 py-2 text-xs font-bold text-[var(--s-text)] hover:border-[var(--s-primary)] disabled:opacity-60"
+                            >
+                                {isoBusy ? <Loader2 size={15} className="animate-spin" /> : <Download size={15} />} Download ISO form
+                            </button>
+                        )}
+                    </div>
                     <p className="mb-4 text-sm font-medium text-[var(--s-muted)]">Tap a ticket to see its service log</p>
 
                     {loading ? (

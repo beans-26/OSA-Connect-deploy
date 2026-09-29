@@ -1,23 +1,35 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator, KeyboardAvoidingView, Platform } from 'react-native';
-import { showAlert } from '../components/showAlert';
-import { Link, router } from 'expo-router';
-import { UserPlus, Mail, KeyRound, ChevronRight, CheckCircle2, Download, IdCard, GraduationCap, Building2, Layers, Phone, Lock } from 'lucide-react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, Platform, useWindowDimensions } from 'react-native';
+import { Link } from 'expo-router';
+import { Mail, ChevronRight, CheckCircle2, Download } from 'lucide-react-native';
 import QRCode from 'react-native-qrcode-svg';
-import { Colors } from '../constants/Colors';
+import { captureRef } from 'react-native-view-shot';
+// The legacy entry still has saveToLibraryAsync (the new API throws on it)
+import * as MediaLibrary from 'expo-media-library/legacy';
+import { showAlert } from '../components/showAlert';
 import { DEPARTMENTS, DEPARTMENT_COURSES, yearLevelsFor } from '../constants/Data';
 import SelectField from '../components/SelectField';
+import AuthScreen, { authColors as C, authStyles as A } from '../components/AuthScreen';
 import api from '../services/api';
 
-// Using TextInputs instead of picker for simplicity without adding dependencies
+const OFFLINE_MESSAGE = "Can't reach the server. Check your internet connection and try again.";
+const STEP_COUNT = 3;
+const CODE_LENGTH = 6;
+// Matches the backend: codes expire 5 minutes after sending, and a new one can be asked for after a minute
+const CODE_LIFETIME_S = 300;
+const RESEND_AFTER_S = 60;
+// Outside the component so React's purity check knows it only runs in event handlers
+const currentTime = () => Date.now();
+const TITLES = { 1: 'Your details', 2: 'Verify your email', 3: "You're registered" };
 
-const CSSLogo = () => (
-    <View style={styles.logoContainer}>
-        <View style={styles.logoBox}>
-            <View style={styles.logoAccent} />
-            <Text style={styles.logoOsa}>OSA</Text>
-        </View>
-        <Text style={styles.logoConnect}>Connect</Text>
+// Label above a field, with an optional "(optional)" tag and a hint line below
+const Field = ({ label, optional = false, hint, style, children }) => (
+    <View style={[styles.field, style]}>
+        <Text style={A.label} numberOfLines={1}>
+            {label}{optional ? <Text style={A.optional}> (optional)</Text> : null}
+        </Text>
+        {children}
+        {hint ? <Text style={A.hint}>{hint}</Text> : null}
     </View>
 );
 
@@ -25,7 +37,10 @@ export default function Register() {
     const [step, setStep] = useState(1);
     const [saving, setSaving] = useState(false);
     const [otp, setOtp] = useState('');
-    const [otpCooldown, setOtpCooldown] = useState(0);
+    // When the latest code was sent, and a clock that ticks each second on step 2
+    const [codeSentAt, setCodeSentAt] = useState(0);
+    const [now, setNow] = useState(() => Date.now());
+    const [focused, setFocused] = useState('');
     const [studentData, setStudentData] = useState({
         student_id: '',
         first_name: '',
@@ -43,8 +58,20 @@ export default function Register() {
     const passwordMismatch = confirmPassword.length > 0 && confirmPassword !== studentData.password;
     const courseOptions = DEPARTMENT_COURSES[studentData.department] || [];
     const yearOptions = yearLevelsFor(studentData.department);
+    const codeBoxes = useRef([]);
+    const qrRef = useRef();
+    const { width } = useWindowDimensions();
+    const set = (key) => (value) => setStudentData((prev) => ({ ...prev, [key]: value }));
 
-    // A new department clears the course and year level when they don't belong to it (same as the website)
+    // Shared props for the text boxes: faint placeholder and focus outline
+    const inputProps = (key) => ({
+        placeholderTextColor: C.placeholder,
+        onFocus: () => setFocused(key),
+        onBlur: () => setFocused(''),
+        style: [A.input, focused === key && A.inputFocused],
+    });
+
+    // A new department (college) clears the program and year level when they don't belong to it (same as the website)
     const changeDepartment = (department) => {
         setStudentData((prev) => ({
             ...prev,
@@ -53,58 +80,85 @@ export default function Register() {
             year_level: yearLevelsFor(department).some((y) => y.value === prev.year_level) ? prev.year_level : '',
         }));
     };
-    // Placeholders repeat the field name as faint, see-through text (same as the website)
-    const faintPlaceholder = 'rgba(148,163,184,0.4)';
 
-    const qrRef = useRef();
+    useEffect(() => {
+        if (step !== 2) return undefined;
+        const timer = setInterval(() => setNow(Date.now()), 1000);
+        return () => clearInterval(timer);
+    }, [step]);
 
-    const startCooldown = () => {
-        setOtpCooldown(60);
-        const interval = setInterval(() => {
-            setOtpCooldown((prev) => {
-                if (prev <= 1) {
-                    clearInterval(interval);
-                    return 0;
-                }
-                return prev - 1;
-            });
-        }, 1000);
+    const secondsSinceSent = Math.floor((now - codeSentAt) / 1000);
+    const expiresIn = Math.max(0, CODE_LIFETIME_S - secondsSinceSent);
+    const resendIn = Math.max(0, RESEND_AFTER_S - secondsSinceSent);
+    const expiresLabel = `${Math.floor(expiresIn / 60)}:${String(expiresIn % 60).padStart(2, '0')}`;
+    const codeComplete = /^\d{6}$/.test(otp);
+
+    // The 6 code boxes: typing moves to the next box, backspace to the previous, pasting fills them all
+    const focusBox = (i) => codeBoxes.current[Math.max(0, Math.min(CODE_LENGTH - 1, i))]?.focus();
+    const changeBox = (i, text) => {
+        const chars = otp.padEnd(CODE_LENGTH, ' ').split('');
+        let digits = text.replace(/\D/g, '');
+        if (!digits) {
+            chars[i] = ' ';
+            setOtp(chars.join('').trimEnd());
+            return;
+        }
+        // Typing into a box that already had a digit replaces it
+        if (digits.length === 2 && chars[i] !== ' ' && digits[0] === chars[i]) digits = digits[1];
+        digits.slice(0, CODE_LENGTH - i).split('').forEach((d, k) => { chars[i + k] = d; });
+        setOtp(chars.join('').trimEnd());
+        focusBox(i + digits.length);
+    };
+    const boxKeyPress = (i, e) => {
+        if (e.nativeEvent.key === 'Backspace' && !(otp[i] || '').trim() && i > 0) {
+            const chars = otp.padEnd(CODE_LENGTH, ' ').split('');
+            chars[i - 1] = ' ';
+            setOtp(chars.join('').trimEnd());
+            focusBox(i - 1);
+        }
     };
 
     const requestOTP = async () => {
         // Enter can fire this while a request is still running
         if (saving) return;
-        // Validate required fields
         if (!studentData.student_id || !studentData.first_name || !studentData.last_name || !studentData.course || !studentData.department || !studentData.year_level || !studentData.email || !studentData.password.trim()) {
-            showAlert("Missing Fields", "Please fill in all required fields.");
+            showAlert('Missing Fields', 'Please fill in all required fields.');
             return;
         }
         if (studentData.contact_number.length !== 11) {
-            showAlert("Invalid Contact Number", "Contact number must be exactly 11 digits (e.g. 09123456789).");
+            showAlert('Invalid Contact Number', 'Contact number must be exactly 11 digits (e.g. 09123456789).');
+            return;
+        }
+        if (studentData.password.length < 8) {
+            showAlert('Password Too Short', 'Your password needs at least 8 characters.');
             return;
         }
         if (studentData.password !== confirmPassword) {
-            showAlert("Password Mismatch", "Passwords do not match. Please re-enter your password.");
+            showAlert('Password Mismatch', 'Passwords do not match. Please re-enter your password.');
             return;
         }
 
         setSaving(true);
         try {
             // ID and contact are sent so a taken ID is caught before the code is emailed
-            const response = await api.post('/students/request_otp/', {
+            await api.post('/students/request_otp/', {
                 email: studentData.email,
                 student_id: studentData.student_id,
                 contact_number: studentData.contact_number,
                 // Only used to greet the student in the code email
                 name: studentData.first_name
             });
+            setOtp('');
+            const sentAt = currentTime();
+            setCodeSentAt(sentAt);
+            setNow(sentAt);
             setStep(2);
-            startCooldown();
+            setTimeout(() => focusBox(0), 300);
         } catch (error) {
             showAlert(
                 'Error',
                 // No response at all means the backend is down or unreachable, not a bad email
-                error.response ? (error.response.data?.error || 'Check your email') : "Can't reach the server. Check your internet connection and try again."
+                error.response ? (error.response.data?.error || 'Check your email') : OFFLINE_MESSAGE
             );
         } finally {
             setSaving(false);
@@ -112,533 +166,365 @@ export default function Register() {
     };
 
     const verifyAndRegister = async () => {
-        if (saving || otp.length < 6) return;
+        if (saving || !codeComplete) return;
         setSaving(true);
         try {
             const fullName = `${studentData.first_name} ${studentData.middle_name ? studentData.middle_name + ' ' : ''}${studentData.last_name}`.trim();
-            const payload = {
-                ...studentData,
-                name: fullName,
-                password: studentData.password,
-                otp: otp
-            };
-            const response = await api.post('/students/register_with_otp/', payload);
+            await api.post('/students/register_with_otp/', { ...studentData, name: fullName, otp });
             setStep(3);
         } catch (error) {
             showAlert(
                 'Verification Failed',
                 error.response
                     ? (error.response.data?.error || error.response.data?.message || 'Check your details')
-                    : "Can't reach the server. Check your internet connection and try again."
+                    : OFFLINE_MESSAGE
             );
         } finally {
             setSaving(false);
         }
     };
 
+    // Saves the QR (on its white box) to the phone's photos
     const downloadQR = async () => {
-        showAlert('Save QR', 'Please take a screenshot of your screen to save your QR code.');
+        const fallback = () => showAlert('Save QR', 'Please take a screenshot of your screen to save your QR code.');
+        if (Platform.OS === 'web') return fallback();
+        try {
+            const { granted } = await MediaLibrary.requestPermissionsAsync(true, ['photo']);
+            if (!granted) {
+                showAlert('Save QR', 'Allow OSAConnect to save photos, or take a screenshot of your QR code instead.');
+                return;
+            }
+            const uri = await captureRef(qrRef, { format: 'png', quality: 1, width: 1024, height: 1024 });
+            await MediaLibrary.saveToLibraryAsync(uri);
+            showAlert('QR saved', 'Your QR code is saved to your photos.');
+        } catch {
+            fallback();
+        }
     };
 
+    // Same format as the website: "ID FIRST MIDDLE LAST COURSE"
     const formatQRData = (student) => {
         const nameParts = [student.first_name, student.middle_name, student.last_name].filter(Boolean);
         const formattedName = nameParts.join(' ').toUpperCase();
         return `${student.student_id} ${formattedName} ${student.course || ''}`.trim();
     };
 
+    // Shown beside the QR on the last step: "Juan S. Dela Cruz" and "BS Information Technology · 2nd Year"
+    const displayName = [
+        studentData.first_name,
+        studentData.middle_name.trim() ? `${studentData.middle_name.trim()[0].toUpperCase()}.` : '',
+        studentData.last_name,
+    ].filter(Boolean).join(' ');
+    const ordinal = (n) => ({ 1: '1st', 2: '2nd', 3: '3rd' }[n] || `${n}th`);
+    const yearText = /^\d+$/.test(studentData.year_level) ? `${ordinal(Number(studentData.year_level))} Year` : studentData.year_level;
+    const programText = [studentData.course, yearText].filter(Boolean).join(' · ');
+    const stackQrCard = width < 400;
+
+    const selectStyle = [A.input, styles.select];
+
     return (
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.container}>
-            <ScrollView contentContainerStyle={styles.scrollContent}>
-                <View style={styles.header}>
-                    <CSSLogo />
-                    <Text style={styles.title}>Student Identity Proxy</Text>
-                    <Text style={styles.subtitle}>Registry Portal</Text>
+        <AuthScreen maxWidth={560}>
+            {/* Step indicator: which of the 3 steps and a progress bar */}
+            <Text style={styles.stepLabel}>STEP {step} OF {STEP_COUNT}</Text>
+            <View style={styles.progress}>
+                {[1, 2, 3].map((n) => (
+                    <View key={n} style={[styles.progressPart, { backgroundColor: n <= step ? C.gold : C.track }]} />
+                ))}
+            </View>
+
+            <Text style={[A.title, styles.heading]}>{TITLES[step]}</Text>
+
+            {step === 1 && (
+                <View>
+                    <Text style={[A.subtitle, styles.intro]}>Use the same details as your USTP school ID.</Text>
+
+                    <Field label="Student ID number" hint="Numbers only, as printed on your school ID.">
+                        <TextInput {...inputProps('id')} returnKeyType="go" onSubmitEditing={requestOTP} placeholder="Student ID number" keyboardType="number-pad" maxLength={12}
+                            value={studentData.student_id} onChangeText={(t) => set('student_id')(t.replace(/\D/g, '').slice(0, 12))} />
+                    </Field>
+
+                    <Field label="First name">
+                        <TextInput {...inputProps('first')} returnKeyType="go" onSubmitEditing={requestOTP} placeholder="First name" autoComplete="name-given" value={studentData.first_name} onChangeText={set('first_name')} />
+                    </Field>
+                    <View style={styles.row}>
+                        <Field label="Middle name" optional style={styles.half}>
+                            <TextInput {...inputProps('middle')} returnKeyType="go" onSubmitEditing={requestOTP} placeholder="Middle name" autoComplete="name-middle" value={studentData.middle_name} onChangeText={set('middle_name')} />
+                        </Field>
+                        <Field label="Last name" style={styles.half}>
+                            <TextInput {...inputProps('last')} returnKeyType="go" onSubmitEditing={requestOTP} placeholder="Last name" autoComplete="name-family" value={studentData.last_name} onChangeText={set('last_name')} />
+                        </Field>
+                    </View>
+
+                    {/* College first; it decides the program list and year levels (Grade 11/12 for SHS) */}
+                    <Field label="College">
+                        <SelectField
+                            value={studentData.department}
+                            options={DEPARTMENTS}
+                            placeholder="Choose your college"
+                            placeholderColor={C.placeholder}
+                            title="Choose your college"
+                            onChange={changeDepartment}
+                            style={selectStyle}
+                            textStyle={studentData.department ? styles.selectText : styles.selectPlaceholder}
+                            iconColor={C.textMuted}
+                        />
+                    </Field>
+                    <Field label="Program">
+                        <SelectField
+                            value={studentData.course}
+                            options={courseOptions}
+                            placeholder={studentData.department ? 'Choose your program' : 'Choose a college first'}
+                            placeholderColor={C.placeholder}
+                            title="Choose your program"
+                            searchable={courseOptions.length > 6}
+                            disabled={!studentData.department}
+                            onChange={set('course')}
+                            style={selectStyle}
+                            textStyle={studentData.course ? styles.selectText : styles.selectPlaceholder}
+                            iconColor={C.textMuted}
+                        />
+                    </Field>
+                    <Field label="Year level">
+                        <SelectField
+                            value={studentData.year_level}
+                            options={yearOptions}
+                            placeholder={studentData.department ? 'Choose your year' : 'Choose a college first'}
+                            placeholderColor={C.placeholder}
+                            title="Choose your year"
+                            disabled={!studentData.department}
+                            onChange={set('year_level')}
+                            style={selectStyle}
+                            textStyle={studentData.year_level ? styles.selectText : styles.selectPlaceholder}
+                            iconColor={C.textMuted}
+                        />
+                    </Field>
+
+                    <Field label="Contact number" hint="11 digits, like 09171234567.">
+                        <TextInput {...inputProps('contact')} returnKeyType="go" onSubmitEditing={requestOTP} placeholder="Contact number" keyboardType="number-pad" maxLength={11} autoComplete="tel"
+                            value={studentData.contact_number} onChangeText={(t) => set('contact_number')(t.replace(/\D/g, '').slice(0, 11))} />
+                    </Field>
+                    <Field label="Email" hint="We'll send your code and OSA notices here.">
+                        <TextInput {...inputProps('email')} returnKeyType="go" onSubmitEditing={requestOTP} placeholder="Email" keyboardType="email-address" autoCapitalize="none" autoComplete="email"
+                            value={studentData.email} onChangeText={set('email')} />
+                    </Field>
+
+                    <Field label="Password" hint="At least 8 characters.">
+                        <TextInput {...inputProps('password')} returnKeyType="go" onSubmitEditing={requestOTP} placeholder="Password" secureTextEntry autoComplete="new-password"
+                            value={studentData.password} onChangeText={set('password')} />
+                    </Field>
+                    <Field label="Re-enter password">
+                        <TextInput {...inputProps('password2')} returnKeyType="go" onSubmitEditing={requestOTP} style={[A.input, focused === 'password2' && A.inputFocused, passwordMismatch && A.inputError]}
+                            placeholder="Re-enter password" secureTextEntry autoComplete="new-password" value={confirmPassword} onChangeText={setConfirmPassword} />
+                        {passwordMismatch ? <Text style={A.errorText}>Passwords do not match.</Text> : null}
+                    </Field>
+
+                    <View style={styles.submitRow}>
+                        <Text style={styles.stepLogin}>
+                            Already registered?{' '}
+                            <Link href="/login" style={A.linkText}>Log in</Link>
+                        </Text>
+                        <TouchableOpacity style={[A.primaryButton, saving && A.disabled]} onPress={requestOTP} disabled={saving}>
+                            {saving ? <ActivityIndicator color="#ffffff" /> : (
+                                <>
+                                    <Text style={A.primaryButtonText}>Send verification code</Text>
+                                    <ChevronRight size={16} color="#ffffff" />
+                                </>
+                            )}
+                        </TouchableOpacity>
+                    </View>
                 </View>
+            )}
 
-                <View style={styles.card}>
-                    {step === 1 && (
-                        <View style={styles.stepContainer}>
-                            <View style={styles.stepHeader}>
-                                <Text style={styles.stepTitle}>Account Details</Text>
-                            </View>
+            {step === 2 && (
+                <View>
+                    <Text style={[A.subtitle, styles.intro]}>Enter the 6-digit code we sent you. It expires in 5 minutes.</Text>
 
-                            {/* Same three groups and order as the website's registration */}
-                            <Text style={styles.sectionTitle}>Personal Information</Text>
-                            <View style={styles.formGroup}>
-                                <Text style={styles.label}>Student ID</Text>
-                                <TextInput style={styles.input} placeholder="Student ID" keyboardType="number-pad" value={studentData.student_id} onChangeText={(t) => setStudentData({...studentData, student_id: t})} placeholderTextColor={faintPlaceholder} returnKeyType="go" onSubmitEditing={requestOTP} />
-                            </View>
-                            <View style={styles.row}>
-                                <View style={[styles.formGroup, {flex: 1, marginRight: 8}]}>
-                                    <Text style={styles.label}>First Name</Text>
-                                    <TextInput style={styles.input} placeholder="First Name" value={studentData.first_name} onChangeText={(t) => setStudentData({...studentData, first_name: t})} placeholderTextColor={faintPlaceholder} returnKeyType="go" onSubmitEditing={requestOTP} />
-                                </View>
-                                <View style={[styles.formGroup, {flex: 1, marginLeft: 8}]}>
-                                    <Text style={styles.label}>Middle Name (Optional)</Text>
-                                    <TextInput style={styles.input} placeholder="Middle Name" value={studentData.middle_name} onChangeText={(t) => setStudentData({...studentData, middle_name: t})} placeholderTextColor={faintPlaceholder} returnKeyType="go" onSubmitEditing={requestOTP} />
-                                </View>
-                            </View>
-                            <View style={styles.formGroup}>
-                                <Text style={styles.label}>Last Name</Text>
-                                <TextInput style={styles.input} placeholder="Last Name" value={studentData.last_name} onChangeText={(t) => setStudentData({...studentData, last_name: t})} placeholderTextColor={faintPlaceholder} returnKeyType="go" onSubmitEditing={requestOTP} />
-                            </View>
+                    <View style={styles.panel}>
+                        <Mail size={16} color={C.navy} />
+                        <Text style={styles.panelText}>
+                            Code sent to <Text style={styles.bold}>{studentData.email}</Text>
+                        </Text>
+                    </View>
 
-                            <Text style={styles.sectionTitle}>Academic Information</Text>
-                            {/* Department first; it decides the course list and year levels (Grade 11/12 for SHS) */}
-                            <View style={styles.formGroup}>
-                                <Text style={styles.label}>Department</Text>
-                                <SelectField
-                                    value={studentData.department}
-                                    options={DEPARTMENTS}
-                                    placeholder="Department"
-                                    placeholderColor={faintPlaceholder}
-                                    title="Select Department"
-                                    onChange={changeDepartment}
-                                    style={[styles.input, styles.selectInput]}
-                                />
-                            </View>
-                            <View style={styles.formGroup}>
-                                <Text style={styles.label}>Course</Text>
-                                <SelectField
-                                    value={studentData.course}
-                                    options={courseOptions}
-                                    placeholder={studentData.department ? 'Course' : 'Choose a department first'}
-                                    placeholderColor={faintPlaceholder}
-                                    title="Select Course"
-                                    searchable={courseOptions.length > 6}
-                                    disabled={!studentData.department}
-                                    onChange={(v) => setStudentData((prev) => ({ ...prev, course: v }))}
-                                    style={[styles.input, styles.selectInput]}
-                                />
-                            </View>
-                            <View style={styles.formGroup}>
-                                <Text style={styles.label}>Year Level</Text>
-                                <SelectField
-                                    value={studentData.year_level}
-                                    options={yearOptions}
-                                    placeholder={studentData.department ? 'Year Level' : 'Choose a department first'}
-                                    placeholderColor={faintPlaceholder}
-                                    title="Select Year Level"
-                                    disabled={!studentData.department}
-                                    onChange={(v) => setStudentData((prev) => ({ ...prev, year_level: v }))}
-                                    style={[styles.input, styles.selectInput]}
-                                />
-                            </View>
+                    <View style={styles.codeRow}>
+                        {Array.from({ length: CODE_LENGTH }, (_, i) => (
+                            <TextInput
+                                key={i}
+                                ref={(el) => { codeBoxes.current[i] = el; }}
+                                style={[styles.codeBox, focused === `code${i}` && styles.codeBoxFocused]}
+                                keyboardType="number-pad"
+                                // The first box takes a whole pasted code
+                                maxLength={i === 0 ? CODE_LENGTH : 1}
+                                textContentType={i === 0 ? 'oneTimeCode' : 'none'}
+                                autoComplete={i === 0 ? 'one-time-code' : 'off'}
+                                accessibilityLabel={`Digit ${i + 1}`}
+                                value={(otp[i] || '').trim()}
+                                onChangeText={(t) => changeBox(i, t)}
+                                onKeyPress={(e) => boxKeyPress(i, e)}
+                                onFocus={() => setFocused(`code${i}`)}
+                                onBlur={() => setFocused('')}
+                                selectTextOnFocus
+                                returnKeyType="go"
+                                onSubmitEditing={verifyAndRegister}
+                            />
+                        ))}
+                    </View>
 
-                            <Text style={styles.sectionTitle}>Account</Text>
-                            <View style={styles.formGroup}>
-                                <Text style={styles.label}>Contact Number</Text>
-                                <TextInput style={styles.input} placeholder="Contact Number" keyboardType="number-pad" maxLength={11} value={studentData.contact_number} onChangeText={(t) => setStudentData({...studentData, contact_number: t.replace(/\D/g, '').slice(0, 11)})} placeholderTextColor={faintPlaceholder} returnKeyType="go" onSubmitEditing={requestOTP} />
-                            </View>
-                            <View style={styles.formGroup}>
-                                <Text style={styles.label}>Email Address</Text>
-                                <TextInput style={styles.input} placeholder="Email Address" keyboardType="email-address" autoCapitalize="none" value={studentData.email} onChangeText={(t) => setStudentData({...studentData, email: t})} placeholderTextColor={faintPlaceholder} returnKeyType="go" onSubmitEditing={requestOTP} />
-                            </View>
-                            <View style={styles.formGroup}>
-                                <Text style={styles.label}>Password</Text>
-                                <TextInput style={styles.input} placeholder="Password" secureTextEntry value={studentData.password} onChangeText={(t) => setStudentData({...studentData, password: t})} placeholderTextColor={faintPlaceholder} returnKeyType="go" onSubmitEditing={requestOTP} />
-                            </View>
-                            <View style={styles.formGroup}>
-                                <Text style={styles.label}>Re-enter Password</Text>
-                                <TextInput style={[styles.input, passwordMismatch && styles.inputError]} placeholder="Re-enter Password" secureTextEntry value={confirmPassword} onChangeText={setConfirmPassword} placeholderTextColor={faintPlaceholder} returnKeyType="go" onSubmitEditing={requestOTP} />
-                                {passwordMismatch && <Text style={styles.errorText}>Passwords do not match</Text>}
-                            </View>
-
-                            <TouchableOpacity style={[styles.primaryButton, saving && styles.disabledButton]} onPress={requestOTP} disabled={saving}>
-                                {saving ? <ActivityIndicator color="#fff" /> : (
-                                    <>
-                                        <Text style={styles.primaryButtonText}>Verify Email</Text>
-                                        <ChevronRight size={18} color="#fff" />
-                                    </>
-                                )}
+                    <View style={styles.expiryRow}>
+                        {expiresIn > 0 ? (
+                            <Text style={styles.small}>Code expires in <Text style={styles.bold}>{expiresLabel}</Text></Text>
+                        ) : (
+                            <Text style={[styles.small, styles.expired]}>Code expired</Text>
+                        )}
+                        <Text style={styles.small}> · </Text>
+                        {resendIn > 0 ? (
+                            <Text style={styles.small}>Resend in {resendIn}s</Text>
+                        ) : (
+                            <TouchableOpacity onPress={requestOTP} disabled={saving}>
+                                <Text style={A.linkText}>Resend code</Text>
                             </TouchableOpacity>
+                        )}
+                    </View>
 
-                            <View style={styles.footerLink}>
-                                <Text style={styles.footerText}>Already have an account? </Text>
-                                <Link href="/login" asChild>
-                                    <TouchableOpacity>
-                                        <Text style={styles.linkText}>Log in</Text>
-                                    </TouchableOpacity>
-                                </Link>
-                            </View>
-                        </View>
-                    )}
-
-                    {step === 2 && (
-                        <View style={styles.stepContainer}>
-                            <View style={styles.iconCircle}>
-                                <Mail size={32} color={Colors.primary} />
-                            </View>
-                            <Text style={[styles.stepTitle, {textAlign: 'center'}]}>Verify Your Email</Text>
-                            <Text style={styles.emailSentText}>We sent a 6-digit code to {studentData.email}</Text>
-
-                            <View style={styles.otpContainer}>
-                                <Text style={[styles.label, {textAlign: 'center'}]}>6-Digit Code</Text>
-                                <TextInput 
-                                    style={styles.otpInput} 
-                                    
-                                    maxLength={6}
-                                    keyboardType="number-pad"
-                                    value={otp}
-                                    onChangeText={(t) => setOtp(t.replace(/\D/g, ''))}
-                                    returnKeyType="go"
-                                    onSubmitEditing={verifyAndRegister}
-                                />
-                            </View>
-
-                            <TouchableOpacity style={[styles.primaryButton, (saving || otp.length < 6) && styles.disabledButton]} onPress={verifyAndRegister} disabled={saving || otp.length < 6}>
-                                {saving ? <ActivityIndicator color="#fff" /> : (
-                                    <>
-                                        <Text style={styles.primaryButtonText}>Complete Registration</Text>
-                                        <ChevronRight size={18} color="#fff" />
-                                    </>
-                                )}
-                            </TouchableOpacity>
-
-                            <View style={styles.resendContainer}>
-                                {otpCooldown > 0 ? (
-                                    <Text style={styles.resendText}>Resend code in {otpCooldown}s</Text>
-                                ) : (
-                                    <TouchableOpacity onPress={requestOTP}>
-                                        <Text style={styles.linkText}>Resend Code</Text>
-                                    </TouchableOpacity>
-                                )}
-                            </View>
-                            
-                            <TouchableOpacity style={styles.backButton} onPress={() => setStep(1)}>
-                                <Text style={styles.backButtonText}>← Back to Details</Text>
-                            </TouchableOpacity>
-                        </View>
-                    )}
-
-                    {step === 3 && (
-                        <View style={styles.stepContainer}>
-                            <View style={[styles.iconCircle, {backgroundColor: '#ecfdf5', borderColor: '#d1fae5'}]}>
-                                <CheckCircle2 size={32} color={Colors.success} />
-                            </View>
-                            <Text style={[styles.stepTitle, {textAlign: 'center'}]}>Registration Success</Text>
-                            <Text style={styles.successDesc}>Verification complete. Save your official QR credentials below for campus entry.</Text>
-
-                            <View style={styles.qrContainer} ref={qrRef} collapsable={false}>
-                                <QRCode value={formatQRData(studentData)} size={200} />
-                            </View>
-
-                            <View style={styles.successActions}>
-                                <TouchableOpacity style={[styles.primaryButton, {flex: 1, marginRight: 8}]} onPress={downloadQR}>
-                                    <Download size={18} color="#fff" style={{marginRight: 8}}/>
-                                    <Text style={styles.primaryButtonText}>Save QR</Text>
-                                </TouchableOpacity>
-                                
-                                <Link href="/login" asChild>
-                                    <TouchableOpacity style={[styles.secondaryButton, {flex: 1, marginLeft: 8}]}>
-                                        <Text style={styles.secondaryButtonText}>Login</Text>
-                                    </TouchableOpacity>
-                                </Link>
-                            </View>
-                        </View>
-                    )}
+                    <View style={styles.buttonPair}>
+                        <TouchableOpacity style={[styles.outlineButton, styles.pairItem]} onPress={() => setStep(1)}>
+                            <Text style={styles.outlineButtonText}>← Edit details</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                            style={[A.primaryButton, styles.pairItem, (saving || !codeComplete || expiresIn === 0) && A.disabled]}
+                            onPress={verifyAndRegister}
+                            disabled={saving || !codeComplete || expiresIn === 0}
+                        >
+                            {saving ? <ActivityIndicator color="#ffffff" /> : (
+                                <Text style={[A.primaryButtonText, styles.center]} numberOfLines={2}>Verify and create account</Text>
+                            )}
+                        </TouchableOpacity>
+                    </View>
                 </View>
-            </ScrollView>
-        </KeyboardAvoidingView>
+            )}
+
+            {step === 3 && (
+                <View>
+                    <Text style={A.subtitle}>This is your personal OSAConnect QR code. Guards and OSA staff scan it to find your record.</Text>
+                    <View style={styles.created}>
+                        <CheckCircle2 size={18} color={C.success} />
+                        <Text style={styles.createdText}>Account created</Text>
+                    </View>
+
+                    {/* QR on the left, the details it belongs to on the right (stacked on narrow phones) */}
+                    <View style={[styles.panel, styles.qrPanel, stackQrCard && styles.qrPanelStacked]}>
+                        <View ref={qrRef} collapsable={false} style={styles.qrBox}>
+                            <QRCode value={formatQRData(studentData)} size={132} ecl="H" />
+                        </View>
+                        <View style={[styles.details, stackQrCard && styles.detailsStacked]}>
+                            <Text style={styles.detailLabel}>STUDENT ID</Text>
+                            <Text style={styles.detailId}>{studentData.student_id}</Text>
+                            <Text style={styles.detailLabel}>NAME</Text>
+                            <Text style={styles.detailValue}>{displayName}</Text>
+                            <Text style={styles.detailLabel}>PROGRAM</Text>
+                            <Text style={styles.detailValue}>{programText}</Text>
+                        </View>
+                    </View>
+
+                    <Text style={[styles.small, styles.saveNote]}>Save it to your phone or print it. You can also find it anytime in your Settings.</Text>
+
+                    <View style={styles.buttonPair}>
+                        <TouchableOpacity style={[styles.goldButton, styles.pairItem]} onPress={downloadQR}>
+                            <Download size={16} color={C.text} />
+                            <Text style={styles.goldButtonText}>Download QR code</Text>
+                        </TouchableOpacity>
+                        <Link href="/login" asChild>
+                            <TouchableOpacity style={[A.primaryButton, styles.pairItem]}>
+                                <Text style={A.primaryButtonText}>Continue to log in</Text>
+                                <ChevronRight size={16} color="#ffffff" />
+                            </TouchableOpacity>
+                        </Link>
+                    </View>
+                </View>
+            )}
+        </AuthScreen>
     );
 }
 
 const styles = StyleSheet.create({
-    container: {
+    stepLabel: { fontSize: 11, fontWeight: '900', letterSpacing: 1.6, color: C.goldText },
+    stepLogin: { fontSize: 12, color: C.textSoft, flexShrink: 1 },
+    submitRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginTop: 6 },
+    progress: { flexDirection: 'row', gap: 6, marginTop: 8 },
+    progressPart: { flex: 1, height: 6, borderRadius: 3 },
+    heading: { marginTop: 12 },
+    intro: { marginBottom: 14 },
+    field: { marginBottom: 12 },
+    row: { flexDirection: 'row', gap: 10 },
+    half: { flex: 1, minWidth: 0 },
+    select: { justifyContent: 'center' },
+    // The dropdown's text style also covers its placeholder, so the faint one is picked when nothing is chosen
+    selectText: { color: C.text, fontSize: 14, fontWeight: '600' },
+    selectPlaceholder: { color: C.placeholder, fontSize: 14, fontWeight: '600' },
+    panel: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 10,
+        backgroundColor: C.panel,
+        borderWidth: 1,
+        borderColor: C.fieldBorder,
+        borderRadius: 6,
+        paddingHorizontal: 12,
+        paddingVertical: 10,
+    },
+    panelText: { flex: 1, fontSize: 13, color: '#1e293b' },
+    bold: { fontWeight: '700', color: C.text },
+    codeRow: { flexDirection: 'row', gap: 6, marginTop: 12 },
+    codeBox: {
         flex: 1,
-        backgroundColor: Colors.background,
-    },
-    scrollContent: {
-        padding: 16,
-        flexGrow: 1,
-        justifyContent: 'center',
-    },
-    header: {
-        alignItems: 'center',
-        marginBottom: 16,
-        marginTop: 12,
-    },
-    logoContainer: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        marginBottom: 8,
-    },
-    logoBox: {
-        position: 'relative',
-        marginRight: 8,
-    },
-    logoAccent: {
-        position: 'absolute',
-        top: -4,
-        left: -4,
-        width: 16,
-        height: 12,
-        backgroundColor: Colors.accent,
-        borderTopRightRadius: 4,
-        borderTopLeftRadius: 2,
-    },
-    logoOsa: {
-        fontSize: 28,
-        fontWeight: 'bold',
-        color: Colors.text,
-        zIndex: 10,
-    },
-    logoConnect: {
-        fontSize: 28,
-        fontWeight: 'bold',
-        color: Colors.primary,
-    },
-    title: {
+        aspectRatio: 1,
+        maxHeight: 54,
+        borderRadius: 6,
+        borderWidth: 1,
+        borderColor: C.fieldBorder,
+        backgroundColor: C.field,
+        textAlign: 'center',
         fontSize: 20,
-        fontWeight: 'bold',
-        color: Colors.text,
-        textTransform: 'uppercase',
-        letterSpacing: -0.5,
+        fontWeight: '700',
+        color: C.text,
+        padding: 0,
     },
-    subtitle: {
-        fontSize: 10,
-        fontWeight: 'bold',
-        color: Colors.primary,
-        textTransform: 'uppercase',
-        letterSpacing: 2,
-        opacity: 0.6,
-        marginTop: 4,
-    },
-    card: {
-        backgroundColor: Colors.card,
-        borderRadius: 16,
-        padding: 18,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.05,
-        shadowRadius: 10,
-        elevation: 2,
+    codeBoxFocused: { borderColor: C.gold, borderWidth: 2, backgroundColor: '#ffffff' },
+    expiryRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', marginTop: 10 },
+    small: { fontSize: 12, color: C.textSoft },
+    expired: { fontWeight: '700', color: C.danger },
+    buttonPair: { flexDirection: 'row', gap: 10, marginTop: 18 },
+    pairItem: { flex: 1, paddingHorizontal: 8 },
+    outlineButton: {
+        height: 42,
+        borderRadius: 6,
         borderWidth: 1,
-        borderColor: Colors.border,
-    },
-    stepContainer: {
-        width: '100%',
-    },
-    stepHeader: {
-        borderBottomWidth: 1,
-        borderBottomColor: Colors.background,
-        paddingBottom: 10,
-        marginBottom: 14,
-    },
-    stepTitle: {
-        fontSize: 18,
-        fontWeight: 'bold',
-        color: Colors.text,
-    },
-    stepSubtitle: {
-        fontSize: 10,
-        fontWeight: 'bold',
-        color: Colors.textMuted,
-        textTransform: 'uppercase',
-        letterSpacing: 1,
-        marginTop: 4,
-    },
-    row: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-    },
-    formGroup: {
-        marginBottom: 12,
-    },
-    label: {
-        fontSize: 10,
-        fontWeight: 'bold',
-        color: Colors.textMuted,
-        textTransform: 'uppercase',
-        letterSpacing: 1,
-        marginBottom: 6,
-        marginLeft: 4,
-    },
-    input: {
-        backgroundColor: Colors.background,
-        borderWidth: 1,
-        borderColor: Colors.border,
-        borderRadius: 8,
-        padding: 12,
-        color: Colors.text,
-        fontWeight: '600',
-        fontSize: 14,
-    },
-    // Dropdown fields reuse the input box look; fixed height keeps them the same size as text fields
-    selectInput: {
-        minHeight: 46,
-    },
-    inputError: {
-        borderColor: Colors.danger,
-    },
-    errorText: {
-        color: Colors.danger,
-        fontSize: 11,
-        fontWeight: 'bold',
-        marginTop: 6,
-        marginLeft: 4,
-    },
-    sectionTitle: {
-        fontSize: 11,
-        fontWeight: '900',
-        textTransform: 'uppercase',
-        letterSpacing: 1.5,
-        color: Colors.primary,
-        borderBottomWidth: 1,
-        borderBottomColor: Colors.border,
-        paddingBottom: 6,
-        marginTop: 4,
-        marginBottom: 10,
-    },
-    divider: {
-        height: 1,
-        backgroundColor: Colors.border,
-        marginVertical: 16,
-        opacity: 0.5,
-    },
-    primaryButton: {
-        backgroundColor: Colors.secondary,
-        height: 48,
-        borderRadius: 8,
-        flexDirection: 'row',
-        justifyContent: 'center',
-        alignItems: 'center',
-        marginTop: 8,
-    },
-    disabledButton: {
-        opacity: 0.7,
-    },
-    primaryButtonText: {
-        color: '#ffffff',
-        fontWeight: 'bold',
-        fontSize: 12,
-        textTransform: 'uppercase',
-        letterSpacing: 2,
-        marginRight: 8,
-    },
-    secondaryButton: {
-        backgroundColor: Colors.background,
-        height: 48,
-        borderRadius: 8,
-        flexDirection: 'row',
-        justifyContent: 'center',
-        alignItems: 'center',
-        marginTop: 8,
-        borderWidth: 1,
-        borderColor: Colors.border,
-    },
-    secondaryButtonText: {
-        color: Colors.textMuted,
-        fontWeight: 'bold',
-        fontSize: 10,
-        textTransform: 'uppercase',
-        letterSpacing: 1,
-    },
-    footerLink: {
-        flexDirection: 'row',
-        justifyContent: 'center',
-        marginTop: 24,
-        paddingTop: 16,
-        borderTopWidth: 1,
-        borderTopColor: '#f1f5f9',
-    },
-    footerText: {
-        color: Colors.textMuted,
-        fontSize: 10,
-        fontWeight: 'bold',
-        textTransform: 'uppercase',
-        letterSpacing: 1,
-    },
-    linkText: {
-        color: Colors.secondary,
-        fontSize: 10,
-        fontWeight: 'bold',
-        textTransform: 'uppercase',
-        letterSpacing: 1,
-        textDecorationLine: 'underline',
-    },
-    iconCircle: {
-        width: 64,
-        height: 64,
-        backgroundColor: '#eff6ff',
-        borderRadius: 16,
+        borderColor: C.fieldBorder,
+        backgroundColor: 'rgba(255,255,255,0.5)',
         alignItems: 'center',
         justifyContent: 'center',
-        alignSelf: 'center',
-        marginBottom: 14,
-        borderWidth: 1,
-        borderColor: '#dbeafe',
     },
-    emailSentText: {
-        textAlign: 'center',
-        color: Colors.textMuted,
-        fontSize: 14,
-        marginTop: 12,
-        marginBottom: 16,
-    },
-    otpContainer: {
-        maxWidth: 240,
-        alignSelf: 'center',
-        width: '100%',
-        marginBottom: 16,
-    },
-    otpInput: {
-        backgroundColor: Colors.background,
-        borderWidth: 1,
-        borderColor: Colors.border,
-        borderRadius: 8,
-        padding: 16,
-        color: Colors.text,
-        fontWeight: 'bold',
-        fontSize: 24,
-        letterSpacing: 8,
-        textAlign: 'center',
-    },
-    resendContainer: {
-        alignItems: 'center',
-        marginTop: 16,
-    },
-    resendText: {
-        color: Colors.textMuted,
-        fontSize: 10,
-        fontWeight: 'bold',
-        textTransform: 'uppercase',
-        letterSpacing: 1,
-    },
-    backButton: {
-        alignItems: 'center',
-        marginTop: 24,
-        paddingTop: 16,
-        borderTopWidth: 1,
-        borderTopColor: '#f1f5f9',
-    },
-    backButtonText: {
-        color: Colors.textMuted,
-        fontSize: 10,
-        fontWeight: 'bold',
-        textTransform: 'uppercase',
-        letterSpacing: 1,
-    },
-    successDesc: {
-        textAlign: 'center',
-        color: Colors.textMuted,
-        fontSize: 14,
-        fontWeight: '600',
-        marginTop: 8,
-        marginBottom: 32,
-        paddingHorizontal: 16,
-    },
-    qrContainer: {
-        backgroundColor: '#fff',
-        padding: 24,
-        borderRadius: 16,
-        alignSelf: 'center',
-        borderWidth: 1,
-        borderColor: Colors.border,
-        marginBottom: 32,
-    },
-    successActions: {
+    outlineButtonText: { fontSize: 14, fontWeight: '700', color: C.text },
+    center: { textAlign: 'center' },
+    created: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 8 },
+    createdText: { fontSize: 14, fontWeight: '700', color: C.success },
+    qrPanel: { marginTop: 12, padding: 14, gap: 16, alignItems: 'center' },
+    qrPanelStacked: { flexDirection: 'column' },
+    qrBox: { backgroundColor: '#ffffff', padding: 10, borderRadius: 6 },
+    details: { flex: 1, minWidth: 0 },
+    detailsStacked: { flex: 0, width: '100%' },
+    detailLabel: { fontSize: 10, fontWeight: '900', letterSpacing: 1.5, color: C.textMuted, marginTop: 6 },
+    detailId: { fontSize: 20, fontWeight: '800', color: C.text, fontVariant: ['tabular-nums'] },
+    detailValue: { fontSize: 14, fontWeight: '700', color: C.text },
+    saveNote: { marginTop: 10 },
+    goldButton: {
+        height: 42,
+        borderRadius: 6,
+        backgroundColor: C.goldButton,
         flexDirection: 'row',
+        alignItems: 'center',
         justifyContent: 'center',
-    }
+        gap: 6,
+    },
+    goldButtonText: { fontSize: 14, fontWeight: '700', color: C.text },
 });
