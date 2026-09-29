@@ -234,12 +234,9 @@ const StudentRegistration = () => {
                 />
 
                 <div className={`w-full rounded-md p-4 sm:p-7 ${cardClass}`}>
-                    {/* Step indicator: which of the 3 steps, a progress bar, and the way back to login */}
-                    <div className="flex items-center justify-between gap-3 text-[11px] sm:text-xs">
+                    {/* Step indicator: which of the 3 steps and a progress bar */}
+                    <div className="text-[11px] sm:text-xs">
                         <span className="font-black uppercase tracking-[0.15em] text-amber-600 dark:text-amber-400">Step {step} of {STEP_COUNT}</span>
-                        <span className="text-slate-700 dark:text-slate-300">
-                            Already registered? <Link to="/student" className="font-bold text-slate-900 dark:text-white underline underline-offset-2">Log in</Link>
-                        </span>
                     </div>
                     <div className="mt-2 grid grid-cols-3 gap-1.5" aria-hidden="true">
                         {[1, 2, 3].map((n) => (
@@ -314,7 +311,10 @@ const StudentRegistration = () => {
                                 </Field>
                             </div>
 
-                            <div className="flex justify-end pt-2">
+                            <div className="flex items-center justify-between gap-3 pt-2">
+                                <span className="text-xs sm:text-sm text-slate-700 dark:text-slate-300">
+                                    Already registered? <Link to="/student" className="font-bold text-slate-900 dark:text-white underline underline-offset-2">Log in</Link>
+                                </span>
                                 <button type="submit" disabled={saving} className={primaryButton}>
                                     {saving ? <Loader2 className="animate-spin" size={18} /> : <>Send verification code <ChevronRight size={16} /></>}
                                 </button>

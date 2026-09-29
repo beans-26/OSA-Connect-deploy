@@ -17,7 +17,7 @@
     "android": {
       "package": "com.osaconnect.student",
       "adaptiveIcon": {
-        "backgroundColor": "#1e3a8a",
+        "backgroundColor": "#1b2a6b",
         "foregroundImage": "./assets/images/android-icon-foreground.png"
       },
       "predictiveBackGestureEnabled": false,
@@ -60,10 +60,10 @@
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#1e3a8a",
+          "backgroundColor": "#1b2a6b",
           "android": {
             "image": "./assets/images/splash-icon.png",
-            "imageWidth": 76
+            "imageWidth": 140
           }
         }
       ],
@@ -71,7 +71,19 @@
       "expo-image",
       "expo-status-bar",
       "expo-web-browser",
-      "expo-notifications"
+      "expo-notifications",
+      [
+        "expo-media-library",
+        {
+          "savePhotosPermission": "Allow OSAConnect to save your QR code to your photos.",
+          "photosPermission": "Allow OSAConnect to save your QR code to your photos.",
+          "isAccessMediaLocationEnabled": false,
+          "granularPermissions": [
+            "photo"
+          ]
+        }
+      ],
+      "expo-sharing"
     ],
     "experiments": {
       "typedRoutes": true,

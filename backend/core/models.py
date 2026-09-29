@@ -68,6 +68,7 @@ class ETicket(Document):
     radius = FloatField(default=100.0) # Allowed Radius in Meters
     site_code = StringField() # Service site of the current session, when started from a site QR
     assigned_site_code = StringField() # Site the admin assigned; the timer only starts with this site's QR
+    iso_form_printed_at = DateTimeField() # The student downloaded the blank FM-USTP-OSA-013 form (once per ticket)
     created_at = DateTimeField(default=utc_now)
     meta = {'collection': 'etickets', 'auto_create_index': False}
 
