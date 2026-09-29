@@ -56,7 +56,7 @@ const fmtDate = (iso, withTime = false) => (iso
  * time-out receipts, newest first (null while loading). Lines are [label, value, tone?] with tone
  * 'red' (the violation), 'good' or 'bad'.
  */
-export const ticketReceipt = (ticket, sessions) => {
+export const ticketReceipt = (ticket, sessions, { forAdmin = false } = {}) => {
     const v = ticket.violation_details || {};
     const required = ticket.total_hours_required || 0;
     const remaining = ticket.base_remaining_hours ?? ticket.remaining_hours ?? 0;
@@ -80,7 +80,7 @@ export const ticketReceipt = (ticket, sessions) => {
     }
 
     const header = ticket.status === 'Cleared'
-        ? { tone: 'done', title: 'Violation cleared', subtitle: 'OSA approved your ISO form and reflection paper.' }
+        ? { tone: 'done', title: 'Violation cleared', subtitle: `OSA approved ${forAdmin ? 'the' : 'your'} ISO form and reflection paper.` }
         : ticket.status === 'Completed'
             ? { tone: 'clearance', title: 'Hours completed · For clearance', subtitle: 'Bring your signed ISO form and reflection paper to the OSA office.' }
             : { tone: 'active', title: ticketStatusLabel(ticket), subtitle: `${fmtHours(remaining)} left to serve` };

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import Sidebar from '../../components/Sidebar';
 import { Archive, User, CheckCircle, Clock, Search, ChevronDown, XCircle, Download, Printer } from 'lucide-react';
 import ThemeToggle from '../../components/ThemeToggle';
+import ArchivedCase from '../../components/ArchivedCase';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
@@ -14,6 +15,8 @@ const Archives = () => {
     const [filterType, setFilterType] = useState('All');
     // 'loading' until the first response, so an empty list isn't shown as "No Archived Records" too early
     const [loadState, setLoadState] = useState('loading'); // loading | ready | error
+    // The case opened by clicking it (its id, so the 30 s refresh shows the latest data)
+    const [openCaseId, setOpenCaseId] = useState(null);
 
     useEffect(() => {
         fetchData();
@@ -295,7 +298,15 @@ const Archives = () => {
                             const totalServedSeconds = ticketLogs.reduce((sum, l) => sum + (l.duration_seconds || 0), 0);
 
                             return (
-                                <div key={violation.id} className={`bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-xl p-3 md:p-4 shadow-sm hover:shadow-md hover:border-slate-200 dark:border-slate-600 transition-all group ${isDismissed ? 'opacity-75' : ''}`}>
+                                <div
+                                    key={violation.id}
+                                    role="button"
+                                    tabIndex={0}
+                                    title="View the receipt and the submitted evidence"
+                                    onClick={() => setOpenCaseId(violation.id)}
+                                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setOpenCaseId(violation.id); } }}
+                                    className={`cursor-pointer bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-xl p-3 md:p-4 shadow-sm hover:shadow-md hover:border-slate-200 dark:hover:border-slate-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-ustp-blue transition-all group ${isDismissed ? 'opacity-75' : ''}`}
+                                >
                                     <div className="flex items-center gap-4">
                                         <div className={`w-10 h-10 rounded-lg flex items-center justify-center border ${isDismissed ? 'bg-red-50 border-red-100' : 'bg-emerald-50 border-emerald-100'} group-hover:${isDismissed ? 'bg-red-100' : 'bg-emerald-100'} transition-colors`}>
                                             {isDismissed ? <XCircle className="text-red-500" size={20} /> : <CheckCircle className="text-emerald-500" size={20} />}
@@ -315,7 +326,7 @@ const Archives = () => {
                                                     </span>
                                                 )}
                                                 {!violation.photos_removed_at && [['iso_form', 'ISO form'], ['reflection', 'Reflection paper']].map(([kind, label]) => violation[`${kind}_uploaded_at`] && (
-                                                    <button key={kind} onClick={() => openClearanceFile(violation, kind, label)} className="text-[9px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full whitespace-nowrap bg-blue-50 text-ustp-blue hover:bg-blue-100 dark:bg-blue-500/10 dark:text-blue-300">
+                                                    <button key={kind} onClick={(e) => { e.stopPropagation(); openClearanceFile(violation, kind, label); }} className="text-[9px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full whitespace-nowrap bg-blue-50 text-ustp-blue hover:bg-blue-100 dark:bg-blue-500/10 dark:text-blue-300">
                                                         {label}
                                                     </button>
                                                 ))}
@@ -353,6 +364,13 @@ const Archives = () => {
                         })}
                     </div>
                 )}
+
+                {(() => {
+                    const openCase = openCaseId && violations.find((v) => v.id === openCaseId);
+                    if (!openCase) return null;
+                    const openTicket = tickets.find(t => t.violation_details?.id === openCase.id || t.violation === openCase.id);
+                    return <ArchivedCase violation={openCase} ticket={openTicket} onClose={() => setOpenCaseId(null)} />;
+                })()}
 
                 <div className="hidden print:block" style={{ padding: '2mm', width: '100%', maxWidth: '100%', margin: '0 auto', boxSizing: 'border-box' }}>
                     <div className="flex items-center gap-3 mb-2">
