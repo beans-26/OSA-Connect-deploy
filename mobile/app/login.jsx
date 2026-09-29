@@ -1,20 +1,10 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
 import { Link } from 'expo-router';
 import { User, Lock, Eye, EyeOff, ChevronRight } from 'lucide-react-native';
 import { useAuth } from '../components/AuthContext';
-import { useTheme } from '../components/ThemeContext';
+import AuthScreen, { authColors as C, authStyles as A } from '../components/AuthScreen';
 import api from '../services/api';
-
-const CSSLogo = ({ styles }) => (
-    <View style={styles.logoContainer}>
-        <View style={styles.logoBox}>
-            <View style={styles.logoAccent} />
-            <Text style={styles.logoOsa}>OSA</Text>
-        </View>
-        <Text style={styles.logoConnect}>Connect</Text>
-    </View>
-);
 
 export default function Login() {
     const [username, setUsername] = useState('');
@@ -22,12 +12,8 @@ export default function Login() {
     const [showPassword, setShowPassword] = useState(false);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
+    const [focused, setFocused] = useState('');
     const { login } = useAuth();
-    // Follows the app's light/dark setting like the other screens
-    const { isDarkMode, colors } = useTheme();
-    const styles = getStyles(colors, isDarkMode);
-    // Faint, see-through hint text, same as the website's login
-    const faintPlaceholder = isDarkMode ? 'rgba(148,163,184,0.3)' : 'rgba(148,163,184,0.4)';
 
     const handleLogin = async () => {
         // Enter can fire this while a request is still running
@@ -39,10 +25,10 @@ export default function Login() {
 
         setLoading(true);
         setError('');
-        
+
         try {
             const response = await api.post('/login/', { username, password });
-            
+
             if (response.data.role === 'admin') {
                 setError('Admin login is not supported on mobile');
                 setLoading(false);
@@ -59,7 +45,7 @@ export default function Login() {
                 // Staff/guard display name, used as the reporter on violation reports
                 full_name: response.data.full_name
             };
-            
+
             await login(userData);
         } catch (error) {
             const errData = error.response?.data?.error;
@@ -76,272 +62,138 @@ export default function Login() {
     };
 
     return (
-        <KeyboardAvoidingView 
-            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-            style={styles.container}
-        >
-            {/* Scrolls on short screens / with the keyboard open; centered 448px column on wide screens */}
-            <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
-            <View style={styles.content}>
-                <View style={styles.header}>
-                    <CSSLogo styles={styles} />
-                    <Text style={styles.title}>Login to Portal</Text>
-                    <Text style={styles.subtitle}>Smart student violation management</Text>
+        <AuthScreen maxWidth={384}>
+            <Text style={[A.title, styles.title]}>Login</Text>
+
+            {error ? (
+                <View style={styles.errorBox}>
+                    <Text style={styles.errorText}>{error}</Text>
                 </View>
+            ) : null}
 
-                <View style={styles.card}>
-                    {error ? (
-                        <View style={styles.errorBox}>
-                            <Text style={styles.errorText}>{error}</Text>
-                        </View>
-                    ) : null}
-
-                    <View style={styles.inputGroup}>
-                        <Text style={styles.label}>Student ID</Text>
-                        <View style={styles.inputContainer}>
-                            <User size={18} color={colors.textMuted} style={styles.inputIcon} />
-                            <TextInput
-                                style={styles.input}
-                                placeholder="Student ID"
-                                placeholderTextColor={faintPlaceholder}
-                                value={username}
-                                onChangeText={setUsername}
-                                autoCapitalize="none"
-                                returnKeyType="go"
-                                onSubmitEditing={handleLogin}
-                            />
-                        </View>
-                    </View>
-
-                    <View style={styles.inputGroup}>
-                        <Text style={styles.label}>Password</Text>
-                        <View style={styles.inputContainer}>
-                            <Lock size={18} color={colors.textMuted} style={styles.inputIcon} />
-                            <TextInput
-                                style={styles.input}
-                                placeholder="Password"
-                                placeholderTextColor={faintPlaceholder}
-                                value={password}
-                                onChangeText={setPassword}
-                                secureTextEntry={!showPassword}
-                                returnKeyType="go"
-                                onSubmitEditing={handleLogin}
-                            />
-                            <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.eyeIcon}>
-                                {showPassword ? (
-                                    <EyeOff size={18} color={colors.textMuted} />
-                                ) : (
-                                    <Eye size={18} color={colors.textMuted} />
-                                )}
-                            </TouchableOpacity>
-                        </View>
-                    </View>
-
-                    <View style={styles.forgotPasswordContainer}>
-                        <Link href="/forgot-password" asChild>
-                            <TouchableOpacity>
-                                <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
-                            </TouchableOpacity>
-                        </Link>
-                    </View>
-
-                    <TouchableOpacity 
-                        style={[styles.loginButton, loading && styles.loginButtonDisabled]} 
-                        onPress={handleLogin}
-                        disabled={loading}
-                    >
-                        {loading ? (
-                            <ActivityIndicator color="#ffffff" />
-                        ) : (
-                            <>
-                                <Text style={styles.loginButtonText}>Login</Text>
-                                <ChevronRight size={16} color="#ffffff" />
-                            </>
-                        )}
-                    </TouchableOpacity>
-                </View>
-
-                <View style={styles.footer}>
-                    <Text style={styles.footerText}>New to the system? </Text>
-                    <Link href="/register" asChild>
-                        <TouchableOpacity>
-                            <Text style={styles.registerLink}>Register profile</Text>
-                        </TouchableOpacity>
-                    </Link>
-                </View>
+            <View style={[styles.field, focused === 'id' && A.inputFocused]}>
+                <User size={16} color={C.textMuted} style={styles.icon} />
+                <TextInput
+                    style={styles.input}
+                    placeholder="Student ID"
+                    placeholderTextColor={C.placeholder}
+                    accessibilityLabel="Student ID"
+                    value={username}
+                    onChangeText={setUsername}
+                    autoCapitalize="none"
+                    autoComplete="username"
+                    returnKeyType="go"
+                    onSubmitEditing={handleLogin}
+                    onFocus={() => setFocused('id')}
+                    onBlur={() => setFocused('')}
+                />
             </View>
-            </ScrollView>
-        </KeyboardAvoidingView>
+
+            <View style={[styles.field, focused === 'password' && A.inputFocused]}>
+                <Lock size={16} color={C.textMuted} style={styles.icon} />
+                <TextInput
+                    style={styles.input}
+                    placeholder="Password"
+                    placeholderTextColor={C.placeholder}
+                    accessibilityLabel="Password"
+                    value={password}
+                    onChangeText={setPassword}
+                    secureTextEntry={!showPassword}
+                    autoComplete="current-password"
+                    returnKeyType="go"
+                    onSubmitEditing={handleLogin}
+                    onFocus={() => setFocused('password')}
+                    onBlur={() => setFocused('')}
+                />
+                <TouchableOpacity
+                    onPress={() => setShowPassword(!showPassword)}
+                    style={styles.eye}
+                    accessibilityLabel={showPassword ? 'Hide password' : 'Show password'}
+                >
+                    {showPassword ? <EyeOff size={16} color={C.textMuted} /> : <Eye size={16} color={C.textMuted} />}
+                </TouchableOpacity>
+            </View>
+
+            {/* Forgot password on the left, Login on the right (same as the website) */}
+            <View style={styles.actions}>
+                <Link href="/forgot-password" asChild>
+                    <TouchableOpacity>
+                        <Text style={styles.forgot}>Forgot password?</Text>
+                    </TouchableOpacity>
+                </Link>
+                <TouchableOpacity style={[A.primaryButton, loading && A.disabled]} onPress={handleLogin} disabled={loading}>
+                    {loading ? <ActivityIndicator color="#ffffff" /> : (
+                        <>
+                            <Text style={A.primaryButtonText}>Login</Text>
+                            <ChevronRight size={16} color="#ffffff" />
+                        </>
+                    )}
+                </TouchableOpacity>
+            </View>
+
+            {/* Dashed line: Android only draws dashes reliably on a full border, so it's a thin box */}
+            <View style={styles.dashed} />
+            <View>
+                <Text style={styles.newTitle}>New student?</Text>
+                <Text style={styles.newText}>
+                    If you don&apos;t have an account yet,{' '}
+                    <Link href="/register" style={styles.registerLink}>register here</Link>
+                    {' '}to get your QR ID and follow your service hours.
+                </Text>
+            </View>
+        </AuthScreen>
     );
 }
 
-const getStyles = (Colors, isDarkMode) => StyleSheet.create({
-    container: {
-        flex: 1,
-        backgroundColor: Colors.background,
-    },
-    scrollContent: {
-        flexGrow: 1,
-        justifyContent: 'center',
-    },
-    content: {
-        width: '100%',
-        maxWidth: 448,
-        alignSelf: 'center',
-        padding: 24,
-    },
-    header: {
-        alignItems: 'center',
-        marginBottom: 32,
-    },
-    logoContainer: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        marginBottom: 16,
-    },
-    logoBox: {
-        position: 'relative',
-        marginRight: 8,
-    },
-    logoAccent: {
-        position: 'absolute',
-        top: -4,
-        left: -4,
-        width: 16,
-        height: 12,
-        backgroundColor: Colors.accent,
-        borderTopRightRadius: 4,
-        borderTopLeftRadius: 2,
-    },
-    logoOsa: {
-        fontSize: 28,
-        fontWeight: 'bold',
-        color: Colors.text,
-        zIndex: 10,
-    },
-    logoConnect: {
-        fontSize: 28,
-        fontWeight: 'bold',
-        color: Colors.primary,
-    },
-    title: {
-        fontSize: 24,
-        fontWeight: 'bold',
-        color: Colors.text,
-        marginBottom: 4,
-    },
-    subtitle: {
-        fontSize: 14,
-        color: Colors.textMuted,
-        fontWeight: '500',
-    },
-    card: {
-        backgroundColor: Colors.card,
-        borderRadius: 16,
-        padding: 24,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.05,
-        shadowRadius: 10,
-        elevation: 2,
-        borderWidth: 1,
-        borderColor: Colors.border,
-    },
+const styles = StyleSheet.create({
+    title: { marginBottom: 14, fontSize: 19 },
     errorBox: {
-        backgroundColor: isDarkMode ? 'rgba(248, 113, 113, 0.12)' : '#fef2f2',
-        borderColor: isDarkMode ? 'rgba(248, 113, 113, 0.3)' : '#fee2e2',
+        backgroundColor: '#fef2f2',
+        borderColor: '#fee2e2',
         borderWidth: 1,
-        padding: 12,
-        borderRadius: 8,
-        marginBottom: 20,
+        borderRadius: 6,
+        padding: 10,
+        marginBottom: 12,
     },
-    errorText: {
-        color: Colors.danger,
-        fontWeight: 'bold',
-        fontSize: 10,
-        textAlign: 'center',
-        textTransform: 'uppercase',
-        letterSpacing: 1,
-    },
-    inputGroup: {
-        marginBottom: 16,
-    },
-    label: {
-        fontSize: 10,
-        fontWeight: 'bold',
-        color: Colors.textMuted,
-        textTransform: 'uppercase',
-        letterSpacing: 1,
-        marginBottom: 6,
-        marginLeft: 4,
-    },
-    inputContainer: {
+    errorText: { color: C.danger, fontWeight: '700', fontSize: 12 },
+    field: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: Colors.background,
+        backgroundColor: C.field,
         borderWidth: 1,
-        borderColor: Colors.border,
-        borderRadius: 8,
-        height: 48,
+        borderColor: C.fieldBorder,
+        borderRadius: 6,
+        height: 42,
+        marginBottom: 10,
     },
-    inputIcon: {
-        marginHorizontal: 12,
-    },
+    icon: { marginLeft: 12, marginRight: 8 },
     input: {
         flex: 1,
         // Without minWidth the web <input> keeps its default size and pushes the eye icon out
         minWidth: 0,
         height: '100%',
-        color: Colors.text,
+        color: C.text,
         fontWeight: '600',
         fontSize: 14,
     },
-    eyeIcon: {
-        padding: 12,
-    },
-    forgotPasswordContainer: {
-        alignItems: 'flex-end',
-        marginBottom: 24,
-    },
-    forgotPasswordText: {
-        color: Colors.primary,
-        fontSize: 10,
-        fontWeight: 'bold',
-        textTransform: 'uppercase',
-        letterSpacing: 1,
-    },
-    loginButton: {
-        backgroundColor: Colors.secondary,
-        height: 48,
-        borderRadius: 8,
+    eye: { paddingHorizontal: 12, height: '100%', justifyContent: 'center' },
+    actions: {
         flexDirection: 'row',
-        justifyContent: 'center',
         alignItems: 'center',
+        justifyContent: 'space-between',
+        marginTop: 6,
     },
-    loginButtonDisabled: {
-        opacity: 0.7,
+    forgot: { fontSize: 12, fontWeight: '700', color: C.link },
+    dashed: {
+        height: 1,
+        marginTop: 18,
+        marginBottom: 14,
+        borderWidth: 1,
+        borderRadius: 1,
+        borderStyle: 'dashed',
+        borderColor: 'rgba(100,116,139,0.6)',
     },
-    loginButtonText: {
-        color: '#ffffff',
-        fontWeight: 'bold',
-        fontSize: 12,
-        textTransform: 'uppercase',
-        letterSpacing: 2,
-        marginRight: 8,
-    },
-    footer: {
-        flexDirection: 'row',
-        justifyContent: 'center',
-        marginTop: 32,
-    },
-    footerText: {
-        color: Colors.textMuted,
-        fontSize: 12,
-        fontWeight: '600',
-    },
-    registerLink: {
-        color: Colors.primary,
-        fontSize: 12,
-        fontWeight: 'bold',
-    },
+    newTitle: { fontSize: 14, fontWeight: '700', color: C.text },
+    newText: { fontSize: 12, color: '#1e293b', lineHeight: 18, marginTop: 4 },
+    registerLink: { fontWeight: '700', color: C.link, textDecorationLine: 'underline' },
 });

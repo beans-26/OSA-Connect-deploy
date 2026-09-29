@@ -4,7 +4,11 @@ import {
 } from 'react-native';
 import { showAlert } from '../../components/showAlert';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { QrCode, Play, AlertTriangle, X, Clock, FileText, User, CircleQuestionMark, Navigation, ChevronRight } from 'lucide-react-native';
+import { QrCode, Play, AlertTriangle, X, Clock, FileText, User, CircleQuestionMark, Navigation, ChevronRight, Download } from 'lucide-react-native';
+import * as Print from 'expo-print';
+import * as Sharing from 'expo-sharing';
+import { File, Paths } from 'expo-file-system';
+import { isoFormHtml } from '../../../shared/iso-form';
 import { useCameraPermissions } from 'expo-camera';
 import * as Location from 'expo-location';
 import { useAuth } from '../../components/AuthContext';
@@ -185,6 +189,38 @@ export default function Dashboard() {
     };
 
     const openTicket = tickets.find(t => t.status === 'Ongoing') || tickets.find(t => t.status === 'Active');
+
+    // Blank FM-USTP-OSA-013 time log (PDF) for the office head to fill in by hand. Downloaded once per
+    // open ticket (the server keeps track); tapping again only shows ISO_ONCE. Same as the website.
+    const ISO_ONCE = 'The ISO form can only be downloaded once. Go to the OSA office to request another one.';
+    const [isoBusy, setIsoBusy] = useState(false);
+    const downloadIsoForm = async () => {
+        if (!openTicket || isoBusy) return;
+        if (openTicket.iso_form_printed_at) {
+            showAlert('ISO form', ISO_ONCE);
+            return;
+        }
+        setIsoBusy(true);
+        try {
+            // A4 landscape in points; made before the server counts the download
+            const { uri } = await Print.printToFileAsync({ html: isoFormHtml(), width: 842, height: 595 });
+            const pdf = new File(Paths.cache, 'FM-USTP-OSA-013.pdf');
+            if (pdf.exists) pdf.delete();
+            await new File(uri).move(pdf);
+            try {
+                await api.post(`/etickets/${openTicket.id}/print_iso_form/`);
+            } catch (e) {
+                showAlert('ISO form', e.response?.data?.error || "Can't reach the server. Check your connection.");
+                return;
+            }
+            await Sharing.shareAsync(pdf.uri, { mimeType: 'application/pdf', UTI: 'com.adobe.pdf', dialogTitle: 'Save ISO form' });
+        } catch {
+            showAlert('Download failed', "Couldn't make the ISO form. Try again.");
+        } finally {
+            setIsoBusy(false);
+            fetchData();
+        }
+    };
 
     // Records something that happened during the session for the time-out receipt
     const logSessionEvent = (type) => {
@@ -746,7 +782,16 @@ export default function Dashboard() {
 
                 {/* E-Tickets */}
                 <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>E-Tickets</Text>
+                    <View style={styles.sectionHeader}>
+                        <Text style={styles.sectionTitle}>E-Tickets</Text>
+                        {/* Only with an active violation */}
+                        {openTicket && (
+                            <TouchableOpacity style={styles.printButton} onPress={downloadIsoForm} disabled={isoBusy} accessibilityRole="button">
+                                {isoBusy ? <ActivityIndicator size="small" color={colors.text} /> : <Download size={15} color={colors.text} />}
+                                <Text style={styles.printButtonText}>Download ISO form</Text>
+                            </TouchableOpacity>
+                        )}
+                    </View>
                     <Text style={styles.sectionSubtitle}>Tap a ticket to see its service log</Text>
 
                     {loading ? (
@@ -1194,6 +1239,28 @@ const getStyles = (colors) => StyleSheet.create({
     },
     section: {
         marginBottom: 24,
+    },
+    sectionHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        gap: 12,
+    },
+    printButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+        borderWidth: 1,
+        borderColor: colors.border,
+        backgroundColor: colors.card,
+        borderRadius: 12,
+        paddingHorizontal: 12,
+        paddingVertical: 8,
+    },
+    printButtonText: {
+        fontSize: 12,
+        fontWeight: '700',
+        color: colors.text,
     },
     sectionTitle: {
         fontSize: 18,
