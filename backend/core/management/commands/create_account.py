@@ -68,6 +68,10 @@ class Command(BaseCommand):
             user.role = opts['role']
         if opts['name']:
             user.full_name = opts['name']
+        elif creating:
+            # Without --name, name the account after its role; the model's default ("OSA Administrator") made
+            # guards' reports show up as the administrator's
+            user.full_name = {'admin': 'OSA Administrator', 'staff': 'Faculty & Staff', 'guard': 'Security Guard'}[user.role]
         user.password = hash_password(password)
         user.is_active = True
         user.save()

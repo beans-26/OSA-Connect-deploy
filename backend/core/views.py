@@ -3,18 +3,18 @@ from rest_framework.response import Response
 from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework import status
 from rest_framework.permissions import AllowAny
-from .models import Student, ViolationReport, ETicket, TimeLog, SystemUser, ServiceSite, utc_now
+from .models import Student, ViolationReport, ETicket, TimeLog, SystemUser, ServiceSite, ClearanceProof, utc_now
 from .serializers import StudentSerializer, ViolationReportSerializer, ETicketSerializer, TimeLogSerializer
 from .passwords import hash_password, verify_password, check_and_upgrade
 from .emails import send_code_email, send_violation_notice
+from .deadlines import apply_missed_day_hours
 from .auth import issue_token, forget_account, IsAdmin, IsReporter, IsStudent, IsLoggedIn, owns_ticket, role_of
 from mongoengine.errors import ValidationError as MongoValidationError, NotUniqueError
 from bson.errors import InvalidId
 import datetime
 import re
-from django.core.mail import send_mail
+from django.core import signing
 from django.conf import settings
-import os
 
 
 
@@ -64,6 +64,15 @@ def login_view(request):
 
     # Default rejection
     return Response({"error": "Invalid credentials"}, status=status.HTTP_401_UNAUTHORIZED)
+
+GENDERS = ('Male', 'Female')
+
+
+def _gender(value):
+    """'Male' or 'Female' from any capitalization, else None (gender is optional for older clients)."""
+    value = str(value or '').strip().capitalize()
+    return value if value in GENDERS else None
+
 
 def student_id_error(sid):
     """Error for a Student ID that can't be a USTP ID (numbers only, 6-12 digits), else None."""
@@ -190,7 +199,6 @@ class StudentViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=['post'])
     def request_otp(self, request):
         import random
-        from django.core.mail import send_mail
         from django.conf import settings
         from .models import OTPVerification
         
@@ -227,7 +235,6 @@ class StudentViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=['post'])
     def register_with_otp(self, request):
         from .models import OTPVerification
-        import datetime
         data = request.data
         # Lowercased to match how the code was saved when it was requested
         email = data.get('email', '').strip().lower()
@@ -283,6 +290,7 @@ class StudentViewSet(viewsets.ModelViewSet):
         student.course = data.get('course', '')
         student.department = data.get('department', '')
         student.year_level = data.get('year_level', '')
+        student.gender = _gender(data.get('gender')) or student.gender
         student.email = email
         student.contact_number = str(data.get('contact_number', '')).strip()
         student.password = hash_password(data.get('password', ''))
@@ -293,7 +301,6 @@ class StudentViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=['post'])
     def request_password_reset(self, request):
         import random
-        from django.core.mail import send_mail
         from django.conf import settings
         from .models import OTPVerification
         
@@ -319,7 +326,6 @@ class StudentViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=['post'])
     def reset_password(self, request):
         from .models import OTPVerification
-        import datetime
         data = request.data
         # Lowercased to match how the code was saved when it was requested
         email = data.get('email', '').strip().lower()
@@ -464,7 +470,6 @@ class StudentViewSet(viewsets.ModelViewSet):
     def create(self, request, *args, **kwargs):
         data = request.data
         sid = data.get('student_id', '').strip()
-        name = data.get('name', '').strip()
 
         if sid and Student.objects.filter(student_id=sid).first():
             return Response({"error": f"Student ID '{sid}' is already in use."}, status=status.HTTP_400_BAD_REQUEST)
@@ -494,7 +499,9 @@ class StudentViewSet(viewsets.ModelViewSet):
             student.year_level = data.get('year_level', student.year_level)
             student.email = data.get('email', student.email)
             student.contact_number = data.get('contact_number', student.contact_number)
-            
+            if 'gender' in data:
+                student.gender = _gender(data.get('gender'))
+
             student.save()
             serializer = self.get_serializer(student)
             return Response(serializer.data)
@@ -502,60 +509,48 @@ class StudentViewSet(viewsets.ModelViewSet):
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
 PUNISHMENT_SYSTEM = {
-    "No ID": {
+    # The violations guards and faculty & staff report (their report forms list exactly these)
+    "Curfew Violation": {
         1: {"punishment": "3 hours community service", "hours": 3},
         2: {"punishment": "5 hours community service", "hours": 5},
         3: {"punishment": "10 hours community service", "hours": 10},
     },
-    "Improper wearing of ID": {
+    "No ID / Improper ID Sling": {
         1: {"punishment": "3 hours community service", "hours": 3},
         2: {"punishment": "5 hours community service", "hours": 5},
         3: {"punishment": "10 hours community service", "hours": 10},
     },
-    "Dress code violation": {
+    "No School Uniform": {
         1: {"punishment": "3 hours community service", "hours": 3},
         2: {"punishment": "5 hours community service", "hours": 5},
         3: {"punishment": "10 hours community service", "hours": 10},
     },
-    "Littering": {
-        1: {"punishment": "2 hours campus cleaning", "hours": 2},
-        2: {"punishment": "4 hours community service", "hours": 4},
-    },
-    "Disrespect to staff": {
-        1: {"punishment": "8 hours community service", "hours": 8},
-        2: {"punishment": "1 to 2 days community service", "hours": 16},
-    },
-    "Public disturbance": {
-        1: {"punishment": "6 hours community service", "hours": 6},
-    },
-    "Unauthorized use of facilities": {
-        1: {"punishment": "1 day community service + payment for damages if needed", "hours": 8},
-    },
-    "Cheating": {
-        1: {"punishment": "2 to 3 days community service + academic sanction from instructor", "hours": 20},
-    },
-    "Forgery of signature": {
-        1: {"punishment": "2 to 5 days community service + possible disciplinary hearing", "hours": 32},
-    },
-    "Vandalism": {
-        1: {"punishment": "3 to 5 days community service + payment for damages", "hours": 32},
-    },
-    "Smoking inside campus": {
-        1: {"punishment": "1 day community service + seminar on campus rules", "hours": 8},
-    },
-    "Serious misconduct": {
-        1: {"punishment": "Disciplinary hearing + possible suspension", "hours": 0},
+    "Dress Code Violation": {
+        1: {"punishment": "3 hours community service", "hours": 3},
+        2: {"punishment": "5 hours community service", "hours": 5},
+        3: {"punishment": "10 hours community service", "hours": 10},
     },
 }
 
 # Applied to violation types that aren't in PUNISHMENT_SYSTEM
 DEFAULT_PUNISHMENT = {"punishment": "To be determined", "hours": 4}
 
+# Keeps every violation record small: a guard's note is a few sentences, never pages of text
+MAX_DESCRIPTION_CHARS = 1000
+
+
+def _short(value, limit):
+    """Text from a request, trimmed and cut to at most limit characters."""
+    return str(value or '').strip()[:limit]
+
+
 def get_offense_count(student, violation_type):
     """Count how many times this student has committed this violation type"""
+    # Dismissed reports were found not to be violations, so they don't raise the offense number
     count = ViolationReport.objects.filter(
         student=student,
-        violation_type=violation_type
+        violation_type=violation_type,
+        status__ne="Dismissed"
     ).count()
     return count + 1  # +1 because this is the current offense
 
@@ -586,6 +581,20 @@ def send_violation_email(report):
         print(f"EMAIL ERROR: Failed to send to {student.email}. Error: {str(e)}")
         return False
 
+def _building_entry(name, request):
+    """One building_history item: which building, when (ISO time with its UTC offset), and which admin."""
+    return {'name': name, 'at': _aware_iso(utc_now()), 'by': request.user.name or request.user.username}
+
+
+def _history_with_first(violation, request):
+    """The violation's building history; violations approved before it was kept start with their current
+    building (time unknown), so a change doesn't lose where they were first."""
+    history = list(violation.building_history or [])
+    if not history and violation.assigned_building:
+        history = [{'name': violation.assigned_building, 'at': None, 'by': None}]
+    return history
+
+
 def _student_filter(request):
     """The Student named by ?student_id= (student dashboards ask only for their own records), False when
     the parameter isn't given (admin pages list everything), or None for an unknown student."""
@@ -606,7 +615,9 @@ class ViolationViewSet(viewsets.ModelViewSet):
             return [IsReporter()]
         if self.action == 'list':
             return [IsLoggedIn()]
-        return [IsAdmin()]  # approve, dismiss, reassign, bulk reports, analytics, edits
+        if self.action == 'summary':
+            return [IsReporter()]  # counts only, for the guards' analytics
+        return [IsAdmin()]  # approve, dismiss, reassign, clearance, bulk reports, analytics, edits
 
     def get_queryset(self):
         role = role_of(self.request)
@@ -696,6 +707,7 @@ class ViolationViewSet(viewsets.ModelViewSet):
                     reporting_guard=reporter,
                     status="Approved", 
                     assigned_building=assigned_building,
+                    building_history=[_building_entry(assigned_building, request)],
                     offense_count=offense_count,
                     punishment=punishment,
                     created_at=utc_now()
@@ -731,9 +743,6 @@ class ViolationViewSet(viewsets.ModelViewSet):
 
     def create(self, request, *args, **kwargs):
         data = request.data
-        print(f"--- DATABASE SYNC: PREPARING VIOLATION REPORT ---")
-        print(f"Payload: {data}")
-        
         student_id = data.get('student_id')
         if not student_id:
             # Fallback for old field name just in case
@@ -755,15 +764,20 @@ class ViolationViewSet(viewsets.ModelViewSet):
             # account and keeps this report (StudentViewSet.register_with_otp).
             student = Student(
                 student_id=student_id,
-                name=str(data.get('name') or 'Unregistered student').strip(),
-                course=data.get('course', 'Unknown'),
-                department=data.get('department', 'Unknown'),
-                contact_number=data.get('contact', ''),
-                email=str(data.get('email') or '').strip().lower(),
+                name=_short(data.get('name'), 100) or 'Unregistered student',
+                course=_short(data.get('course'), 100) or 'Unknown',
+                department=_short(data.get('department'), 100) or 'Unknown',
+                contact_number=_short(data.get('contact'), 20),
+                email=_short(data.get('email'), 254).lower(),
+                gender=_gender(data.get('gender')),
             ).save()
+        elif not student.gender and _gender(data.get('gender')):
+            # The guard saw the student: fills in the gender for records that don't have it yet
+            student.gender = _gender(data.get('gender'))
+            student.save()
             
         # 2. Calculate offense count and punishment
-        violation_type = data.get('violation_type', data.get('violation', 'Other'))
+        violation_type = _short(data.get('violation_type') or data.get('violation'), 150) or 'Other'
         offense_count = get_offense_count(student, violation_type)
         punishment_info = get_punishment(violation_type, offense_count)
         
@@ -777,7 +791,7 @@ class ViolationViewSet(viewsets.ModelViewSet):
             report = ViolationReport(
                 student=student,
                 violation_type=violation_type,
-                description=data.get('description', ''),
+                description=_short(data.get('description'), MAX_DESCRIPTION_CHARS),
                 # Who filed it comes from the login (only admins may name someone else)
                 reporting_guard=(data.get('reporting_guard') or 'OSA Administrator') if role_of(request) == 'admin'
                 else (request.user.name or request.user.username),
@@ -844,7 +858,8 @@ class ViolationViewSet(viewsets.ModelViewSet):
             # act at the same moment (approve + approve, or approve + dismiss), exactly one claim succeeds
             # and only an approval that won makes the e-ticket; the other admin is told it was reviewed.
             claimed = ViolationReport.objects(id=violation.id, status="Pending OSA Review").update_one(
-                set__status="Approved", set__assigned_building=assigned_building, set__punishment=punishment)
+                set__status="Approved", set__assigned_building=assigned_building, set__punishment=punishment,
+                push__building_history=_building_entry(assigned_building, request))
             if not claimed:
                 return Response({"error": "This violation was already reviewed by someone else."}, status=status.HTTP_409_CONFLICT)
             violation.reload()
@@ -897,6 +912,7 @@ class ViolationViewSet(viewsets.ModelViewSet):
             return full
 
         violation.assigned_building = site.name
+        violation.building_history = _history_with_first(violation, request) + [_building_entry(site.name, request)]
         violation.save()
         if ticket:
             ticket.assigned_location = site.name
@@ -918,6 +934,191 @@ class ViolationViewSet(viewsets.ModelViewSet):
             return Response({"message": "Violation Dismissed."}, status=status.HTTP_200_OK)
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+    @action(detail=False, methods=['get'])
+    def summary(self, request):
+        """Violation counts by department, violation type, gender, year level and course (no names), for
+        the guards' analytics. Dismissed reports aren't counted. ?period=day|month|quarter|year limits it to
+        the current one (Philippine time); anything else counts everything."""
+        from collections import Counter
+        reports = ViolationReport.objects(status__ne="Dismissed").only('student', 'violation_type', 'created_at')
+        start = _period_start(request.query_params.get('period'))
+        if start:
+            reports = reports.filter(created_at__gte=start)
+        reports = list(reports)
+        student_ids = {getattr(r._data.get('student'), 'id', r._data.get('student')) for r in reports if r._data.get('student') is not None}
+        students = {s.id: s for s in Student.objects(id__in=list(student_ids)).only('department', 'gender', 'year_level', 'course')}
+
+        def year_label(value):
+            value = str(value or '').strip()
+            return f"Year {value}" if value.isdigit() else value
+
+        counters = {key: Counter() for key in ('department', 'violation_type', 'gender', 'year_level', 'course')}
+        for r in reports:
+            ref = r._data.get('student')
+            st = students.get(getattr(ref, 'id', ref))
+            counters['violation_type'][r.violation_type or 'Other'] += 1
+            counters['department'][(st.department if st else None) or 'Not recorded'] += 1
+            counters['gender'][(st.gender if st else None) or 'Not recorded'] += 1
+            counters['year_level'][(year_label(st.year_level) if st else None) or 'Not recorded'] += 1
+            counters['course'][(st.course if st else None) or 'Not recorded'] += 1
+        return Response({
+            'total': len(reports),
+            **{key: [{'label': k, 'count': v} for k, v in c.most_common()] for key, c in counters.items()},
+        })
+
+    def _clearance_violation(self, kwargs):
+        try:
+            return ViolationReport.objects.get(id=kwargs.get('id') or kwargs.get('pk'))
+        except Exception:
+            return None
+
+    @action(detail=True, methods=['get', 'post'])
+    def clearance_proof(self, request, *args, **kwargs):
+        """The two clearance documents, ?kind=iso_form (the signed ISO form) or ?kind=reflection (the
+        reflection paper). GET: the photo. POST {kind, image}: upload or replace it (a JPEG data URL).
+        Only once the student has served all the hours."""
+        violation = self._clearance_violation(kwargs)
+        if not violation:
+            return Response({"error": "Violation not found."}, status=status.HTTP_404_NOT_FOUND)
+        kind = request.query_params.get('kind') or request.data.get('kind')
+        if kind not in CLEARANCE_FILES:
+            return Response({"error": "kind must be iso_form or reflection."}, status=status.HTTP_400_BAD_REQUEST)
+        name = CLEARANCE_FILES[kind]
+        if request.method == 'GET':
+            proof = ClearanceProof.objects(violation=violation, kind=kind).first()
+            if not proof:
+                return Response({"error": f"No {name} uploaded yet."}, status=status.HTTP_404_NOT_FOUND)
+            return Response({"kind": kind, "image": proof.image, "uploaded_at": _aware_iso(proof.uploaded_at), "uploaded_by": proof.uploaded_by})
+
+        return _save_clearance_file(violation, kind, request.data.get('image'), request.user.name or request.user.username)
+
+    @action(detail=True, methods=['post'])
+    def capture_link(self, request, *args, **kwargs):
+        """A link for the admin's phone (shown as a QR code): it opens a page that takes the photos of the
+        clearance documents with the phone camera, no login needed. Works only for this violation and
+        expires after CAPTURE_LINK_MAX_AGE_S."""
+        violation = self._clearance_violation(kwargs)
+        if not violation:
+            return Response({"error": "Violation not found."}, status=status.HTTP_404_NOT_FOUND)
+        error = _clearance_upload_error(violation)
+        if error:
+            return Response({"error": error}, status=status.HTTP_400_BAD_REQUEST)
+        token = signing.dumps({'v': str(violation.id), 'by': request.user.name or request.user.username}, salt=CAPTURE_SALT)
+        return Response({"token": token, "expires_in": CAPTURE_LINK_MAX_AGE_S})
+
+    @action(detail=True, methods=['post'])
+    def clear(self, request, *args, **kwargs):
+        """Approves the uploaded ISO form and reflection paper: the violation is cleared and moves to the archives."""
+        violation = self._clearance_violation(kwargs)
+        if not violation:
+            return Response({"error": "Violation not found."}, status=status.HTTP_404_NOT_FOUND)
+        if violation.status == "Cleared":
+            return Response({"error": "This violation is already cleared."}, status=status.HTTP_409_CONFLICT)
+        ticket = ETicket.objects(violation=violation).first()
+        if not ticket or ticket.status != "Completed":
+            return Response({"error": "The student hasn't finished the service hours yet."}, status=status.HTTP_400_BAD_REQUEST)
+        uploaded = set(ClearanceProof.objects(violation=violation).distinct('kind'))
+        missing = [name for kind, name in CLEARANCE_FILES.items() if kind not in uploaded]
+        if missing:
+            return Response({"error": f"Upload the {' and the '.join(missing)} first."}, status=status.HTTP_400_BAD_REQUEST)
+        now = utc_now()
+        violation.status = "Cleared"
+        violation.cleared_at = now
+        violation.cleared_by = request.user.name or request.user.username
+        violation.save()
+        ticket.status = "Cleared"
+        ticket.save()
+        return Response({"message": "Violation cleared and moved to the archives.", "cleared_at": _aware_iso(now)})
+
+
+# The documents a student brings to OSA to clear a violation (ClearanceProof.kind)
+CLEARANCE_FILES = {'iso_form': 'signed ISO form', 'reflection': 'reflection paper'}
+
+# Phone capture links (ViolationViewSet.capture_link): signed, one violation each, valid this long
+CAPTURE_SALT = 'clearance-capture'
+CAPTURE_LINK_MAX_AGE_S = 30 * 60
+
+# The browser shrinks each clearance photo to about 50-90 KB (frontend lib/photo.js); anything over
+# ~200 KB (as base64 text) didn't come through that and is refused, so a violation stays well under 0.5 MB
+MAX_CLEARANCE_PHOTO_CHARS = 270_000
+
+
+def _clearance_upload_error(violation):
+    """Why clearance photos can't be added to this violation now, else None."""
+    if violation.status == "Cleared":
+        return "This violation is already cleared."
+    ticket = ETicket.objects(violation=violation).first()
+    if not ticket or ticket.status != "Completed":
+        return "The student hasn't finished the service hours yet."
+    return None
+
+
+def _save_clearance_file(violation, kind, image, uploader):
+    """Saves (or replaces) one clearance photo, a JPEG/PNG data URL, and returns the Response."""
+    error = _clearance_upload_error(violation)
+    if error:
+        return Response({"error": error}, status=status.HTTP_400_BAD_REQUEST)
+    image = str(image or '')
+    if not re.match(r'^data:image/(jpeg|png|webp);base64,', image):
+        return Response({"error": f"Upload a photo of the {CLEARANCE_FILES[kind]} (JPG or PNG)."}, status=status.HTTP_400_BAD_REQUEST)
+    if len(image) > MAX_CLEARANCE_PHOTO_CHARS:
+        return Response({"error": "The photo is too large. Try again with a smaller photo."}, status=status.HTTP_400_BAD_REQUEST)
+    now = utc_now()
+    ClearanceProof.objects(violation=violation, kind=kind).update_one(
+        set__image=image, set__uploaded_at=now, set__uploaded_by=uploader, upsert=True)
+    setattr(violation, f'{kind}_uploaded_at', now)
+    violation.save()
+    return Response({"kind": kind, "uploaded_at": _aware_iso(now), "uploaded_by": uploader})
+
+
+@api_view(['GET', 'POST'])
+@permission_classes([AllowAny])
+def clearance_capture(request, token):
+    """The phone page opened from the capture QR code. GET: whose violation it is and what's uploaded.
+    POST {kind, image}: saves a photo. The signed token is the permission (see capture_link)."""
+    try:
+        data = signing.loads(token, salt=CAPTURE_SALT, max_age=CAPTURE_LINK_MAX_AGE_S)
+    except signing.SignatureExpired:
+        return Response({"error": "This QR code has expired. Show a new one on the computer and scan it again."}, status=status.HTTP_410_GONE)
+    except signing.BadSignature:
+        return Response({"error": "This link isn't valid. Scan the QR code on the computer again."}, status=status.HTTP_400_BAD_REQUEST)
+    violation = ViolationReport.objects(id=data.get('v')).first()
+    if not violation:
+        return Response({"error": "Violation not found."}, status=status.HTTP_404_NOT_FOUND)
+
+    if request.method == 'GET':
+        student = violation.student
+        return Response({
+            "student_name": student.name if student else None,
+            "student_id": student.student_id if student else None,
+            "violation_type": violation.violation_type,
+            "uploaded": {kind: bool(getattr(violation, f'{kind}_uploaded_at')) for kind in CLEARANCE_FILES},
+            "error": _clearance_upload_error(violation),
+        })
+
+    kind = request.data.get('kind')
+    if kind not in CLEARANCE_FILES:
+        return Response({"error": "kind must be iso_form or reflection."}, status=status.HTTP_400_BAD_REQUEST)
+    return _save_clearance_file(violation, kind, request.data.get('image'), f"{data.get('by') or 'Admin'} (phone)")
+
+
+def _period_start(period):
+    """Start of the current day, month, quarter or year in Philippine time, as naive UTC; None otherwise."""
+    ph = datetime.timezone(datetime.timedelta(hours=8))
+    now = datetime.datetime.now(ph)
+    if period == 'day':
+        start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    elif period == 'month':
+        start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    elif period == 'quarter':
+        start = now.replace(month=(now.month - 1) // 3 * 3 + 1, day=1, hour=0, minute=0, second=0, microsecond=0)
+    elif period == 'year':
+        start = now.replace(month=1, day=1, hour=0, minute=0, second=0, microsecond=0)
+    else:
+        return None
+    return start.astimezone(datetime.timezone.utc).replace(tzinfo=None)
+
 
 class ETicketViewSet(viewsets.ModelViewSet):
     queryset = ETicket.objects.all()
@@ -949,6 +1150,7 @@ class ETicketViewSet(viewsets.ModelViewSet):
 
     def list(self, request, *args, **kwargs):
         stop_silent_sessions()
+        apply_missed_day_hours()
         # Every ticket shows its student: load them all in one query rather than one per ticket
         tickets = list(self.get_queryset())
         violations = [t.violation for t in tickets if isinstance(t.violation, ViolationReport)]
@@ -964,22 +1166,8 @@ class ETicketViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=['post'])
     def print_iso_form(self, request, id=None):
-        """The student may download the blank ISO time log form once, while the ticket is open.
-        Another copy is requested at the OSA office."""
-        try:
-            eticket = ETicket.objects(id=id).first()
-        except (MongoValidationError, InvalidId):
-            eticket = None
-        if not eticket:
-            return Response({"error": "E-ticket not found."}, status=status.HTTP_404_NOT_FOUND)
-        if not owns_ticket(request, eticket):
-            return Response({"error": "This isn't your e-ticket."}, status=status.HTTP_403_FORBIDDEN)
-        if eticket.status not in ('Active', 'Ongoing'):
-            return Response({"error": "You have no active violation to download the ISO form for."}, status=status.HTTP_400_BAD_REQUEST)
-        # Only one request can set it, so two devices can't both download it
-        if not ETicket.objects(id=eticket.id, iso_form_printed_at=None).update_one(set__iso_form_printed_at=utc_now()):
-            return Response({"error": "The ISO form can only be downloaded once. Go to the OSA office to request another one."},
-                            status=status.HTTP_409_CONFLICT)
+        """Kept for app versions that asked before downloading the ISO form (it was once per ticket).
+        The forms can now be downloaded any number of times, so this always allows it."""
         return Response({"printed": True})
 
 
@@ -1164,39 +1352,7 @@ class TimeLogViewSet(viewsets.ModelViewSet):
             if action_type in ('custom', 'set_start'):
                 return Response({"error": "This action is no longer available."}, status=status.HTTP_400_BAD_REQUEST)
 
-            if action_type == 'custom':
-                hours = float(request.data.get('deduct_hours', 0))
-                eticket.remaining_hours = max(0, eticket.remaining_hours - hours)
-                if eticket.remaining_hours <= 0.01:
-                    eticket.remaining_hours = 0
-                    eticket.status = "Completed"
-                    eticket.violation.status = "Completed"
-                    eticket.violation.save()
-                eticket.save()
-                return Response({"message": f"Successfully deducted {hours} hours!"})
-
-            elif action_type == 'set_start':
-                hours = float(request.data.get('deduct_hours', 0))
-                
-                # Close any existing open time logs for this ticket
-                open_logs = TimeLog.objects.filter(eticket=eticket, time_out=None)
-                for old_log in open_logs:
-                    old_log.time_out = utc_now()
-                    old_log.duration_seconds = 0  # Don't count old partial sessions
-                    old_log.save()
-                
-                # Set remaining hours to EXACTLY the QR code value
-                eticket.remaining_hours = hours
-                eticket.status = "Ongoing"
-                eticket.save()
-                
-                # Create a fresh time log for this new session
-                log = TimeLog(eticket=eticket).save()
-                    
-                print(f"SET_START: Timer reset to {hours} hours for ticket {eticket.id}")
-                return Response({"message": f"Timer started for {hours} hours!", "hours": hours})
-
-            elif action_type == 'in':
+            if action_type == 'in':
                 # Update location if provided (Smart QR)
                 lat = request.data.get('lat')
                 lng = request.data.get('lng')

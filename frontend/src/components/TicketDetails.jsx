@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { X, ChevronDown, MapPin, LogIn } from 'lucide-react';
+import { X, ChevronDown, LogIn, CheckCircle2, Clock, FileText } from 'lucide-react';
+import { ticketReceipt } from '../lib/ticketStatus';
 import { SessionReceiptBody, receiptDate, formatDuration, FLAGGED_ENDS } from './SessionReceipt';
 
 // Opened by tapping an e-ticket on the student dashboard: the ticket, then its service log grouped by
@@ -40,8 +41,14 @@ const TicketDetails = ({ ticket, onClose }) => {
         else days.push({ date, sessions: [r] });
     });
 
-    const building = ticket.assigned_site?.name || ticket.assigned_location || '—';
-    const remaining = ticket.base_remaining_hours ?? ticket.remaining_hours ?? 0;
+    const summary = ticketReceipt(ticket, receipts);
+    const headerStyle = {
+        done: ['border-[#e2e8f0] bg-[#f1f5f9]', 'text-[#334155]', 'text-[#64748b]', CheckCircle2],
+        clearance: ['border-[#a7f3d0] bg-[#ecfdf5]', 'text-[#065f46]', 'text-[#047857]', FileText],
+        active: ['border-[var(--s-border)] bg-[var(--s-bg)]', 'text-[var(--s-text)]', 'text-[var(--s-muted)]', Clock],
+    }[summary.header.tone];
+    const HeaderIcon = headerStyle[3];
+    const toneClass = { red: 'text-[#dc2626]', good: 'text-[#059669]', bad: 'text-[#dc2626]' };
 
     return (
         <div className="fixed inset-0 z-[70] flex items-end justify-center bg-black/40 backdrop-blur-sm sm:items-center sm:p-4" role="dialog" aria-modal="true" aria-labelledby="ticket-title" onClick={onClose}>
@@ -56,18 +63,42 @@ const TicketDetails = ({ ticket, onClose }) => {
                     </button>
                 </div>
 
-                <div className="mb-5 grid grid-cols-2 gap-2">
-                    <div className="col-span-2 rounded-xl bg-[var(--s-bg)] p-3">
-                        <p className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-[1px] text-[var(--s-muted)]"><MapPin size={12} /> Assigned Building</p>
-                        <p className="mt-0.5 text-sm font-bold text-[var(--s-text)]">{building}</p>
+                {/* The ticket as a short receipt: violation, required action, buildings assigned */}
+                <div className="mb-5 overflow-hidden rounded-2xl border border-[var(--s-border)]">
+                    <div className={`flex items-center gap-3 border-b px-4 py-3 ${headerStyle[0]}`}>
+                        <HeaderIcon size={20} className={`shrink-0 ${headerStyle[1]}`} />
+                        <div className="min-w-0">
+                            <p className={`text-sm font-black ${headerStyle[1]}`}>{summary.header.title}</p>
+                            <p className={`text-[11px] font-semibold ${headerStyle[2]}`}>{summary.header.subtitle}</p>
+                        </div>
                     </div>
-                    <div className="rounded-xl bg-[var(--s-bg)] p-3">
-                        <p className="text-[10px] font-black uppercase tracking-[1px] text-[var(--s-muted)]">Required</p>
-                        <p className="mt-0.5 text-sm font-bold text-[var(--s-text)]">{ticket.total_hours_required || 0} hrs</p>
-                    </div>
-                    <div className="rounded-xl bg-[var(--s-bg)] p-3">
-                        <p className="text-[10px] font-black uppercase tracking-[1px] text-[var(--s-muted)]">Remaining</p>
-                        <p className="mt-0.5 text-sm font-bold text-[var(--s-text)]">{formatDuration(remaining * 3600)}</p>
+                    <div className="px-4">
+                        {summary.sections.map((section) => (
+                            <div key={section.title} className="border-t border-dashed border-[var(--s-border)] py-3 first:border-t-0">
+                                <p className="mb-1 text-[9px] font-black uppercase tracking-[2px] text-[var(--s-muted)]">{section.title}</p>
+                                {section.lines.map(([label, value, tone]) => (
+                                    <div key={label} className="flex items-baseline justify-between gap-4 py-1">
+                                        <span className="shrink-0 text-[11px] font-semibold text-[var(--s-muted)]">{label}</span>
+                                        <span className={`min-w-0 text-right text-[13px] font-bold ${toneClass[tone] || 'text-[var(--s-text)]'}`}>{value}</span>
+                                    </div>
+                                ))}
+                            </div>
+                        ))}
+                        {summary.buildings.length > 0 && (
+                            <div className="border-t border-dashed border-[var(--s-border)] py-3">
+                                <p className="mb-1 text-[9px] font-black uppercase tracking-[2px] text-[var(--s-muted)]">Building{summary.buildings.length === 1 ? '' : 's'} Assigned</p>
+                                <ol className="space-y-1 py-1">
+                                    {summary.buildings.map((b, i) => (
+                                        <li key={i} className="flex items-baseline justify-between gap-4">
+                                            <span className="min-w-0 text-[13px] font-bold text-[var(--s-text)]">
+                                                {summary.buildings.length > 1 && <span className="mr-1.5 text-[var(--s-muted)]">{i + 1}.</span>}{b.name}
+                                            </span>
+                                            {b.date && <span className="shrink-0 text-[11px] font-semibold text-[var(--s-muted)]">{b.date}</span>}
+                                        </li>
+                                    ))}
+                                </ol>
+                            </div>
+                        )}
                     </div>
                 </div>
 

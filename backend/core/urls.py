@@ -1,6 +1,6 @@
 from django.urls import path, include
 from rest_framework_mongoengine import routers
-from .views import StudentViewSet, ViolationViewSet, ETicketViewSet, TimeLogViewSet, SystemUserViewSet, login_view, health_check
+from .views import StudentViewSet, ViolationViewSet, ETicketViewSet, TimeLogViewSet, SystemUserViewSet, login_view, health_check, clearance_capture
 from . import site_views
 
 router = routers.DefaultRouter()
@@ -19,5 +19,6 @@ urlpatterns = [
     path('admin/sites/<str:site_id>/qr/', site_views.site_qr, name='admin-site-qr'),
     path('', include(router.urls)),
     path('login/', login_view, name='login'),
+    path('capture/<str:token>/', clearance_capture, name='clearance-capture'),
     path('health/', health_check, name='health'),
 ]

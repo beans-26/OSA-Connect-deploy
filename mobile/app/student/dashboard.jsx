@@ -1,14 +1,15 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
-  View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, StatusBar, Platform, Linking, AppState
+  View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, StatusBar, Platform, Linking, AppState, Modal, Image
 } from 'react-native';
 import { showAlert } from '../../components/showAlert';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { QrCode, Play, AlertTriangle, X, Clock, FileText, User, CircleQuestionMark, Navigation, ChevronRight, Download } from 'lucide-react-native';
+import { QrCode, Play, AlertTriangle, X, Clock, Navigation, ChevronRight, Download, CheckCircle2, CircleUserRound } from 'lucide-react-native';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import { Directory, File, Paths } from 'expo-file-system';
 import { isoFormHtml } from '../../../shared/iso-form';
+import { reflectionFormHtml } from '../../../shared/reflection-form';
 import { useCameraPermissions } from 'expo-camera';
 import * as Location from 'expo-location';
 import { useAuth } from '../../components/AuthContext';
@@ -24,6 +25,7 @@ import SessionReceipt from '../../components/SessionReceipt';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { canTrackInBackground, startTracking, stopTracking, isTrackingSession, sendLocationPing, notifyTimerStopped, LAST_RECEIPT_KEY } from '../../components/backgroundTracking';
 import TicketDetails from '../../components/TicketDetails';
+import { ticketStatusLabel, deadlineNotice } from '../../components/ticketStatus';
 
 // Out of the area (or location off) this long stops the session; same as the website
 const OUT_OF_BOUNDS_S = 30;
@@ -51,6 +53,8 @@ const formatTime = (date) => {
     return new Date(date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
 };
 
+const COMPLETED_SEEN_KEY = 'osa-completed-notice-seen';
+
 export default function Dashboard() {
     const { user } = useAuth();
     const router = useRouter();
@@ -75,6 +79,13 @@ export default function Dashboard() {
     const [receipt, setReceipt] = useState(null);
     // E-ticket opened from the list (its details and service log)
     const [openedTicket, setOpenedTicket] = useState(null);
+    // Tickets whose "hours completed, go to OSA" notice this phone already showed (the popup below)
+    const [seenCompleted, setSeenCompleted] = useState(null);
+    useEffect(() => {
+        AsyncStorage.getItem(COMPLETED_SEEN_KEY)
+            .then((v) => setSeenCompleted(JSON.parse(v || '[]')))
+            .catch(() => setSeenCompleted([]));
+    }, []);
     const lastFixRef = useRef({ lat: null, lng: null, distance: null });
     const problemRef = useRef(null);
     const autoStoppingRef = useRef(false);
@@ -189,56 +200,57 @@ export default function Dashboard() {
     };
 
     const openTicket = tickets.find(t => t.status === 'Ongoing') || tickets.find(t => t.status === 'Active');
+    const completedTicket = !receipt && seenCompleted
+        ? tickets.find((t) => t.status === 'Completed' && !seenCompleted.includes(t.id))
+        : null;
+    const dismissCompleted = () => {
+        if (!completedTicket) return;
+        const next = [...seenCompleted, completedTicket.id];
+        setSeenCompleted(next);
+        AsyncStorage.setItem(COMPLETED_SEEN_KEY, JSON.stringify(next)).catch(() => {});
+    };
 
-    // Blank FM-USTP-OSA-013 time log (PDF) for the office head to fill in by hand. Downloaded once per
-    // open ticket (the server keeps track); tapping again only shows ISO_ONCE. Same as the website.
-    const ISO_ONCE = 'The ISO form can only be downloaded once. Go to the OSA office to request another one.';
-    const ISO_FILE = 'FM-USTP-OSA-013.pdf';
+    // Hours served but not cleared yet: the student brings the signed ISO form and reflection paper to OSA
+    const clearanceTicket = tickets.find((t) => t.status === 'Completed');
+    // The blank forms (PDF), filled in by hand: FM-USTP-OSA-013 time log (A4 landscape) and FM-USTP-OSA-14
+    // reflection form (A4 portrait). Any number of downloads, while there's a violation to serve or clear.
+    // Same as the website.
+    const formsTicket = openTicket || clearanceTicket;
+    const FORMS = {
+        iso: { label: 'ISO Form', file: 'FM-USTP-OSA-013 ISO Form.pdf', html: isoFormHtml, width: 842, height: 595 },
+        reflection: { label: 'Reflection Form', file: 'FM-USTP-OSA-14 Reflection Form.pdf', html: reflectionFormHtml, width: 595, height: 842 },
+    };
     const DOWNLOAD_FOLDER = 'content://com.android.externalstorage.documents/tree/primary%3ADownload';
-    const [isoBusy, setIsoBusy] = useState(false);
-    const downloadIsoForm = async () => {
-        if (!openTicket || isoBusy) return;
-        if (openTicket.iso_form_printed_at) {
-            showAlert('ISO form', ISO_ONCE);
-            return;
-        }
-        setIsoBusy(true);
+    const [formBusy, setFormBusy] = useState(null);
+    const downloadForm = async (kind) => {
+        if (formBusy) return;
+        const form = FORMS[kind];
+        setFormBusy(kind);
         try {
-            // A4 landscape in points
-            const { uri } = await Print.printToFileAsync({ html: isoFormHtml(), width: 842, height: 595 });
-            const pdf = new File(Paths.cache, ISO_FILE);
+            // A4 in points
+            const { uri } = await Print.printToFileAsync({ html: form.html(), width: form.width, height: form.height });
+            const pdf = new File(Paths.cache, form.file);
             if (pdf.exists) pdf.delete();
             await new File(uri).move(pdf);
 
             // Android: saved in the phone's Download folder. Apps can only write there after the student
             // picks it, so the folder picker opens on Download. Elsewhere: the share sheet.
-            let saved = null;
             if (Platform.OS === 'android') {
                 let folder;
                 try {
                     folder = await Directory.pickDirectoryAsync(DOWNLOAD_FOLDER);
                 } catch {
-                    return; // Picker closed: nothing downloaded, nothing counted
+                    return; // Picker closed
                 }
-                saved = folder.createFile(ISO_FILE, 'application/pdf');
-                saved.write(await pdf.bytes());
+                folder.createFile(form.file, 'application/pdf').write(await pdf.bytes());
+                showAlert(`${form.label} downloaded`, `Saved as ${form.file} in the folder you picked (Download).`);
+            } else {
+                await Sharing.shareAsync(pdf.uri, { mimeType: 'application/pdf', UTI: 'com.adobe.pdf', dialogTitle: `Save ${form.label}` });
             }
-
-            // Counted only once the file is saved; taken back if the server says no
-            try {
-                await api.post(`/etickets/${openTicket.id}/print_iso_form/`);
-            } catch (e) {
-                try { saved?.delete(); } catch {}
-                showAlert('ISO form', e.response?.data?.error || "Can't reach the server. Check your connection.");
-                return;
-            }
-            if (saved) showAlert('ISO form downloaded', `Saved as ${ISO_FILE} in the folder you picked (Download).`);
-            else await Sharing.shareAsync(pdf.uri, { mimeType: 'application/pdf', UTI: 'com.adobe.pdf', dialogTitle: 'Save ISO form' });
         } catch {
-            showAlert('Download failed', "Couldn't make the ISO form. Try again.");
+            showAlert('Download failed', `Couldn't make the ${form.label.toLowerCase()}. Try again.`);
         } finally {
-            setIsoBusy(false);
-            fetchData();
+            setFormBusy(null);
         }
     };
 
@@ -576,6 +588,27 @@ export default function Dashboard() {
     return (
         <View style={{ flex: 1 }}>
         <SessionReceipt receipt={receipt} onClose={() => setReceipt(null)} />
+
+        {/* Hours served: the student still has to bring the signed ISO form to OSA to be cleared.
+            Shown after the time-out receipt, once per ticket. Same as the website. */}
+        <Modal visible={!!completedTicket} transparent animationType="fade" onRequestClose={dismissCompleted}>
+            <View style={styles.completedOverlay}>
+                <View style={styles.completedCard}>
+                    <View style={styles.completedIcon}>
+                        <CheckCircle2 size={30} color="#10b981" />
+                    </View>
+                    <Text style={styles.completedTitle}>Service hours completed!</Text>
+                    <Text style={styles.completedText}>
+                        You've finished the community service for{' '}
+                        <Text style={styles.completedBold}>{completedTicket?.violation_details?.violation_type || 'your violation'}</Text>.
+                        Please proceed to the <Text style={styles.completedBold}>OSA office</Text> with your signed ISO form and reflection paper to verify and properly clear your violation.
+                    </Text>
+                    <TouchableOpacity style={styles.completedButton} onPress={dismissCompleted} accessibilityRole="button">
+                        <Text style={styles.completedButtonText}>OK, I'll go to the OSA office</Text>
+                    </TouchableOpacity>
+                </View>
+            </View>
+        </Modal>
         <TicketDetails ticket={openedTicket} onClose={() => setOpenedTicket(null)} />
         <SafeAreaView style={styles.safeArea}>
             <StatusBar barStyle={isDarkMode ? "light-content" : "dark-content"} backgroundColor={colors.background} />
@@ -592,14 +625,42 @@ export default function Dashboard() {
                         <Text style={styles.subGreeting}>{studentStatusLine({ sessionActive: timerActive, openTicket: tickets.find(t => t.status === 'Ongoing') || tickets.find(t => t.status === 'Active') })}</Text>
                     </View>
                     <View style={styles.headerRight}>
-                        <TouchableOpacity style={styles.iconButton} onPress={() => router.push('/help')} accessibilityLabel="Help">
-                            <CircleQuestionMark size={22} color={colors.text} strokeWidth={2.5} />
-                        </TouchableOpacity>
-                        <TouchableOpacity style={styles.iconButton} onPress={() => router.push('/student/settings')}>
-                            <User size={22} color={colors.text} strokeWidth={2.5} />
+                        {/* Profile settings (Help & Support is in there). Same as the website. */}
+                        <TouchableOpacity style={styles.iconButton} onPress={() => router.push('/student/settings')} accessibilityLabel="Profile settings">
+                            <CircleUserRound size={24} color={colors.text} strokeWidth={2.2} />
                         </TouchableOpacity>
                     </View>
                 </View>
+
+                {/* Hours done, not cleared yet: what to bring to OSA (stays until OSA approves). Same as the website. */}
+                {clearanceTicket && (
+                    <View style={[styles.deadlineBox, styles.clearanceBox]}>
+                        <CheckCircle2 size={20} color="#059669" style={{ marginTop: 2 }} />
+                        <View style={{ flex: 1 }}>
+                            <Text style={[styles.deadlineTitle, { color: '#065f46' }]}>Go to the OSA office to be cleared</Text>
+                            <Text style={[styles.deadlineText, { color: '#047857' }]}>
+                                Your hours for {clearanceTicket.violation_details?.violation_type || 'your violation'} are complete. Bring your signed ISO form and your reflection paper to the OSA office. Your violation is cleared once OSA approves them.
+                            </Text>
+                        </View>
+                    </View>
+                )}
+
+                {/* 3-day deadline: when to finish, and hours added for missed days. Same as the website. */}
+                {(() => {
+                    const notice = deadlineNotice(openTicket);
+                    if (!notice) return null;
+                    return (
+                        <View style={[styles.deadlineBox, notice.overdue && styles.deadlineBoxOverdue]}>
+                            {notice.overdue
+                                ? <AlertTriangle size={20} color="#dc2626" style={{ marginTop: 2 }} />
+                                : <Clock size={20} color="#d97706" style={{ marginTop: 2 }} />}
+                            <View style={{ flex: 1 }}>
+                                <Text style={[styles.deadlineTitle, notice.overdue && { color: '#b91c1c' }]}>{notice.title}</Text>
+                                <Text style={[styles.deadlineText, notice.overdue && { color: '#991b1b' }]}>{notice.message}</Text>
+                            </View>
+                        </View>
+                    );
+                })()}
 
                 {/* Active Session Card */}
                 <View style={[styles.sessionCard, isOutOfBounds && styles.sessionCardWarning]}>
@@ -802,24 +863,27 @@ export default function Dashboard() {
 
                 {/* E-Tickets */}
                 <View style={styles.section}>
-                    <View style={styles.sectionHeader}>
-                        <Text style={styles.sectionTitle}>E-Tickets</Text>
-                        {/* Only with an active violation */}
-                        {openTicket && (
-                            <TouchableOpacity style={styles.printButton} onPress={downloadIsoForm} disabled={isoBusy} accessibilityRole="button">
-                                {isoBusy ? <ActivityIndicator size="small" color={colors.text} /> : <Download size={15} color={colors.text} />}
-                                <Text style={styles.printButtonText}>Download ISO form</Text>
-                            </TouchableOpacity>
-                        )}
-                    </View>
+                    <Text style={styles.sectionTitle}>E-Tickets</Text>
                     <Text style={styles.sectionSubtitle}>Tap a ticket to see its service log</Text>
+                    {/* The two forms to bring to OSA (only while there's a violation to serve or clear) */}
+                    {formsTicket && (
+                        <View style={styles.formsRow}>
+                            {Object.entries(FORMS).map(([kind, form]) => (
+                                <TouchableOpacity key={kind} style={styles.printButton} onPress={() => downloadForm(kind)} disabled={!!formBusy} accessibilityRole="button">
+                                    {formBusy === kind ? <ActivityIndicator size="small" color={colors.text} /> : <Download size={15} color={colors.text} />}
+                                    <Text style={styles.printButtonText}>{form.label}</Text>
+                                </TouchableOpacity>
+                            ))}
+                        </View>
+                    )}
 
                     {loading ? (
                         <ActivityIndicator color={colors.primary} style={{ marginTop: 16 }} />
                     ) : tickets.length === 0 ? (
                         <View style={styles.emptyLogs}>
-                            <FileText size={32} color={colors.border} />
-                            <Text style={styles.emptyLogsText}>No tickets found</Text>
+                            {/* 🫡 in black and white, same image as the website */}
+                            <Image source={require('../../assets/images/salute.png')} style={{ width: 44, height: 44 }} accessibilityIgnoresInvertColors />
+                            <Text style={styles.emptyLogsText}>No tickets, keep it up busseng!</Text>
                         </View>
                     ) : (
                         tickets.map((ticket, idx) => (
@@ -836,15 +900,17 @@ export default function Dashboard() {
                                 </View>
                                 <View style={[styles.logStatusBadge,
                                     ticket.status === 'Active' ? styles.logStatusActive :
-                                    ticket.status === 'Completed' ? styles.logStatusDone :
+                                    ticket.status === 'Completed' ? styles.logStatusAwaiting :
+                                    ticket.status === 'Cleared' ? styles.logStatusDone :
                                     styles.logStatusPending
                                 ]}>
                                     <Text style={[styles.logStatusText,
                                         ticket.status === 'Active' ? styles.logStatusTextActive :
-                                        ticket.status === 'Completed' ? styles.logStatusTextDone :
+                                        ticket.status === 'Completed' ? styles.logStatusTextAwaiting :
+                                        ticket.status === 'Cleared' ? styles.logStatusTextDone :
                                         styles.logStatusTextPending
                                     ]}>
-                                        {ticket.status || 'Pending'}
+                                        {ticketStatusLabel(ticket)}
                                     </Text>
                                 </View>
                                 <ChevronRight size={16} color={colors.textMuted} style={{ marginLeft: 8 }} />
@@ -1260,15 +1326,11 @@ const getStyles = (colors) => StyleSheet.create({
     section: {
         marginBottom: 24,
     },
-    sectionHeader: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        gap: 12,
-    },
     printButton: {
+        flex: 1,
         flexDirection: 'row',
         alignItems: 'center',
+        justifyContent: 'center',
         gap: 6,
         borderWidth: 1,
         borderColor: colors.border,
@@ -1364,6 +1426,22 @@ const getStyles = (colors) => StyleSheet.create({
     logStatusTextActive: { color: '#10b981' },
     logStatusTextDone: { color: '#64748b' },
     logStatusTextPending: { color: '#7c3aed' },
+    logStatusAwaiting: { backgroundColor: '#fef3c7' },
+    logStatusTextAwaiting: { color: '#b45309' },
+    deadlineBox: { flexDirection: 'row', gap: 12, borderWidth: 1, borderColor: '#fde68a', backgroundColor: '#fffbeb', borderRadius: 16, padding: 16, marginBottom: 16 },
+    clearanceBox: { borderColor: '#a7f3d0', backgroundColor: '#ecfdf5' },
+    formsRow: { flexDirection: 'row', gap: 8, marginBottom: 16 },
+    deadlineBoxOverdue: { borderColor: '#fca5a5', backgroundColor: '#fee2e2' },
+    deadlineTitle: { fontSize: 14, fontWeight: '900', color: '#92400e' },
+    deadlineText: { marginTop: 2, fontSize: 12, lineHeight: 18, fontWeight: '600', color: '#92400e' },
+    completedOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', alignItems: 'center', justifyContent: 'center', padding: 20 },
+    completedCard: { width: '100%', maxWidth: 380, backgroundColor: colors.card, borderRadius: 24, padding: 24, alignItems: 'center' },
+    completedIcon: { width: 56, height: 56, borderRadius: 28, backgroundColor: '#dcfce7', alignItems: 'center', justifyContent: 'center', marginBottom: 16 },
+    completedTitle: { fontSize: 18, fontWeight: '900', color: colors.text, textAlign: 'center' },
+    completedText: { marginTop: 8, fontSize: 14, lineHeight: 20, fontWeight: '500', color: colors.textMuted, textAlign: 'center' },
+    completedBold: { fontWeight: '700', color: colors.text },
+    completedButton: { marginTop: 20, alignSelf: 'stretch', backgroundColor: colors.primary, borderRadius: 14, padding: 14, alignItems: 'center' },
+    completedButtonText: { color: '#ffffff', fontSize: 14, fontWeight: '700' },
 });
 
 const darkMapStyle = [

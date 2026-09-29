@@ -3,9 +3,9 @@ import Sidebar from '../../components/Sidebar';
 import { Users, Search, ClipboardList, QrCode, CheckCircle, Edit2, Eye, UserX, UserPlus, AlertOctagon, Download, X } from 'lucide-react';
 import QRCode from 'react-qr-code';
 import { Shield, AlertCircle, CheckCircle2, Send, Clock, LocateFixed } from 'lucide-react';
-import GlobalSearch from '../../components/GlobalSearch';
+import ThemeToggle from '../../components/ThemeToggle';
 import { useServiceSites, ServiceSiteOptions, postAssignment } from '../../components/useServiceSites';
-import { DEPARTMENTS, DEPARTMENT_COURSES, yearLevelsFor } from '../../lib/academics';
+import { DEPARTMENTS, DEPARTMENT_COURSES, yearLevelsFor, GENDERS } from '../../lib/academics';
 
 // Course <option>s grouped under their department
 const CourseOptions = () => DEPARTMENTS.map((dept) => (
@@ -39,6 +39,7 @@ const AllStudents = () => {
         course: '',
         department: '',
         year_level: '',
+        gender: '',
         email: '',
         contact_number: ''
     });
@@ -98,6 +99,7 @@ const AllStudents = () => {
             course: student.course || '',
             department: student.department || '',
             year_level: student.year_level || '',
+            gender: student.gender || '',
             email: student.email || '',
             contact_number: student.contact_number || ''
         });
@@ -212,9 +214,15 @@ const AllStudents = () => {
     };
 
     const getDeptAbbreviation = (dept) => {
-        if (!dept) return 'N/A';
+        if (!dept) return '—';
         const match = dept.match(/\(([^)]+)\)/);
-        return match ? `(${match[1]})` : dept;
+        return match ? match[1] : dept;
+    };
+    // "4" -> "4th Year"; "Grade 11" stays
+    const yearLabel = (year) => {
+        const y = String(year || '').trim();
+        if (!/^\d+$/.test(y)) return y;
+        return `${y}${{ 1: 'st', 2: 'nd', 3: 'rd' }[y] || 'th'} Year`;
     };
 
 
@@ -257,27 +265,25 @@ const AllStudents = () => {
         <div className="flex bg-slate-50 dark:bg-slate-900 min-h-screen">
             <Sidebar role={userRole} />
             <div className="flex-1 h-screen overflow-y-auto custom-scrollbar w-full">
-                <div className="sticky top-0 z-40 bg-slate-50 dark:bg-slate-900 px-4 md:px-10 pt-[76px] lg:pt-10 pb-2 border-b border-transparent">
-                    <GlobalSearch />
-                </div>
-                <main className="page-enter flex-1 px-4 pb-8 md:p-10 md:pt-0 w-full max-w-full">
-                <header className="mb-6 flex justify-between items-center">
+                <main className="page-enter flex-1 px-4 pt-[76px] pb-8 md:p-10 lg:pt-10 w-full max-w-full">
+                <header className="mb-6 flex justify-between items-center gap-4">
                     <div>
                         <h1 className="text-2xl md:text-4xl font-extrabold text-slate-900 dark:text-white tracking-tight">All Students</h1>
                         <p className="text-slate-500 dark:text-slate-400 mt-2 font-medium">
                             {loading ? "Loading students..." : `Viewing ${filteredStudents.length} registered students`}
                         </p>
                     </div>
-                    <div className="flex gap-4">
+                    <div className="flex items-center gap-3 md:gap-4">
                         {selectedIds.length > 0 && (
                             <button
                                 onClick={() => setShowBulkModal(true)}
                                 className="flex items-center gap-2 bg-red-600 text-white px-6 py-3 rounded-2xl font-bold hover:bg-red-700 transition-all shadow-lg shadow-red-200 animate-in slide-in-from-right-4"
                             >
                                 <Shield size={20} />
-                                Bulk Report ({selectedIds.length})
+                                {selectedIds.length === 1 ? 'Report' : `Bulk Report (${selectedIds.length})`}
                             </button>
                         )}
+                        <ThemeToggle />
                     </div>
                 </header>
 
@@ -336,23 +342,22 @@ const AllStudents = () => {
                         <table className="w-full">
                             <thead>
                                 <tr className="text-left bg-slate-50 dark:bg-slate-900 border-b-2 border-slate-200 dark:border-slate-600">
-                                    <th className="py-3 px-4 w-12">
-                                        <button 
-                                            onClick={toggleSelectAll}
-                                            className={`text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg border-2 ${
-                                                selectedIds.length === filteredStudents.length && filteredStudents.length > 0
-                                                ? 'bg-red-500 border-red-500 text-white shadow-md'
-                                                : 'bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:border-red-500 hover:text-red-500'
-                                            }`}
-                                        >
-                                            {selectedIds.length === filteredStudents.length && filteredStudents.length > 0 ? 'Deselect' : 'Select All'}
-                                        </button>
+                                    {/* Select all: the same checkbox as each row, lined up above them */}
+                                    <th className="py-3 pl-4 pr-2 w-10">
+                                        <input
+                                            type="checkbox"
+                                            aria-label="Select all students"
+                                            title="Select all"
+                                            checked={selectedIds.length > 0 && selectedIds.length === filteredStudents.length}
+                                            ref={(el) => { if (el) el.indeterminate = selectedIds.length > 0 && selectedIds.length < filteredStudents.length; }}
+                                            onChange={toggleSelectAll}
+                                            className="w-4 h-4 align-middle rounded border-slate-300 text-red-500 focus:ring-red-500 cursor-pointer"
+                                        />
                                     </th>
-                                    <th className="py-3 px-3 pl-[64px] font-bold text-slate-500 dark:text-slate-400 font-medium text-sm">Student</th>
-                                    <th className="py-3 px-3 font-bold text-slate-500 dark:text-slate-400 font-medium text-sm">ID</th>
-                                    <th className="py-3 px-3 font-bold text-slate-500 dark:text-slate-400 font-medium text-sm">Course</th>
+                                    <th className="py-3 px-3 font-bold text-slate-500 dark:text-slate-400 font-medium text-sm">Student</th>
+                                    <th className="py-3 px-3 font-bold text-slate-500 dark:text-slate-400 font-medium text-sm">Gender</th>
+                                    <th className="py-3 px-3 font-bold text-slate-500 dark:text-slate-400 font-medium text-sm">Course &amp; Year</th>
                                     <th className="py-3 px-3 font-bold text-slate-500 dark:text-slate-400 font-medium text-sm">Dept</th>
-                                    <th className="py-3 px-3 font-bold text-slate-500 dark:text-slate-400 font-medium text-sm">Year</th>
                                     <th className="py-3 px-3 font-bold text-slate-500 dark:text-slate-400 font-medium text-sm">Email</th>
                                     <th className="py-3 px-3 font-bold text-slate-500 dark:text-slate-400 font-medium text-sm">Contact</th>
                                     <th className="py-3 px-3 font-bold text-slate-500 dark:text-slate-400 font-medium text-sm text-center">Actions</th>
@@ -361,62 +366,50 @@ const AllStudents = () => {
                             <tbody>
                                 {filteredStudents.map((student) => (
                                     <tr key={student.id} className={`border-b border-slate-100 dark:border-slate-700/50 transition-colors ${selectedIds.includes(student.student_id) ? 'bg-red-50/50 dark:bg-red-900/10' : 'hover:bg-slate-50 dark:hover:bg-slate-800/50'}`}>
-                                        <td className="py-4 px-4">
+                                        <td className="py-4 pl-4 pr-2">
                                             <input
                                                 type="checkbox"
+                                                aria-label={`Select ${student.name}`}
                                                 checked={selectedIds.includes(student.student_id)}
                                                 onChange={() => toggleSelect(student.student_id)}
-                                                className="w-4 h-4 rounded border-slate-300 text-red-500 focus:ring-red-500"
+                                                className="w-4 h-4 align-middle rounded border-slate-300 text-red-500 focus:ring-red-500 cursor-pointer"
                                             />
                                         </td>
-                                        <td className="py-4 px-3 flex items-center gap-4">
-                                            <div className="w-10 h-10 rounded-full bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-400 flex items-center justify-center font-bold text-sm shadow-sm flex-shrink-0">
-                                                {student.name ? student.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() : '??'}
+                                        <td className="py-3 px-3">
+                                            <div className="flex items-center gap-3 min-w-[200px]">
+                                                <div className="w-10 h-10 rounded-full bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-400 flex items-center justify-center font-bold text-sm flex-shrink-0">
+                                                    {student.name ? student.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() : '??'}
+                                                </div>
+                                                <div className="min-w-0">
+                                                    <span className="font-bold text-slate-800 dark:text-slate-200 text-sm block">{student.name}</span>
+                                                    <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">{student.student_id}</span>
+                                                </div>
                                             </div>
-                                            <div>
-                                                <span className="font-bold text-slate-800 dark:text-slate-200 text-sm block">{student.name}</span>
-                                            </div>
                                         </td>
-                                        <td className="py-4 px-3">
-                                            <span className="text-sm text-slate-800 dark:text-slate-200 font-semibold">{student.student_id}</span>
+                                        <td className="py-3 px-3">
+                                            <span className="text-sm text-slate-800 dark:text-slate-200 font-medium">{student.gender || '—'}</span>
                                         </td>
-                                        <td className="py-4 px-3">
-                                            <span className="text-sm text-slate-800 dark:text-slate-200 truncate max-w-[150px] block font-medium">{student.course || 'N/A'}</span>
+                                        <td className="py-3 px-3">
+                                            <span className="text-sm text-slate-800 dark:text-slate-200 font-medium block min-w-[180px]">{student.course || '—'}</span>
+                                            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">{yearLabel(student.year_level) || '—'}</span>
                                         </td>
-                                        <td className="py-4 px-3">
-                                            <span className="text-sm text-slate-800 dark:text-slate-200 truncate max-w-[120px] block font-medium">{getDeptAbbreviation(student.department)}</span>
+                                        <td className="py-3 px-3">
+                                            <span className="text-sm text-slate-800 dark:text-slate-200 font-semibold" title={student.department || ''}>{getDeptAbbreviation(student.department)}</span>
                                         </td>
-                                        <td className="py-4 px-3">
-                                            <span className="text-sm text-slate-800 dark:text-slate-200 font-medium">{student.year_level || 'N/A'}</span>
+                                        <td className="py-3 px-3">
+                                            <span className="text-sm text-slate-500 dark:text-slate-400 font-medium">{student.email || '—'}</span>
                                         </td>
-                                        <td className="py-4 px-3">
-                                            <span className="text-sm text-slate-500 dark:text-slate-400 font-medium">{student.email || 'N/A'}</span>
-                                        </td>
-                                        <td className="py-4 px-3">
-                                            <span className="text-sm text-slate-800 dark:text-slate-200 font-medium">{student.contact_number || 'N/A'}</span>
+                                        <td className="py-3 px-3">
+                                            <span className="text-sm text-slate-800 dark:text-slate-200 font-medium whitespace-nowrap">{student.contact_number || '—'}</span>
                                         </td>
                                         <td className="py-4 px-4">
-                                            <div className="flex gap-4 justify-center items-center">
-                                                <button
-                                                    onClick={() => handleShowQR(student)}
-                                                    title="View Profile"
-                                                    className="text-slate-700 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors"
-                                                >
-                                                    <Eye size={18} />
-                                                </button>
+                                            <div className="flex justify-center items-center">
                                                 <button
                                                     onClick={() => handleEditClick(student)}
                                                     title="Edit Student"
-                                                    className="text-slate-700 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors"
+                                                    className="px-4 py-1.5 rounded-lg text-xs font-bold text-ustp-blue bg-blue-50 hover:bg-blue-100 dark:bg-blue-500/10 dark:text-blue-400 dark:hover:bg-blue-500/20 transition-colors"
                                                 >
-                                                    <Edit2 size={18} />
-                                                </button>
-                                                <button
-                                                    onClick={() => { setSelectedIds([student.student_id]); setShowBulkModal(true); }}
-                                                    title="Report Student"
-                                                    className="text-red-500 hover:text-red-600 transition-colors"
-                                                >
-                                                    <UserX size={18} />
+                                                    Edit
                                                 </button>
                                             </div>
                                         </td>
@@ -457,7 +450,8 @@ const AllStudents = () => {
                         <div className="mt-4">
                             <p className="font-bold text-lg">{selectedStudent.name}</p>
                             <p className="text-slate-500 dark:text-slate-400">{selectedStudent.student_id}</p>
-                            <p className="text-slate-400 dark:text-slate-500 text-sm">{selectedStudent.course} - {getDeptAbbreviation(selectedStudent.department)}</p>
+                            <p className="text-slate-400 dark:text-slate-500 text-sm">{[selectedStudent.course, yearLabel(selectedStudent.year_level), getDeptAbbreviation(selectedStudent.department)].filter(Boolean).join(' · ')}</p>
+                            {selectedStudent.gender && <p className="text-slate-400 dark:text-slate-500 text-sm">{selectedStudent.gender}</p>}
                         </div>
                         <button
                             onClick={() => downloadQR(selectedStudent)}
@@ -472,55 +466,84 @@ const AllStudents = () => {
 
             {/* Edit Student Modal */}
             {showEditModal && selectedStudent && (
-                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-                    <div className="bg-white dark:bg-slate-800 rounded-3xl p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
+                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                    <div className="bg-white dark:bg-slate-800 rounded-3xl p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto shadow-2xl">
                         <div className="flex justify-between items-center mb-6">
                             <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Edit Student</h2>
-                            <button onClick={() => setShowEditModal(false)} className="text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:text-slate-400">
-                                <X size={24} />
+                            <button onClick={() => setShowEditModal(false)} className="w-9 h-9 rounded-full bg-slate-100 dark:bg-slate-900 hover:bg-slate-200 dark:hover:bg-slate-700 flex items-center justify-center text-slate-500 transition-colors">
+                                <X size={18} />
                             </button>
                         </div>
                         <form onSubmit={handleUpdateStudent} className="space-y-4">
-                            <div>
-                                <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1">Student ID *</label>
-                                <input
-                                    type="text"
-                                    required
-                                    value={editStudent.student_id}
-                                    onChange={(e) => setEditStudent({ ...editStudent, student_id: e.target.value })}
-                                    className="w-full px-4 py-3 border-2 border-slate-100 dark:border-slate-700 rounded-2xl focus:border-ustp-blue focus:outline-none bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white"
-                                    placeholder="e.g., 2023303188"
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1">Full Name *</label>
-                                <input
-                                    type="text"
-                                    required
-                                    value={editStudent.name}
-                                    onChange={(e) => setEditStudent({ ...editStudent, name: e.target.value })}
-                                    className="w-full px-4 py-3 border-2 border-slate-100 dark:border-slate-700 rounded-2xl focus:border-ustp-blue focus:outline-none bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white"
-                                    placeholder="e.g., John Doe"
-                                />
-                            </div>
+                            {/* Row 1: Student ID & Full Name */}
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
-                                    <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1">Course</label>
+                                    <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1.5">Student ID *</label>
+                                    <input
+                                        type="text"
+                                        required
+                                        value={editStudent.student_id}
+                                        onChange={(e) => setEditStudent({ ...editStudent, student_id: e.target.value })}
+                                        className="w-full px-4 py-2.5 border-2 border-slate-100 dark:border-slate-700 rounded-xl focus:border-ustp-blue focus:outline-none bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white text-sm font-medium"
+                                        placeholder="e.g., 2023303188"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1.5">Full Name *</label>
+                                    <input
+                                        type="text"
+                                        required
+                                        value={editStudent.name}
+                                        onChange={(e) => setEditStudent({ ...editStudent, name: e.target.value })}
+                                        className="w-full px-4 py-2.5 border-2 border-slate-100 dark:border-slate-700 rounded-xl focus:border-ustp-blue focus:outline-none bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white text-sm font-medium"
+                                        placeholder="e.g., John Doe"
+                                    />
+                                </div>
+                            </div>
+                            {/* Row 2: Gender & Year Level */}
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1.5">Gender</label>
+                                    <select
+                                        value={editStudent.gender}
+                                        onChange={(e) => setEditStudent({ ...editStudent, gender: e.target.value })}
+                                        className="w-full px-4 py-2.5 border-2 border-slate-100 dark:border-slate-700 rounded-xl focus:border-ustp-blue focus:outline-none bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white text-sm font-medium"
+                                    >
+                                        <option value="">Not recorded</option>
+                                        {GENDERS.map((g) => <option key={g} value={g}>{g}</option>)}
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1.5">Year Level</label>
+                                    <select
+                                        value={editStudent.year_level}
+                                        onChange={(e) => setEditStudent({ ...editStudent, year_level: e.target.value })}
+                                        className="w-full px-4 py-2.5 border-2 border-slate-100 dark:border-slate-700 rounded-xl focus:border-ustp-blue focus:outline-none bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white text-sm font-medium"
+                                    >
+                                        <option value="">Select Year</option>
+                                        {editYearOptions.map((y) => <option key={y.value} value={y.value}>{y.label}</option>)}
+                                    </select>
+                                </div>
+                            </div>
+                            {/* Row 3: Course & Department */}
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1.5">Course</label>
                                     <select
                                         value={editStudent.course}
                                         onChange={(e) => setEditStudent({ ...editStudent, course: e.target.value })}
-                                        className="w-full px-4 py-3 border-2 border-slate-100 dark:border-slate-700 rounded-2xl focus:border-ustp-blue focus:outline-none bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white"
+                                        className="w-full px-4 py-2.5 border-2 border-slate-100 dark:border-slate-700 rounded-xl focus:border-ustp-blue focus:outline-none bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white text-sm font-medium"
                                     >
                                         <option value="">Select Course</option>
                                         <CourseOptions />
                                     </select>
                                 </div>
                                 <div>
-                                    <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1">Department</label>
+                                    <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1.5">Department</label>
                                     <select
                                         value={editStudent.department}
                                         onChange={(e) => setEditStudent({ ...editStudent, department: e.target.value })}
-                                        className="w-full px-4 py-3 border-2 border-slate-100 dark:border-slate-700 rounded-2xl focus:border-ustp-blue focus:outline-none bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white"
+                                        className="w-full px-4 py-2.5 border-2 border-slate-100 dark:border-slate-700 rounded-xl focus:border-ustp-blue focus:outline-none bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white text-sm font-medium"
                                     >
                                         <option value="">Select Department</option>
                                         {DEPARTMENTS.map(dept => (
@@ -529,108 +552,112 @@ const AllStudents = () => {
                                     </select>
                                 </div>
                             </div>
-                            <div>
-                                <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1">Year Level</label>
-                                <select
-                                    value={editStudent.year_level}
-                                    onChange={(e) => setEditStudent({ ...editStudent, year_level: e.target.value })}
-                                    className="w-full px-4 py-3 border-2 border-slate-100 dark:border-slate-700 rounded-2xl focus:border-ustp-blue focus:outline-none bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white"
+                            {/* Row 4: Email & Contact */}
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1.5">Email</label>
+                                    <input
+                                        type="email"
+                                        value={editStudent.email}
+                                        onChange={(e) => setEditStudent({ ...editStudent, email: e.target.value })}
+                                        className="w-full px-4 py-2.5 border-2 border-slate-100 dark:border-slate-700 rounded-xl focus:border-ustp-blue focus:outline-none bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white text-sm font-medium"
+                                        placeholder="e.g., john@example.com"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1.5">Contact Number</label>
+                                    <input
+                                        type="text"
+                                        value={editStudent.contact_number}
+                                        onChange={(e) => setEditStudent({ ...editStudent, contact_number: e.target.value })}
+                                        className="w-full px-4 py-2.5 border-2 border-slate-100 dark:border-slate-700 rounded-xl focus:border-ustp-blue focus:outline-none bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white text-sm font-medium"
+                                        placeholder="e.g., 09351234567"
+                                    />
+                                </div>
+                            </div>
+                            {/* Actions */}
+                            <div className="flex gap-3 pt-2">
+                                <button
+                                    type="button"
+                                    onClick={() => setShowEditModal(false)}
+                                    className="flex-1 py-3 rounded-xl font-bold text-sm text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors"
                                 >
-                                    <option value="">Select Year</option>
-                                    {editYearOptions.map((y) => <option key={y.value} value={y.value}>{y.label}</option>)}
-                                </select>
+                                    Cancel
+                                </button>
+                                <button
+                                    type="submit"
+                                    disabled={saving}
+                                    className="flex-1 bg-ustp-blue text-white py-3 rounded-xl font-bold text-sm hover:bg-blue-700 transition-colors disabled:opacity-50"
+                                >
+                                    {saving ? 'Saving...' : 'Save Changes'}
+                                </button>
                             </div>
-                            <div>
-                                <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1">Email</label>
-                                <input
-                                    type="email"
-                                    value={editStudent.email}
-                                    onChange={(e) => setEditStudent({ ...editStudent, email: e.target.value })}
-                                    className="w-full px-4 py-3 border-2 border-slate-100 dark:border-slate-700 rounded-2xl focus:border-ustp-blue focus:outline-none bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white"
-                                    placeholder="e.g., john@example.com"
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1">Contact Number</label>
-                                <input
-                                    type="text"
-                                    value={editStudent.contact_number}
-                                    onChange={(e) => setEditStudent({ ...editStudent, contact_number: e.target.value })}
-                                    className="w-full px-4 py-3 border-2 border-slate-100 dark:border-slate-700 rounded-2xl focus:border-ustp-blue focus:outline-none bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white"
-                                    placeholder="e.g., 09351234567"
-                                />
-                            </div>
-                            <button
-                                type="submit"
-                                disabled={saving}
-                                className="w-full bg-ustp-blue text-white py-3 rounded-2xl font-bold hover:bg-blue-700 transition-colors disabled:opacity-50"
-                            >
-                                {saving ? 'Saving...' : 'Save Changes'}
-                            </button>
                         </form>
                     </div>
                 </div>
             )}
-            {/* Bulk Violation Modal */}
-            {showBulkModal && (
-                <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-                    <div className="bg-white dark:bg-slate-800 rounded-[40px] p-8 w-full max-w-xl shadow-2xl animate-in zoom-in-95 overflow-y-auto max-h-[95vh]">
-                        <div className="flex justify-between items-center mb-8">
-                            <div className="flex items-center gap-4">
-                                <div className="w-16 h-16 bg-red-100 text-red-600 rounded-[24px] flex items-center justify-center shadow-inner">
-                                    <Shield size={32} />
+            {/* Bulk report: one violation, one building, several students */}
+            {showBulkModal && (() => {
+                const count = selectedIds.length;
+                const canSubmit = !saving && bulkForm.assigned_building && (count > 0 || bulkForm.manual_ids);
+                const label = 'text-xs font-bold text-slate-500 dark:text-slate-400 mb-1.5 block';
+                return (
+                <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                    <div className="bg-white dark:bg-slate-800 rounded-3xl p-6 w-full max-w-md shadow-2xl overflow-y-auto max-h-[92vh]">
+                        <div className="flex justify-between items-start gap-4 mb-5">
+                            <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 bg-red-50 dark:bg-red-500/10 text-red-600 dark:text-red-400 rounded-xl flex items-center justify-center shrink-0">
+                                    <Shield size={20} />
                                 </div>
                                 <div>
-                                    <h2 className="text-3xl font-black text-slate-900 dark:text-white uppercase italic">Bulk Reporting</h2>
-                                    <p className="text-xs text-slate-400 dark:text-slate-500 font-black uppercase tracking-[0.2em]">
-                                        {selectedIds.length > 0 ? `${selectedIds.length} Students Selected` : 'Manual Entry Mode'}
+                                    <h2 className="text-lg font-black text-slate-900 dark:text-white leading-tight">Report students</h2>
+                                    <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">
+                                        {count > 0 ? `${count} student${count === 1 ? '' : 's'} selected` : 'Enter the student IDs below'}
                                     </p>
                                 </div>
                             </div>
-                            <button onClick={() => { setShowBulkModal(false); setSelectedIds([]); }} className="w-12 h-12 rounded-full bg-slate-50 dark:bg-slate-900 hover:bg-slate-100 flex items-center justify-center text-slate-400 dark:text-slate-500 transition-all">
-                                <X size={24} />
+                            <button onClick={() => { setShowBulkModal(false); setSelectedIds([]); }} aria-label="Close" className="w-9 h-9 rounded-full bg-slate-100 dark:bg-slate-900 hover:bg-slate-200 flex items-center justify-center text-slate-500 shrink-0">
+                                <X size={18} />
                             </button>
                         </div>
 
-                        <form onSubmit={handleBulkReport} className="space-y-8">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                <div className="bg-slate-50 dark:bg-slate-900 p-6 rounded-[32px] border-2 border-slate-100 dark:border-slate-700">
-                                    <label className="text-[10px] uppercase font-black text-slate-400 dark:text-slate-500 tracking-[0.2em] mb-3 block">Violation Type</label>
-                                    <p className="font-black text-red-600 uppercase text-sm leading-tight">Failure to attend mandatory campus event</p>
-                                    <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-2 italic">* Predefined for bulk reports</p>
-                                </div>
-
-                                <div className="bg-ustp-blue/5 p-6 rounded-[32px] border-2 border-ustp-blue/10">
-                                    <label className="text-[10px] uppercase font-black text-ustp-blue tracking-[0.2em] mb-3 block">Assign Building *</label>
-                                    <select
-                                        required
-                                        value={bulkForm.assigned_building || ''}
-                                        onChange={e => setBulkForm({ ...bulkForm, assigned_building: e.target.value })}
-                                        className="w-full bg-white dark:bg-slate-800 border-2 border-slate-200 dark:border-slate-600 rounded-2xl p-4 font-bold outline-none focus:border-ustp-blue transition-all text-slate-900 dark:text-white"
-                                    >
-                                        <ServiceSiteOptions {...serviceSites} placeholder="Select Building..." />
-                                    </select>
-                                </div>
+                        <form onSubmit={handleBulkReport} className="space-y-4">
+                            <div>
+                                <span className={label}>Violation</span>
+                                <p className="rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-700 px-4 py-3 text-sm font-bold text-red-600 dark:text-red-400">
+                                    Failure to attend mandatory campus event
+                                </p>
                             </div>
 
-                            {selectedIds.length === 0 && (
-                                <div className="bg-slate-50 dark:bg-slate-900 p-8 rounded-[40px] border-2 border-dashed border-slate-200 dark:border-slate-600">
-                                    <div className="flex justify-between items-center mb-4">
-                                        <label className="text-[10px] uppercase font-black text-slate-400 dark:text-slate-500 tracking-[0.2em]">Manual Student ID Entry</label>
-                                        <label className="flex items-center gap-2 cursor-pointer bg-white dark:bg-slate-800 px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-600 text-[10px] font-black uppercase hover:bg-slate-50 dark:bg-slate-900 transition-all">
-                                            <Download size={14} />
-                                            CSV Upload
-                                            <input 
-                                                type="file" 
-                                                accept=".csv,.txt" 
-                                                className="hidden" 
+                            <div>
+                                <label className={label} htmlFor="bulk-building">Building for their community service</label>
+                                <select
+                                    id="bulk-building"
+                                    required
+                                    value={bulkForm.assigned_building || ''}
+                                    onChange={e => setBulkForm({ ...bulkForm, assigned_building: e.target.value })}
+                                    className="w-full bg-white dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm font-semibold outline-none focus:border-ustp-blue text-slate-900 dark:text-white"
+                                >
+                                    <ServiceSiteOptions {...serviceSites} placeholder="Choose a building" />
+                                </select>
+                            </div>
+
+                            {count === 0 ? (
+                                <div>
+                                    <div className="flex justify-between items-center mb-1.5">
+                                        <label className={label.replace(' mb-1.5', '')} htmlFor="bulk-ids">Student IDs</label>
+                                        <label className="flex items-center gap-1.5 cursor-pointer text-xs font-bold text-ustp-blue hover:underline">
+                                            <Download size={13} /> Upload CSV
+                                            <input
+                                                type="file"
+                                                accept=".csv,.txt"
+                                                className="hidden"
                                                 onChange={(e) => {
                                                     const file = e.target.files[0];
                                                     if (file) {
                                                         const reader = new FileReader();
-                                                        reader.onload = (e) => {
-                                                            const text = e.target.result;
-                                                            const ids = text.split(/[\n,]+/).map(id => id.trim()).filter(id => id.length > 5);
+                                                        reader.onload = (ev) => {
+                                                            const ids = ev.target.result.split(/[\n,]+/).map(id => id.trim()).filter(id => id.length > 5);
                                                             setSelectedIds(ids);
                                                         };
                                                         reader.readAsText(file);
@@ -640,74 +667,50 @@ const AllStudents = () => {
                                         </label>
                                     </div>
                                     <textarea
-                                        rows="4"
-                                        placeholder="Paste Student IDs here (separated by comma or newline)..."
+                                        id="bulk-ids"
+                                        rows="3"
+                                        placeholder="2023303188, 2023303189, ..."
                                         value={bulkForm.manual_ids || ''}
-                                        onChange={e => {
-                                            const val = e.target.value;
-                                            setBulkForm({ ...bulkForm, manual_ids: val });
-                                            const ids = val.split(/[\n,]+/).map(id => id.trim()).filter(id => id.length > 5);
-                                            // We don't set selectedIds immediately to allow editing, but we'll use them on submit
-                                        }}
-                                        className="w-full bg-white dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 rounded-[24px] p-6 font-mono text-sm focus:border-ustp-blue outline-none resize-none"
+                                        onChange={e => setBulkForm({ ...bulkForm, manual_ids: e.target.value })}
+                                        className="w-full bg-white dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 font-mono text-sm focus:border-ustp-blue outline-none resize-none text-slate-900 dark:text-white"
                                     />
-                                    <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-4 font-medium italic">Example: 2023303188, 2023303189, 2023303190</p>
+                                    <p className="mt-1 text-xs text-slate-400">Separate IDs with commas or new lines.</p>
                                 </div>
-                            )}
-
-                            {selectedIds.length > 0 && selectedIds.length < 20 && (
-                                <div className="bg-slate-50 dark:bg-slate-900 p-6 rounded-[32px]">
-                                    <p className="text-[10px] uppercase font-black text-slate-400 dark:text-slate-500 tracking-[0.2em] mb-4">Students in Queue</p>
-                                    <div className="flex flex-wrap gap-2">
+                            ) : (
+                                <div>
+                                    <span className={label}>Students</span>
+                                    <div className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto">
                                         {selectedIds.map(id => (
-                                            <span key={id} className="bg-white dark:bg-slate-800 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-600 text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-2">
+                                            <span key={id} className="bg-slate-100 dark:bg-slate-900 pl-2.5 pr-1.5 py-1 rounded-lg text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
                                                 {id}
-                                                <button type="button" onClick={() => setSelectedIds(selectedIds.filter(i => i !== id))} className="text-slate-300 dark:text-slate-600 hover:text-red-500"><X size={12} /></button>
+                                                <button type="button" aria-label={`Remove ${id}`} onClick={() => setSelectedIds(selectedIds.filter(i => i !== id))} className="text-slate-400 hover:text-red-500"><X size={12} /></button>
                                             </span>
                                         ))}
                                     </div>
                                 </div>
                             )}
 
-                            <div className="bg-slate-900 p-8 rounded-[40px] text-center border-4 border-slate-800 shadow-2xl relative overflow-hidden group">
-                                <div className="absolute inset-0 bg-gradient-to-br from-ustp-blue/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                                <p className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-[0.3em] mb-3 relative z-10">Verification Protocol</p>
-                                <p className="text-white text-sm font-medium leading-relaxed relative z-10">
-                                    All reports will be set to <span className="text-green-400 font-bold">Approved</span> and assigned to the selected building for QR validation.
-                                </p>
-                            </div>
+                            <p className="text-xs font-medium text-slate-500 dark:text-slate-400 leading-5">
+                                These reports skip Pending Reviews: they're approved right away and the students can start serving at the building you chose.
+                            </p>
 
                             <button
                                 type="submit"
-                                disabled={saving || !bulkForm.assigned_building || (selectedIds.length === 0 && !bulkForm.manual_ids)}
-                                className={`w-full py-6 rounded-[32px] font-black uppercase text-sm tracking-[0.2em] transition-all flex items-center justify-center gap-4 active:scale-95 shadow-2xl ${
-                                    (saving || !bulkForm.assigned_building || (selectedIds.length === 0 && !bulkForm.manual_ids))
-                                    ? 'bg-slate-100 text-slate-400 dark:text-slate-500 cursor-not-allowed'
-                                    : 'bg-red-600 text-white hover:bg-red-700 shadow-red-200'
-                                }`}
+                                disabled={!canSubmit}
+                                className="w-full py-3.5 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-colors bg-red-600 text-white hover:bg-red-700 disabled:bg-slate-100 disabled:text-slate-400 dark:disabled:bg-slate-700 disabled:cursor-not-allowed"
                             >
-                                {saving ? (
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                                        Processing Queue...
-                                    </div>
-                                ) : (
-                                    <>
-                                        <Send size={20} />
-                                        Authorize Bulk Report
-                                    </>
-                                )}
+                                {saving
+                                    ? <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Reporting…</>
+                                    : <><Send size={16} /> {count > 0 ? `Report ${count} student${count === 1 ? '' : 's'}` : 'Report students'}</>}
                             </button>
-                            
                             {!bulkForm.assigned_building && (
-                                <p className="text-center text-[10px] font-black text-red-500 uppercase tracking-widest animate-bounce">
-                                    Please assign a building before approval
-                                </p>
+                                <p className="text-center text-xs font-semibold text-slate-400">Choose a building first.</p>
                             )}
                         </form>
                     </div>
                 </div>
-            )}
+                );
+            })()}
         </div>
     );
 };

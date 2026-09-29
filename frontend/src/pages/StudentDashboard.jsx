@@ -1,7 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { AlertTriangle, User, Play, QrCode, FileText, CircleHelp, Clock, Navigation, ChevronRight, Download, Loader2 } from 'lucide-react';
-import { isoFormPdf } from '../lib/isoFormPdf';
+import { AlertTriangle, Play, QrCode, Clock, Navigation, ChevronRight, Download, Loader2, CheckCircle2, CircleUserRound, Settings } from 'lucide-react';
+import { isoFormPdf, reflectionFormPdf } from '../lib/isoFormPdf';
+import saluteFace from '../assets/salute.png';
+import { ticketStatusLabel, deadlineNotice } from '../lib/ticketStatus';
+import usePolling from '../lib/usePolling';
 import QrScannerModal from '../components/QrScannerModal';
 import SessionReceipt from '../components/SessionReceipt';
 import TicketDetails from '../components/TicketDetails';
@@ -110,6 +113,8 @@ const GeofenceMap = ({ hub, location, isOutOfBounds, isDarkMode, approach = fals
     );
 };
 
+const COMPLETED_SEEN_KEY = 'osa-completed-notice-seen';
+
 const StudentDashboard = () => {
     const navigate = useNavigate();
     const { isDarkMode } = useStudentTheme();
@@ -131,6 +136,10 @@ const StudentDashboard = () => {
     const [receipt, setReceipt] = useState(null);
     // E-ticket opened from the list (its details and service log)
     const [openTicket, setOpenTicket] = useState(null);
+    // Tickets whose "hours completed, go to OSA" notice this device already showed (the popup below)
+    const [seenCompleted, setSeenCompleted] = useState(() => {
+        try { return JSON.parse(localStorage.getItem(COMPLETED_SEEN_KEY) || '[]'); } catch { return []; }
+    });
     const watchIdRef = React.useRef(null);
 
     // Starts or stops the timer right after a valid scan (no photo step)
@@ -193,11 +202,8 @@ const StudentDashboard = () => {
         ? Math.max(0, END_COOLDOWN_S - Math.floor((Date.now() - startTime) / 1000))
         : 0;
 
-    useEffect(() => {
-        fetchStudentData();
-        const poll = setInterval(fetchStudentData, 5000);
-        return () => clearInterval(poll);
-    }, [user.username]);
+    // Every 5 s while the tab is visible (the session state from the other device, the timer's base)
+    usePolling(() => fetchStudentData(), 5000, [user.username]);
 
     // Live countdown timer logic
     useEffect(() => {
@@ -671,38 +677,38 @@ const StudentDashboard = () => {
         ? compassDirection({ latitude: location.lat, longitude: location.lng }, { latitude: hub.lat, longitude: hub.lng })
         : '';
 
-    // Blank FM-USTP-OSA-013 time log (PDF) for the office head to fill in by hand. Downloaded once per
-    // open ticket (the server keeps track); clicking again only shows ISO_ONCE. Same as the mobile app.
-    const ISO_ONCE = 'The ISO form can only be downloaded once. Go to the OSA office to request another one.';
-    const [isoBusy, setIsoBusy] = useState(false);
-    const downloadIsoForm = async () => {
-        if (!activeTicket || isoBusy) return;
-        if (activeTicket.iso_form_printed_at) {
-            alert(ISO_ONCE);
-            return;
-        }
-        setIsoBusy(true);
+    // Hours served but not cleared yet: the student brings the signed ISO form and reflection paper to OSA
+    const clearanceTicket = tickets.find((t) => t.status === 'Completed');
+    // The blank forms (PDF), filled in by hand: FM-USTP-OSA-013 time log and FM-USTP-OSA-14 reflection form.
+    // Any number of downloads, while the student has a violation to serve or to be cleared.
+    const formsTicket = activeTicket || clearanceTicket;
+    const [formBusy, setFormBusy] = useState(null);
+    const downloadForm = async (kind) => {
+        if (formBusy) return;
+        setFormBusy(kind);
         try {
-            // Made before the server counts the download
-            const pdf = await isoFormPdf();
-            const response = await fetch(`/api/etickets/${activeTicket.id}/print_iso_form/`, { method: 'POST' });
-            const data = await response.json().catch(() => ({}));
-            if (!response.ok) {
-                alert(data.error || "Couldn't download the ISO form. Try again.");
-                return;
-            }
-            pdf.save('FM-USTP-OSA-013.pdf');
-        } catch (e) {
-            alert(e.message === 'Failed to fetch' ? "Can't reach the server. Check your connection." : "Couldn't make the ISO form. Try again.");
+            const pdf = await (kind === 'iso' ? isoFormPdf() : reflectionFormPdf());
+            pdf.save(kind === 'iso' ? 'FM-USTP-OSA-013 ISO Form.pdf' : 'FM-USTP-OSA-14 Reflection Form.pdf');
+        } catch {
+            alert("Couldn't make the form. Try again.");
         } finally {
-            setIsoBusy(false);
-            fetchStudentData();
+            setFormBusy(null);
         }
+    };
+
+    // Hours served: the student still has to bring the signed ISO form to OSA to be cleared.
+    // Shown after the time-out receipt, once per ticket.
+    const completedTicket = !receipt && tickets.find((t) => t.status === 'Completed' && !seenCompleted.includes(t.id));
+    const dismissCompleted = () => {
+        const next = [...seenCompleted, completedTicket.id];
+        setSeenCompleted(next);
+        try { localStorage.setItem(COMPLETED_SEEN_KEY, JSON.stringify(next)); } catch { /* shown again next time */ }
     };
 
     const ticketBadge = (status) =>
         status === 'Active' ? 'bg-[#dcfce7] text-[#10b981]' :
-        status === 'Completed' ? 'bg-[#f1f5f9] text-[#64748b]' :
+        status === 'Completed' ? 'bg-[#fef3c7] text-[#b45309]' :
+        status === 'Cleared' ? 'bg-[#f1f5f9] text-[#64748b]' :
         'bg-[#faf5ff] text-[#7c3aed]';
 
     return (
@@ -718,6 +724,24 @@ const StudentDashboard = () => {
             )}
 
             <SessionReceipt receipt={receipt} onClose={() => setReceipt(null)} />
+
+            {completedTicket && (
+                <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/50 p-5 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="completed-title">
+                    <div className="w-full max-w-sm rounded-3xl bg-[var(--s-card)] p-6 text-center shadow-2xl">
+                        <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-[#dcfce7]">
+                            <CheckCircle2 size={30} className="text-[#10b981]" />
+                        </div>
+                        <h2 id="completed-title" className="text-lg font-black text-[var(--s-text)]">Service hours completed!</h2>
+                        <p className="mt-2 text-sm font-medium leading-5 text-[var(--s-muted)]">
+                            You've finished the community service for <span className="font-bold text-[var(--s-text)]">{completedTicket.violation_details?.violation_type || 'your violation'}</span>.
+                            Please proceed to the <span className="font-bold text-[var(--s-text)]">OSA office</span> with your signed ISO form and reflection paper to verify and properly clear your violation.
+                        </p>
+                        <button onClick={dismissCompleted} className="mt-5 w-full rounded-[14px] bg-[var(--s-primary)] p-3.5 text-sm font-bold text-white">
+                            OK, I'll go to the OSA office
+                        </button>
+                    </div>
+                </div>
+            )}
             <TicketDetails ticket={openTicket} onClose={() => setOpenTicket(null)} />
 
             {/* QR Scanner (end) */}
@@ -739,27 +763,50 @@ const StudentDashboard = () => {
                         <h1 className="text-2xl font-black tracking-[0.3px] text-[var(--s-text)]">{timeGreeting()}, {displayName}</h1>
                         <p className="mt-1 text-sm font-semibold text-[var(--s-muted)]">{studentStatusLine({ sessionActive: timerActive, openTicket: activeTicket })}</p>
                     </div>
-                    {/* Help + profile, like the mobile dashboard header */}
+                    {/* Profile settings (Help & Support is in there), like the mobile dashboard header */}
                     <div className="flex items-center gap-2.5">
                         <button
-                            onClick={() => navigate('/help')}
-                            aria-label="Help"
-                            className="flex h-11 w-11 items-center justify-center rounded-full bg-[var(--s-card)] text-[var(--s-text)] shadow-[0_2px_8px_rgba(0,0,0,0.05)]"
-                        >
-                            <CircleHelp size={22} strokeWidth={2.5} />
-                        </button>
-                        <button
                             onClick={() => navigate('/student/settings')}
-                            aria-label="Profile settings"
-                            className="flex h-11 w-11 items-center justify-center rounded-full bg-[var(--s-card)] text-[var(--s-text)] shadow-[0_2px_8px_rgba(0,0,0,0.05)]"
+                            aria-label="Settings"
+                            className="flex h-11 w-11 items-center justify-center rounded-full bg-[var(--s-card)] text-[var(--s-text)] shadow-[0_2px_8px_rgba(0,0,0,0.05)] hover:border-[var(--s-primary)] hover:scale-105 active:scale-95 transition-all"
                         >
-                            <User size={22} strokeWidth={2.5} />
+                            <Settings size={22} strokeWidth={2.2} />
                         </button>
                     </div>
                 </header>
 
-                {/* Active Session Card */}
-                <section className={`mb-6 rounded-[20px] bg-[var(--s-card)] p-6 shadow-[0_4px_12px_rgba(0,0,0,0.08)] ${isOutOfBounds ? 'border-[1.5px] border-[#ef4444]' : 'border border-[var(--s-border)]'}`}>
+                {/* Hours done, not cleared yet: what to bring to OSA (stays until OSA approves) */}
+                {clearanceTicket && (
+                    <div className="mb-4 flex gap-3 rounded-[16px] border border-[#a7f3d0] bg-[#ecfdf5] p-4">
+                        <CheckCircle2 size={20} className="mt-0.5 shrink-0 text-[#059669]" />
+                        <div>
+                            <p className="text-sm font-black text-[#065f46]">Go to the OSA office to be cleared</p>
+                            <p className="mt-0.5 text-xs font-semibold leading-5 text-[#047857]">
+                                Your hours for {clearanceTicket.violation_details?.violation_type || 'your violation'} are complete. Bring your signed ISO form and your reflection paper to the OSA office. Your violation is cleared once OSA approves them.
+                            </p>
+                        </div>
+                    </div>
+                )}
+
+                {/* 3-day deadline: when to finish, and hours added for missed days */}
+                {(() => {
+                    const notice = deadlineNotice(activeTicket);
+                    if (!notice) return null;
+                    return (
+                        <div className={`mb-4 flex gap-3 rounded-[16px] border p-4 ${notice.overdue ? 'border-[#fca5a5] bg-[#fee2e2]' : 'border-[#fde68a] bg-[#fffbeb]'}`}>
+                            {notice.overdue
+                                ? <AlertTriangle size={20} className="mt-0.5 shrink-0 text-[#dc2626]" />
+                                : <Clock size={20} className="mt-0.5 shrink-0 text-[#d97706]" />}
+                            <div>
+                                <p className={`text-sm font-black ${notice.overdue ? 'text-[#b91c1c]' : 'text-[#92400e]'}`}>{notice.title}</p>
+                                <p className={`mt-0.5 text-xs font-semibold leading-5 ${notice.overdue ? 'text-[#991b1b]' : 'text-[#92400e]'}`}>{notice.message}</p>
+                            </div>
+                        </div>
+                    );
+                })()}
+
+                {/* Active Session Card / Service Obligation Hub */}
+                <section className={`mb-6 rounded-[28px] bg-[var(--s-card)] p-8 sm:p-10 shadow-[0_8px_30px_rgba(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.2)] border border-[var(--s-border)] ${isOutOfBounds ? 'border-[1.5px] border-[#ef4444]' : ''}`}>
                     {timerActive ? (
                         <>
                             <div className="mb-3 flex items-center">
@@ -768,7 +815,7 @@ const StudentDashboard = () => {
                                     Live Community Service
                                 </span>
                             </div>
-                            <div className="my-2 text-[52px] font-black leading-tight tabular-nums text-[var(--s-text)]">
+                            <div className="my-2 text-[52px] font-black leading-tight tabular-nums text-[var(--s-text)] font-mono">
                                 {formatRemainingTime()}
                             </div>
 
@@ -811,31 +858,37 @@ const StudentDashboard = () => {
                             <button
                                 onClick={() => setShowStopScanner(true)}
                                 disabled={endCooldown > 0}
-                                className="mt-4 w-full rounded-[14px] bg-[var(--s-primary)] p-4 text-sm font-bold uppercase tracking-[1px] text-white disabled:opacity-50"
+                                className="mt-4 w-full rounded-2xl bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-700 hover:to-red-700 p-4 text-sm font-bold uppercase tracking-[1px] text-white disabled:opacity-50 shadow-lg shadow-rose-500/20 active:scale-[0.98] transition-all cursor-pointer"
                             >
                                 {endCooldown > 0 ? `Scan to End Service (${endCooldown}s)` : 'Scan to End Service'}
                             </button>
                         </>
                     ) : (
-                        <div className="text-center">
-                            <div className="mb-4 mt-2 flex justify-center text-[var(--s-border)]">
-                                <QrCode size={48} strokeWidth={1.5} />
+                        <div className="text-center flex flex-col items-center">
+                            {/* Sky-blue icon container */}
+                            <div className="mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-[#eff6ff] text-[#1e3a8a] dark:bg-blue-950/50 dark:text-blue-400 border border-blue-100/60 dark:border-blue-900/40 shadow-xs">
+                                <QrCode size={30} strokeWidth={2.2} />
                             </div>
-                            <h2 className="mb-2 text-lg font-black text-[var(--s-text)]">No Active Session</h2>
+
+                            {/* Title */}
+                            <h2 className="mb-2 text-xl sm:text-2xl font-black tracking-tight text-[var(--s-text)]">
+                                Service Obligation Hub
+                            </h2>
+
+                            {/* Subtitle */}
                             {activeTicket?.assigned_site ? (
-                                // Assigned by the admin: only this site's QR starts the timer
-                                <p className="mb-4 text-sm font-medium leading-5 text-[var(--s-muted)]">
-                                    Go to <span className="font-black text-[var(--s-text)]">{activeTicket.assigned_site.name}</span> and scan<br />the QR code posted there to start.
+                                <p className="mb-6 max-w-md text-xs sm:text-sm font-medium leading-relaxed text-[var(--s-muted)]">
+                                    Report to <span className="font-bold text-[var(--s-text)]">{activeTicket.assigned_site.name}</span> and scan your assigned location QR code to initiate real-time GPS-verified community service.
                                 </p>
                             ) : (
-                                <p className="mb-4 text-sm font-medium leading-5 text-[var(--s-muted)]">
-                                    Scan an activity QR code to start<br />tracking your community service hours.
+                                <p className="mb-6 max-w-md text-xs sm:text-sm font-medium leading-relaxed text-[var(--s-muted)]">
+                                    Scan your assigned location QR code to initiate real-time GPS-verified community service.
                                 </p>
                             )}
 
                             {/* Guide to the site: where you are, how far, which way */}
                             {hub && (
-                                <div className="mb-4 text-left">
+                                <div className="mb-6 w-full text-left">
                                     <div className={`flex items-center gap-2 rounded-xl border p-3 ${approachInside ? 'border-[#a7f3d0] bg-[#ecfdf5]' : 'border-[var(--s-border)] bg-[var(--s-bg)]'}`}>
                                         <Navigation size={14} className={approachInside ? 'text-[var(--s-success)]' : 'text-[var(--s-primary)]'} />
                                         <span className={`text-[13px] font-bold ${approachInside ? 'text-[#047857]' : 'text-[var(--s-muted)]'}`}>
@@ -854,7 +907,7 @@ const StudentDashboard = () => {
                                             href={directionsUrl({ latitude: hub.lat, longitude: hub.lng })}
                                             target="_blank"
                                             rel="noopener noreferrer"
-                                            className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl border border-[var(--s-border)] bg-[var(--s-bg)] p-3 text-[13px] font-bold text-[var(--s-text)]"
+                                            className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl border border-[var(--s-border)] bg-[var(--s-bg)] p-3 text-[13px] font-bold text-[var(--s-text)] hover:border-[var(--s-primary)] transition-all"
                                         >
                                             <Navigation size={15} /> Get directions
                                         </a>
@@ -862,8 +915,13 @@ const StudentDashboard = () => {
                                 </div>
                             )}
 
-                            <button onClick={() => setIsScanning(true)} className="rounded-xl bg-[var(--s-primary)] px-7 py-3 text-[13px] font-bold tracking-[0.5px] text-white">
-                                Scan QR Code
+                            {/* Action Button */}
+                            <button 
+                                onClick={() => setIsScanning(true)} 
+                                className="inline-flex items-center justify-center gap-2.5 rounded-2xl bg-gradient-to-r from-[#1d4ed8] to-[#4338ca] hover:from-[#1e40af] hover:to-[#3730a3] px-8 py-3.5 text-sm font-bold text-white shadow-lg shadow-blue-500/25 hover:shadow-blue-500/35 hover:scale-[1.02] active:scale-[0.98] transition-all tracking-wide cursor-pointer"
+                            >
+                                <QrCode size={18} strokeWidth={2.2} />
+                                <span>Scan QR Code to Time-In</span>
                             </button>
                         </div>
                     )}
@@ -871,20 +929,23 @@ const StudentDashboard = () => {
 
                 {/* E-Tickets */}
                 <section className="mb-6">
-                    <div className="mb-1 flex items-center justify-between gap-3">
-                        <h2 className="text-lg font-black text-[var(--s-text)]">E-Tickets</h2>
-                        {/* Only with an active violation */}
-                        {activeTicket && (
-                            <button
-                                onClick={downloadIsoForm}
-                                disabled={isoBusy}
-                                className="flex items-center gap-1.5 rounded-xl border border-[var(--s-border)] bg-[var(--s-card)] px-3 py-2 text-xs font-bold text-[var(--s-text)] hover:border-[var(--s-primary)] disabled:opacity-60"
-                            >
-                                {isoBusy ? <Loader2 size={15} className="animate-spin" /> : <Download size={15} />} Download ISO form
-                            </button>
-                        )}
-                    </div>
+                    <h2 className="mb-1 text-lg font-black text-[var(--s-text)]">E-Tickets</h2>
                     <p className="mb-4 text-sm font-medium text-[var(--s-muted)]">Tap a ticket to see its service log</p>
+                    {/* The two forms to bring to OSA (only while there's a violation to serve or clear) */}
+                    {formsTicket && (
+                        <div className="mb-4 grid grid-cols-2 gap-2">
+                            {[['iso', 'ISO Form'], ['reflection', 'Reflection Form']].map(([kind, label]) => (
+                                <button
+                                    key={kind}
+                                    onClick={() => downloadForm(kind)}
+                                    disabled={!!formBusy}
+                                    className="flex items-center justify-center gap-1.5 rounded-xl border border-[var(--s-border)] bg-[var(--s-card)] px-3 py-2.5 text-xs font-bold text-[var(--s-text)] hover:border-[var(--s-primary)] disabled:opacity-60"
+                                >
+                                    {formBusy === kind ? <Loader2 size={15} className="animate-spin" /> : <Download size={15} />} {label}
+                                </button>
+                            ))}
+                        </div>
+                    )}
 
                     {loading ? (
                         <div className="mt-4 flex justify-center">
@@ -892,8 +953,9 @@ const StudentDashboard = () => {
                         </div>
                     ) : tickets.length === 0 ? (
                         <div className="flex flex-col items-center gap-2 py-6 text-[var(--s-border)]">
-                            <FileText size={32} />
-                            <p className="text-[13px] italic text-[var(--s-muted)]">No tickets found</p>
+                            {/* 🫡 in black and white (Noto emoji art as an image, so every device shows it) */}
+                            <img src={saluteFace} alt="" className="h-11 w-11 select-none" draggable="false" />
+                            <p className="text-[13px] italic text-[var(--s-muted)]">No tickets, keep it up busseng!</p>
                         </div>
                     ) : (
                         tickets.map((ticket, idx) => (
@@ -909,7 +971,7 @@ const StudentDashboard = () => {
                                     <p className="mt-0.5 text-[10px] text-[var(--s-muted)]">Required: {ticket.total_hours_required || 0} hrs</p>
                                 </div>
                                 <span className={`rounded-full px-2.5 py-1 text-[10px] font-bold ${ticketBadge(ticket.status)}`}>
-                                    {ticket.status || 'Pending'}
+                                    {ticketStatusLabel(ticket)}
                                 </span>
                                 <ChevronRight size={16} className="ml-2 shrink-0 text-[var(--s-muted)]" />
                             </button>

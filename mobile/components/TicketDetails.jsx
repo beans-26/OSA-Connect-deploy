@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, Modal, ScrollView, TouchableOpacity, Pressable, ActivityIndicator, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { X, ChevronDown, MapPin, LogIn } from 'lucide-react-native';
+import { X, ChevronDown, LogIn, CheckCircle2, Clock, FileText } from 'lucide-react-native';
+import { ticketReceipt } from './ticketStatus';
 import { BlurView } from 'expo-blur';
 import { useTheme } from './ThemeContext';
 import api from '../services/api';
@@ -47,8 +48,14 @@ export default function TicketDetails({ ticket, onClose }) {
         else days.push({ date, sessions: [r] });
     });
 
-    const building = ticket.assigned_site?.name || ticket.assigned_location || '—';
-    const remaining = ticket.base_remaining_hours ?? ticket.remaining_hours ?? 0;
+    // The ticket as a short receipt (same as the website): violation, required action, buildings assigned
+    const summary = ticketReceipt(ticket, receipts);
+    const HEADER = {
+        done: { box: { borderColor: '#e2e8f0', backgroundColor: '#f1f5f9' }, title: '#334155', sub: '#64748b', Icon: CheckCircle2 },
+        clearance: { box: { borderColor: '#a7f3d0', backgroundColor: '#ecfdf5' }, title: '#065f46', sub: '#047857', Icon: FileText },
+        active: { box: { borderColor: colors.border, backgroundColor: colors.background }, title: colors.text, sub: colors.textMuted, Icon: Clock },
+    }[summary.header.tone];
+    const TONE = { red: '#dc2626', good: '#059669', bad: '#dc2626' };
 
     return (
         <Modal visible transparent animationType="fade" statusBarTranslucent onRequestClose={onClose}>
@@ -68,22 +75,38 @@ export default function TicketDetails({ ticket, onClose }) {
                 </View>
 
                 <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 12 }}>
-                    <View style={styles.tile}>
-                        <View style={styles.tileLabelRow}>
-                            <MapPin size={12} color={colors.textMuted} />
-                            <Text style={styles.tileLabel}>ASSIGNED BUILDING</Text>
+                    <View style={styles.receipt}>
+                        <View style={[styles.receiptHeader, HEADER.box]}>
+                            <HEADER.Icon size={20} color={HEADER.title} />
+                            <View style={{ flex: 1 }}>
+                                <Text style={[styles.receiptTitle, { color: HEADER.title }]}>{summary.header.title}</Text>
+                                <Text style={[styles.receiptSub, { color: HEADER.sub }]}>{summary.header.subtitle}</Text>
+                            </View>
                         </View>
-                        <Text style={styles.tileValue}>{building}</Text>
-                    </View>
-                    <View style={styles.tileRow}>
-                        <View style={[styles.tile, { flex: 1 }]}>
-                            <Text style={styles.tileLabel}>REQUIRED</Text>
-                            <Text style={styles.tileValue}>{ticket.total_hours_required || 0} hrs</Text>
-                        </View>
-                        <View style={[styles.tile, { flex: 1 }]}>
-                            <Text style={styles.tileLabel}>REMAINING</Text>
-                            <Text style={styles.tileValue}>{formatDuration(remaining * 3600)}</Text>
-                        </View>
+                        {summary.sections.map((section, i) => (
+                            <View key={section.title} style={[styles.receiptSection, i === 0 && { borderTopWidth: 0 }]}>
+                                <Text style={styles.receiptSectionTitle}>{section.title.toUpperCase()}</Text>
+                                {section.lines.map(([label, value, tone]) => (
+                                    <View key={label} style={styles.receiptLine}>
+                                        <Text style={styles.receiptLabel}>{label}</Text>
+                                        <Text style={[styles.receiptValue, tone && { color: TONE[tone] }]}>{value}</Text>
+                                    </View>
+                                ))}
+                            </View>
+                        ))}
+                        {summary.buildings.length > 0 && (
+                            <View style={styles.receiptSection}>
+                                <Text style={styles.receiptSectionTitle}>BUILDING{summary.buildings.length === 1 ? '' : 'S'} ASSIGNED</Text>
+                                {summary.buildings.map((b, i) => (
+                                    <View key={i} style={styles.receiptLine}>
+                                        <Text style={[styles.receiptValue, { textAlign: 'left' }]}>
+                                            {summary.buildings.length > 1 ? `${i + 1}. ` : ''}{b.name}
+                                        </Text>
+                                        {b.date ? <Text style={styles.receiptLabel}>{b.date}</Text> : null}
+                                    </View>
+                                ))}
+                            </View>
+                        )}
                     </View>
 
                     <Text style={styles.sectionTitle}>SERVICE LOG</Text>
@@ -155,11 +178,15 @@ const getStyles = (colors) => StyleSheet.create({
     kicker: { fontSize: 10, fontWeight: '900', letterSpacing: 2, color: colors.textMuted },
     title: { fontSize: 18, fontWeight: '900', color: colors.text },
     close: { padding: 8, borderRadius: 20, backgroundColor: colors.background },
-    tileRow: { flexDirection: 'row', gap: 8 },
-    tile: { backgroundColor: colors.background, borderRadius: 12, padding: 12, marginBottom: 8 },
-    tileLabelRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-    tileLabel: { fontSize: 10, fontWeight: '900', letterSpacing: 1, color: colors.textMuted },
-    tileValue: { fontSize: 14, fontWeight: '700', color: colors.text, marginTop: 2 },
+    receipt: { borderWidth: 1, borderColor: colors.border, borderRadius: 16, overflow: 'hidden', marginBottom: 8 },
+    receiptHeader: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1 },
+    receiptTitle: { fontSize: 14, fontWeight: '900' },
+    receiptSub: { fontSize: 11, fontWeight: '600', marginTop: 1 },
+    receiptSection: { paddingHorizontal: 16, paddingVertical: 10, borderTopWidth: 1, borderTopColor: colors.border },
+    receiptSectionTitle: { fontSize: 9, fontWeight: '900', letterSpacing: 2, color: colors.textMuted, marginBottom: 4 },
+    receiptLine: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', gap: 16, paddingVertical: 4 },
+    receiptLabel: { fontSize: 11, fontWeight: '600', color: colors.textMuted },
+    receiptValue: { flexShrink: 1, fontSize: 13, fontWeight: '700', color: colors.text, textAlign: 'right' },
     sectionTitle: { fontSize: 10, fontWeight: '900', letterSpacing: 2, color: colors.textMuted, marginTop: 12, marginBottom: 8 },
     errorBox: { alignItems: 'center', gap: 10, paddingVertical: 12 },
     error: { fontSize: 13, fontWeight: '600', color: '#dc2626', textAlign: 'center' },

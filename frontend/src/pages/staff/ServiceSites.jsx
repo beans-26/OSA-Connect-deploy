@@ -182,7 +182,7 @@ const SiteQr = ({ site }) => {
             const url = URL.createObjectURL(await response.blob());
             const link = document.createElement('a');
             link.href = url;
-            link.download = `${site.site_code}_qr.png`;
+            link.download = `${site.name.replace(/[^\w-]+/g, '_')}_QR.png`;
             link.click();
             setTimeout(() => URL.revokeObjectURL(url), 1000);
         } catch (e) {
@@ -201,20 +201,18 @@ const SiteQr = ({ site }) => {
             return;
         }
         const escape = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-        win.document.write(`<!doctype html><html><head><title>${escape(site.site_code)} QR</title>
+        win.document.write(`<!doctype html><html><head><title>${escape(site.name)} QR</title>
 <style>
   @page { size: A4; margin: 20mm; }
   body { font-family: Inter, Arial, sans-serif; text-align: center; color: #0f172a; margin: 0; }
   .brand { font-size: 20px; font-weight: 800; letter-spacing: 1px; color: #1e3a8a; margin-top: 10mm; }
   .qr svg { width: 120mm; height: 120mm; margin: 12mm auto 8mm; display: block; }
   .name { font-size: 30px; font-weight: 800; margin: 0; }
-  .code { font-size: 22px; font-family: monospace; letter-spacing: 3px; margin-top: 4mm; }
   .hint { font-size: 13px; color: #64748b; margin-top: 8mm; }
 </style></head><body>
   <div class="brand">OSAConnect</div>
   <div class="qr">${new XMLSerializer().serializeToString(svg)}</div>
   <p class="name">${escape(site.name)}</p>
-  <div class="code">${escape(site.site_code)}</div>
   <div class="hint">Scan with OSAConnect to start your community service session</div>
   <script>window.onload = function () { window.print(); };<\/script>
 </body></html>`);
@@ -227,8 +225,7 @@ const SiteQr = ({ site }) => {
                 <QRCode id={svgId} value={site.site_code} size={200} level="H" />
             </div>
             <p className="mt-4 text-lg font-black text-slate-900 dark:text-white">{site.name}</p>
-            <p className="font-mono text-sm font-black tracking-[0.3em] text-ustp-blue">{site.site_code}</p>
-            <p className="mt-1 text-[11px] font-semibold text-slate-400">The QR contains only the site code, never the coordinates.</p>
+            <p className="mt-1 text-[11px] font-semibold text-slate-400">The QR holds only this site's code, never its location.</p>
             <div className="mt-5 grid grid-cols-2 gap-3">
                 <button onClick={download} disabled={downloading} className="flex items-center justify-center gap-2 rounded-xl bg-ustp-blue py-3 text-xs font-black uppercase tracking-widest text-white shadow-md hover:bg-blue-800 disabled:opacity-60">
                     {downloading ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />} Download QR
@@ -337,7 +334,7 @@ const ServiceSites = () => {
             const site = await response.json();
             setSites((prev) => [site, ...prev]);
             setPanel({ mode: 'qr', site });
-            showToast(`Site ${site.site_code} registered`);
+            showToast(`${site.name} registered`);
         } catch (e) {
             setFormError(e.message);
         } finally {
@@ -394,7 +391,7 @@ const ServiceSites = () => {
             const updated = await response.json();
             setSites((prev) => prev.map((s) => (s.id === updated.id ? updated : s)));
             setPanel(null);
-            showToast(`Location updated for ${updated.site_code}`);
+            showToast(`Location updated for ${updated.name}`);
         } catch (e) {
             setFormError(e.message);
         } finally {
@@ -505,7 +502,6 @@ const ServiceSites = () => {
                                 <div className="flex flex-wrap items-start justify-between gap-2">
                                     <div className="min-w-0">
                                         <p className="truncate text-base font-black text-slate-900 dark:text-white">{site.name}</p>
-                                        <p className="font-mono text-xs font-black tracking-[0.2em] text-ustp-blue">{site.site_code}</p>
                                         {site.description && <p className="mt-0.5 text-xs font-semibold text-slate-500 dark:text-slate-400">{site.description}</p>}
                                     </div>
                                     <span className={`rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-widest ${site.is_active ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40' : 'bg-slate-100 text-slate-500 dark:bg-slate-700 dark:text-slate-300'}`}>
@@ -545,7 +541,7 @@ const ServiceSites = () => {
                                         <Pencil size={14} /> Edit
                                     </button>
                                     <button
-                                        onClick={() => updateSite(site, { is_active: !site.is_active }, site.is_active ? `${site.site_code} deactivated` : `${site.site_code} activated`)}
+                                        onClick={() => updateSite(site, { is_active: !site.is_active }, site.is_active ? `${site.name} deactivated` : `${site.name} activated`)}
                                         disabled={saving}
                                         className={`flex items-center justify-center gap-1.5 rounded-xl py-2.5 text-[11px] font-black uppercase tracking-wider ${site.is_active ? 'bg-red-50 text-red-600 hover:bg-red-100 dark:bg-red-950/30' : 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100 dark:bg-emerald-950/30'}`}
                                     >
@@ -565,18 +561,8 @@ const ServiceSites = () => {
                         <div className="grid grid-cols-2 gap-3">
                             {radiusField}
                             {capacityField}
-                            <div>
-                                <label className={labelClass}>Site Code</label>
-                                <input
-                                    value={form.site_code}
-                                    onChange={(e) => setForm({ ...form, site_code: e.target.value.toUpperCase() })}
-                                    className={`${inputClass} font-mono uppercase`}
-                                    placeholder="Auto"
-                                    maxLength={17}
-                                />
-                                <p className="ml-1 mt-1 text-[10px] font-semibold text-slate-400">Leave blank to auto-create (e.g. LIB-01).</p>
-                            </div>
                         </div>
+                        {/* The site code (what the QR holds) is made by the server; admins only see the name */}
                         <LocationCapture radius={clampRadius(form.radius_m)} result={capture} onResult={setCapture} />
                         {errorBox}
                         <button onClick={createSite} disabled={saving || !capture} className="flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 py-3.5 text-xs font-black uppercase tracking-widest text-white shadow-md hover:bg-emerald-700 disabled:opacity-50">
@@ -587,7 +573,7 @@ const ServiceSites = () => {
             )}
 
             {panel?.mode === 'edit' && (
-                <Panel title={`Edit ${panel.site.site_code}`} onClose={closePanel}>
+                <Panel title={`Edit ${panel.site.name}`} onClose={closePanel}>
                     <div className="space-y-4">
                         {nameFields}
                         {radiusField}
@@ -596,7 +582,7 @@ const ServiceSites = () => {
                             <span className="text-sm font-bold text-slate-700 dark:text-slate-300">Active (students can use this site)</span>
                             <input type="checkbox" checked={form.is_active} onChange={(e) => setForm({ ...form, is_active: e.target.checked })} className="h-5 w-5 accent-ustp-blue" />
                         </label>
-                        <p className="text-[11px] font-semibold text-slate-400">The site code {panel.site.site_code} can't change, so printed QR codes keep working.</p>
+                        <p className="text-[11px] font-semibold text-slate-400">The QR code for this site stays the same, so printed QR codes keep working.</p>
                         {errorBox}
                         <button onClick={saveEdit} disabled={saving} className="flex w-full items-center justify-center gap-2 rounded-xl bg-ustp-blue py-3.5 text-xs font-black uppercase tracking-widest text-white shadow-md hover:bg-blue-800 disabled:opacity-50">
                             {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />} Save Changes
@@ -606,11 +592,11 @@ const ServiceSites = () => {
             )}
 
             {panel?.mode === 'recapture' && (
-                <Panel title={`Re-capture ${panel.site.site_code}`} onClose={closePanel}>
+                <Panel title={`Re-capture ${panel.site.name}`} onClose={closePanel}>
                     <div className="space-y-4">
                         <p className="text-sm font-semibold text-slate-500 dark:text-slate-400">
                             Stand at <span className="font-black text-slate-800 dark:text-slate-200">{panel.site.name}</span> and capture again.
-                            The site code stays {panel.site.site_code}, so printed QR codes keep working.
+                            This site's QR code stays the same, so printed QR codes keep working.
                         </p>
                         <LocationCapture radius={panel.site.radius_m} result={capture} onResult={setCapture} />
                         {errorBox}
