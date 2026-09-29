@@ -34,7 +34,7 @@
       "dest": "frontend/assets/$1"
     },
     {
-      "src": "/(vite.svg|ustp.png|osa-logo.jpg|favicon.ico)",
+      "src": "/([^/]+\\.(png|jpg|jpeg|svg|ico|webp))",
       "dest": "frontend/$1"
     },
     {
