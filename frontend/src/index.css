@@ -95,6 +95,30 @@ body {
   --s-success: #34d399;
 }
 
+/* The student receipt (components/TicketDetails.jsx) opened on admin pages, e.g. from the Archives:
+   the same colours as .student-ui, following the admin light/dark theme */
+.receipt-colors {
+  --s-primary: #1e3a8a;
+  --s-bg: #f8fafc;
+  --s-card: #ffffff;
+  --s-text: #0f172a;
+  --s-muted: #64748b;
+  --s-border: #e2e8f0;
+  --s-danger: #ef4444;
+  --s-success: #10b981;
+}
+
+.dark .receipt-colors {
+  --s-primary: #3b82f6;
+  --s-bg: #0f172a;
+  --s-card: #1e293b;
+  --s-text: #f8fafc;
+  --s-muted: #94a3b8;
+  --s-border: #334155;
+  --s-danger: #f87171;
+  --s-success: #34d399;
+}
+
 /* QrScannerModal: laser line sweeping the viewfinder */
 @keyframes qr-scanline {
   0% { top: 8%; }
