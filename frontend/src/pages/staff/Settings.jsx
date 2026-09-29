@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import Sidebar from '../../components/Sidebar';
 import { Lock, AlertTriangle, Save, LogOut, CheckCircle, MapPin } from 'lucide-react';
-import GlobalSearch from '../../components/GlobalSearch';
+import ThemeToggle from '../../components/ThemeToggle';
 import ServiceSites from './ServiceSites';
 
 const StaffSettings = () => {
@@ -59,15 +59,15 @@ const StaffSettings = () => {
         <div className="flex bg-slate-50 dark:bg-slate-900 min-h-screen relative font-sans">
             <Sidebar role={userRole} />
             <div className="flex-1 h-screen overflow-y-auto custom-scrollbar w-full">
-                <div className="sticky top-0 z-40 bg-slate-50 dark:bg-slate-900 px-4 md:px-10 pt-[76px] lg:pt-10 pb-2 border-b border-transparent">
-                    <GlobalSearch />
-                </div>
-                <main className="page-enter flex-1 px-4 pb-8 md:p-10 md:pt-0 w-full max-w-full">
-                <header className="mb-6 md:mb-8">
-                    <h1 className="text-2xl md:text-4xl font-extrabold text-slate-900 dark:text-white tracking-tight">
-                        Settings
-                    </h1>
-                    <p className="text-slate-500 dark:text-slate-400 mt-2 font-medium text-sm">Configure system preferences and administration</p>
+                <main className="page-enter flex-1 px-4 pt-[76px] pb-8 md:p-10 lg:pt-10 w-full max-w-full">
+                <header className="mb-6 md:mb-8 flex items-center justify-between gap-4">
+                    <div className="min-w-0">
+                        <h1 className="text-2xl md:text-4xl font-extrabold text-slate-900 dark:text-white tracking-tight">
+                            Settings
+                        </h1>
+                        <p className="text-slate-500 dark:text-slate-400 mt-2 font-medium text-sm">Configure system preferences and administration</p>
+                    </div>
+                    <ThemeToggle />
                 </header>
 
                 {saveStatus.msg && (

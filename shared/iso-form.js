@@ -2,6 +2,8 @@
 // Printed like the original: two copies side by side on a landscape sheet, to be cut in half.
 // Students download it as a PDF: the website with html2canvas + jsPDF, the app with expo-print.
 
+import { OSACONNECT_LOGO } from './osaconnect-logo';
+
 const ROWS = 8;
 
 const STYLE = `
@@ -13,8 +15,7 @@ const STYLE = `
   .copy { flex: 1; min-width: 0; }
   .head { display: flex; align-items: flex-start; justify-content: space-between; gap: 3mm; }
   .brand { display: flex; align-items: center; gap: 2.5mm; }
-  .ustp { font-size: 20pt; font-weight: 900; letter-spacing: 1px; color: #1a2d6d; line-height: 1; }
-  .ustp span { color: #f2b705; }
+  .logo { height: 8mm; width: auto; display: block; }
   .century { font-size: 6.5pt; font-weight: 700; color: #1a2d6d; letter-spacing: .5px; line-height: 1.25; border-left: 1px solid #1a2d6d; padding-left: 2.5mm; }
   .doc { border-collapse: separate; border-spacing: 0; border-top: 1px solid #1a2d6d; border-left: 1px solid #1a2d6d; font-size: 6.5pt; text-align: center; }
   .doc td { border-right: 1px solid #1a2d6d; border-bottom: 1px solid #1a2d6d; padding: .4mm 1.5mm; line-height: 1.4; vertical-align: middle; }
@@ -37,12 +38,18 @@ const STYLE = `
   .sign .name { height: 8mm; vertical-align: bottom; text-align: center; font-weight: 700; }
   .sign .caption { text-align: center; padding: .8mm 1.5mm; line-height: 1.4; }
   .foot { margin-top: 3mm; font-size: 6pt; color: #333; text-align: center; line-height: 1.35; }
+  .foot-row { margin-top: 3mm; display: flex; align-items: flex-end; justify-content: space-between; gap: 4mm; }
+  .foot-row .foot { flex: 1; margin-top: 0; }
+  .cert { display: flex; align-items: center; gap: 1.5mm; border: 1px solid #1a2d6d; padding: 1mm 1.5mm; }
+  .cert-mark { width: 5mm; height: 5mm; border-radius: 50%; border: 1.5px solid #1a2d6d; display: flex; align-items: center; justify-content: center; font-weight: 900; color: #1a2d6d; font-size: 8pt; }
+  .cert-text { line-height: 1.15; color: #1a2d6d; font-size: 5pt; }
+  .cert-text b { display: block; font-size: 5.5pt; letter-spacing: .3px; }
 `;
 
 const COPY = `<div class="copy">
   <div class="head">
     <div class="brand">
-      <div class="ustp">US<span>T</span>P</div>
+      <img class="logo" src="${OSACONNECT_LOGO}" alt="OSAConnect">
       <div class="century">ONE CENTURY<br>ONE VISION<br>ONE USTP</div>
     </div>
     <table class="doc">
@@ -83,9 +90,12 @@ const COPY = `<div class="copy">
     <tr><td></td><td>Office Endorsed:</td></tr>
   </table>
 
-  <div class="foot">
-    C.M. Recto Avenue, Lapasan, Cagayan de Oro City 9000 Philippines<br>
-    Tel Nos. +63 (88) 856 1738; Telefax +63 (88) 856 4696 | http://www.ustp.edu.ph
+  <div class="foot-row">
+    <div class="foot">
+      C.M. Recto Avenue, Lapasan, Cagayan de Oro City 9000 Philippines<br>
+      Tel Nos. +63 (88) 856 1738; Telefax +63 (88) 856 4696 | http://www.ustp.edu.ph
+    </div>
+    <div class="cert"><div class="cert-mark">S</div><div class="cert-text">ISO 9001<b>SOCOTEC</b></div></div>
   </div>
 </div>`;
 

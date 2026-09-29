@@ -1,30 +1,44 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Scan, Send, CheckCircle2, ClipboardList, Clock, X, LogOut, HelpCircle } from 'lucide-react';
+import { Scan, Send, CheckCircle2, Clock, X, LogOut, BarChart3, User, AlertTriangle, Loader2 } from 'lucide-react';
 import QrScannerModal from '../../components/QrScannerModal';
 import { parseStudentQr, NOT_A_STUDENT_QR } from '../../components/studentQr';
-import { DEPARTMENTS, departmentForCourse, courseOptionsFor } from '../../lib/academics';
+import { DEPARTMENTS, GENDERS, departmentForCourse, courseOptionsFor } from '../../lib/academics';
 import { GUARD_STAFF_LOGIN } from '../../lib/portals';
 
-const inputClass = "w-full bg-slate-50 dark:bg-slate-900 border-2 border-slate-100 dark:border-slate-700 rounded-xl px-3 py-2.5 md:p-3.5 font-bold focus:border-ustp-blue outline-none transition-all text-sm";
-const labelClass = "text-[9px] uppercase font-black text-slate-400 dark:text-slate-500 tracking-[0.2em] ml-1 mb-1 block";
+const inputClass = "w-full min-w-0 bg-slate-50 dark:bg-slate-900 border-2 border-slate-100 dark:border-slate-700 rounded-xl px-3 py-2.5 font-semibold text-sm text-slate-800 dark:text-slate-200 focus:border-ustp-blue outline-none transition-colors placeholder:text-slate-400 disabled:cursor-not-allowed disabled:opacity-60";
+const labelClass = "mb-1 ml-1 block text-xs font-bold text-slate-500 dark:text-slate-400";
+const headerLink = "flex items-center gap-1.5 px-3 py-1.5 bg-white dark:bg-slate-800 shadow-sm border border-slate-200 dark:border-slate-700 rounded-full text-slate-600 dark:text-slate-300 hover:text-ustp-blue font-bold text-xs";
 
+// Violation types a guard or faculty & staff can report: [value, label]. The value must match OSA's
+// penalty table (PUNISHMENT_SYSTEM in backend/core/views.py). Same list as the app.
+const VIOLATIONS = [
+    ['Curfew Violation', 'Curfew Violation'],
+    ['No ID / Improper ID Sling', 'No ID / Improper ID Sling'],
+    ['No School Uniform', 'No School Uniform'],
+    ['Dress Code Violation', 'Dress Code Violation'],
+];
+
+const emptyForm = () => ({
+    student_id: '', name: '', gender: '', course: '', department: '', contact: '',
+    email: '', violation: '',
+    incident_date: new Date().toISOString().split('T')[0],
+    incident_time: new Date().toTimeString().slice(0, 5),
+});
+
+// Guards and faculty & staff report a violation: find the student (scan their QR or type the ID), pick
+// the violation, check, send. OSA reviews it on the admin side.
 const ReportViolation = () => {
     const user = JSON.parse(localStorage.getItem('user') || '{}');
     const userRole = user.role || 'guard';
     const userName = user.full_name || 'Personnel';
 
-    const [step, setStep] = useState(1);
+    const [sent, setSent] = useState(false);
     const [loading, setLoading] = useState(false);
     const [isScanning, setIsScanning] = useState(false);
     const [showConfirmModal, setShowConfirmModal] = useState(false);
-    const [statusMsg, setStatusMsg] = useState('');
-    const [form, setForm] = useState({
-        student_id: '', name: '', course: '', department: '', contact: '',
-        email: '', violation: '',
-        incident_date: new Date().toISOString().split('T')[0],
-        incident_time: new Date().toTimeString().slice(0, 5)
-    });
+    const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+    const [form, setForm] = useState(emptyForm);
 
     // The scanner only hands over codes that parseStudentQr accepts (see validate below)
     const handleScanResult = (decodedText) => {
@@ -42,6 +56,7 @@ const ReportViolation = () => {
         fetchStudentData(student.studentId);
     };
 
+    // A registered student's details fill in the form
     const fetchStudentData = async (id) => {
         try {
             const response = await fetch(`/api/students/${id}/`);
@@ -49,10 +64,11 @@ const ReportViolation = () => {
                 const data = await response.json();
                 setForm(prev => ({
                     ...prev, student_id: id, name: data.name, course: data.course,
-                    department: data.department, contact: data.contact_number, email: data.email
+                    department: data.department, contact: data.contact_number, email: data.email,
+                    gender: data.gender || prev.gender
                 }));
             }
-        } catch (error) { }
+        } catch { /* not registered yet: typed in by hand */ }
     };
 
     const handleIdChange = (e) => {
@@ -69,39 +85,41 @@ const ReportViolation = () => {
     const confirmSubmission = async () => {
         setShowConfirmModal(false);
         setLoading(true);
-        setStatusMsg('Syncing with Cloud Database...');
         try {
             const response = await fetch('/api/violations/', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ ...form, reporting_guard: userName }),
             });
-            if (response.ok) setStep(2);
+            if (response.ok) setSent(true);
             else {
-                const err = await response.json();
-                alert(`Error: ${err.error || 'Check fields'}`);
+                const err = await response.json().catch(() => ({}));
+                alert(`Couldn't send the report. ${err.error || 'Check the details and try again.'}`);
             }
-        } catch (error) {
-            alert('CRITICAL: Server Unreachable.');
+        } catch {
+            alert("Can't reach the server. Check your connection and try again.");
         } finally {
             setLoading(false);
-            setStatusMsg('');
         }
     };
 
     const resetForm = () => {
-        setStep(1);
-        setForm({
-            student_id: '', name: '', course: '', department: '', contact: '',
-            email: '', violation: '',
-            incident_date: new Date().toISOString().split('T')[0],
-            incident_time: new Date().toTimeString().slice(0, 5)
-        });
+        setSent(false);
+        setForm(emptyForm());
     };
+
+    const violationLabel = VIOLATIONS.find(([value]) => value === form.violation)?.[1] || form.violation;
+    const confirmRows = [
+        ['Student', `${form.name || '—'}`],
+        ['Student ID', form.student_id],
+        ['Gender', form.gender || '—'],
+        ['Course', [form.course, form.department && (form.department.match(/\(([^)]+)\)\s*$/) || [])[1]].filter(Boolean).join(' · ') || '—'],
+        ['Violation', violationLabel],
+        ['Date & time', `${form.incident_date} · ${form.incident_time}`],
+    ];
 
     return (
         <div className="flex bg-slate-50 dark:bg-slate-900 min-h-screen relative">
-            {/* Modal Scanner */}
             {isScanning && (
                 <QrScannerModal
                     title="Scan Student QR"
@@ -114,165 +132,197 @@ const ReportViolation = () => {
                 />
             )}
 
-            {/* Confirm Modal */}
+            {/* Check before sending */}
             {showConfirmModal && (
-                <div className="fixed inset-0 z-50 bg-slate-900/80 backdrop-blur-sm flex items-center justify-center p-6">
-                    <div className="bg-white dark:bg-slate-800 rounded-[40px] p-8 w-full max-w-lg shadow-2xl max-h-[90vh] overflow-y-auto">
-                        <div className="flex justify-between items-center mb-8 pb-4 border-b border-slate-50">
-                            <h2 className="text-2xl font-black text-slate-900 dark:text-white uppercase tracking-tight">Confirm Incident</h2>
-                            <button onClick={() => setShowConfirmModal(false)} className="text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:text-slate-400 transition-colors">
-                                <X size={28} />
+                <div className="fixed inset-0 z-50 bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-4">
+                    <div className="bg-white dark:bg-slate-800 rounded-3xl p-6 w-full max-w-md shadow-2xl max-h-[90vh] overflow-y-auto">
+                        <div className="flex justify-between items-center mb-4">
+                            <h2 className="text-lg font-black text-slate-900 dark:text-white">Check the report</h2>
+                            <button onClick={() => setShowConfirmModal(false)} aria-label="Close" className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
+                                <X size={22} />
                             </button>
                         </div>
-                        <div className="space-y-4 mb-10">
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                <div className="bg-slate-50 dark:bg-slate-900 p-5 rounded-3xl">
-                                    <p className="text-[10px] uppercase font-black text-slate-400 dark:text-slate-500 tracking-widest mb-1">Student ID</p>
-                                    <p className="font-black text-slate-800 dark:text-slate-200 text-lg uppercase">{form.student_id}</p>
+                        <div className="divide-y divide-slate-100 dark:divide-slate-700 rounded-2xl border border-slate-100 dark:border-slate-700 px-4">
+                            {confirmRows.map(([label, value]) => (
+                                <div key={label} className="flex items-baseline justify-between gap-4 py-2.5">
+                                    <span className="shrink-0 text-xs font-semibold text-slate-500 dark:text-slate-400">{label}</span>
+                                    <span className={`min-w-0 text-right text-sm font-bold ${label === 'Violation' ? 'text-red-600 dark:text-red-400' : 'text-slate-800 dark:text-slate-200'}`}>{value}</span>
                                 </div>
-                                <div className="bg-red-50 p-5 rounded-3xl">
-                                    <p className="text-[10px] uppercase font-black text-red-400 tracking-widest mb-1">Violation</p>
-                                    <p className="font-black text-red-900 uppercase leading-tight">{form.violation}</p>
-                                </div>
-                            </div>
-                            <div className="bg-slate-50 dark:bg-slate-900 p-6 rounded-3xl">
-                                <p className="text-[10px] uppercase font-black text-slate-400 dark:text-slate-500 tracking-widest mb-1">Student Full Name</p>
-                                <p className="font-bold text-slate-800 dark:text-slate-200 text-lg">{form.name || '—'}</p>
-                            </div>
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="bg-slate-50 dark:bg-slate-900 p-5 rounded-3xl">
-                                    <p className="text-[10px] uppercase font-black text-slate-400 dark:text-slate-500 tracking-widest mb-1">Email</p>
-                                    <p className="font-bold text-slate-700 dark:text-slate-300 text-sm">{form.email || '—'}</p>
-                                </div>
-                                <div className="bg-slate-50 dark:bg-slate-900 p-5 rounded-3xl">
-                                    <p className="text-[10px] uppercase font-black text-slate-400 dark:text-slate-500 tracking-widest mb-1">Contact</p>
-                                    <p className="font-bold text-slate-700 dark:text-slate-300 text-sm">{form.contact || '—'}</p>
-                                </div>
-                            </div>
-                            <div className="grid grid-cols-2 gap-4 text-center">
-                                <div className="bg-slate-50 dark:bg-slate-900 p-5 rounded-3xl">
-                                    <p className="text-[10px] uppercase font-black text-slate-400 dark:text-slate-500 tracking-widest mb-1">Date</p>
-                                    <p className="font-bold text-slate-700 dark:text-slate-300">{form.incident_date}</p>
-                                </div>
-                                <div className="bg-slate-50 dark:bg-slate-900 p-5 rounded-3xl">
-                                    <p className="text-[10px] uppercase font-black text-slate-400 dark:text-slate-500 tracking-widest mb-1">Time</p>
-                                    <p className="font-bold text-slate-700 dark:text-slate-300">{form.incident_time}</p>
-                                </div>
-                            </div>
+                            ))}
                         </div>
-                        <div className="grid grid-cols-2 gap-4">
-                            <button onClick={() => setShowConfirmModal(false)} className="bg-slate-100 text-slate-600 dark:text-slate-400 font-black py-5 rounded-[24px] uppercase text-xs tracking-widest hover:bg-slate-200 transition-all">Cancel</button>
-                            <button onClick={confirmSubmission} disabled={loading} className="bg-ustp-blue text-white font-black py-5 rounded-[24px] uppercase text-xs tracking-widest hover:bg-slate-900 shadow-xl transition-all">Submit Now</button>
+                        <div className="mt-5 grid grid-cols-2 gap-3">
+                            <button onClick={() => setShowConfirmModal(false)} className="py-3 rounded-xl bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-200 font-bold text-sm hover:bg-slate-200">Edit</button>
+                            <button onClick={confirmSubmission} disabled={loading} className="py-3 rounded-xl bg-ustp-blue text-white font-bold text-sm hover:bg-blue-800 disabled:opacity-60">Send report</button>
                         </div>
                     </div>
                 </div>
             )}
- 
+
+            {/* Confirmation modal before logging out */}
+            {showLogoutConfirm && (
+                <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+                    <div className="bg-white dark:bg-slate-800 rounded-3xl p-6 w-full max-w-sm shadow-2xl animate-in zoom-in-95 duration-150 border border-slate-100 dark:border-slate-700">
+                        <div className="w-12 h-12 bg-red-50 dark:bg-red-950/50 text-red-500 dark:text-red-400 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <LogOut size={22} />
+                        </div>
+                        <h3 className="text-lg font-black text-slate-900 dark:text-white text-center">Log out?</h3>
+                        <p className="text-sm font-medium text-slate-500 dark:text-slate-400 text-center mt-1 mb-6">
+                            Are you sure you want to log out of your account?
+                        </p>
+                        <div className="flex gap-3">
+                            <button
+                                onClick={() => setShowLogoutConfirm(false)}
+                                className="flex-1 py-3 bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-200 rounded-xl font-bold text-sm hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={() => { localStorage.clear(); window.location.href = GUARD_STAFF_LOGIN; }}
+                                className="flex-1 py-3 bg-red-600 text-white rounded-xl font-bold text-sm hover:bg-red-700 transition-colors shadow-md shadow-red-200 dark:shadow-none"
+                            >
+                                Log Out
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             <main className="flex-1 p-3 md:p-10 w-full max-w-full h-screen overflow-y-auto custom-scrollbar">
-                {/* Help + Log Out sit in the header so they scroll away with the page */}
-                <header className="max-w-4xl mx-auto w-full mb-3 flex items-start justify-between gap-3">
+                <header className="max-w-4xl mx-auto w-full mb-2.5 flex items-center justify-between gap-4 px-4 sm:px-6">
                     <div className="min-w-0">
-                        <h1 className="text-xl md:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tighter uppercase italic">
-                            {userRole === 'guard' ? 'Guard Report' : 'Staff Report'}
-                        </h1>
-                        <p className="text-slate-400 dark:text-slate-500 font-medium italic text-[11px] md:text-sm">
-                            Academic Integrity & Safety Reporting
+                        <h1 className="text-xl md:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">Report a violation</h1>
+                        <p className="mt-1 text-xs md:text-sm font-semibold text-slate-500 dark:text-slate-400 flex items-center gap-1.5 flex-wrap">
+                            <span>Signed in as</span>
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-50 text-ustp-blue border border-blue-200/60 dark:bg-blue-950/60 dark:text-blue-300 dark:border-blue-800/60 shadow-xs">
+                                {userName}
+                            </span>
                         </p>
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
-                        {userRole === 'guard' && (
-                            <Link to="/guard/history" className="flex items-center gap-1.5 px-3 py-1.5 bg-white dark:bg-slate-800 shadow-sm border border-slate-200 dark:border-slate-600 rounded-full text-slate-600 dark:text-slate-300 hover:text-ustp-blue font-bold text-xs">
-                                <Clock size={14} /> History
+                        {['guard', 'staff'].includes(userRole) && (
+                            <Link to={`/${userRole}/history`} className={headerLink}>
+                                <Clock size={14} /> <span className="hidden sm:inline">History</span>
                             </Link>
                         )}
-                        <Link to="/help" aria-label="Help" className="flex items-center gap-1.5 px-3 py-1.5 bg-white dark:bg-slate-800 shadow-sm border border-slate-200 dark:border-slate-600 rounded-full text-slate-600 dark:text-slate-300 hover:text-ustp-blue font-bold text-xs">
-                            <HelpCircle size={14} /> <span className="hidden sm:inline">Help</span>
-                        </Link>
+                        {userRole === 'guard' && (
+                            <Link to="/guard/analytics" className={headerLink}>
+                                <BarChart3 size={14} /> <span className="hidden sm:inline">Analytics</span>
+                            </Link>
+                        )}
                         <button
-                            onClick={() => { localStorage.clear(); window.location.href = GUARD_STAFF_LOGIN; }}
-                            aria-label="Log Out"
-                            className="flex items-center gap-1.5 px-3 py-1.5 bg-white dark:bg-slate-800 shadow-sm border border-slate-200 dark:border-slate-600 rounded-full text-red-500 hover:bg-red-50 font-bold text-xs"
+                            onClick={() => setShowLogoutConfirm(true)}
+                            aria-label="Log out"
+                            className="flex items-center gap-1.5 px-3.5 py-1.5 bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-800/60 hover:bg-red-100 dark:hover:bg-red-900/60 shadow-sm rounded-full font-bold text-xs transition-colors"
                         >
-                            <LogOut size={14} /> <span className="hidden sm:inline">Log Out</span>
+                            <LogOut size={14} className="shrink-0 text-red-500 dark:text-red-400" />
+                            <span>Log out</span>
                         </button>
                     </div>
                 </header>
 
                 <div className="max-w-4xl mx-auto w-full pb-10">
-                    {step === 1 ? (
-                        <div className="card-premium border-2 border-white shadow-2xl p-4 sm:p-6 md:p-8 animate-in slide-in-from-bottom-5 duration-500">
-                            <h3 className="text-base md:text-xl font-black text-slate-900 dark:text-white flex items-center gap-2 mb-3 pb-3 border-b border-slate-50 uppercase tracking-tighter">
-                                <ClipboardList className="text-ustp-blue" size={20} />
-                                New Incident Report
-                            </h3>
-
-                            <form onSubmit={handleSubmit} className="space-y-3">
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-2.5">
-                                    <div className="space-y-2.5 min-w-0">
-                                        <div>
-                                            <label className={labelClass}>Student ID / Scan QR</label>
-                                            <div className="relative">
-                                                <input required value={form.student_id} onChange={handleIdChange} placeholder="202X-XXXXXXX" className={`${inputClass} pr-12 font-black uppercase placeholder:text-slate-300`} />
-                                                <button type="button" onClick={() => setIsScanning(true)} className="absolute right-1.5 top-1.5 bottom-1.5 aspect-square bg-ustp-blue text-white rounded-lg flex items-center justify-center shadow-md shadow-blue-200 active:scale-95 transition-all">
-                                                    <Scan size={16} />
-                                                </button>
-                                            </div>
+                    {!sent ? (
+                        <form onSubmit={handleSubmit} className="card-premium p-4 sm:p-6 space-y-5">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                                {/* Student */}
+                                <section className="space-y-3 min-w-0">
+                                    <h2 className="flex items-center gap-2 text-sm font-black text-slate-800 dark:text-slate-200">
+                                        <User size={16} className="text-ustp-blue" /> Student
+                                    </h2>
+                                    <div>
+                                        <label className={labelClass} htmlFor="rv-id">Student ID (type it or scan their QR)</label>
+                                        <div className="relative">
+                                            <input id="rv-id" required value={form.student_id} onChange={handleIdChange} placeholder="Student ID" inputMode="numeric" className={`${inputClass} pr-12`} />
+                                            <button type="button" onClick={() => setIsScanning(true)} aria-label="Scan student QR" className="absolute right-1.5 top-1.5 bottom-1.5 aspect-square bg-ustp-blue text-white rounded-lg flex items-center justify-center active:scale-95 transition-transform">
+                                                <Scan size={16} />
+                                            </button>
                                         </div>
-                                        <input required placeholder="Student Full Name" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} className={inputClass} />
-                                        {/* Department first, then only its courses (same as registration) */}
-                                        <div className="grid grid-cols-2 gap-2.5">
-                                            <select required value={form.department} onChange={e => {
+                                    </div>
+                                    <div>
+                                        <label className={labelClass} htmlFor="rv-name">Full name</label>
+                                        <input id="rv-name" required placeholder="Full name" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} className={inputClass} />
+                                    </div>
+                                    <div>
+                                        <label className={labelClass} htmlFor="rv-gender">Gender</label>
+                                        <select id="rv-gender" required value={form.gender} onChange={e => setForm({ ...form, gender: e.target.value })} className={inputClass}>
+                                            <option value="">Choose gender</option>
+                                            {GENDERS.map(g => <option key={g} value={g}>{g}</option>)}
+                                        </select>
+                                    </div>
+                                    {/* Department first, then only its courses (same as registration) */}
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <div className="min-w-0">
+                                            <label className={labelClass} htmlFor="rv-dept">Department</label>
+                                            <select id="rv-dept" required value={form.department} onChange={e => {
                                                 const department = e.target.value;
                                                 setForm({ ...form, department, course: courseOptionsFor(department).includes(form.course) ? form.course : '' });
-                                            }} className={`${inputClass} appearance-none truncate`}>
-                                                <option value="">Department</option>
+                                            }} className={`${inputClass} truncate`}>
+                                                <option value="">Choose</option>
                                                 {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
                                             </select>
-                                            <select required disabled={!form.department} value={form.course} onChange={e => setForm({ ...form, course: e.target.value })} className={`${inputClass} appearance-none truncate disabled:cursor-not-allowed disabled:opacity-60`}>
-                                                <option value="">{form.department ? 'Course' : 'Choose department first'}</option>
+                                        </div>
+                                        <div className="min-w-0">
+                                            <label className={labelClass} htmlFor="rv-course">Course</label>
+                                            <select id="rv-course" required disabled={!form.department} value={form.course} onChange={e => setForm({ ...form, course: e.target.value })} className={`${inputClass} truncate`}>
+                                                <option value="">{form.department ? 'Choose' : 'Department first'}</option>
                                                 {courseOptionsFor(form.department, form.course).map(c => <option key={c} value={c}>{c}</option>)}
                                             </select>
                                         </div>
-                                        <input required type="email" placeholder="Email Address" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} className={inputClass} />
-                                        <input required type="tel" placeholder="Contact Number" value={form.contact} onChange={e => setForm({ ...form, contact: e.target.value })} className={inputClass} />
                                     </div>
-                                    <div className="space-y-2.5 min-w-0">
-                                        <select required value={form.violation} onChange={e => setForm({ ...form, violation: e.target.value })} className="w-full bg-red-50 border-2 border-red-100 rounded-xl px-3 py-2.5 md:p-3.5 font-black text-red-900 focus:border-red-500 outline-none transition-all cursor-pointer text-sm appearance-none truncate">
-                                            <option value="">SELECT VIOLATION</option>
-                                            <option value="No ID">No ID</option>
-                                            <option value="Improper wearing of ID">Improper Wearing of ID</option>
-                                            <option value="Dress code violation">Dress Code</option>
-                                            <option value="Littering">Littering</option>
-                                            <option value="Smoking inside campus">Smoking</option>
-                                            <option value="Serious misconduct">Serious Misconduct</option>
-                                        </select>
-                                        <div className="grid grid-cols-2 gap-2.5">
-                                            {/* min-w-0 + appearance-none stop iPhone Safari's date/time boxes from spilling past the card */}
-                                            <div className="min-w-0">
-                                                <label className={labelClass}>Date</label>
-                                                <input type="date" required value={form.incident_date} onChange={e => setForm({ ...form, incident_date: e.target.value })} className={`${inputClass} min-w-0 appearance-none text-xs`} />
-                                            </div>
-                                            <div className="min-w-0">
-                                                <label className={labelClass}>Time</label>
-                                                <input type="time" required value={form.incident_time} onChange={e => setForm({ ...form, incident_time: e.target.value })} className={`${inputClass} min-w-0 appearance-none text-xs`} />
-                                            </div>
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                        <div className="min-w-0">
+                                            <label className={labelClass} htmlFor="rv-email">Email</label>
+                                            <input id="rv-email" required type="email" placeholder="Email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} className={inputClass} />
+                                        </div>
+                                        <div className="min-w-0">
+                                            <label className={labelClass} htmlFor="rv-contact">Contact number</label>
+                                            <input id="rv-contact" required type="tel" placeholder="Contact number" value={form.contact} onChange={e => setForm({ ...form, contact: e.target.value })} className={inputClass} />
                                         </div>
                                     </div>
-                                </div>
-                                <button type="submit" disabled={loading} className="group relative bg-ustp-blue text-white w-full py-3.5 rounded-xl text-base font-black shadow-xl shadow-blue-900/20 flex items-center justify-center gap-3 transition-all hover:bg-slate-900 active:scale-[0.98]">
-                                    <Send size={20} className="group-hover:-translate-y-1 group-hover:translate-x-1 transition-transform" />
-                                    {loading ? "Syncing..." : "SUBMIT REPORT"}
-                                </button>
-                            </form>
-                        </div>
-                    ) : (
-                        <div className="card-premium border-2 border-green-200 bg-green-50/20 shadow-2xl p-8 md:p-20 text-center animate-in zoom-in duration-500">
-                            <div className="w-16 h-16 bg-green-500 rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg shadow-green-200">
-                                <CheckCircle2 className="text-white" size={32} />
+                                </section>
+
+                                {/* Violation */}
+                                <section className="space-y-3 min-w-0">
+                                    <h2 className="flex items-center gap-2 text-sm font-black text-slate-800 dark:text-slate-200">
+                                        <AlertTriangle size={16} className="text-red-500" /> Violation
+                                    </h2>
+                                    <div>
+                                        <label className={labelClass} htmlFor="rv-violation">What happened</label>
+                                        <select id="rv-violation" required value={form.violation} onChange={e => setForm({ ...form, violation: e.target.value })} className={`${inputClass} ${form.violation ? 'text-red-700 dark:text-red-400' : ''}`}>
+                                            <option value="">Choose the violation</option>
+                                            {VIOLATIONS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+                                        </select>
+                                    </div>
+                                    {/* min-w-0 + appearance-none stop iPhone Safari's date/time boxes from spilling past the card */}
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <div className="min-w-0">
+                                            <label className={labelClass} htmlFor="rv-date">Date</label>
+                                            <input id="rv-date" type="date" required value={form.incident_date} onChange={e => setForm({ ...form, incident_date: e.target.value })} className={`${inputClass} appearance-none`} />
+                                        </div>
+                                        <div className="min-w-0">
+                                            <label className={labelClass} htmlFor="rv-time">Time</label>
+                                            <input id="rv-time" type="time" required value={form.incident_time} onChange={e => setForm({ ...form, incident_time: e.target.value })} className={`${inputClass} appearance-none`} />
+                                        </div>
+                                    </div>
+                                    <p className="rounded-xl bg-slate-50 dark:bg-slate-900 px-3 py-2.5 text-xs font-medium text-slate-500 dark:text-slate-400">
+                                        OSA reviews every report before any penalty is given. The student gets an email about it.
+                                    </p>
+                                </section>
                             </div>
-                            <h2 className="text-2xl md:text-3xl font-black text-slate-900 dark:text-white uppercase italic tracking-tighter">Report Stored!</h2>
-                            <p className="text-slate-500 dark:text-slate-400 mt-4 max-w-xs mx-auto font-bold text-base leading-relaxed">Violation synchronized with cloud database.</p>
-                            <button onClick={resetForm} className="mt-8 bg-slate-900 text-white w-full max-w-[240px] py-4 rounded-2xl font-black uppercase text-xs tracking-widest shadow-xl hover:bg-slate-800 transition-all">New Entry</button>
+
+                            <button type="submit" disabled={loading} className="bg-ustp-blue text-white w-full py-3.5 rounded-xl text-sm font-black flex items-center justify-center gap-2 hover:bg-blue-800 active:scale-[0.99] transition-transform disabled:opacity-60">
+                                {loading ? <Loader2 size={18} className="animate-spin" /> : <Send size={18} />}
+                                {loading ? 'Sending…' : 'Submit report'}
+                            </button>
+                        </form>
+                    ) : (
+                        <div className="card-premium p-8 md:p-14 text-center">
+                            <div className="w-14 h-14 bg-emerald-500 rounded-full flex items-center justify-center mx-auto mb-5">
+                                <CheckCircle2 className="text-white" size={30} />
+                            </div>
+                            <h2 className="text-2xl font-black text-slate-900 dark:text-white">Report sent</h2>
+                            <p className="text-slate-500 dark:text-slate-400 mt-2 font-medium text-sm">OSA will review it. You can see it in your history.</p>
+                            <button onClick={resetForm} className="mt-7 bg-ustp-blue text-white w-full max-w-[240px] py-3.5 rounded-xl font-bold text-sm hover:bg-blue-800">Report another</button>
                         </div>
                     )}
                 </div>

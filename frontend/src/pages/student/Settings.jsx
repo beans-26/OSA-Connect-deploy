@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import QRCode from 'react-qr-code';
 import { User, Mail, Phone, BookOpen, Building2, Lock, ArrowLeft, LogOut, AlertTriangle, Moon, CircleHelp, ChevronRight } from 'lucide-react';
 import { useStudentTheme } from '../../components/useStudentTheme';
 import { logoutStudent } from '../../components/studentSession';
@@ -12,6 +11,17 @@ const Settings = () => {
     const [studentInfo, setStudentInfo] = useState(null);
     const [loading, setLoading] = useState(true);
     const [showLogoutModal, setShowLogoutModal] = useState(false);
+    // Whether a service timer is running: only then does the log-out question mention it
+    const [timerRunning, setTimerRunning] = useState(false);
+    const openLogout = async () => {
+        let running = true; // can't check (offline): keep the warning
+        try {
+            const response = await fetch(`/api/etickets/?student_id=${encodeURIComponent(user.username)}`);
+            if (response.ok) running = (await response.json()).some((t) => t.status === 'Ongoing');
+        } catch { /* keep the warning */ }
+        setTimerRunning(running);
+        setShowLogoutModal(true);
+    };
     const [loggingOut, setLoggingOut] = useState(false);
     const user = JSON.parse(localStorage.getItem('user') || '{}');
 
@@ -76,18 +86,6 @@ const Settings = () => {
                 </header>
 
                 <main className="px-4 pb-10">
-                    {/* QR Code Card */}
-                    <section className="mb-5 flex flex-col items-center rounded-3xl border-2 border-[var(--s-bg)] bg-[var(--s-card)] p-6 text-center shadow-[0_2px_8px_rgba(0,0,0,0.1)]">
-                        <div className="mb-5 rounded-3xl bg-white p-3 shadow-[0_4px_12px_rgba(30,58,138,0.15)]">
-                            <QRCode value={studentInfo.student_id} size={160} fgColor={isDarkMode ? '#0f172a' : '#000'} bgColor="#fff" />
-                        </div>
-                        <h2 className="mb-1 text-2xl font-black text-[var(--s-text)]">{studentInfo.name}</h2>
-                        <p className="mb-4 text-sm font-black uppercase tracking-[2px] text-[var(--s-primary)]">{studentInfo.student_id}</p>
-                        <p className="px-2 text-xs text-[var(--s-muted)]">
-                            Present this personalized QR code to campus guards for instant violation registration or service hub scanning.
-                        </p>
-                    </section>
-
                     {/* Basic Information */}
                     <section className="mb-4 rounded-2xl border-2 border-[var(--s-border)] bg-[var(--s-card)] p-5">
                         <div className="mb-5 flex items-center">
@@ -97,6 +95,10 @@ const Settings = () => {
                         <div className="mb-4">
                             <p className={infoLabel}>Full Identity Name</p>
                             <p className={infoValue}>{studentInfo.name}</p>
+                        </div>
+                        <div className="mb-4">
+                            <p className={infoLabel}>Student ID</p>
+                            <p className={infoValue}>{studentInfo.student_id}</p>
                         </div>
                         <div className="flex justify-between gap-4">
                             <div className="mb-4 flex-1">
@@ -159,7 +161,7 @@ const Settings = () => {
                     </button>
 
                     <button
-                        onClick={() => setShowLogoutModal(true)}
+                        onClick={openLogout}
                         className="mt-2 flex w-full items-center justify-center rounded-2xl border-2 border-[var(--s-danger)] bg-[var(--s-card)] p-4"
                     >
                         <LogOut size={20} className="text-[var(--s-danger)]" />
@@ -169,18 +171,30 @@ const Settings = () => {
             </div>
 
             {showLogoutModal && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-5">
-                    <div className="w-full max-w-[400px] rounded-3xl bg-[var(--s-card)] p-6">
-                        <div className="mb-3 flex items-center">
-                            <AlertTriangle size={24} className="text-[var(--s-danger)]" />
-                            <h3 className="ml-2 text-lg font-black uppercase tracking-[1px] text-[var(--s-danger)]">Log Out</h3>
-                        </div>
-                        <p className="mb-6 text-sm leading-5 text-[var(--s-text)]">Are you sure you want to log out? A running service timer will stop.</p>
-                        <div className="flex gap-3">
-                            <button onClick={() => setShowLogoutModal(false)} className="flex-1 rounded-xl bg-[var(--s-bg)] p-3.5 font-bold text-[var(--s-muted)]">
+                <div 
+                    className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4 backdrop-blur-[2px]"
+                    onClick={() => setShowLogoutModal(false)}
+                >
+                    <div 
+                        className="w-full max-w-[260px] rounded-xl bg-[var(--s-card)] p-4 shadow-lg border border-[var(--s-border)] text-center"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <p className="text-sm font-semibold text-[var(--s-text)]">Log out?</p>
+                        <p className="mt-1 text-xs text-[var(--s-muted)]">
+                            {timerRunning ? 'Your running service timer will stop.' : 'Are you sure you want to log out of your account?'}
+                        </p>
+                        <div className="mt-3 flex gap-2">
+                            <button 
+                                onClick={() => setShowLogoutModal(false)} 
+                                className="flex-1 rounded-lg border border-[var(--s-border)] py-2 text-xs font-medium text-[var(--s-muted)] hover:bg-[var(--s-bg)] transition-colors active:scale-95 cursor-pointer"
+                            >
                                 Cancel
                             </button>
-                            <button onClick={logout} disabled={loggingOut} className="flex-1 rounded-xl bg-[var(--s-danger)] p-3.5 text-sm font-bold text-white disabled:opacity-60">
+                            <button 
+                                onClick={logout} 
+                                disabled={loggingOut} 
+                                className="flex-1 rounded-lg bg-rose-600 hover:bg-rose-700 py-2 text-xs font-medium text-white active:scale-95 transition-colors disabled:opacity-60 cursor-pointer"
+                            >
                                 {loggingOut ? 'Logging out…' : 'Log Out'}
                             </button>
                         </div>

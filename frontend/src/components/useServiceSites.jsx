@@ -29,7 +29,7 @@ export const ServiceSiteOptions = ({ sites, loading, error, placeholder }) => {
             <option value="">{placeholder}</option>
             {sites.map((s) => (
                 <option key={s.id} value={s.site_code}>
-                    {s.name} ({s.site_code}) · {s.assigned_count ?? 0}/{s.capacity ?? 10}{(s.assigned_count ?? 0) >= (s.capacity ?? 10) ? ' Full' : ''}
+                    {s.name} · {s.assigned_count ?? 0}/{s.capacity ?? 10}{(s.assigned_count ?? 0) >= (s.capacity ?? 10) ? ' Full' : ''}
                 </option>
             ))}
         </>

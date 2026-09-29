@@ -46,3 +46,9 @@ export const courseOptionsFor = (department, current) => {
     const list = DEPARTMENT_COURSES[department] || [];
     return current && !list.includes(current) ? [...list, current] : list;
 };
+
+// Student gender (registration and the guard's report); same list as mobile/constants/Data.js
+export const GENDERS = ['Male', 'Female'];
+
+// "College of Information Technology and Computing (CITC)" -> "CITC", for compact filters and charts
+export const departmentShort = (department) => (String(department || '').match(/\(([^)]+)\)\s*$/) || [])[1] || department;

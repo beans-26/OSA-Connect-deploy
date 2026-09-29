@@ -46,3 +46,6 @@ export const courseOptionsFor = (department, current) => {
     const list = DEPARTMENT_COURSES[department] || [];
     return current && !list.includes(current) ? [...list, current] : list;
 };
+
+// Student gender (registration and the guard's report); same list as frontend/src/lib/academics.js
+export const GENDERS = ['Male', 'Female'];
