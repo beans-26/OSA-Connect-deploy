@@ -924,8 +924,8 @@ class ETicketViewSet(viewsets.ModelViewSet):
     serializer_class = ETicketSerializer
 
     def get_permissions(self):
-        # Students list their own tickets; changing tickets is admin-only
-        return [IsLoggedIn()] if self.action == 'list' else [IsAdmin()]
+        # Students list their own tickets and print its form; changing tickets is admin-only
+        return [IsLoggedIn()] if self.action in ('list', 'print_iso_form') else [IsAdmin()]
 
     def get_queryset(self):
         role = role_of(self.request)
@@ -961,6 +961,26 @@ class ETicketViewSet(viewsets.ModelViewSet):
             if ref_id in students:
                 v._data['student'] = students[ref_id]
         return Response(self.get_serializer(tickets, many=True).data)
+
+    @action(detail=True, methods=['post'])
+    def print_iso_form(self, request, id=None):
+        """The student may download the blank ISO time log form once, while the ticket is open.
+        Another copy is requested at the OSA office."""
+        try:
+            eticket = ETicket.objects(id=id).first()
+        except (MongoValidationError, InvalidId):
+            eticket = None
+        if not eticket:
+            return Response({"error": "E-ticket not found."}, status=status.HTTP_404_NOT_FOUND)
+        if not owns_ticket(request, eticket):
+            return Response({"error": "This isn't your e-ticket."}, status=status.HTTP_403_FORBIDDEN)
+        if eticket.status not in ('Active', 'Ongoing'):
+            return Response({"error": "You have no active violation to download the ISO form for."}, status=status.HTTP_400_BAD_REQUEST)
+        # Only one request can set it, so two devices can't both download it
+        if not ETicket.objects(id=eticket.id, iso_form_printed_at=None).update_one(set__iso_form_printed_at=utc_now()):
+            return Response({"error": "The ISO form can only be downloaded once. Go to the OSA office to request another one."},
+                            status=status.HTTP_409_CONFLICT)
+        return Response({"printed": True})
 
 
 # Starting a session: the student must be inside the site's circle. GPS accuracy adds up to
