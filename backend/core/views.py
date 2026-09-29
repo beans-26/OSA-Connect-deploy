@@ -1474,6 +1474,14 @@ class TimeLogViewSet(viewsets.ModelViewSet):
                     reason = request.data.get('end_reason')
                     # Location off: only the time up to the last confirmed location counts
                     time_out = log.last_ping_at if reason == 'location_off' and log.last_ping_at else None
+                    # A stop the website saved while offline (it saw the student leave, or location go off,
+                    # but couldn't reach the server): it ends the session when that happened. Only ever
+                    # earlier than now, so it can take time away but never add any.
+                    # Sent as seconds ago (not a time), so a wrong phone clock doesn't matter
+                    ago = _float_or_none(request.data.get('ended_seconds_ago'))
+                    ended_at = utc_now() - datetime.timedelta(seconds=ago) if ago and 0 < ago < 30 * 86400 else None
+                    if ended_at and ended_at < (time_out or utc_now()):
+                        time_out = ended_at
                     receipt = end_session(
                         log, eticket, reason, time_out=time_out,
                         lat=_float_or_none(request.data.get('lat')) if not site_code else None,

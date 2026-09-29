@@ -6,7 +6,8 @@ import { SessionReceiptBody, receiptDate, formatDuration, FLAGGED_ENDS } from '.
 // Opened by tapping an e-ticket on the student dashboard: the ticket, then its service log grouped by
 // date. Each date is a toggle listing that day's sessions (Session 1, 2, ...); tapping one opens its
 // receipt (several can be open at once). Mirrors mobile/components/TicketDetails.jsx.
-const TicketDetails = ({ ticket, onClose }) => {
+// The admin Archives open it too (forAdmin), with `children` shown under the ticket (the clearance photos).
+const TicketDetails = ({ ticket, onClose, children, forAdmin = false }) => {
     const [receipts, setReceipts] = useState(null);
     const [error, setError] = useState('');
     const [openDate, setOpenDate] = useState(null);
@@ -41,7 +42,7 @@ const TicketDetails = ({ ticket, onClose }) => {
         else days.push({ date, sessions: [r] });
     });
 
-    const summary = ticketReceipt(ticket, receipts);
+    const summary = ticketReceipt(ticket, receipts, { forAdmin });
     const headerStyle = {
         done: ['border-[#e2e8f0] bg-[#f1f5f9]', 'text-[#334155]', 'text-[#64748b]', CheckCircle2],
         clearance: ['border-[#a7f3d0] bg-[#ecfdf5]', 'text-[#065f46]', 'text-[#047857]', FileText],
@@ -101,6 +102,8 @@ const TicketDetails = ({ ticket, onClose }) => {
                         )}
                     </div>
                 </div>
+
+                {children}
 
                 <p className="mb-2 text-[10px] font-black uppercase tracking-[2px] text-[var(--s-muted)]">Service Log</p>
                 {error ? (
