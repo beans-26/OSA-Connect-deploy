@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Download, ChevronRight, Loader2, Mail, CheckCircle2 } from 'lucide-react';
 import QRCode from 'react-qr-code';
 import { Link } from 'react-router-dom';
-import { DEPARTMENTS, DEPARTMENT_COURSES, yearLevelsFor } from '../lib/academics';
+import { DEPARTMENTS, DEPARTMENT_COURSES, GENDERS, yearLevelsFor } from '../lib/academics';
 import campusPhoto from '../assets/ustp-campus-blur.jpg';
 import osaLogo from '../assets/osaconnect-logo.png';
 
@@ -43,6 +43,7 @@ const StudentRegistration = () => {
         first_name: '',
         middle_name: '',
         last_name: '',
+        gender: '',
         course: '',
         department: '',
         year_level: '',
@@ -267,6 +268,13 @@ const StudentRegistration = () => {
                                 </Field>
                             </div>
 
+                            <Field id="reg-gender" label="Gender">
+                                <select id="reg-gender" required value={studentData.gender} onChange={set('gender')} className={inputClass}>
+                                    <option value="" disabled>Choose your gender</option>
+                                    {GENDERS.map((g) => <option key={g} value={g}>{g}</option>)}
+                                </select>
+                            </Field>
+
                             {/* College first; it decides the program list and year levels (Grade 11/12 for SHS) */}
                             <Field id="reg-college" label="College">
                                 <select id="reg-college" required value={studentData.department} onChange={(e) => changeDepartment(e.target.value)} className={inputClass}>
@@ -325,7 +333,7 @@ const StudentRegistration = () => {
                     {step === 2 && (
                         <form onSubmit={verifyAndRegister} className="mt-1">
                             <p className="text-xs sm:text-sm text-slate-700 dark:text-slate-300 mb-4">
-                                Enter the 6-digit code we sent you. It expires in 5 minutes.
+                                Enter the 6-digit code we sent you. It expires in 5 minutes. No email yet? Check your Spam or Junk folder.
                             </p>
 
                             <div className="flex items-center gap-2.5 rounded-md border border-white/80 dark:border-white/15 bg-white/60 dark:bg-slate-900/50 px-3 sm:px-4 py-2.5 sm:py-3 text-sm text-slate-800 dark:text-slate-200">

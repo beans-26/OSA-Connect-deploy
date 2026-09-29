@@ -1,4 +1,4 @@
-from mongoengine import Document, StringField, DateTimeField, IntField, ReferenceField, EnumField, FloatField, BooleanField, ListField, DictField
+from mongoengine import Document, StringField, DateTimeField, IntField, ReferenceField, FloatField, BooleanField, ListField, DictField
 import datetime
 from enum import Enum
 
@@ -8,6 +8,8 @@ def utc_now():
     (Philippine time) and by Vercel (UTC) agree; the API sends them marked as UTC ("...Z")."""
     return datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None)
 
+# Every model sets strict False: records may carry fields a newer version of the code saved (the laptop and
+# Vercel share one database), and an older version must still load them instead of failing.
 # Every model sets auto_create_index False: otherwise mongoengine asks for the Atlas primary before the
 # first query on each collection, and each Vercel cold start stalls whenever the primary is slow to answer.
 # The indexes (unique student_id, username, otp email, site_code) already exist in the database;
@@ -18,7 +20,7 @@ class OTPVerification(Document):
     otp = StringField(required=True)
     created_at = DateTimeField(default=utc_now)
     attempts = IntField(default=0)
-    meta = {'collection': 'otp_verifications', 'auto_create_index': False}
+    meta = {'collection': 'otp_verifications', 'auto_create_index': False, 'strict': False}
 
 class ViolationStatus(Enum):
     PENDING = "Pending OSA Review"
@@ -38,11 +40,12 @@ class Student(Document):
     course = StringField()
     department = StringField()
     year_level = StringField()
+    gender = StringField()  # 'Male' or 'Female' (GENDERS in views.py); set at registration or by the reporting guard
     contact_number = StringField()
     email = StringField()
     password = StringField()
     qr_data = StringField()
-    meta = {'collection': 'students', 'auto_create_index': False}
+    meta = {'collection': 'students', 'auto_create_index': False, 'strict': False}
 
 class ViolationReport(Document):
     student = ReferenceField(Student, required=True)
@@ -53,8 +56,28 @@ class ViolationReport(Document):
     offense_count = IntField(default=1)
     punishment = StringField()
     assigned_building = StringField() # New field for OSA review
+    # Every building the violation was assigned to, oldest first: {name, at, by} (approval, then each change)
+    building_history = ListField(DictField())
     created_at = DateTimeField(default=utc_now)
-    meta = {'collection': 'violation_reports', 'auto_create_index': False}
+    # After the hours are served the student brings the signed ISO form and a reflection paper to OSA:
+    # the admin uploads a photo of each (ClearanceProof) and clears the violation, which moves it to the archives
+    iso_form_uploaded_at = DateTimeField()
+    reflection_uploaded_at = DateTimeField()
+    cleared_at = DateTimeField()
+    cleared_by = StringField()
+    meta = {'collection': 'violation_reports', 'auto_create_index': False, 'strict': False}
+
+
+class ClearanceProof(Document):
+    """Photo of a clearance document: the signed FM-USTP-OSA-013 form or the reflection paper, one of each
+    per violation. Kept apart from the violation so the violation lists stay small (an image is only loaded
+    when an admin opens it)."""
+    violation = ReferenceField(ViolationReport, required=True)
+    kind = StringField(required=True)  # 'iso_form' or 'reflection' (CLEARANCE_FILES in views.py)
+    image = StringField(required=True)  # data URL (JPEG, resized in the browser)
+    uploaded_at = DateTimeField(default=utc_now)
+    uploaded_by = StringField()
+    meta = {'collection': 'clearance_proofs', 'auto_create_index': False, 'strict': False}
 
 class ETicket(Document):
     # One e-ticket per violation: a unique index, created once in the database (ETicket.ensure_indexes())
@@ -68,9 +91,13 @@ class ETicket(Document):
     radius = FloatField(default=100.0) # Allowed Radius in Meters
     site_code = StringField() # Service site of the current session, when started from a site QR
     assigned_site_code = StringField() # Site the admin assigned; the timer only starts with this site's QR
-    iso_form_printed_at = DateTimeField() # The student downloaded the blank FM-USTP-OSA-013 form (once per ticket)
+    iso_form_printed_at = DateTimeField() # No longer used (the ISO form was once per ticket; now unlimited)
+    # Hours added for days missed after the 3-day deadline (core/deadlines.py); already in total/remaining
+    added_hours = FloatField(default=0)
+    missed_days = ListField(StringField())  # 'YYYY-MM-DD' Philippine dates that added an hour
+    missed_checked_through = StringField()  # last day already checked, so no day is counted twice
     created_at = DateTimeField(default=utc_now)
-    meta = {'collection': 'etickets', 'auto_create_index': False}
+    meta = {'collection': 'etickets', 'auto_create_index': False, 'strict': False}
 
 class TimeLog(Document):
     eticket = ReferenceField(ETicket, required=True)
@@ -93,7 +120,7 @@ class TimeLog(Document):
     last_lat = FloatField()
     last_lng = FloatField()
     outside_since = DateTimeField()  # set while the student is outside the site
-    meta = {'collection': 'timelogs', 'auto_create_index': False}
+    meta = {'collection': 'timelogs', 'auto_create_index': False, 'strict': False}
 
 class SystemUser(Document):
     username = StringField(required=True, unique=True)
@@ -103,7 +130,7 @@ class SystemUser(Document):
     # admin = OSA staff; staff = faculty and other school staff (teachers, instructors); guard = campus guards
     role = StringField(required=True, choices=['admin', 'guard', 'student', 'staff'])
     is_active = BooleanField(default=True)  # disabled accounts can't log in (manage.py create_account --disable)
-    meta = {'collection': 'system_users', 'auto_create_index': False}
+    meta = {'collection': 'system_users', 'auto_create_index': False, 'strict': False}
 
 
 class ServiceSite(Document):
@@ -122,4 +149,4 @@ class ServiceSite(Document):
     registered_by = ReferenceField(SystemUser)
     registered_at = DateTimeField(default=utc_now)
     updated_at = DateTimeField(default=utc_now)
-    meta = {'collection': 'service_sites', 'ordering': ['-registered_at'], 'auto_create_index': False}
+    meta = {'collection': 'service_sites', 'ordering': ['-registered_at'], 'auto_create_index': False, 'strict': False}

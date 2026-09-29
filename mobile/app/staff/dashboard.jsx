@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView, Modal,
 import { showAlert } from '../../components/showAlert';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useCameraPermissions } from 'expo-camera';
-import { ClipboardList, AlertCircle, ScanLine, Send, CheckCircle2, CircleQuestionMark, LogOut } from 'lucide-react-native';
+import { AlertCircle, ScanLine, Send, CheckCircle2, LogOut, User, AlertTriangle } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import SelectField from '../../components/SelectField';
 import { onCameraResult } from '../../components/cameraResults';
@@ -11,17 +11,15 @@ import { parseStudentQr, NOT_A_STUDENT_QR } from '../../components/studentQr';
 import api from '../../services/api';
 import { useAuth } from '../../components/AuthContext';
 import { useTheme } from '../../components/ThemeContext';
-import { DEPARTMENTS, departmentForCourse, courseOptionsFor } from '../../constants/Data';
+import { DEPARTMENTS, GENDERS, departmentForCourse, courseOptionsFor } from '../../constants/Data';
 
 // Same options as the website's Guard Report (frontend/src/pages/guard/ReportViolation.jsx);
 // values match PUNISHMENT_SYSTEM in backend/core/views.py
 const VIOLATION_TYPES = [
-    { label: 'No ID', value: 'No ID' },
-    { label: 'Improper Wearing of ID', value: 'Improper wearing of ID' },
-    { label: 'Dress Code', value: 'Dress code violation' },
-    { label: 'Littering', value: 'Littering' },
-    { label: 'Smoking', value: 'Smoking inside campus' },
-    { label: 'Serious Misconduct', value: 'Serious misconduct' },
+    { label: 'Curfew Violation', value: 'Curfew Violation' },
+    { label: 'No ID / Improper ID Sling', value: 'No ID / Improper ID Sling' },
+    { label: 'No School Uniform', value: 'No School Uniform' },
+    { label: 'Dress Code Violation', value: 'Dress Code Violation' },
 ];
 
 const pad = (n) => String(n).padStart(2, '0');
@@ -35,7 +33,7 @@ const nowTime = () => {
 };
 
 const emptyForm = () => ({
-    student_id: '', name: '', course: '', department: '', contact: '',
+    student_id: '', name: '', gender: '', course: '', department: '', contact: '',
     email: '', violation: '', incident_date: today(), incident_time: nowTime(),
 });
 
@@ -58,7 +56,6 @@ export default function PersonnelDashboard() {
     const debounceTimer = useRef(null);
 
     const reporterName = user?.full_name || user?.username || 'Personnel';
-    const title = user?.role === 'guard' ? 'Guard Report' : 'Staff Report';
 
     const fetchStudentData = async (id) => {
         const cleanId = id?.trim();
@@ -76,6 +73,7 @@ export default function PersonnelDashboard() {
                     department: data.department || prev.department,
                     contact: data.contact_number || prev.contact,
                     email: data.email || prev.email,
+                    gender: data.gender || prev.gender,
                 };
             });
         } catch {
@@ -126,9 +124,9 @@ export default function PersonnelDashboard() {
 
     // Same required fields as the website form
     const confirmSubmit = () => {
-        const missing = ['student_id', 'name', 'course', 'department', 'email', 'contact', 'violation'].some((k) => !String(form[k] || '').trim());
+        const missing = ['student_id', 'name', 'gender', 'course', 'department', 'email', 'contact', 'violation'].some((k) => !String(form[k] || '').trim());
         if (missing) {
-            setAlertMessage({ visible: true, title: 'Missing Fields', message: 'Please fill in every field and select a violation before submitting.' });
+            setAlertMessage({ visible: true, title: 'Missing details', message: 'Fill in every field and choose the violation.' });
             return;
         }
         setShowConfirmModal(true);
@@ -141,7 +139,7 @@ export default function PersonnelDashboard() {
             await api.post('/violations/', { ...form, reporting_guard: reporterName });
             setSubmitted(true);
         } catch (error) {
-            setAlertMessage({ visible: true, title: 'Error', message: error.response?.data?.error || 'Failed to submit report. Please check the student ID.' });
+            setAlertMessage({ visible: true, title: "Couldn't send the report", message: error.response?.data?.error || 'Check the details and try again.' });
         } finally {
             setLoading(false);
         }
@@ -157,40 +155,35 @@ export default function PersonnelDashboard() {
     return (
         <View style={styles.container}>
             <ScrollView contentContainerStyle={[styles.scrollContent, { paddingTop: insets.top + (wide ? 32 : 16) }]} keyboardShouldPersistTaps="handled">
-                {/* Title with Help / Log Out beside it, same as the website header */}
+                {/* Title with Log out beside it, same as the website header */}
                 <View style={styles.pageHeader}>
                     <View style={{ flex: 1 }}>
-                        <Text style={styles.pageTitle}>{title}</Text>
-                        <Text style={styles.pageSubtitle}>Academic Integrity & Safety Reporting</Text>
+                        <Text style={styles.pageTitle}>Report a violation</Text>
+                        <Text style={styles.pageSubtitle}>Signed in as {reporterName}</Text>
                     </View>
                     <View style={styles.pillRow}>
-                        <TouchableOpacity style={styles.pill} onPress={() => router.push('/help')} accessibilityLabel="Help">
-                            <CircleQuestionMark size={14} color={colors.textMuted} />
-                            {wide && <Text style={styles.pillText}>Help</Text>}
-                        </TouchableOpacity>
                         <TouchableOpacity style={styles.pill} onPress={logout} accessibilityLabel="Log Out">
                             <LogOut size={14} color={colors.danger} />
-                            {wide && <Text style={[styles.pillText, { color: colors.danger }]}>Log Out</Text>}
+                            {wide && <Text style={[styles.pillText, { color: colors.danger }]}>Log out</Text>}
                         </TouchableOpacity>
                     </View>
                 </View>
 
                 {!submitted ? (
                     <View style={styles.card}>
-                        <View style={styles.cardHeader}>
-                            <ClipboardList size={24} color={colors.primary} />
-                            <Text style={styles.cardTitle}>New Incident Report</Text>
-                        </View>
-
                         <View style={styles.columns}>
-                            {/* Left column */}
+                            {/* Left column: the student */}
                             <View style={styles.column}>
+                                <View style={styles.cardHeader}>
+                                    <User size={16} color={colors.primary} />
+                                    <Text style={styles.cardTitle}>Student</Text>
+                                </View>
                                 <View>
-                                    <Text style={styles.tinyLabel}>Student ID / Scan QR</Text>
+                                    <Text style={styles.tinyLabel}>Student ID (type it or scan their QR)</Text>
                                     <View>
                                         <TextInput
                                             style={[styles.field, styles.idField]}
-                                            placeholder="202X-XXXXXXX"
+                                            placeholder="Student ID"
                                             placeholderTextColor={colors.border}
                                             value={form.student_id}
                                             onChangeText={handleIdChange}
@@ -203,10 +196,18 @@ export default function PersonnelDashboard() {
                                 </View>
                                 <TextInput
                                     style={styles.field}
-                                    placeholder="Student Full Name"
+                                    placeholder="Full name"
                                     placeholderTextColor={colors.textMuted}
                                     value={form.name}
                                     onChangeText={(t) => setForm({ ...form, name: t })}
+                                />
+                                <SelectField
+                                    value={form.gender}
+                                    options={GENDERS}
+                                    placeholder="Gender"
+                                    title="Select Gender"
+                                    onChange={(v) => setForm((prev) => ({ ...prev, gender: v }))}
+                                    style={styles.field}
                                 />
                                 {/* Department first, then only its courses (same as registration).
                                     Side by side on wide screens; stacked on phones so long names fit */}
@@ -236,7 +237,7 @@ export default function PersonnelDashboard() {
                                 </View>
                                 <TextInput
                                     style={styles.field}
-                                    placeholder="Email Address"
+                                    placeholder="Email"
                                     placeholderTextColor={colors.textMuted}
                                     keyboardType="email-address"
                                     autoCapitalize="none"
@@ -253,12 +254,16 @@ export default function PersonnelDashboard() {
                                 />
                             </View>
 
-                            {/* Right column: the incident itself */}
+                            {/* Right column: the violation */}
                             <View style={styles.column}>
+                                <View style={styles.cardHeader}>
+                                    <AlertTriangle size={16} color={colors.danger} />
+                                    <Text style={styles.cardTitle}>Violation</Text>
+                                </View>
                                 <SelectField
                                     value={form.violation}
                                     options={VIOLATION_TYPES}
-                                    placeholder="SELECT VIOLATION"
+                                    placeholder="Choose the violation"
                                     title="Select Violation"
                                     onChange={(v) => setForm((prev) => ({ ...prev, violation: v }))}
                                     style={[styles.field, styles.violationField]}
@@ -294,7 +299,7 @@ export default function PersonnelDashboard() {
                             {loading ? <ActivityIndicator color="#fff" /> : (
                                 <>
                                     <Send size={18} color="#fff" />
-                                    <Text style={styles.submitText}>SUBMIT REPORT</Text>
+                                    <Text style={styles.submitText}>Submit report</Text>
                                 </>
                             )}
                         </TouchableOpacity>
@@ -304,10 +309,10 @@ export default function PersonnelDashboard() {
                         <View style={styles.successIcon}>
                             <CheckCircle2 size={32} color="#fff" />
                         </View>
-                        <Text style={styles.successTitle}>Report Stored!</Text>
-                        <Text style={styles.successText}>Violation synchronized with cloud database.</Text>
+                        <Text style={styles.successTitle}>Report sent</Text>
+                        <Text style={styles.successText}>OSA will review it.</Text>
                         <TouchableOpacity style={styles.newEntryButton} onPress={resetForm}>
-                            <Text style={styles.newEntryText}>New Entry</Text>
+                            <Text style={styles.newEntryText}>Report another</Text>
                         </TouchableOpacity>
                     </View>
                 )}
@@ -318,8 +323,8 @@ export default function PersonnelDashboard() {
             <Modal visible={showConfirmModal} transparent animationType="fade">
                 <View style={styles.modalOverlay}>
                     <View style={styles.modalContent}>
-                        <Text style={styles.modalTitle}>Confirm Incident</Text>
-                        {[['Student', `${form.name} (${form.student_id})`], ['Violation', selectedViolationLabel], ['Date & Time', `${form.incident_date} ${form.incident_time}`], ['Reported by', reporterName]].map(([k, v]) => (
+                        <Text style={styles.modalTitle}>Check the report</Text>
+                        {[['Student', `${form.name} (${form.student_id})`], ['Gender', form.gender], ['Violation', selectedViolationLabel], ['Date & Time', `${form.incident_date} ${form.incident_time}`], ['Reported by', reporterName]].map(([k, v]) => (
                             <View key={k} style={styles.confirmRow}>
                                 <Text style={styles.confirmLabel}>{k}</Text>
                                 <Text style={styles.confirmValue}>{v}</Text>
@@ -327,10 +332,10 @@ export default function PersonnelDashboard() {
                         ))}
                         <View style={styles.modalActions}>
                             <TouchableOpacity style={styles.modalCancelButton} onPress={() => setShowConfirmModal(false)}>
-                                <Text style={styles.modalCancelText}>Cancel</Text>
+                                <Text style={styles.modalCancelText}>Edit</Text>
                             </TouchableOpacity>
                             <TouchableOpacity style={styles.modalConfirmButton} onPress={processSubmission}>
-                                <Text style={styles.modalConfirmText}>Submit</Text>
+                                <Text style={styles.modalConfirmText}>Send report</Text>
                             </TouchableOpacity>
                         </View>
                     </View>
@@ -424,20 +429,16 @@ const getStyles = (colors, isDarkMode, wide) => StyleSheet.create({
         shadowRadius: 24,
         elevation: 6,
     },
+    // Section titles inside the form ("Student", "Violation"), like the website
     cardHeader: {
         flexDirection: 'row',
         alignItems: 'center',
         gap: 8,
-        paddingBottom: 12,
-        marginBottom: 14,
-        borderBottomWidth: 1,
-        borderBottomColor: colors.background,
+        marginBottom: 2,
     },
     cardTitle: {
-        fontSize: wide ? 20 : 16,
+        fontSize: 14,
         fontWeight: '900',
-        textTransform: 'uppercase',
-        letterSpacing: -0.5,
         color: colors.text,
     },
     columns: {

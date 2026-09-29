@@ -114,7 +114,7 @@ const Help = () => {
     if (role === 'student') return <StudentHelp />;
     const isAdmin = role === 'admin';
     const { contact, report_problem: problem } = help;
-    const mailto = `mailto:${problem.email}?subject=${encodeURIComponent(problem.subject)}&body=${encodeURIComponent(problem.body)}`;
+    const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(problem.email)}&su=${encodeURIComponent(problem.subject)}&body=${encodeURIComponent(problem.body)}`;
 
     const sections = [
         isAdmin && { id: 'admin', label: 'Admin' },
@@ -171,7 +171,7 @@ const Help = () => {
                             <li className="flex items-start gap-3"><Mail size={18} className="mt-0.5 shrink-0 text-slate-400" /> <span className="break-all">{contact.email}</span></li>
                             <li className="flex items-start gap-3"><Phone size={18} className="mt-0.5 shrink-0 text-slate-400" /> {contact.phone}</li>
                         </ul>
-                        <a href={mailto} className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-ustp-blue px-5 py-3 text-sm font-bold text-white hover:opacity-90 sm:w-auto">
+                        <a href={gmailUrl} target="_blank" rel="noopener noreferrer" className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-ustp-blue px-5 py-3 text-sm font-bold text-white hover:opacity-90 sm:w-auto">
                             <Mail size={16} /> Report a problem
                         </a>
                     </Section>

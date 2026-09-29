@@ -19,13 +19,19 @@ const PORTALS = {
         roles: ['student'],
         title: 'Student Login',
         idLabel: 'Student ID',
-        wrongPortal: 'This is the student login. Guards and staff log in at /guardnstaff.',
+        wrongPortal: 'This is the student login. Faculty members log in at /faculty.',
+    },
+    faculty: {
+        roles: ['guard', 'staff'],
+        title: 'Faculty Login',
+        idLabel: 'Username',
+        wrongPortal: 'This login is for faculty members. Students log in at /student.',
     },
     guardnstaff: {
         roles: ['guard', 'staff'],
-        title: 'Guard & Staff Login',
+        title: 'Faculty Login',
         idLabel: 'Username',
-        wrongPortal: 'This login is for guards and staff. Students log in at /student.',
+        wrongPortal: 'This login is for faculty members. Students log in at /student.',
     },
     admin: {
         roles: ['admin'],
@@ -118,15 +124,17 @@ const Login = ({ portal = 'student' }) => {
                 />
 
                 <div className={`w-full p-5 sm:p-7 rounded-md border ${cardClass}`}>
-                    <h1 className="text-lg sm:text-xl font-bold text-slate-900 dark:text-white mb-4 sm:mb-5">{config.title}</h1>
+                    <h1 className={isStudent ? "text-xl sm:text-2xl font-bold text-slate-900 dark:text-white mb-4 sm:mb-5 text-left" : "text-lg sm:text-xl font-bold text-slate-900 dark:text-white mb-4 sm:mb-5 text-center"}>
+                        {isStudent ? 'Login' : config.title}
+                    </h1>
 
                     {notice && !error && (
-                        <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-md">
+                        <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-md text-center">
                             <p className="text-amber-800 font-semibold text-xs leading-relaxed">{notice}</p>
                         </div>
                     )}
                     {error && (
-                        <div className="mb-4 p-3 bg-red-50 border border-red-100 rounded-md">
+                        <div className="mb-4 p-3 bg-red-50 border border-red-100 rounded-md text-center">
                             <p className="text-red-600 font-bold text-xs">{error}</p>
                         </div>
                     )}
@@ -170,25 +178,34 @@ const Login = ({ portal = 'student' }) => {
                             </button>
                         </div>
 
-                        <div className="flex items-center justify-between gap-3 pt-2">
-                            {/* Password reset is by student email only */}
-                            {isStudent ? (
-                                <Link to="/forgot-password" className="text-xs font-bold text-blue-800 dark:text-blue-300 hover:underline underline-offset-2">
+                        {isStudent ? (
+                            <div className="flex items-center justify-between gap-3 pt-2">
+                                <Link to="/forgot-password" className="text-xs sm:text-sm font-bold text-blue-800 dark:text-blue-300 hover:underline underline-offset-2">
                                     Forgot password?
                                 </Link>
-                            ) : <span />}
-                            <button
-                                type="submit"
-                                disabled={loading}
-                                className="h-9 sm:h-10 px-4 sm:px-5 bg-blue-900 text-white rounded-md font-bold text-sm flex items-center gap-1.5 hover:bg-blue-800 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
-                            >
-                                {loading ? <Loader2 className="animate-spin" size={16} /> : <>Login <ChevronRight size={16} /></>}
-                            </button>
-                        </div>
+                                <button
+                                    type="submit"
+                                    disabled={loading}
+                                    className="px-4 sm:px-5 py-2 sm:py-2.5 bg-blue-900 dark:bg-blue-800 text-white rounded-md font-bold text-sm flex items-center justify-center gap-1.5 hover:bg-blue-800 dark:hover:bg-blue-700 transition-colors disabled:opacity-60 disabled:cursor-not-allowed shadow-sm"
+                                >
+                                    {loading ? <Loader2 className="animate-spin" size={16} /> : <>Login <ChevronRight size={16} /></>}
+                                </button>
+                            </div>
+                        ) : (
+                            <div className="flex flex-col items-center gap-3 pt-2">
+                                <button
+                                    type="submit"
+                                    disabled={loading}
+                                    className="w-full h-9 sm:h-10 px-4 sm:px-5 bg-blue-900 text-white rounded-md font-bold text-sm flex items-center justify-center gap-1.5 hover:bg-blue-800 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                                >
+                                    {loading ? <Loader2 className="animate-spin" size={16} /> : <>Login <ChevronRight size={16} /></>}
+                                </button>
+                            </div>
+                        )}
                     </form>
 
                     {isStudent && (
-                        <div className="mt-5 sm:mt-6 pt-4 sm:pt-5 border-t border-dashed border-slate-400/60 dark:border-slate-500/60">
+                        <div className="mt-5 sm:mt-6 pt-4 sm:pt-5 border-t border-dashed border-slate-400/60 dark:border-slate-500/60 text-left">
                             <h2 className="text-sm sm:text-base font-bold text-slate-900 dark:text-white">New student?</h2>
                             <p className="mt-1 text-xs sm:text-sm text-slate-800 dark:text-slate-200 leading-relaxed">
                                 If you don&apos;t have an account yet, <Link to="/register" className="font-bold text-blue-800 dark:text-blue-300 underline underline-offset-2">register here</Link> to get your QR ID and follow your service hours.
