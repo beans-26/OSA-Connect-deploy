@@ -1,4 +1,4 @@
-from mongoengine import Document, StringField, DateTimeField, IntField, ReferenceField, FloatField, BooleanField, ListField, DictField
+from mongoengine import Document, StringField, DateTimeField, IntField, ReferenceField, FloatField, BooleanField, ListField, DictField, BinaryField
 import datetime
 from enum import Enum
 
@@ -65,6 +65,8 @@ class ViolationReport(Document):
     reflection_uploaded_at = DateTimeField()
     cleared_at = DateTimeField()
     cleared_by = StringField()
+    # When the clearance photos were deleted to save space, PHOTO_KEEP_DAYS after clearing (views.py); the case stays
+    photos_removed_at = DateTimeField()
     meta = {'collection': 'violation_reports', 'auto_create_index': False, 'strict': False}
 
 
@@ -74,7 +76,9 @@ class ClearanceProof(Document):
     when an admin opens it)."""
     violation = ReferenceField(ViolationReport, required=True)
     kind = StringField(required=True)  # 'iso_form' or 'reflection' (CLEARANCE_FILES in views.py)
-    image = StringField(required=True)  # data URL (JPEG, resized in the browser)
+    data = BinaryField()  # the photo file itself (WebP or JPEG, shrunk in the browser to under ~90 KB)
+    content_type = StringField()  # 'image/webp', 'image/jpeg' or 'image/png'
+    image = StringField()  # uploads before 2026-09-30: the photo as base64 data-URL text (a third bigger)
     uploaded_at = DateTimeField(default=utc_now)
     uploaded_by = StringField()
     meta = {'collection': 'clearance_proofs', 'auto_create_index': False, 'strict': False}
