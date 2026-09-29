@@ -7,7 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { QrCode, Play, AlertTriangle, X, Clock, FileText, User, CircleQuestionMark, Navigation, ChevronRight, Download } from 'lucide-react-native';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
-import { File, Paths } from 'expo-file-system';
+import { Directory, File, Paths } from 'expo-file-system';
 import { isoFormHtml } from '../../../shared/iso-form';
 import { useCameraPermissions } from 'expo-camera';
 import * as Location from 'expo-location';
@@ -193,6 +193,8 @@ export default function Dashboard() {
     // Blank FM-USTP-OSA-013 time log (PDF) for the office head to fill in by hand. Downloaded once per
     // open ticket (the server keeps track); tapping again only shows ISO_ONCE. Same as the website.
     const ISO_ONCE = 'The ISO form can only be downloaded once. Go to the OSA office to request another one.';
+    const ISO_FILE = 'FM-USTP-OSA-013.pdf';
+    const DOWNLOAD_FOLDER = 'content://com.android.externalstorage.documents/tree/primary%3ADownload';
     const [isoBusy, setIsoBusy] = useState(false);
     const downloadIsoForm = async () => {
         if (!openTicket || isoBusy) return;
@@ -202,18 +204,36 @@ export default function Dashboard() {
         }
         setIsoBusy(true);
         try {
-            // A4 landscape in points; made before the server counts the download
+            // A4 landscape in points
             const { uri } = await Print.printToFileAsync({ html: isoFormHtml(), width: 842, height: 595 });
-            const pdf = new File(Paths.cache, 'FM-USTP-OSA-013.pdf');
+            const pdf = new File(Paths.cache, ISO_FILE);
             if (pdf.exists) pdf.delete();
             await new File(uri).move(pdf);
+
+            // Android: saved in the phone's Download folder. Apps can only write there after the student
+            // picks it, so the folder picker opens on Download. Elsewhere: the share sheet.
+            let saved = null;
+            if (Platform.OS === 'android') {
+                let folder;
+                try {
+                    folder = await Directory.pickDirectoryAsync(DOWNLOAD_FOLDER);
+                } catch {
+                    return; // Picker closed: nothing downloaded, nothing counted
+                }
+                saved = folder.createFile(ISO_FILE, 'application/pdf');
+                saved.write(await pdf.bytes());
+            }
+
+            // Counted only once the file is saved; taken back if the server says no
             try {
                 await api.post(`/etickets/${openTicket.id}/print_iso_form/`);
             } catch (e) {
+                try { saved?.delete(); } catch {}
                 showAlert('ISO form', e.response?.data?.error || "Can't reach the server. Check your connection.");
                 return;
             }
-            await Sharing.shareAsync(pdf.uri, { mimeType: 'application/pdf', UTI: 'com.adobe.pdf', dialogTitle: 'Save ISO form' });
+            if (saved) showAlert('ISO form downloaded', `Saved as ${ISO_FILE} in the folder you picked (Download).`);
+            else await Sharing.shareAsync(pdf.uri, { mimeType: 'application/pdf', UTI: 'com.adobe.pdf', dialogTitle: 'Save ISO form' });
         } catch {
             showAlert('Download failed', "Couldn't make the ISO form. Try again.");
         } finally {
