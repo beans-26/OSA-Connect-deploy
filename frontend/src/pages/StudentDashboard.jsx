@@ -115,6 +115,21 @@ const GeofenceMap = ({ hub, location, isOutOfBounds, isDarkMode, approach = fals
 
 const COMPLETED_SEEN_KEY = 'osa-completed-notice-seen';
 
+// A session stop the page couldn't send (no internet): { username, eticketId, endReason, endedAt, lat, lng,
+// distance }. Sent as soon as the connection is back, with the time it really ended (e.g. when the student
+// left the area), so time away while offline isn't counted. Until then the timer isn't restarted.
+const PENDING_STOP_KEY = 'osa-pending-stop';
+const readPendingStop = () => {
+    try { return JSON.parse(localStorage.getItem(PENDING_STOP_KEY) || 'null'); } catch { return null; }
+};
+const savePendingStop = (stop) => {
+    try { localStorage.setItem(PENDING_STOP_KEY, JSON.stringify(stop)); } catch { /* private mode: nothing to keep */ }
+};
+const clearPendingStop = () => {
+    try { localStorage.removeItem(PENDING_STOP_KEY); } catch { /* ignore */ }
+};
+const clockTime = (ms) => new Date(ms).toLocaleTimeString('en-PH', { hour: 'numeric', minute: '2-digit' });
+
 const StudentDashboard = () => {
     const navigate = useNavigate();
     const { isDarkMode } = useStudentTheme();
@@ -142,8 +157,45 @@ const StudentDashboard = () => {
     });
     const watchIdRef = React.useRef(null);
 
+    // Sends a stop saved while offline (PENDING_STOP_KEY). Returns true while it still couldn't be sent.
+    const flushingStopRef = useRef(false);
+    const flushPendingStop = async () => {
+        const pending = readPendingStop();
+        if (!pending) return false;
+        if (pending.username !== user.username) { clearPendingStop(); return false; }
+        if (flushingStopRef.current) return true;
+        flushingStopRef.current = true;
+        try {
+            const response = await fetch('/api/timelogs/log_time/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    eticket_id: pending.eticketId, action: 'out', end_reason: pending.endReason,
+                    // How long ago it ended, not the time: the server counts back from its own clock, so a
+                    // phone clock that's off doesn't matter
+                    ended_seconds_ago: Math.max(0, Math.round((Date.now() - pending.endedAt) / 1000)),
+                    lat: pending.lat, lng: pending.lng, distance_m: pending.distance,
+                }),
+            });
+            if (response.status >= 500) return true; // server trouble: try again later
+            const data = await response.json().catch(() => ({}));
+            clearPendingStop();
+            if (data.receipt) setReceipt(data.receipt);
+            return false;
+        } catch {
+            return true; // still offline
+        } finally {
+            flushingStopRef.current = false;
+        }
+    };
+
     // Starts or stops the timer right after a valid scan (no photo step)
     const submitAction = async (pendingActionData) => {
+        // The last session's stop must reach the server first, or scanning in would continue that session
+        if (await flushPendingStop()) {
+            alert("You're offline. Your last session's time-out hasn't been sent yet. Connect to the internet and try again.");
+            return;
+        }
         try {
             const response = await fetch('/api/timelogs/log_time/', {
                 method: 'POST',
@@ -204,6 +256,13 @@ const StudentDashboard = () => {
 
     // Every 5 s while the tab is visible (the session state from the other device, the timer's base)
     usePolling(() => fetchStudentData(), 5000, [user.username]);
+
+    // Back online: record a stop saved while offline right away (fetchStudentData sends it first)
+    useEffect(() => {
+        const onOnline = () => fetchStudentData();
+        window.addEventListener('online', onOnline);
+        return () => window.removeEventListener('online', onOnline);
+    }, [user.username]);
 
     // Live countdown timer logic
     useEffect(() => {
@@ -363,6 +422,7 @@ const StudentDashboard = () => {
     // Also records leaving and coming back for the time-out receipt.
     const OUT_OF_BOUNDS_S = 30;
     const wasOutRef = useRef(false);
+    const leftAtRef = useRef(null); // when the student last left the area (for a stop saved offline)
     useEffect(() => {
         if (!timerActive) {
             wasOutRef.current = false;
@@ -378,6 +438,7 @@ const StudentDashboard = () => {
         wasOutRef.current = true;
         logSessionEvent('left_area');
         const leftAt = Date.now();
+        leftAtRef.current = leftAt;
         setWarningCountdown(OUT_OF_BOUNDS_S);
         const timer = setInterval(() => {
             setWarningCountdown(Math.max(0, OUT_OF_BOUNDS_S - Math.floor((Date.now() - leftAt) / 1000)));
@@ -428,7 +489,19 @@ const StudentDashboard = () => {
             if (data.receipt) setReceipt(data.receipt);
             else alert(reason);
         } catch (e) {
-            alert(reason);
+            // No internet: the server still thinks the session is running. Save the stop with the moment it
+            // really ended (when the student left the area, lost location, or finished) and send it once
+            // the connection is back, so the time in between isn't counted.
+            const endedAt = endReason === 'left_area' && leftAtRef.current ? leftAtRef.current
+                : endReason === 'location_off' && lastFixRef.current.at ? lastFixRef.current.at
+                    : Date.now();
+            const { lat, lng, distance } = lastFixRef.current;
+            savePendingStop({ username: user.username, eticketId: activeTicket.id, endReason, endedAt, lat, lng, distance });
+            setTimerActive(false);
+            setStartTime(null);
+            setElapsed(0);
+            setWarningCountdown(null);
+            alert(`${reason}\n\nYou're offline, so your session was stopped at ${clockTime(endedAt)}. It will be recorded as soon as you're connected again; the time after that isn't counted.`);
         } finally {
             autoStoppingRef.current = false;
         }
@@ -436,6 +509,8 @@ const StudentDashboard = () => {
 
     const fetchStudentData = async () => {
         if (!user.username) return;
+        // A stop saved while offline goes first, so the server's open session isn't shown as running again
+        await flushPendingStop();
         try {
             // Both at once (they used to load one after the other, followed by every student's
             // time logs and photos, which this page never used and which took the longest)
@@ -462,7 +537,8 @@ const StudentDashboard = () => {
             if (openTickets.length > 0) {
                 const ongoingTicket = openTickets.find(t => t.status === 'Ongoing') || openTickets[0];
 
-                if (ongoingTicket.active_time_in) {
+                // Still offline-stopped (the saved stop hasn't reached the server): keep the timer stopped
+                if (ongoingTicket.active_time_in && readPendingStop()?.eticketId !== ongoingTicket.id) {
                     // Same as the mobile app: time served so far by the server's own clock (balance before
                     // this session minus the live balance), anchored to this device's clock. Parsing the
                     // stored time_in breaks when the server and the student are in different time zones.
