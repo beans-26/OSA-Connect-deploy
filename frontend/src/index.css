@@ -28,15 +28,10 @@ body {
 }
 
 .dark {
-  /* True Black Theme Overrides */
-  --color-slate-50: #ffffff;
-  --color-slate-900: #050505; /* True black background */
-  --color-slate-800: #141414; /* Subtle elevated boxes */
-  --color-slate-700: #1f1f1f; /* Extremely faint borders */
-  
-  /* Accent Color Override (Blue to Orange) */
-  --color-ustp-blue: #f97316; /* Tailwind orange-500 */
-  --color-ustp-navy: #ffffff; /* Titles */
+  /* Same dark colors as the student pages (.student-ui[data-theme="dark"] below): Tailwind's own slate
+     900/800/700 are the navy background, cards and borders; only the accent and titles change */
+  --color-ustp-blue: #3b82f6; /* the student dark --s-primary */
+  --color-ustp-navy: #f8fafc; /* titles, the student dark --s-text */
 }
 
 

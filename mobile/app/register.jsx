@@ -7,7 +7,7 @@ import { captureRef } from 'react-native-view-shot';
 // The legacy entry still has saveToLibraryAsync (the new API throws on it)
 import * as MediaLibrary from 'expo-media-library/legacy';
 import { showAlert } from '../components/showAlert';
-import { DEPARTMENTS, DEPARTMENT_COURSES, yearLevelsFor } from '../constants/Data';
+import { DEPARTMENTS, DEPARTMENT_COURSES, GENDERS, yearLevelsFor } from '../constants/Data';
 import SelectField from '../components/SelectField';
 import AuthScreen, { authColors as C, authStyles as A } from '../components/AuthScreen';
 import api from '../services/api';
@@ -46,6 +46,7 @@ export default function Register() {
         first_name: '',
         middle_name: '',
         last_name: '',
+        gender: '',
         course: '',
         department: '',
         year_level: '',
@@ -121,7 +122,7 @@ export default function Register() {
     const requestOTP = async () => {
         // Enter can fire this while a request is still running
         if (saving) return;
-        if (!studentData.student_id || !studentData.first_name || !studentData.last_name || !studentData.course || !studentData.department || !studentData.year_level || !studentData.email || !studentData.password.trim()) {
+        if (!studentData.student_id || !studentData.first_name || !studentData.last_name || !studentData.gender || !studentData.course || !studentData.department || !studentData.year_level || !studentData.email || !studentData.password.trim()) {
             showAlert('Missing Fields', 'Please fill in all required fields.');
             return;
         }
@@ -255,6 +256,20 @@ export default function Register() {
                         </Field>
                     </View>
 
+                    <Field label="Gender">
+                        <SelectField
+                            value={studentData.gender}
+                            options={GENDERS}
+                            placeholder="Choose your gender"
+                            placeholderColor={C.placeholder}
+                            title="Choose your gender"
+                            onChange={set('gender')}
+                            style={selectStyle}
+                            textStyle={studentData.gender ? styles.selectText : styles.selectPlaceholder}
+                            iconColor={C.textMuted}
+                        />
+                    </Field>
+
                     {/* College first; it decides the program list and year levels (Grade 11/12 for SHS) */}
                     <Field label="College">
                         <SelectField
@@ -319,10 +334,6 @@ export default function Register() {
                     </Field>
 
                     <View style={styles.submitRow}>
-                        <Text style={styles.stepLogin}>
-                            Already registered?{' '}
-                            <Link href="/login" style={A.linkText}>Log in</Link>
-                        </Text>
                         <TouchableOpacity style={[A.primaryButton, saving && A.disabled]} onPress={requestOTP} disabled={saving}>
                             {saving ? <ActivityIndicator color="#ffffff" /> : (
                                 <>
@@ -331,13 +342,17 @@ export default function Register() {
                                 </>
                             )}
                         </TouchableOpacity>
+                        <Text style={styles.stepLogin}>
+                            Already registered?{' '}
+                            <Link href="/login" style={A.linkText}>Log in</Link>
+                        </Text>
                     </View>
                 </View>
             )}
 
             {step === 2 && (
                 <View>
-                    <Text style={[A.subtitle, styles.intro]}>Enter the 6-digit code we sent you. It expires in 5 minutes.</Text>
+                    <Text style={[A.subtitle, styles.intro]}>Enter the 6-digit code we sent you. It expires in 5 minutes. No email yet? Check your Spam or Junk folder.</Text>
 
                     <View style={styles.panel}>
                         <Mail size={16} color={C.navy} />
@@ -449,7 +464,7 @@ export default function Register() {
 const styles = StyleSheet.create({
     stepLabel: { fontSize: 11, fontWeight: '900', letterSpacing: 1.6, color: C.goldText },
     stepLogin: { fontSize: 12, color: C.textSoft, flexShrink: 1 },
-    submitRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginTop: 6 },
+    submitRow: { flexDirection: 'column', alignItems: 'center', gap: 14, marginTop: 6 },
     progress: { flexDirection: 'row', gap: 6, marginTop: 8 },
     progressPart: { flex: 1, height: 6, borderRadius: 3 },
     heading: { marginTop: 12 },

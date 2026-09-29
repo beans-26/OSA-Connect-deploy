@@ -26,14 +26,17 @@ const Paragraphs = ({ items }) => (
     </div>
 );
 
-const Card = ({ icon: Icon, title, children }) => (
-    <section className="mb-4 rounded-2xl border-2 border-[var(--s-border)] bg-[var(--s-card)] p-5">
-        <div className="mb-3 flex items-center">
-            <Icon size={18} className="shrink-0 text-[var(--s-primary)]" />
-            <h2 className="ml-3 text-xs font-black uppercase tracking-[2px] text-[var(--s-primary)]">{title}</h2>
-        </div>
-        {children}
-    </section>
+const Card = ({ icon: Icon, title, children, defaultOpen }) => (
+    <details className="group/card mb-4 rounded-2xl border-2 border-[var(--s-border)] bg-[var(--s-card)] p-5" open={defaultOpen}>
+        <summary className="flex cursor-pointer list-none items-center justify-between [&::-webkit-details-marker]:hidden">
+            <div className="flex items-center">
+                <Icon size={18} className="shrink-0 text-[var(--s-primary)]" />
+                <h2 className="ml-3 text-xs font-black uppercase tracking-[2px] text-[var(--s-primary)]">{title}</h2>
+            </div>
+            <ChevronDown size={18} className="shrink-0 text-[var(--s-muted)] transition-transform group-open/card:rotate-180" />
+        </summary>
+        <div className="mt-3">{children}</div>
+    </details>
 );
 
 const Collapsible = ({ title, children }) => (
@@ -69,7 +72,7 @@ const Penalties = () => {
                 return (
                     <div key={rule.violation_type} className="rounded-[14px] border border-[var(--s-border)] p-3.5">
                         <p className="text-sm font-bold text-[var(--s-text)]">{rule.violation_type}</p>
-                        <div className="mb-2 mt-2.5 flex gap-2">
+                        <div className="mb-1 mt-2.5 flex gap-2">
                             {ordinals.map((label, i) => {
                                 const offense = rule.offenses[i];
                                 const repeated = !offense && data.repeat_last_offense;
@@ -78,13 +81,12 @@ const Penalties = () => {
                                     <div key={label} className="flex-1 rounded-[10px] bg-[var(--s-bg)] py-2 text-center">
                                         <p className="text-[10px] font-black uppercase tracking-[1px] text-[var(--s-muted)]">{label}</p>
                                         <p className={`text-base font-black ${repeated ? 'text-[var(--s-muted)]' : 'text-[var(--s-text)]'}`}>
-                                            {shown ? `${shown.hours} h` : '—'}
+                                            {shown ? `${shown.hours} hours` : '—'}
                                         </p>
                                     </div>
                                 );
                             })}
                         </div>
-                        {notes.map((n) => <p key={n} className="text-xs leading-[17px] text-[var(--s-muted)]">{n}</p>)}
                     </div>
                 );
             })}
@@ -101,7 +103,7 @@ const StudentHelp = () => {
     const navigate = useNavigate();
     const { isDarkMode } = useStudentTheme();
     const { contact, report_problem: problem } = help;
-    const mailto = `mailto:${problem.email}?subject=${encodeURIComponent(problem.subject)}&body=${encodeURIComponent(problem.body)}`;
+    const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(problem.email)}&su=${encodeURIComponent(problem.subject)}&body=${encodeURIComponent(problem.body)}`;
     const flow = help.student.flow;
 
     return (
@@ -174,7 +176,9 @@ const StudentHelp = () => {
                     </Card>
 
                     <a
-                        href={mailto}
+                        href={gmailUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
                         className="mt-1 flex w-full items-center justify-center gap-2 rounded-[14px] bg-[var(--s-primary)] p-4 text-sm font-bold uppercase tracking-[1px] text-white"
                     >
                         <Mail size={18} /> Report a problem

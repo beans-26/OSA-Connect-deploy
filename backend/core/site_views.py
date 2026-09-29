@@ -1,5 +1,4 @@
 """Service sites: GPS-registered community service locations (Admin Settings > Service Sites)."""
-import datetime
 import io
 import re
 

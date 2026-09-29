@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import Sidebar from '../../components/Sidebar';
 import { Archive, User, CheckCircle, Clock, Search, ChevronDown, XCircle, Download, Printer } from 'lucide-react';
-import GlobalSearch from '../../components/GlobalSearch';
+import ThemeToggle from '../../components/ThemeToggle';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
@@ -42,16 +42,30 @@ const Archives = () => {
         }
     };
 
-    // Completed violations only (a Completed status or ticket); dismissed cases aren't archived
+    // Cleared violations (the admin approved the photo of the signed ISO form), and approved cases with no
+    // service hours. Served hours alone aren't enough: those stay on the dashboard until the ISO form is
+    // approved. Dismissed cases aren't archived.
     const archivedViolations = violations.filter(v => {
-        const isDismissed = (v.status || '').toLowerCase() === 'dismissed';
-        if (isDismissed) return false;
-        const isCompletedStatus = (v.status || '').toLowerCase() === 'completed';
-        const isFinishedStatus = (v.status || '').toLowerCase() === 'finished';
+        const status = (v.status || '').toLowerCase();
+        if (status === 'cleared' || status === 'finished') return true;
         const ticket = tickets.find(t => t.violation_details?.id === v.id || t.violation === v.id);
-        const isCompletedTicket = ticket && (ticket.status === 'Completed' || ticket.status === 'Finished' || ticket.remaining_hours <= 0.001);
-        return isCompletedStatus || isFinishedStatus || isCompletedTicket;
+        return status === 'completed' && !ticket;
     });
+
+    // Opens an uploaded clearance photo (kind 'iso_form' or 'reflection') in a new tab
+    const openClearanceFile = async (violation, kind, label) => {
+        const win = window.open('', '_blank');
+        try {
+            const response = await fetch(`/api/violations/${violation.id}/clearance_proof/?kind=${kind}`);
+            const data = await response.json().catch(() => ({}));
+            if (!response.ok) throw new Error(data.error || `Couldn't load the ${label}.`);
+            win.document.write(`<title>${label} - ${(violation.student_details?.name || '').replace(/</g, '')}</title><body style="margin:0;background:#0f172a;display:flex;justify-content:center"><img src="${data.image}" style="max-width:100%;height:auto"></body>`);
+            win.document.close();
+        } catch (e) {
+            win?.close();
+            alert(e.message === 'Failed to fetch' ? "Can't reach the server." : e.message);
+        }
+    };
 
     // Apply search & filter
     const filtered = archivedViolations.filter(v => {
@@ -147,7 +161,7 @@ const Archives = () => {
                 formatDateShort(v.created_at),
                 v.punishment || '—',
                 (isDismissed || !ticket) ? 'N/A' : `${servedHours} hours`,
-                isDismissed ? 'DISMISSED' : (ticket?.status === 'Completed' ? 'COMPLETED' : 'ONGOING')
+                isDismissed ? 'DISMISSED' : (v.status === 'Cleared' ? 'CLEARED' : 'COMPLETED')
             ];
         });
 
@@ -202,25 +216,25 @@ const Archives = () => {
         <div className="flex bg-slate-50 dark:bg-slate-900 min-h-screen">
             <Sidebar role={userRole} />
             <div className="flex-1 h-screen overflow-y-auto custom-scrollbar w-full">
-                <div className="sticky top-0 z-40 bg-slate-50 dark:bg-slate-900 px-4 md:px-10 pt-[76px] lg:pt-10 pb-2 border-b border-transparent">
-                    <GlobalSearch />
-                </div>
-                <main className="page-enter flex-1 px-4 pb-8 md:p-10 md:pt-0 w-full max-w-full">
+                <main className="page-enter flex-1 px-4 pt-[76px] pb-8 md:p-10 lg:pt-10 w-full max-w-full">
                 <header className="mb-6 md:mb-8">
-                    <div className="flex flex-col sm:flex-row sm:justify-between sm:items-end gap-4">
-                        <div className="print:hidden">
+                    <div className="flex justify-between items-center gap-4">
+                        <div className="print:hidden min-w-0">
                             <h1 className="text-2xl md:text-4xl font-extrabold text-slate-900 dark:text-white tracking-tight flex items-center gap-3">
                                 Violation Archives
                             </h1>
                             <p className="text-slate-500 dark:text-slate-400 mt-2 font-medium text-sm">Immutable historical record of completed violations.</p>
                         </div>
-                        <div className="flex gap-3 print:hidden">
+                        <div className="flex shrink-0 items-center gap-3 print:hidden">
+                            {/* Icon only on phones, so the button and the theme toggle fit beside the title */}
                             <button
                                 onClick={generatePDF}
-                                className="flex items-center gap-2 px-5 py-3 bg-ustp-blue text-white rounded-2xl font-bold text-sm hover:bg-blue-700 transition-all"
+                                aria-label="Download PDF"
+                                className="flex items-center gap-2 px-3 sm:px-5 py-3 bg-ustp-blue text-white rounded-2xl font-bold text-sm hover:bg-blue-700 transition-all"
                             >
-                                <Download size={18} /> Download PDF
+                                <Download size={18} /> <span className="hidden sm:inline">Download PDF</span>
                             </button>
+                            <ThemeToggle />
                         </div>
                     </div>
                 </header>
@@ -269,7 +283,7 @@ const Archives = () => {
                         <Archive className="mx-auto text-slate-200 mb-6" size={64} />
                         <h4 className="font-black text-slate-300 dark:text-slate-600 text-xl uppercase tracking-widest">No Archived Records</h4>
                         <p className="text-slate-400 dark:text-slate-500 mt-3 font-medium max-w-md mx-auto">
-                            Completed violations will appear here once their service obligation hours have been fully served.
+                            Violations appear here once the student has served the hours and you approve their signed ISO form and reflection paper on the dashboard.
                         </p>
                     </div>
                 ) : (
@@ -293,8 +307,13 @@ const Archives = () => {
                                                     {violation.student_details?.name || 'Unknown Student'}
                                                 </h3>
                                                 <span className={`${isDismissed ? 'bg-red-100 text-red-700' : 'bg-emerald-100 text-emerald-700'} text-[9px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full whitespace-nowrap`}>
-                                                    {isDismissed ? 'Dismissed' : 'Completed'}
+                                                    {isDismissed ? 'Dismissed' : violation.status === 'Cleared' ? 'Cleared' : 'Completed'}
                                                 </span>
+                                                {[['iso_form', 'ISO form'], ['reflection', 'Reflection paper']].map(([kind, label]) => violation[`${kind}_uploaded_at`] && (
+                                                    <button key={kind} onClick={() => openClearanceFile(violation, kind, label)} className="text-[9px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full whitespace-nowrap bg-blue-50 text-ustp-blue hover:bg-blue-100 dark:bg-blue-500/10 dark:text-blue-300">
+                                                        {label}
+                                                    </button>
+                                                ))}
                                             </div>
                                             <div className="flex items-center gap-3 text-xs text-slate-400 dark:text-slate-500 font-medium truncate">
                                                 <span>{violation.student_details?.student_id}</span>
@@ -418,7 +437,7 @@ const Archives = () => {
                                         <td className="border border-black p-0.5 text-center">{formatDatePrint(v.created_at)}</td>
                                         <td className="border border-black p-0.5">{v.punishment || '—'}</td>
                                         <td className="border border-black p-0.5 text-center">{(isDismissed || !ticket) ? 'N/A' : `${servedHours} hours`}</td>
-                                        <td className="border border-black p-0.5 text-center">{isDismissed ? 'DISMISSED' : (ticket?.status === 'Completed' ? 'COMPLETED' : 'ONGOING')}</td>
+                                        <td className="border border-black p-0.5 text-center">{isDismissed ? 'DISMISSED' : (v.status === 'Cleared' ? 'CLEARED' : 'COMPLETED')}</td>
                                     </tr>
                                 );
                             });

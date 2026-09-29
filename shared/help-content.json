@@ -9,7 +9,7 @@
   },
 
   "report_problem": {
-    "email": "[OSA office email]",
+    "email": "osaconnect.system@gmail.com",
     "subject": "OSAConnect problem report",
     "body": "Describe the problem:\n\nWhat were you doing when it happened?\n\nDevice and app version:\n"
   },
@@ -20,9 +20,10 @@
     "flow": [
       { "title": "Reported", "text": "A guard or staff member records the violation. You get an email notice if your email is on file." },
       { "title": "Under review", "text": "OSA reviews the report and either approves or dismisses it. Pending reports don't appear in the app yet." },
-      { "title": "E-ticket issued", "text": "If approved, an e-ticket with your required hours appears under E-Tickets on your dashboard." },
-      { "title": "Serve your hours", "text": "Scan to start, take a selfie, stay in the service area, then scan to end. Hours can be split across sessions." },
-      { "title": "Completed", "text": "When your remaining hours reach zero after you end a session, the e-ticket is marked Completed." }
+      { "title": "E-ticket issued", "text": "If approved, an e-ticket with your required hours and assigned building appears on your dashboard. You have 3 days to start (Sundays not counted)." },
+      { "title": "Serve your hours", "text": "Scan the QR code at your assigned building, stay in the service area, then scan the stop code to end. Hours can be split across sessions." },
+      { "title": "For clearance", "text": "When your remaining hours reach zero, bring your signed ISO form and reflection paper to the OSA office." },
+      { "title": "Cleared", "text": "Once OSA approves your documents, your violation is marked as Cleared." }
     ],
 
     "faq": [
@@ -40,18 +41,13 @@
           {
             "q": "How do I end a session?",
             "a": [
-              "Tap Scan to End Service, scan the OSA stop code, and take another selfie. The time since you started is then deducted from your remaining hours.",
+              "Tap Scan to End Service and scan the OSA stop code. The time since you started is then deducted from your remaining hours.",
               "The end button unlocks 20 seconds after you start, so you can't end a session immediately.",
               "After you time out, a receipt shows the date, your assigned building, time in and out, time served, and how the session ended (you scanned the QR code, left the area, turned off location, and so on).",
               "To see past sessions, tap an e-ticket on your dashboard. Its service log is grouped by date: tap a date to list that day's sessions (Session 1, Session 2, ...), then tap a session to open its receipt."
             ]
           },
-          {
-            "q": "Why do I have to take a selfie?",
-            "a": [
-              "The selfie at the start and end of each session is your proof of attendance. It's saved with that session's time log, and OSA administrators can view it in the admin dashboard."
-            ]
-          },
+
           {
             "q": "What does \"Out of bounds\" mean?",
             "a": [
@@ -181,8 +177,7 @@
       "- Account details: your name, student ID, course, department, year level, email, contact number, and password.",
       "- Reports: violation type, description, the reporter's name, and the date.",
       "- Location: the app reads your phone's GPS while your dashboard is open, to check the service area. Your location is sent to OSA only when you start a session.",
-      "- Selfies: taken when you start and end each session, and stored with that session's time log.",
-      "OSA administrators can view reports, time logs, and session selfies in the admin dashboard.",
+      "OSA administrators can view reports and time logs in the admin dashboard.",
       "Records are kept for [data retention period].",
       "For questions or requests about your data, contact [data protection officer contact]."
     ]
@@ -217,12 +212,12 @@
       {
         "title": "Choosing the violation type",
         "web": [
-          "Pick from: No ID, Improper Wearing of ID, Dress Code, Littering, Smoking, or Serious Misconduct.",
+          "Pick from: Curfew Violation, No ID / Improper ID Sling, No School Uniform, or Dress Code Violation.",
           "The date and time fields are for your reference; the report is timestamped when you submit it."
         ],
         "mobile": [
-          "Pick the violation type from the list and choose the reporting guard's name. The list starts on Curfew Violation, so change it if needed.",
-          "Types that aren't in the penalties table are recorded as \"To be determined\" with a suggested 4 hours."
+          "Pick from: Curfew Violation, No ID / Improper ID Sling, No School Uniform, or Dress Code Violation.",
+          "The date and time fields are for your reference; the report is timestamped when you submit it."
         ]
       },
       {

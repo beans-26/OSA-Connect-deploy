@@ -1,6 +1,5 @@
 from rest_framework_mongoengine import serializers
 from .models import Student, ViolationReport, ETicket, TimeLog, SystemUser, utc_now
-from datetime import datetime
 
 class StudentSerializer(serializers.DocumentSerializer):
     class Meta:
@@ -40,6 +39,12 @@ class ETicketSerializer(serializers.DocumentSerializer):
         # 2. Dynamic Hour Calculation
         # base_remaining_hours + active_time_in let web and mobile compute the same live countdown
         data['base_remaining_hours'] = instance.remaining_hours
+        # 3-day deadline (core/deadlines.py): end of the last day, and hours added for missed days
+        if instance.created_at:
+            from core.deadlines import deadline_end, DAYS_TO_FINISH
+            data['deadline'] = deadline_end(instance).isoformat() + 'Z'
+            data['days_to_finish'] = DAYS_TO_FINISH
+        data['added_hours'] = instance.added_hours or 0
         data['active_time_in'] = None
         data['station'] = {'lat': instance.lat, 'lng': instance.lng, 'radius': instance.radius, 'site_code': getattr(instance, 'site_code', None)}
         from core.views import _assigned_site_code
@@ -47,8 +52,6 @@ class ETicketSerializer(serializers.DocumentSerializer):
         data['assigned_site'] = {'site_code': assigned_code, 'name': instance.assigned_location} if assigned_code else None
         if instance.status == 'Ongoing':
             try:
-                from core.models import TimeLog
-                from datetime import datetime
                 open_log = TimeLog.objects.filter(eticket=instance, time_out=None).first()
                 if open_log and open_log.time_in:
                     data['active_time_in'] = open_log.time_in.isoformat()
@@ -73,6 +76,12 @@ class ETicketSerializer(serializers.DocumentSerializer):
                     'violation_type': v_ref.violation_type,
                     'status': v_ref.status,
                     'punishment': v_ref.punishment,
+                    # For the e-ticket receipt (student and admin)
+                    'offense_count': v_ref.offense_count,
+                    'reporting_guard': v_ref.reporting_guard,
+                    'created_at': (v_ref.created_at.isoformat() + 'Z') if v_ref.created_at else None,
+                    'assigned_building': v_ref.assigned_building,
+                    'building_history': v_ref.building_history or [],
                     'student_details': {
                         'student_id': s_ref.student_id if s_ref else "Unknown",
                         'name': s_ref.name if s_ref else "Unknown",

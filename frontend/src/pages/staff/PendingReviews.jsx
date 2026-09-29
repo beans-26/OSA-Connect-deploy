@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import Sidebar from '../../components/Sidebar';
-import { Search, Check, X, ShieldAlert, User, Eye, AlertCircle } from 'lucide-react';
-import GlobalSearch from '../../components/GlobalSearch';
+import { Search, Check, X, ShieldAlert, User, Eye, AlertCircle, Inbox } from 'lucide-react';
+import ThemeToggle from '../../components/ThemeToggle';
 import { useServiceSites, ServiceSiteOptions, postAssignment } from '../../components/useServiceSites';
 
 const PendingReviews = () => {
@@ -67,15 +67,13 @@ const PendingReviews = () => {
         <div className="flex bg-slate-50 dark:bg-slate-900 min-h-screen relative font-sans">
             <Sidebar role={userRole} />
             <div className="flex-1 h-screen overflow-y-auto custom-scrollbar w-full">
-                <div className="sticky top-0 z-40 bg-slate-50 dark:bg-slate-900 px-4 md:px-10 pt-[76px] lg:pt-10 pb-2 border-b border-transparent">
-                    <GlobalSearch />
-                </div>
-                <main className="page-enter flex-1 px-4 pb-8 md:p-10 md:pt-0 w-full max-w-full">
-                <header className="mb-6 md:mb-8 flex flex-col md:flex-row md:items-center gap-4">
-                    <div>
+                <main className="page-enter flex-1 px-4 pt-[76px] pb-8 md:p-10 lg:pt-10 w-full max-w-full">
+                <header className="mb-6 md:mb-8 flex items-center justify-between gap-4">
+                    <div className="min-w-0">
                         <h1 className="text-2xl md:text-4xl font-extrabold text-slate-900 dark:text-white tracking-tight">Pending Reviews</h1>
                         <p className="text-slate-500 dark:text-slate-400 mt-2 font-medium text-sm">Validate and synchronize violation reports from field units.</p>
                     </div>
+                    <ThemeToggle />
                 </header>
 
                 <div className="card-premium border-2 border-white shadow-xl p-4 md:p-10">
@@ -97,14 +95,18 @@ const PendingReviews = () => {
                     </div>
 
                     {loading ? (
-                        <div className="py-24 text-center animate-pulse text-slate-300 dark:text-slate-600 font-black uppercase tracking-[0.3em] text-xs">Syncing Queue...</div>
+                        <div className="text-center py-20">
+                            <div className="animate-spin w-12 h-12 border-4 border-ustp-blue border-t-transparent rounded-full mx-auto"></div>
+                            <p className="mt-4 text-slate-500 dark:text-slate-400 font-medium">Loading reports...</p>
+                        </div>
                     ) : filteredReports.length === 0 ? (
-                        <div className="py-24 text-center bg-slate-50 dark:bg-slate-900/50 rounded-[40px] border-4 border-dotted border-slate-100 dark:border-slate-700">
-                            <div className="w-20 h-20 bg-white dark:bg-slate-800 shadow-lg text-ustp-blue rounded-3xl flex items-center justify-center mx-auto mb-8">
-                                <ShieldAlert size={40} />
-                            </div>
-                            <h2 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">NULL QUEUE</h2>
-                            <p className="text-slate-400 dark:text-slate-500 mt-3 max-w-xs mx-auto font-medium leading-relaxed">All field reports have been processed. Systems are nominal.</p>
+                        // Same empty look as All Students
+                        <div className="text-center py-20 bg-white dark:bg-slate-800 rounded-3xl border-2 border-dashed border-slate-100 dark:border-slate-700">
+                            <Inbox className="mx-auto text-slate-200 mb-4" size={48} />
+                            <h5 className="font-bold text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em] text-xs">No Reports to Review</h5>
+                            {searchTerm && (
+                                <p className="text-slate-400 dark:text-slate-500 text-sm mt-2">Try adjusting your search terms</p>
+                            )}
                         </div>
                     ) : (
                         <div className="space-y-2">

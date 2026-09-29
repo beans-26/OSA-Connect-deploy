@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, ActivityIndicator, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, Modal, StatusBar, Switch } from 'react-native';
 import { showAlert } from '../../components/showAlert';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import QRCode from 'react-native-qrcode-svg';
 import { User, Mail, Phone, BookOpen, Building2, Lock, ArrowLeft, LogOut, AlertTriangle, Moon, CircleQuestionMark, ChevronRight } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../../components/AuthContext';
@@ -22,6 +21,17 @@ export default function Settings() {
     const [passwords, setPasswords] = useState({ current: '', new: '', confirm: '' });
     const [passwordLoading, setPasswordLoading] = useState(false);
     const [showLogoutModal, setShowLogoutModal] = useState(false);
+    // Whether a service timer is running: only then does the log-out question mention it. Same as the website.
+    const [timerRunning, setTimerRunning] = useState(false);
+    const openLogout = async () => {
+        let running = true; // can't check (offline): keep the warning
+        try {
+            const { data } = await api.get('/etickets/', { params: { student_id: user.username } });
+            running = Array.isArray(data) && data.some((t) => t.status === 'Ongoing');
+        } catch { /* keep the warning */ }
+        setTimerRunning(running);
+        setShowLogoutModal(true);
+    };
 
     useEffect(() => {
         fetchStudentInfo();
@@ -96,23 +106,6 @@ export default function Settings() {
 
                 <ScrollView contentContainerStyle={styles.scrollContent}>
                     
-                    {/* QR Code Card */}
-                <View style={styles.qrCard}>
-                    <View style={styles.qrWrapper}>
-                        <QRCode
-                            value={studentInfo.student_id}
-                            size={160}
-                            color={isDarkMode ? '#0f172a' : '#000'}
-                            backgroundColor={isDarkMode ? '#fff' : '#fff'}
-                        />
-                    </View>
-                    <Text style={styles.studentName}>{studentInfo.name}</Text>
-                    <Text style={styles.studentId}>{studentInfo.student_id}</Text>
-                    <Text style={styles.qrDesc}>
-                        Present this personalized QR code to campus guards for instant violation registration or service hub scanning.
-                    </Text>
-                </View>
-
                 {/* Basic Information */}
                 <View style={styles.card}>
                     <View style={styles.cardHeader}>
@@ -123,6 +116,11 @@ export default function Settings() {
                     <View style={styles.infoGroup}>
                         <Text style={styles.infoLabel}>Full Identity Name</Text>
                         <Text style={styles.infoValue}>{studentInfo.name}</Text>
+                    </View>
+
+                    <View style={styles.infoGroup}>
+                        <Text style={styles.infoLabel}>Student ID</Text>
+                        <Text style={styles.infoValue}>{studentInfo.student_id}</Text>
                     </View>
 
                     <View style={styles.row}>
@@ -241,7 +239,7 @@ export default function Settings() {
 
                 <TouchableOpacity
                     style={styles.logoutButton}
-                    onPress={() => setShowLogoutModal(true)}
+                    onPress={openLogout}
                 >
                     <LogOut size={20} color={colors.danger} />
                     <Text style={styles.logoutButtonText}>Log Out</Text>
@@ -257,7 +255,7 @@ export default function Settings() {
                             <AlertTriangle size={24} color={colors.danger} />
                             <Text style={styles.modalTitle}>Log Out</Text>
                         </View>
-                        <Text style={styles.modalMessage}>Are you sure you want to log out? A running service timer will stop.</Text>
+                        <Text style={styles.modalMessage}>{timerRunning ? 'Are you sure you want to log out? Your running service timer will stop.' : 'Are you sure you want to log out?'}</Text>
                         <View style={styles.modalActions}>
                             <TouchableOpacity style={styles.modalCancelButton} onPress={() => setShowLogoutModal(false)}>
                                 <Text style={styles.modalCancelText}>Cancel</Text>
@@ -323,51 +321,6 @@ const getStyles = (colors) => StyleSheet.create({
         color: colors.textMuted,
         fontWeight: 'bold',
         fontSize: 14,
-    },
-    qrCard: {
-        backgroundColor: colors.card,
-        borderRadius: 24,
-        padding: 24,
-        alignItems: 'center',
-        marginBottom: 20,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 8,
-        elevation: 3,
-        borderWidth: 2,
-        borderColor: colors.background,
-    },
-    qrWrapper: {
-        backgroundColor: colors.card,
-        padding: 12,
-        borderRadius: 24,
-        shadowColor: colors.primary,
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.15,
-        shadowRadius: 12,
-        elevation: 5,
-        marginBottom: 20,
-    },
-    studentName: {
-        fontSize: 24,
-        fontWeight: '900',
-        color: colors.text,
-        marginBottom: 4,
-    },
-    studentId: {
-        fontSize: 14,
-        fontWeight: '900',
-        color: colors.primary,
-        letterSpacing: 2,
-        textTransform: 'uppercase',
-        marginBottom: 16,
-    },
-    qrDesc: {
-        fontSize: 12,
-        color: colors.textMuted,
-        textAlign: 'center',
-        paddingHorizontal: 8,
     },
     card: {
         backgroundColor: colors.card,
