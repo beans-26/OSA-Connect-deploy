@@ -62,7 +62,7 @@ export const authStyles = StyleSheet.create({
     linkText: { fontSize: 12, fontWeight: '700', color: C.text, textDecorationLine: 'underline' },
 });
 
-export default function AuthScreen({ maxWidth = 400, children }) {
+export default function AuthScreen({ maxWidth = 400, logoWidth = 220, children }) {
     const insets = useSafeAreaInsets();
     return (
         <ImageBackground source={require('../assets/images/ustp-campus-blur.jpg')} style={styles.background} resizeMode="cover">
@@ -75,10 +75,10 @@ export default function AuthScreen({ maxWidth = 400, children }) {
                     keyboardShouldPersistTaps="handled"
                 >
                     <View style={[styles.column, { maxWidth }]}>
-                        {/* The logo image includes the "Smart student violation management" tagline */}
+                        {/* The logo image (507 x 99) includes the "Smart student violation management" tagline */}
                         <Image
                             source={require('../assets/images/osaconnect-logo.png')}
-                            style={styles.logo}
+                            style={{ width: logoWidth, height: Math.round(logoWidth * 99 / 507) }}
                             resizeMode="contain"
                             accessibilityLabel="OSAConnect: Smart student violation management"
                         />
@@ -96,8 +96,6 @@ const styles = StyleSheet.create({
     fill: { flex: 1 },
     scroll: { flexGrow: 1, justifyContent: 'center', paddingHorizontal: 16 },
     column: { width: '100%', alignSelf: 'center', alignItems: 'center', gap: 16 },
-    // The logo file is 507 x 99
-    logo: { width: 220, height: 43 },
     card: {
         width: '100%',
         padding: 18,
