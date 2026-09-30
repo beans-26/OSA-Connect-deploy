@@ -3,6 +3,7 @@ import { Download, ChevronRight, Loader2, Mail, CheckCircle2 } from 'lucide-reac
 import QRCode from 'react-qr-code';
 import { Link } from 'react-router-dom';
 import { DEPARTMENTS, DEPARTMENT_COURSES, GENDERS, yearLevelsFor } from '../lib/academics';
+import { middleNameError } from '../lib/names';
 import campusPhoto from '../assets/ustp-campus-blur.jpg';
 import osaLogo from '../assets/osaconnect-logo.png';
 
@@ -124,6 +125,12 @@ const StudentRegistration = () => {
 
     const requestOTP = async (e) => {
         if (e) e.preventDefault();
+        const middleError = middleNameError(studentData.middle_name);
+        if (middleError) {
+            alert(middleError);
+            document.getElementById('reg-middle')?.focus();
+            return;
+        }
         if (studentData.contact_number.length !== 11) {
             alert('Contact number must be exactly 11 digits (e.g. 09123456789).');
             return;
