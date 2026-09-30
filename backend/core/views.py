@@ -84,17 +84,21 @@ def student_id_error(sid):
     return None
 
 
-# A middle name is written out in full ("Santos", "Dela Cruz"), never an initial ("S", "S."): every word at
-# least 2 letters, no periods. Same rule as frontend/src/lib/names.js and mobile/components/names.js.
+# The middle name is required and written out in full ("Santos", "Dela Cruz"), never an initial ("S", "S."):
+# every word at least 2 letters, no periods. Students without one type "N/A". Same rule as
+# frontend/src/lib/names.js and mobile/components/names.js.
 MIDDLE_NAME_WORD = re.compile(r"^[^\W\d_]+(?:['-][^\W\d_]+)*$")
-MIDDLE_NAME_ERROR = "Type your full middle name (for example Santos), not just the initial."
+NO_MIDDLE_NAME = re.compile(r"^n\s*/?\s*a$", re.I)  # N/A, n/a, NA
+MIDDLE_NAME_REQUIRED = "Type your middle name, or N/A if you don't have one."
+MIDDLE_NAME_ERROR = "Type your full middle name (for example Santos), not just the initial. Type N/A if you don't have one."
 
 
-def middle_name_error(value):
-    """Error when an entered middle name is only an initial or isn't a name; None when it's fine or empty
-    (a middle name is optional)."""
+def middle_name_error(value, required=True):
+    """Error for the registration's middle name: missing, or only an initial. None for a full name or N/A."""
     value = str(value or '').strip()
     if not value:
+        return MIDDLE_NAME_REQUIRED if required else None
+    if NO_MIDDLE_NAME.match(value):
         return None
     words = value.split()
     if '.' in value or not all(MIDDLE_NAME_WORD.match(w) and len(re.sub(r"['-]", '', w)) >= 2 for w in words):
@@ -124,7 +128,8 @@ def _registration_details_error(data, require_all):
     if contact and not (contact.isdigit() and len(contact) == 11):
         return "Contact number must be exactly 11 digits (e.g. 09123456789)."
 
-    return middle_name_error(data.get('middle_name'))
+    # Required when registering (require_all); the code request doesn't send it
+    return middle_name_error(data.get('middle_name'), required=require_all)
 
 
 def _resolve_service_site(value):
