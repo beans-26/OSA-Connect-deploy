@@ -10,6 +10,8 @@ class StudentSerializer(serializers.DocumentSerializer):
     def to_representation(self, instance):
         data = super().to_representation(instance)
         data['id'] = str(instance.id)
+        # False for a record made from a report before the student registered (no password yet)
+        data['has_account'] = bool(instance.password)
         return data
 
 class ViolationReportSerializer(serializers.DocumentSerializer):
