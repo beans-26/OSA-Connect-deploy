@@ -7,6 +7,7 @@ import { captureRef } from 'react-native-view-shot';
 // The legacy entry still has saveToLibraryAsync (the new API throws on it)
 import * as MediaLibrary from 'expo-media-library/legacy';
 import { showAlert } from '../components/showAlert';
+import { middleNameError } from '../components/names';
 import { DEPARTMENTS, DEPARTMENT_COURSES, GENDERS, yearLevelsFor } from '../constants/Data';
 import SelectField from '../components/SelectField';
 import AuthScreen, { authColors as C, authStyles as A } from '../components/AuthScreen';
@@ -124,6 +125,11 @@ export default function Register() {
         if (saving) return;
         if (!studentData.student_id || !studentData.first_name || !studentData.last_name || !studentData.gender || !studentData.course || !studentData.department || !studentData.year_level || !studentData.email || !studentData.password.trim()) {
             showAlert('Missing Fields', 'Please fill in all required fields.');
+            return;
+        }
+        const middleError = middleNameError(studentData.middle_name);
+        if (middleError) {
+            showAlert('Middle Name', middleError);
             return;
         }
         if (studentData.contact_number.length !== 11) {
