@@ -706,53 +706,92 @@ class ViolationViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=['post'])
     def bulk_create(self, request):
+        """The admin's "Report Violation" (Students page): one violation for one or more students, approved
+        right away at the chosen building. POST {students: [{student_id, name}], violation_type, description,
+        assigned_building, custom_hours}. Reports are saved under the student ID: an ID with no account gets
+        a placeholder record (with the name the admin typed, if any), which becomes the student's account when
+        they register (register_with_otp), so these violations show up there. Older pages send student_ids
+        and no hours (then the penalty table decides)."""
         data = request.data
         # The building dropdown lists service sites (their site code); older clients send a name
         assigned_site = _resolve_service_site(data.get('assigned_building'))
-        student_ids = data.get('student_ids', [])
-        # Rules: Predefined violation type for bulk reports
-        violation_type = "Failure to attend mandatory campus event"
-        assigned_building = assigned_site.name if assigned_site else data.get('assigned_building')
-        reporter = data.get('reporter', 'OSA Administrator')
-        
-        if not student_ids:
-            return Response({"error": "No students selected"}, status=status.HTTP_400_BAD_REQUEST)
-            
+        assigned_building = assigned_site.name if assigned_site else _short(data.get('assigned_building'), 150)
+        violation_type = _short(data.get('violation_type'), 150) or "Failure to attend mandatory campus event"
+        description = _short(data.get('description'), MAX_DESCRIPTION_CHARS)
+        reporter = request.user.name or request.user.username
+
+        # One entry per ID, first one wins (the page removes duplicates too)
+        entries = data.get('students')
+        if entries is None:
+            entries = [{'student_id': sid} for sid in (data.get('student_ids') or [])]
+        students_in, seen = [], set()
+        for entry in entries if isinstance(entries, list) else []:
+            entry = entry if isinstance(entry, dict) else {'student_id': entry}
+            sid = str(entry.get('student_id') or '').strip()
+            if sid and sid not in seen:
+                seen.add(sid)
+                students_in.append((sid, _short(entry.get('name'), 100)))
+
+        if not students_in:
+            return Response({"error": "Add at least one student."}, status=status.HTTP_400_BAD_REQUEST)
+        if len(students_in) > 500:
+            return Response({"error": "Report at most 500 students at a time."}, status=status.HTTP_400_BAD_REQUEST)
         if not assigned_building:
-            return Response({"error": "Please assign a building for the bulk report"}, status=status.HTTP_400_BAD_REQUEST)
-        full = _over_capacity(assigned_site, len(student_ids), request)
+            return Response({"error": "Choose the building for their community service."}, status=status.HTTP_400_BAD_REQUEST)
+        custom_hours = data.get('custom_hours')
+        if custom_hours is not None and str(custom_hours).strip() != '':
+            try:
+                custom_hours = float(custom_hours)
+            except (TypeError, ValueError):
+                custom_hours = -1
+            if not 0 <= custom_hours <= 100:
+                return Response({"error": "Required hours must be between 0 and 100."}, status=status.HTTP_400_BAD_REQUEST)
+        else:
+            custom_hours = None
+
+        # Every ID is checked before anything is saved, so a typo doesn't leave half the list reported
+        problems = [{"student_id": sid, "error": student_id_error(sid)} for sid, _ in students_in if student_id_error(sid)]
+        if problems:
+            return Response({"error": "Fix these students first.", "results": problems}, status=status.HTTP_400_BAD_REQUEST)
+
+        full = _over_capacity(assigned_site, len(students_in), request)
         if full:
             return full
 
         results = []
-        for sid in student_ids:
+        for sid, name in students_in:
             try:
-                student = Student.objects.get(student_id=sid)
+                student = Student.objects(student_id=sid).first()
+                if not student:
+                    # No account yet: a placeholder under the ID (no password, so nobody can log in with it).
+                    # The name is optional; registering replaces it with the student's own.
+                    student = Student(student_id=sid, name=name or 'Unregistered student', course='Unknown', department='Unknown').save()
+                elif name and not student.password and name != student.name:
+                    # Still a placeholder (e.g. from a guard's report): the admin's spelling of the name wins
+                    student.name = name
+                    student.save()
+
                 offense_count = get_offense_count(student, violation_type)
-                punishment_info = get_punishment(violation_type, offense_count)
-                punishment = punishment_info["punishment"]
-                hours = punishment_info["hours"]
+                if custom_hours is not None:
+                    hours = custom_hours
+                    punishment = f"{hours:g} hour{'' if hours == 1 else 's'} community service"
+                else:
+                    punishment_info = get_punishment(violation_type, offense_count)
+                    hours, punishment = punishment_info["hours"], punishment_info["punishment"]
 
                 report = ViolationReport(
                     student=student,
                     violation_type=violation_type,
-                    description=f"Bulk report: {violation_type}",
+                    description=description,
                     reporting_guard=reporter,
-                    status="Approved", 
+                    # No hours to serve: nothing to do, so it goes straight to the archives (same as approve)
+                    status="Approved" if hours > 0 else "Completed",
                     assigned_building=assigned_building,
                     building_history=[_building_entry(assigned_building, request)],
                     offense_count=offense_count,
                     punishment=punishment,
                     created_at=utc_now()
                 ).save()
-                
-                # Send Email Notification
-                try:
-                    send_violation_email(report)
-                except:
-                    pass
-                
-                # Create ETicket automatically for bulk reports if hours > 0
                 if hours > 0:
                     ETicket(
                         violation=report,
@@ -762,15 +801,14 @@ class ViolationViewSet(viewsets.ModelViewSet):
                         status="Active",
                         **_site_ticket_fields(assigned_site)
                     ).save()
-                    
-                results.append({"student_id": sid, "status": "success"})
-            except Student.DoesNotExist:
-                results.append({"student_id": sid, "status": "failed", "error": "Student not found"})
+                send_violation_email(report)  # skipped when the student has no email yet
+                results.append({"student_id": sid, "name": student.name, "status": "success", "has_account": bool(student.password)})
             except Exception as e:
                 results.append({"student_id": sid, "status": "failed", "error": str(e)})
-                
+
+        done = sum(1 for r in results if r['status'] == 'success')
         return Response({
-            "message": f"Bulk report processed. {len([r for r in results if r['status'] == 'success'])} students reported.",
+            "message": f"{done} student{'' if done == 1 else 's'} reported." + (f" {len(results) - done} failed." if done < len(results) else ''),
             "results": results
         }, status=status.HTTP_201_CREATED)
 
