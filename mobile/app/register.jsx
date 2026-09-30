@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, TextInput, TouchableOpacity, Pressable, StyleSheet, ActivityIndicator, Platform, useWindowDimensions } from 'react-native';
 import { Link } from 'expo-router';
-import { Mail, ChevronRight, CheckCircle2, Download } from 'lucide-react-native';
+import { Mail, MailWarning, ChevronRight, CheckCircle2, Download } from 'lucide-react-native';
 import QRCode from 'react-native-qrcode-svg';
 import { captureRef } from 'react-native-view-shot';
 // The legacy entry still has saveToLibraryAsync (the new API throws on it)
@@ -381,7 +381,15 @@ export default function Register() {
 
             {step === 2 && (
                 <View>
-                    <Text style={[A.subtitle, styles.intro]}>Enter the 6-digit code we sent you. It expires in 5 minutes. No email yet? Check your Spam or Junk folder.</Text>
+                    <Text style={[A.subtitle, styles.intro]}>Enter the 6-digit code we sent you. It expires in 5 minutes.</Text>
+                    {/* Testers missed this when it was part of the sentence above: the code email often lands in Spam */}
+                    <View style={styles.spamNote} accessibilityRole="text">
+                        <MailWarning size={22} color="#d97706" />
+                        <View style={{ flex: 1 }}>
+                            <Text style={styles.spamTitle}>No email yet? Check your Spam or Junk folder.</Text>
+                            <Text style={styles.spamText}>The code often lands there. Open it and mark it &quot;Not spam&quot; so the next one arrives in your inbox.</Text>
+                        </View>
+                    </View>
 
                     <View style={styles.panel}>
                         <Mail size={16} color={C.navy} />
@@ -503,6 +511,21 @@ const styles = StyleSheet.create({
     heading: { marginTop: 12 },
     intro: { marginBottom: 14 },
     field: { marginBottom: 10 },
+    // The Spam / Junk reminder on the code step: a bold amber box so it can't be missed
+    spamNote: {
+        flexDirection: 'row',
+        alignItems: 'flex-start',
+        gap: 10,
+        borderWidth: 2,
+        borderColor: '#fbbf24',
+        backgroundColor: '#fffbeb',
+        borderRadius: 8,
+        paddingHorizontal: 12,
+        paddingVertical: 11,
+        marginBottom: 14,
+    },
+    spamTitle: { fontSize: 14, fontWeight: '900', color: '#78350f' },
+    spamText: { fontSize: 12, fontWeight: '600', color: '#92400e', marginTop: 2, lineHeight: 17 },
     // The label and its info icon on one line; the row keeps the label's usual space below
     labelRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 5 },
     labelInRow: { marginBottom: 0, flexShrink: 1 },

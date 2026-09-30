@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Download, ChevronRight, Loader2, Mail, CheckCircle2 } from 'lucide-react';
+import { Download, ChevronRight, Loader2, Mail, MailWarning, CheckCircle2 } from 'lucide-react';
 import QRCode from 'react-qr-code';
 import { Link } from 'react-router-dom';
 import { DEPARTMENTS, DEPARTMENT_COURSES, GENDERS, yearLevelsFor } from '../lib/academics';
@@ -383,9 +383,17 @@ const StudentRegistration = () => {
 
                     {step === 2 && (
                         <form onSubmit={verifyAndRegister} className="mt-1">
-                            <p className="text-xs sm:text-sm text-slate-700 dark:text-slate-300 mb-4">
-                                Enter the 6-digit code we sent you. It expires in 5 minutes. No email yet? Check your Spam or Junk folder.
+                            <p className="text-xs sm:text-sm text-slate-700 dark:text-slate-300 mb-3">
+                                Enter the 6-digit code we sent you. It expires in 5 minutes.
                             </p>
+                            {/* Testers missed this when it was part of the sentence above: the code email often lands in Spam */}
+                            <div role="note" className="mb-4 flex items-start gap-3 rounded-lg border-2 border-amber-400 bg-amber-50 px-3.5 py-3 text-amber-900 dark:border-amber-500/60 dark:bg-amber-500/15 dark:text-amber-200">
+                                <MailWarning size={22} className="mt-0.5 shrink-0 text-amber-600 dark:text-amber-400" />
+                                <div>
+                                    <p className="text-sm font-black">No email yet? Check your Spam or Junk folder.</p>
+                                    <p className="mt-0.5 text-xs font-semibold text-amber-800/90 dark:text-amber-200/80">The code often lands there. Open it and mark it "Not spam" so the next one arrives in your inbox.</p>
+                                </div>
+                            </div>
 
                             <div className="flex items-center gap-2.5 rounded-md border border-white/80 dark:border-white/15 bg-white/60 dark:bg-slate-900/50 px-3 sm:px-4 py-2.5 sm:py-3 text-sm text-slate-800 dark:text-slate-200">
                                 <Mail size={16} className="shrink-0 text-blue-900 dark:text-blue-300" aria-hidden="true" />

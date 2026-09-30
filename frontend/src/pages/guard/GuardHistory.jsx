@@ -1,6 +1,36 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import Sidebar from '../../components/Sidebar';
-import { Clock, AlertTriangle, Filter, Search } from 'lucide-react';
+import { ClipboardList, AlertTriangle, Search } from 'lucide-react';
+import { departmentShort } from '../../lib/academics';
+
+// The reports a guard (or faculty & staff) filed, newest first, with where each one is in OSA's process.
+// Compact cards so a phone shows several at once: name + status, ID · course, then violation · when · who.
+
+// Filters: "Approved" covers every accepted case (serving, hours done, cleared)
+const FILTERS = [
+    ['all', 'All', () => true],
+    ['pending', 'For review', (s) => s === 'Pending OSA Review'],
+    ['approved', 'Approved', (s) => ['Approved', 'Completed', 'Cleared', 'Finished'].includes(s)],
+    ['dismissed', 'Dismissed', (s) => s === 'Dismissed'],
+];
+
+// What each database status is called here, and its colours
+const STATUS = {
+    'Pending OSA Review': ['For review', 'bg-amber-100 text-amber-800 dark:bg-amber-500/15 dark:text-amber-300'],
+    Approved: ['Approved', 'bg-emerald-100 text-emerald-800 dark:bg-emerald-500/15 dark:text-emerald-300'],
+    Completed: ['Hours done', 'bg-emerald-100 text-emerald-800 dark:bg-emerald-500/15 dark:text-emerald-300'],
+    Cleared: ['Cleared', 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300'],
+    Finished: ['Cleared', 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300'],
+    Dismissed: ['Dismissed', 'bg-red-100 text-red-700 dark:bg-red-500/15 dark:text-red-300'],
+};
+
+// "Sep 30, 8:53 PM"; the year only when it isn't this year
+const shortWhen = (iso) => {
+    if (!iso) return '';
+    const d = new Date(iso);
+    const sameYear = d.getFullYear() === new Date().getFullYear();
+    return d.toLocaleString('en-PH', { month: 'short', day: 'numeric', ...(sameYear ? {} : { year: 'numeric' }), hour: 'numeric', minute: '2-digit' });
+};
 
 const GuardHistory = () => {
     const user = JSON.parse(localStorage.getItem('user') || '{}');
@@ -31,121 +61,103 @@ const GuardHistory = () => {
         }
     };
 
-    const filteredViolations = violations.filter(v => {
-        const matchesSearch =
-            v.student_details?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            v.student_details?.student_id?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            v.violation_type?.toLowerCase().includes(searchTerm.toLowerCase());
-
-        if (filter === 'all') return matchesSearch;
-        if (filter === 'pending') return matchesSearch && v.status === 'Pending OSA Review';
-        if (filter === 'approved') return matchesSearch && v.status === 'Approved';
-        if (filter === 'dismissed') return matchesSearch && v.status === 'Dismissed';
-        return matchesSearch;
-    });
-
-    const statusCounts = {
-        all: violations.length,
-        pending: violations.filter(v => v.status === 'Pending OSA Review').length,
-        approved: violations.filter(v => v.status === 'Approved').length,
-        dismissed: violations.filter(v => v.status === 'Dismissed').length,
-    };
+    const q = searchTerm.trim().toLowerCase();
+    const matchesSearch = (v) => !q
+        || v.student_details?.name?.toLowerCase().includes(q)
+        || v.student_details?.student_id?.toLowerCase().includes(q)
+        || v.violation_type?.toLowerCase().includes(q);
+    const inFilter = (key) => FILTERS.find(([k]) => k === key)[2];
+    const filteredViolations = violations.filter((v) => matchesSearch(v) && inFilter(filter)(v.status));
+    const counts = Object.fromEntries(FILTERS.map(([key, , test]) => [key, violations.filter((v) => test(v.status)).length]));
 
     return (
         <div className="flex bg-slate-50 dark:bg-slate-900 min-h-screen relative">
             <Sidebar role={userRole} />
-            <main className="page-enter flex-1 p-3 md:p-6 pt-20 md:pt-20 lg:pt-6 w-full max-w-full h-screen overflow-hidden flex flex-col">
-                <header className="mb-4 text-center md:text-left shrink-0">
-                    <h1 className="text-xl md:text-2xl font-extrabold text-slate-900 dark:text-white tracking-tight">
-                        Violation History
-                    </h1>
-                    <p className="text-slate-500 dark:text-slate-400 mt-1 font-medium italic text-xs">
-                        {loading ? 'Syncing history...' : `Viewing ${filteredViolations.length} records`}
+            <main className="page-enter flex-1 px-3 pb-3 md:p-6 pt-20 md:pt-20 lg:pt-6 w-full max-w-full h-screen overflow-hidden flex flex-col">
+                <header className="mb-3 shrink-0 mx-auto w-full max-w-3xl">
+                    <h1 className="text-xl md:text-2xl font-extrabold text-slate-900 dark:text-white tracking-tight">Violation History</h1>
+                    <p className="text-slate-500 dark:text-slate-400 mt-0.5 font-medium text-xs">
+                        {loading ? 'Loading your reports…' : `${filteredViolations.length} of ${violations.length} report${violations.length === 1 ? '' : 's'}`}
                     </p>
                 </header>
 
-                <div className="flex-1 overflow-y-auto pr-1 pb-10 custom-scrollbar mt-2">
-                    <div className="flex flex-col sm:flex-row gap-3 mb-4">
-                    <div className="relative flex-1">
-                        <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500" size={20} />
-                        <input
-                            type="text"
-                            placeholder="Search by name, student ID, or violation..."
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                            className="w-full pl-12 pr-4 py-3 bg-white dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 rounded-2xl focus:border-ustp-blue focus:outline-none"
-                        />
-                    </div>
-                    <div className="flex gap-2">
-                        {['all', 'pending', 'approved', 'dismissed'].map((f) => (
-                            <button
-                                key={f}
-                                onClick={() => setFilter(f)}
-                                className={`px-4 py-2 rounded-xl font-semibold text-sm transition-colors ${filter === f
+                <div className="flex-1 overflow-y-auto pb-10 custom-scrollbar">
+                    <div className="mx-auto w-full max-w-3xl">
+                        {/* Search, then the status filters on one line (they scroll sideways on narrow phones) */}
+                        <div className="relative mb-2.5">
+                            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500" size={16} />
+                            <input
+                                type="search"
+                                placeholder="Search name, ID or violation"
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                                className="w-full pl-10 pr-3 py-2.5 text-sm font-medium bg-white dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-200 placeholder:text-slate-400 focus:border-ustp-blue focus:outline-none"
+                            />
+                        </div>
+                        <div className="-mx-3 px-3 md:mx-0 md:px-0 mb-3 flex gap-1.5 overflow-x-auto no-scrollbar">
+                            {FILTERS.map(([key, label]) => (
+                                <button
+                                    key={key}
+                                    onClick={() => setFilter(key)}
+                                    className={`shrink-0 whitespace-nowrap rounded-full px-3 py-1.5 text-xs font-bold transition-colors ${filter === key
                                         ? 'bg-ustp-blue text-white'
-                                        : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-100'
-                                    }`}
-                            >
-                                {f.charAt(0).toUpperCase() + f.slice(1)} ({statusCounts[f]})
-                            </button>
-                        ))}
+                                        : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700'}`}
+                                >
+                                    {label} <span className={filter === key ? 'text-white/70' : 'text-slate-400'}>{counts[key]}</span>
+                                </button>
+                            ))}
+                        </div>
+
+                        {loading ? (
+                            <div className="text-center py-16">
+                                <div className="animate-spin w-10 h-10 border-4 border-ustp-blue border-t-transparent rounded-full mx-auto"></div>
+                                <p className="mt-3 text-sm text-slate-500 dark:text-slate-400 font-medium">Loading your reports…</p>
+                            </div>
+                        ) : filteredViolations.length === 0 ? (
+                            <div className="text-center py-14 px-4 bg-white dark:bg-slate-800 rounded-2xl border-2 border-dashed border-slate-100 dark:border-slate-700">
+                                <ClipboardList className="mx-auto text-slate-300 dark:text-slate-600 mb-3" size={40} />
+                                <p className="font-bold text-slate-500 dark:text-slate-400 text-sm">
+                                    {violations.length ? 'No reports match.' : "You haven't filed any reports yet."}
+                                </p>
+                            </div>
+                        ) : (
+                            <ul className="space-y-2">
+                                {filteredViolations.map((report) => {
+                                    const [statusLabel, statusTone] = STATUS[report.status] || [report.status || 'For review', STATUS['Pending OSA Review'][1]];
+                                    const s = report.student_details || {};
+                                    return (
+                                        <li key={report.id} className="rounded-2xl border border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800 px-3.5 py-3 shadow-sm">
+                                            <div className="flex items-start justify-between gap-3">
+                                                <div className="min-w-0">
+                                                    <p className="truncate text-sm font-bold text-slate-900 dark:text-white">{s.name || 'Unknown student'}</p>
+                                                    <p className="truncate text-xs font-medium text-slate-500 dark:text-slate-400">
+                                                        <span className="font-mono">{s.student_id || report.student_id || '—'}</span>
+                                                        {/* College first: it's short, so a long course name is what gets cut off */}
+                                                        {s.department && s.department !== 'Unknown' && ` · ${departmentShort(s.department)}`}
+                                                        {s.course && s.course !== 'Unknown' && ` · ${s.course}`}
+                                                    </p>
+                                                </div>
+                                                <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-black uppercase tracking-wide ${statusTone}`}>{statusLabel}</span>
+                                            </div>
+                                            <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1">
+                                                <span className="inline-flex items-center gap-1 rounded-md bg-red-50 dark:bg-red-500/10 px-2 py-0.5 text-xs font-bold text-red-700 dark:text-red-300">
+                                                    <AlertTriangle size={12} className="shrink-0" /> {report.violation_type}
+                                                </span>
+                                                <span className="text-xs text-slate-400 dark:text-slate-500">
+                                                    {shortWhen(report.created_at)}{report.reporting_guard ? ` · ${report.reporting_guard}` : ''}
+                                                </span>
+                                            </div>
+                                            {report.description && (
+                                                <p className="mt-2 border-t border-slate-100 dark:border-slate-700 pt-2 text-xs text-slate-600 dark:text-slate-400">{report.description}</p>
+                                            )}
+                                        </li>
+                                    );
+                                })}
+                            </ul>
+                        )}
                     </div>
                 </div>
-
-                {loading ? (
-                    <div className="text-center py-20">
-                        <div className="animate-spin w-12 h-12 border-4 border-ustp-blue border-t-transparent rounded-full mx-auto"></div>
-                        <p className="mt-4 text-slate-500 dark:text-slate-400 font-medium">Loading violations...</p>
-                    </div>
-                ) : filteredViolations.length === 0 ? (
-                    <div className="text-center py-20 bg-white dark:bg-slate-800 rounded-3xl border-2 border-dashed border-slate-100 dark:border-slate-700">
-                        <Clock className="mx-auto text-slate-200 mb-4" size={48} />
-                        <h5 className="font-bold text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em] text-xs">No Violations Found</h5>
-                    </div>
-                ) : (
-                    <div className="space-y-4">
-                        {filteredViolations.map((report) => (
-                            <div key={report.id} className="card-premium p-6">
-                                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                                    <div className="flex-1 min-w-0">
-                                        <div className="flex items-center gap-3 mb-2">
-                                            <h3 className="font-bold text-lg text-slate-800 dark:text-slate-200">
-                                                {report.student_details?.name || 'Unknown Student'}
-                                            </h3>
-                                            <span className={`text-[10px] font-black uppercase tracking-widest px-2 py-1 rounded-full ${report.status === 'Pending OSA Review' ? 'bg-yellow-100 text-yellow-800' :
-                                                    report.status === 'Approved' ? 'bg-green-100 text-green-800' :
-                                                        report.status === 'Dismissed' ? 'bg-red-100 text-red-800' :
-                                                            'bg-slate-100 text-slate-600 dark:text-slate-400'
-                                                }`}>
-                                                {report.status || 'Pending'}
-                                            </span>
-                                        </div>
-                                        <p className="text-sm text-slate-500 dark:text-slate-400">
-                                            Student ID: {report.student_details?.student_id || report.student_id || 'N/A'}
-                                        </p>
-                                        <p className="text-sm text-slate-500 dark:text-slate-400">
-                                            Course: {report.student_details?.course || 'N/A'} - {report.student_details?.department || 'N/A'}
-                                        </p>
-                                    </div>
-                                    <div className="text-right">
-                                        <p className="text-sm font-bold text-ustp-blue uppercase">{report.violation_type}</p>
-                                        <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">
-                                            {report.created_at ? new Date(report.created_at).toLocaleString() : 'N/A'}
-                                        </p>
-                                        <p className="text-xs text-slate-400 dark:text-slate-500">Reporter: {report.reporting_guard}</p>
-                                    </div>
-                                </div>
-                                {report.description && (
-                                    <div className="mt-4 pt-4 border-t border-slate-100 dark:border-slate-700">
-                                        <p className="text-sm text-slate-600 dark:text-slate-400">{report.description}</p>
-                                    </div>
-                                )}
-                            </div>
-                        ))}
-                    </div>
-                )}
-            </div>
-        </main>
+            </main>
         </div>
     );
 };
