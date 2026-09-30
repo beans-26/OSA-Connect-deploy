@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Scan, Send, CheckCircle2, Clock, X, LogOut, BarChart3, User, AlertTriangle, Loader2 } from 'lucide-react';
+import { Scan, Send, CheckCircle2, ClipboardList, X, LogOut, ChartColumnBig, User, AlertTriangle, Loader2 } from 'lucide-react';
 import QrScannerModal from '../../components/QrScannerModal';
 import { parseStudentQr, NOT_A_STUDENT_QR } from '../../components/studentQr';
 import { DEPARTMENTS, GENDERS, departmentForCourse, courseOptionsFor } from '../../lib/academics';
@@ -8,14 +8,19 @@ import { GUARD_STAFF_LOGIN } from '../../lib/portals';
 // Violation types a guard or faculty & staff can report (shared with the admin's Report Violation)
 import { VIOLATIONS } from '../../lib/violationTypes';
 
-const inputClass = "w-full min-w-0 bg-slate-50 dark:bg-slate-900 border-2 border-slate-100 dark:border-slate-700 rounded-xl px-3 py-2.5 font-semibold text-sm text-slate-800 dark:text-slate-200 focus:border-ustp-blue outline-none transition-colors placeholder:text-slate-400 disabled:cursor-not-allowed disabled:opacity-60";
+// Phones get shorter boxes (py-2) so the whole form fits with less scrolling, like registration
+const inputClass = "w-full min-w-0 bg-slate-50 dark:bg-slate-900 border-2 border-slate-100 dark:border-slate-700 rounded-lg sm:rounded-xl px-3 py-2 sm:py-2.5 font-semibold text-sm text-slate-800 dark:text-slate-200 focus:border-ustp-blue outline-none transition-colors placeholder:text-slate-400 disabled:cursor-not-allowed disabled:opacity-60";
+// Dropdowns: the browser's own look adds inner padding and bigger text, so they're drawn like the text
+// boxes with a small chevron; `empty` makes "Choose" faint like a placeholder (same as StudentRegistration)
+const selectClass = (empty) => `${inputClass} appearance-none truncate bg-[length:14px] bg-[right_0.6rem_center] bg-no-repeat pr-8 ${empty ? '!text-slate-400 !font-medium' : ''}`;
+const selectArrow = { backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E\")" };
 const labelClass = "mb-1 ml-1 block text-xs font-bold text-slate-500 dark:text-slate-400";
 const headerLink = "flex items-center gap-1.5 px-3 py-1.5 bg-white dark:bg-slate-800 shadow-sm border border-slate-200 dark:border-slate-700 rounded-full text-slate-600 dark:text-slate-300 hover:text-ustp-blue font-bold text-xs";
 
 
 const emptyForm = () => ({
     student_id: '', name: '', gender: '', course: '', department: '', contact: '',
-    email: '', violation: '',
+    email: '', violations: [], // one or more; each becomes its own report
     incident_date: new Date().toISOString().split('T')[0],
     incident_time: new Date().toTimeString().slice(0, 5),
 });
@@ -74,8 +79,20 @@ const ReportViolation = () => {
 
     const handleSubmit = (e) => {
         e.preventDefault();
+        if (!form.violations.length) {
+            alert('Choose at least one violation.');
+            return;
+        }
         setShowConfirmModal(true);
     };
+
+    // Ticks or unticks a violation; the list keeps the order of VIOLATIONS
+    const toggleViolation = (value) => setForm((prev) => ({
+        ...prev,
+        violations: prev.violations.includes(value)
+            ? prev.violations.filter((v) => v !== value)
+            : VIOLATIONS.map(([v]) => v).filter((v) => v === value || prev.violations.includes(v)),
+    }));
 
     const confirmSubmission = async () => {
         setShowConfirmModal(false);
@@ -84,7 +101,7 @@ const ReportViolation = () => {
             const response = await fetch('/api/violations/', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ ...form, reporting_guard: userName }),
+                body: JSON.stringify({ ...form, violation_types: form.violations, reporting_guard: userName }),
             });
             if (response.ok) setSent(true);
             else {
@@ -103,15 +120,15 @@ const ReportViolation = () => {
         setForm(emptyForm());
     };
 
-    const violationLabel = VIOLATIONS.find(([value]) => value === form.violation)?.[1] || form.violation;
-    const confirmRows = [
-        ['Student', `${form.name || '—'}`],
-        ['Student ID', form.student_id],
-        ['Gender', form.gender || '—'],
-        ['Course', [form.course, form.department && (form.department.match(/\(([^)]+)\)\s*$/) || [])[1]].filter(Boolean).join(' · ') || '—'],
-        ['Violation', violationLabel],
-        ['Date & time', `${form.incident_date} · ${form.incident_time}`],
-    ];
+    const violationLabels = form.violations.map((v) => VIOLATIONS.find(([value]) => value === v)?.[1] || v);
+    // For the receipt: "CITC", initials, and "Wed, Sep 30, 2026 · 8:46 PM"
+    const deptShort = (form.department.match(/\(([^)]+)\)\s*$/) || [])[1] || form.department;
+    const initials = form.name.trim().split(/\s+/).filter(Boolean).map((w) => w[0]).join('').slice(0, 2).toUpperCase() || '?';
+    const incidentWhen = (() => {
+        const d = new Date(`${form.incident_date}T${form.incident_time || '00:00'}`);
+        if (Number.isNaN(d.getTime())) return `${form.incident_date} · ${form.incident_time}`;
+        return `${d.toLocaleDateString('en-PH', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })} · ${d.toLocaleTimeString('en-PH', { hour: 'numeric', minute: '2-digit' })}`;
+    })();
 
     return (
         <div className="flex bg-slate-50 dark:bg-slate-900 min-h-screen relative">
@@ -130,24 +147,70 @@ const ReportViolation = () => {
             {/* Check before sending */}
             {showConfirmModal && (
                 <div className="fixed inset-0 z-50 bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-4">
-                    <div className="bg-white dark:bg-slate-800 rounded-3xl p-6 w-full max-w-md shadow-2xl max-h-[90vh] overflow-y-auto">
-                        <div className="flex justify-between items-center mb-4">
-                            <h2 className="text-lg font-black text-slate-900 dark:text-white">Check the report</h2>
-                            <button onClick={() => setShowConfirmModal(false)} aria-label="Close" className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
-                                <X size={22} />
+                    {/* The report as a slip: who, what, when, then Edit / Send */}
+                    <div className="bg-white dark:bg-slate-800 rounded-3xl w-full max-w-md shadow-2xl max-h-[90vh] overflow-y-auto" role="dialog" aria-modal="true" aria-labelledby="confirm-title">
+                        <div className="flex items-start justify-between gap-3 px-5 pt-5 pb-3">
+                            <div>
+                                <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">Violation report</p>
+                                <h2 id="confirm-title" className="text-lg font-black text-slate-900 dark:text-white leading-tight">Check before sending</h2>
+                            </div>
+                            <button onClick={() => setShowConfirmModal(false)} aria-label="Close" className="w-9 h-9 shrink-0 rounded-full bg-red-50 dark:bg-red-500/10 text-red-600 dark:text-red-400 hover:bg-red-100 flex items-center justify-center">
+                                <X size={18} />
                             </button>
                         </div>
-                        <div className="divide-y divide-slate-100 dark:divide-slate-700 rounded-2xl border border-slate-100 dark:border-slate-700 px-4">
-                            {confirmRows.map(([label, value]) => (
-                                <div key={label} className="flex items-baseline justify-between gap-4 py-2.5">
-                                    <span className="shrink-0 text-xs font-semibold text-slate-500 dark:text-slate-400">{label}</span>
-                                    <span className={`min-w-0 text-right text-sm font-bold ${label === 'Violation' ? 'text-red-600 dark:text-red-400' : 'text-slate-800 dark:text-slate-200'}`}>{value}</span>
+
+                        <div className="mx-5 overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-700">
+                            {/* Student */}
+                            <div className="flex items-center gap-3 bg-slate-50 dark:bg-slate-900/60 px-4 py-3.5">
+                                <div className="w-11 h-11 shrink-0 rounded-full bg-blue-100 text-ustp-blue dark:bg-blue-500/20 dark:text-blue-300 flex items-center justify-center text-sm font-black">{initials}</div>
+                                <div className="min-w-0">
+                                    <p className="truncate text-base font-black text-slate-900 dark:text-white">{form.name || '—'}</p>
+                                    <p className="font-mono text-xs font-bold text-slate-500 dark:text-slate-400">{form.student_id}</p>
+                                    <p className="truncate text-xs font-semibold text-slate-500 dark:text-slate-400">
+                                        {[form.course, deptShort, form.gender].filter(Boolean).join(' · ')}
+                                    </p>
                                 </div>
-                            ))}
+                            </div>
+
+                            {/* Violations */}
+                            <div className="border-t border-dashed border-slate-200 dark:border-slate-700 px-4 py-3">
+                                <div className="mb-2 flex items-center justify-between">
+                                    <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">{violationLabels.length > 1 ? 'Violations' : 'Violation'}</p>
+                                    {violationLabels.length > 1 && (
+                                        <span className="rounded-full bg-red-100 dark:bg-red-500/15 px-2 py-0.5 text-[10px] font-black text-red-700 dark:text-red-300">{violationLabels.length} reports</span>
+                                    )}
+                                </div>
+                                <ul className="space-y-1.5">
+                                    {violationLabels.map((v) => (
+                                        <li key={v} className="flex items-center gap-2 rounded-lg bg-red-50 dark:bg-red-500/10 px-3 py-2 text-sm font-bold text-red-700 dark:text-red-300">
+                                            <AlertTriangle size={14} className="shrink-0" /> {v}
+                                        </li>
+                                    ))}
+                                </ul>
+                            </div>
+
+                            {/* When and who */}
+                            <dl className="border-t border-dashed border-slate-200 dark:border-slate-700 px-4 py-3 space-y-1.5 text-sm">
+                                <div className="flex items-baseline justify-between gap-4">
+                                    <dt className="shrink-0 text-xs font-semibold text-slate-500 dark:text-slate-400">When</dt>
+                                    <dd className="min-w-0 text-right font-bold text-slate-800 dark:text-slate-200">{incidentWhen}</dd>
+                                </div>
+                                <div className="flex items-baseline justify-between gap-4">
+                                    <dt className="shrink-0 text-xs font-semibold text-slate-500 dark:text-slate-400">Reported by</dt>
+                                    <dd className="min-w-0 truncate text-right font-bold text-slate-800 dark:text-slate-200">{userName}</dd>
+                                </div>
+                            </dl>
                         </div>
-                        <div className="mt-5 grid grid-cols-2 gap-3">
-                            <button onClick={() => setShowConfirmModal(false)} className="py-3 rounded-xl bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-200 font-bold text-sm hover:bg-slate-200">Edit</button>
-                            <button onClick={confirmSubmission} disabled={loading} className="py-3 rounded-xl bg-ustp-blue text-white font-bold text-sm hover:bg-blue-800 disabled:opacity-60">Send report</button>
+
+                        <p className="mx-5 mt-3 text-xs font-medium leading-5 text-slate-500 dark:text-slate-400">
+                            OSA reviews {violationLabels.length > 1 ? 'each report' : 'the report'} before any penalty is given. The student gets an email about it.
+                        </p>
+
+                        <div className="grid grid-cols-2 gap-3 p-5">
+                            <button onClick={() => setShowConfirmModal(false)} className="py-3 rounded-xl border-2 border-slate-200 dark:border-slate-600 text-slate-700 dark:text-slate-200 font-bold text-sm hover:bg-slate-50 dark:hover:bg-slate-700">Edit</button>
+                            <button onClick={confirmSubmission} disabled={loading} className="py-3 rounded-xl bg-ustp-blue text-white font-bold text-sm flex items-center justify-center gap-2 hover:bg-blue-800 disabled:opacity-60">
+                                <Send size={16} /> {violationLabels.length > 1 ? `Send ${violationLabels.length} reports` : 'Send report'}
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -196,12 +259,12 @@ const ReportViolation = () => {
                     <div className="flex items-center gap-2 shrink-0">
                         {['guard', 'staff'].includes(userRole) && (
                             <Link to={`/${userRole}/history`} className={headerLink}>
-                                <Clock size={14} /> <span className="hidden sm:inline">History</span>
+                                <ClipboardList size={14} /> <span className="hidden sm:inline">History</span>
                             </Link>
                         )}
                         {userRole === 'guard' && (
                             <Link to="/guard/analytics" className={headerLink}>
-                                <BarChart3 size={14} /> <span className="hidden sm:inline">Analytics</span>
+                                <ChartColumnBig size={14} /> <span className="hidden sm:inline">Analytics</span>
                             </Link>
                         )}
                         <button
@@ -217,10 +280,10 @@ const ReportViolation = () => {
 
                 <div className="max-w-4xl mx-auto w-full pb-10">
                     {!sent ? (
-                        <form onSubmit={handleSubmit} className="card-premium p-4 sm:p-6 space-y-5">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                        <form onSubmit={handleSubmit} className="card-premium p-3.5 sm:p-6 space-y-4 sm:space-y-5">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-5">
                                 {/* Student */}
-                                <section className="space-y-3 min-w-0">
+                                <section className="space-y-2.5 sm:space-y-3 min-w-0">
                                     <h2 className="flex items-center gap-2 text-sm font-black text-slate-800 dark:text-slate-200">
                                         <User size={16} className="text-ustp-blue" /> Student
                                     </h2>
@@ -237,59 +300,74 @@ const ReportViolation = () => {
                                         <label className={labelClass} htmlFor="rv-name">Full name</label>
                                         <input id="rv-name" required placeholder="Full name" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} className={inputClass} />
                                     </div>
-                                    <div>
-                                        <label className={labelClass} htmlFor="rv-gender">Gender</label>
-                                        <select id="rv-gender" required value={form.gender} onChange={e => setForm({ ...form, gender: e.target.value })} className={inputClass}>
-                                            <option value="">Choose gender</option>
-                                            {GENDERS.map(g => <option key={g} value={g}>{g}</option>)}
-                                        </select>
-                                    </div>
                                     {/* Department first, then only its courses (same as registration) */}
-                                    <div className="grid grid-cols-2 gap-3">
+                                    <div className="grid grid-cols-2 gap-2.5 sm:gap-3">
                                         <div className="min-w-0">
                                             <label className={labelClass} htmlFor="rv-dept">Department</label>
                                             <select id="rv-dept" required value={form.department} onChange={e => {
                                                 const department = e.target.value;
                                                 setForm({ ...form, department, course: courseOptionsFor(department).includes(form.course) ? form.course : '' });
-                                            }} className={`${inputClass} truncate`}>
+                                            }} className={selectClass(!form.department)} style={selectArrow}>
                                                 <option value="">Choose</option>
                                                 {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
                                             </select>
                                         </div>
                                         <div className="min-w-0">
                                             <label className={labelClass} htmlFor="rv-course">Course</label>
-                                            <select id="rv-course" required disabled={!form.department} value={form.course} onChange={e => setForm({ ...form, course: e.target.value })} className={`${inputClass} truncate`}>
+                                            <select id="rv-course" required disabled={!form.department} value={form.course} onChange={e => setForm({ ...form, course: e.target.value })} className={selectClass(!form.course)} style={selectArrow}>
                                                 <option value="">{form.department ? 'Choose' : 'Department first'}</option>
                                                 {courseOptionsFor(form.department, form.course).map(c => <option key={c} value={c}>{c}</option>)}
                                             </select>
                                         </div>
                                     </div>
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                    {/* Short fields side by side, also on phones */}
+                                    <div className="grid grid-cols-2 gap-2.5 sm:gap-3">
                                         <div className="min-w-0">
-                                            <label className={labelClass} htmlFor="rv-email">Email</label>
-                                            <input id="rv-email" required type="email" placeholder="Email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} className={inputClass} />
+                                            <label className={labelClass} htmlFor="rv-gender">Gender</label>
+                                            <select id="rv-gender" required value={form.gender} onChange={e => setForm({ ...form, gender: e.target.value })} className={selectClass(!form.gender)} style={selectArrow}>
+                                                <option value="">Choose</option>
+                                                {GENDERS.map(g => <option key={g} value={g}>{g}</option>)}
+                                            </select>
                                         </div>
                                         <div className="min-w-0">
                                             <label className={labelClass} htmlFor="rv-contact">Contact number</label>
                                             <input id="rv-contact" required type="tel" placeholder="Contact number" value={form.contact} onChange={e => setForm({ ...form, contact: e.target.value })} className={inputClass} />
                                         </div>
                                     </div>
+                                    <div>
+                                        <label className={labelClass} htmlFor="rv-email">Email</label>
+                                        <input id="rv-email" required type="email" placeholder="Email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} className={inputClass} />
+                                    </div>
                                 </section>
 
                                 {/* Violation */}
-                                <section className="space-y-3 min-w-0">
+                                <section className="space-y-2.5 sm:space-y-3 min-w-0">
                                     <h2 className="flex items-center gap-2 text-sm font-black text-slate-800 dark:text-slate-200">
                                         <AlertTriangle size={16} className="text-red-500" /> Violation
                                     </h2>
-                                    <div>
-                                        <label className={labelClass} htmlFor="rv-violation">What happened</label>
-                                        <select id="rv-violation" required value={form.violation} onChange={e => setForm({ ...form, violation: e.target.value })} className={`${inputClass} ${form.violation ? 'text-red-700 dark:text-red-400' : ''}`}>
-                                            <option value="">Choose the violation</option>
-                                            {VIOLATIONS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-                                        </select>
-                                    </div>
+                                    {/* Tick every violation the student committed; each becomes its own report */}
+                                    <fieldset>
+                                        <legend className={labelClass}>What happened (choose all that apply)</legend>
+                                        {/* Two per row, also on phones */}
+                                        <div className="grid grid-cols-2 gap-2">
+                                            {VIOLATIONS.map(([value, label]) => {
+                                                const checked = form.violations.includes(value);
+                                                return (
+                                                    <label key={value} className={`flex cursor-pointer items-center gap-2 sm:gap-2.5 rounded-lg sm:rounded-xl border-2 px-2.5 sm:px-3 py-2 sm:py-2.5 text-xs sm:text-sm leading-tight font-semibold transition-colors ${checked
+                                                        ? 'border-red-400 bg-red-50 text-red-700 dark:border-red-500/60 dark:bg-red-500/10 dark:text-red-300'
+                                                        : 'border-slate-100 bg-slate-50 text-slate-700 hover:border-slate-200 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300'}`}>
+                                                        <input type="checkbox" checked={checked} onChange={() => toggleViolation(value)} className="h-4 w-4 shrink-0 accent-red-600" />
+                                                        {label}
+                                                    </label>
+                                                );
+                                            })}
+                                        </div>
+                                        {form.violations.length > 1 && (
+                                            <p className="mt-1.5 ml-1 text-xs font-semibold text-red-600 dark:text-red-400">{form.violations.length} violations: each is sent as its own report.</p>
+                                        )}
+                                    </fieldset>
                                     {/* min-w-0 + appearance-none stop iPhone Safari's date/time boxes from spilling past the card */}
-                                    <div className="grid grid-cols-2 gap-3">
+                                    <div className="grid grid-cols-2 gap-2.5 sm:gap-3">
                                         <div className="min-w-0">
                                             <label className={labelClass} htmlFor="rv-date">Date</label>
                                             <input id="rv-date" type="date" required value={form.incident_date} onChange={e => setForm({ ...form, incident_date: e.target.value })} className={`${inputClass} appearance-none`} />
@@ -299,25 +377,55 @@ const ReportViolation = () => {
                                             <input id="rv-time" type="time" required value={form.incident_time} onChange={e => setForm({ ...form, incident_time: e.target.value })} className={`${inputClass} appearance-none`} />
                                         </div>
                                     </div>
-                                    <p className="rounded-xl bg-slate-50 dark:bg-slate-900 px-3 py-2.5 text-xs font-medium text-slate-500 dark:text-slate-400">
+                                    <p className="rounded-xl bg-slate-50 dark:bg-slate-900 px-3 py-2 sm:py-2.5 text-xs font-medium text-slate-500 dark:text-slate-400">
                                         OSA reviews every report before any penalty is given. The student gets an email about it.
                                     </p>
                                 </section>
                             </div>
 
-                            <button type="submit" disabled={loading} className="bg-ustp-blue text-white w-full py-3.5 rounded-xl text-sm font-black flex items-center justify-center gap-2 hover:bg-blue-800 active:scale-[0.99] transition-transform disabled:opacity-60">
+                            <button type="submit" disabled={loading} className="bg-ustp-blue text-white w-full py-3 sm:py-3.5 rounded-xl text-sm font-black flex items-center justify-center gap-2 hover:bg-blue-800 active:scale-[0.99] transition-transform disabled:opacity-60">
                                 {loading ? <Loader2 size={18} className="animate-spin" /> : <Send size={18} />}
                                 {loading ? 'Sending…' : 'Submit report'}
                             </button>
                         </form>
                     ) : (
-                        <div className="card-premium p-8 md:p-14 text-center">
-                            <div className="w-14 h-14 bg-emerald-500 rounded-full flex items-center justify-center mx-auto mb-5">
-                                <CheckCircle2 className="text-white" size={30} />
+                        // Sent: the same slip, marked sent, so the guard can see exactly what went to OSA
+                        <div className="card-premium mx-auto w-full max-w-md p-5 sm:p-7">
+                            <div className="text-center">
+                                <div className="w-14 h-14 bg-emerald-500 rounded-full flex items-center justify-center mx-auto mb-3">
+                                    <CheckCircle2 className="text-white" size={30} />
+                                </div>
+                                <h2 className="text-2xl font-black text-slate-900 dark:text-white">{violationLabels.length > 1 ? `${violationLabels.length} reports sent` : 'Report sent'}</h2>
+                                <p className="mt-1 text-sm font-medium text-slate-500 dark:text-slate-400">OSA will review {violationLabels.length > 1 ? 'them' : 'it'}. The student gets an email.</p>
                             </div>
-                            <h2 className="text-2xl font-black text-slate-900 dark:text-white">Report sent</h2>
-                            <p className="text-slate-500 dark:text-slate-400 mt-2 font-medium text-sm">OSA will review it. You can see it in your history.</p>
-                            <button onClick={resetForm} className="mt-7 bg-ustp-blue text-white w-full max-w-[240px] py-3.5 rounded-xl font-bold text-sm hover:bg-blue-800">Report another</button>
+
+                            <div className="mt-5 overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-700 text-left">
+                                <div className="flex items-center gap-3 bg-slate-50 dark:bg-slate-900/60 px-4 py-3">
+                                    <div className="w-10 h-10 shrink-0 rounded-full bg-blue-100 text-ustp-blue dark:bg-blue-500/20 dark:text-blue-300 flex items-center justify-center text-sm font-black">{initials}</div>
+                                    <div className="min-w-0">
+                                        <p className="truncate text-sm font-black text-slate-900 dark:text-white">{form.name || '—'}</p>
+                                        <p className="font-mono text-xs font-bold text-slate-500 dark:text-slate-400">{form.student_id}</p>
+                                    </div>
+                                    <span className="ml-auto shrink-0 rounded-full bg-amber-100 dark:bg-amber-500/15 px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-amber-700 dark:text-amber-300">For review</span>
+                                </div>
+                                <ul className="border-t border-dashed border-slate-200 dark:border-slate-700 px-4 py-3 space-y-1.5">
+                                    {violationLabels.map((v) => (
+                                        <li key={v} className="flex items-center gap-2 text-sm font-bold text-red-700 dark:text-red-300">
+                                            <AlertTriangle size={14} className="shrink-0" /> {v}
+                                        </li>
+                                    ))}
+                                </ul>
+                                <p className="border-t border-dashed border-slate-200 dark:border-slate-700 px-4 py-2.5 text-xs font-semibold text-slate-500 dark:text-slate-400">
+                                    {incidentWhen} · by {userName}
+                                </p>
+                            </div>
+
+                            <div className={`mt-5 grid gap-3 ${['guard', 'staff'].includes(userRole) ? 'grid-cols-2' : 'grid-cols-1'}`}>
+                                {['guard', 'staff'].includes(userRole) && (
+                                    <Link to={`/${userRole}/history`} className="py-3 rounded-xl border-2 border-slate-200 dark:border-slate-600 text-center text-slate-700 dark:text-slate-200 font-bold text-sm hover:bg-slate-50 dark:hover:bg-slate-700">View history</Link>
+                                )}
+                                <button onClick={resetForm} className="py-3 rounded-xl bg-ustp-blue text-white font-bold text-sm hover:bg-blue-800">Report another</button>
+                            </div>
                         </div>
                     )}
                 </div>

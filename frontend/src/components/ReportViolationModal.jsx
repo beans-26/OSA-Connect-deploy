@@ -34,7 +34,7 @@ const ReportViolationModal = ({ students, serviceSites, onClose, onReported }) =
         const fresh = [...new Set(ids)].filter((sid) => !have.has(sid));
         setRows([...rows, ...fresh.map((sid) => {
             const s = byId.get(sid);
-            return { student_id: sid, name: s?.name && s.name !== 'Unregistered student' ? s.name : '', hasAccount: !!s?.has_account };
+            return { student_id: sid, name: s?.name && s.name.toLowerCase() !== 'unregistered student' ? s.name : '', hasAccount: !!s?.has_account };
         })]);
         const repeated = ids.filter((sid, i) => have.has(sid) || ids.indexOf(sid) !== i);
         return [...new Set(repeated)];

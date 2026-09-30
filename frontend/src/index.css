@@ -119,6 +119,14 @@ body {
   --s-success: #34d399;
 }
 
+/* A row that scrolls sideways without showing a scrollbar (e.g. the History filter chips on phones) */
+.no-scrollbar {
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
 /* QrScannerModal: laser line sweeping the viewfinder */
 @keyframes qr-scanline {
   0% { top: 8%; }
