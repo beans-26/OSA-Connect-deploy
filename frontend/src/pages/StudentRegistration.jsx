@@ -3,7 +3,7 @@ import { Download, ChevronRight, Loader2, Mail, CheckCircle2 } from 'lucide-reac
 import QRCode from 'react-qr-code';
 import { Link } from 'react-router-dom';
 import { DEPARTMENTS, DEPARTMENT_COURSES, GENDERS, yearLevelsFor } from '../lib/academics';
-import { middleNameError } from '../lib/names';
+import { middleNameError, middleNameText, MIDDLE_NAME_HINT } from '../lib/names';
 import campusPhoto from '../assets/ustp-campus-blur.jpg';
 import osaLogo from '../assets/osaconnect-logo.png';
 
@@ -17,14 +17,49 @@ const RESEND_AFTER_S = 60;
 // Same look as the login pages: blue glass box over the campus photo
 const cardClass = 'bg-sky-100/55 dark:bg-blue-950/55 backdrop-blur-md border border-white/70 dark:border-sky-300/25 shadow-[0_0_0_1px_rgba(255,255,255,0.35),0_0_24px_rgba(56,189,248,0.35),0_18px_40px_-8px_rgba(30,58,138,0.55)]';
 const inputClass = 'w-full min-w-0 rounded-md border border-white/80 dark:border-white/15 bg-white/75 dark:bg-slate-900/60 px-2.5 sm:px-3 py-2 sm:py-2.5 text-sm font-semibold text-slate-800 dark:text-slate-100 outline-none placeholder:text-slate-400/60 dark:placeholder:text-slate-400/40 focus:border-blue-600 focus:bg-white dark:focus:bg-slate-900 disabled:cursor-not-allowed disabled:opacity-60';
+// Dropdowns: the browser's own look adds inner padding and a different arrow, so they're drawn like the
+// text boxes (same padding) with a small chevron; `empty` makes "Choose…" faint like a placeholder
+const selectClass = (empty) => `${inputClass} appearance-none bg-[length:14px] bg-[right_0.6rem_center] bg-no-repeat pr-8 ${empty ? '!text-slate-400 dark:!text-slate-500 !font-medium' : ''}`;
+const selectArrow = { backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E\")" };
 const labelClass = 'block text-xs sm:text-[13px] font-bold text-slate-900 dark:text-white mb-1 sm:mb-1.5';
-const hintClass = 'mt-1 sm:mt-1.5 text-[11px] sm:text-xs text-slate-700 dark:text-slate-300';
+const hintClass = 'mt-0.5 sm:mt-1.5 text-[11px] sm:text-xs text-slate-600 dark:text-slate-300';
 const primaryButton = 'h-10 sm:h-11 px-4 sm:px-5 rounded-md bg-blue-900 text-white text-sm font-bold flex items-center justify-center gap-1.5 hover:bg-blue-800 transition-colors disabled:opacity-60 disabled:cursor-not-allowed';
 
-const Field = ({ id, label, optional = false, hint, className = "", children }) => (
+// Small grey "!" beside a label that shows `text`: on hover with a mouse, and on tap or Enter (phones have no
+// hover). A real button, so tapping it doesn't jump into the field its label belongs to; the bubble closes
+// by itself after a few seconds, on a second tap, or when something else is tapped.
+const InfoTip = ({ text }) => {
+    const [open, setOpen] = useState(false);
+    useEffect(() => {
+        if (!open) return undefined;
+        const timer = setTimeout(() => setOpen(false), 3000);
+        return () => clearTimeout(timer);
+    }, [open]);
+    return (
+        <button
+            type="button"
+            onClick={(e) => { e.preventDefault(); e.stopPropagation(); setOpen((o) => !o); }}
+            onBlur={() => setOpen(false)}
+            aria-label={text}
+            aria-expanded={open}
+            className="group relative ml-1 inline-flex cursor-help rounded-full align-[-2px] outline-none before:absolute before:-inset-2 before:content-[''] focus-visible:ring-2 focus-visible:ring-blue-500"
+        >
+            <svg viewBox="0 0 24 24" aria-hidden="true" className="h-3.5 w-3.5 text-slate-400 dark:text-slate-500">
+                <circle cx="12" cy="12" r="12" fill="currentColor" />
+                <rect x="10.5" y="5" width="3" height="9" rx="1.5" fill="#fff" />
+                <circle cx="12" cy="17.8" r="1.7" fill="#fff" />
+            </svg>
+            <span role="tooltip" className={`pointer-events-none absolute bottom-full left-1/2 z-10 mb-1.5 -translate-x-1/2 whitespace-nowrap rounded-md bg-slate-800 px-2 py-1 text-[11px] font-semibold normal-case tracking-normal text-white shadow transition-opacity group-hover:opacity-100 ${open ? 'opacity-100' : 'opacity-0'}`}>
+                {text}
+            </span>
+        </button>
+    );
+};
+
+const Field = ({ id, label, info, hint, className = "", children }) => (
     <div className={`min-w-0 ${className}`}>
         <label htmlFor={id} className={`${labelClass} whitespace-nowrap`}>
-            {label}{optional && <span className="text-[11px] font-medium text-slate-600 dark:text-slate-300"> (optional)</span>}
+            {label}{info && <InfoTip text={info} />}
         </label>
         {children}
         {hint && <p className={hintClass}>{hint}</p>}
@@ -71,7 +106,7 @@ const StudentRegistration = () => {
 
     // Same format as the mobile app: "ID FIRST MIDDLE LAST COURSE"
     const formatQRData = (student) => {
-        const nameParts = [student.first_name, student.middle_name, student.last_name].filter(Boolean);
+        const nameParts = [student.first_name, middleNameText(student.middle_name), student.last_name].filter(Boolean);
         const formattedName = nameParts.join(' ').toUpperCase();
         return `${student.student_id} ${formattedName} ${student.course || ''}`.trim();
     };
@@ -125,6 +160,11 @@ const StudentRegistration = () => {
 
     const requestOTP = async (e) => {
         if (e) e.preventDefault();
+        if (studentData.student_id.length !== 10) {
+            alert('Student ID must be exactly 10 numbers, like 2023303188.');
+            document.getElementById('reg-id')?.focus();
+            return;
+        }
         const middleError = middleNameError(studentData.middle_name);
         if (middleError) {
             alert(middleError);
@@ -175,7 +215,9 @@ const StudentRegistration = () => {
         e.preventDefault();
         setSaving(true);
         try {
-            const fullName = `${studentData.first_name} ${studentData.middle_name ? studentData.middle_name + ' ' : ''}${studentData.last_name}`.trim();
+            // "N/A" (no middle name) isn't part of the name
+            const middle = middleNameText(studentData.middle_name);
+            const fullName = `${studentData.first_name} ${middle ? middle + ' ' : ''}${studentData.last_name}`.trim();
             const response = await fetch('/api/students/register_with_otp/', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -218,7 +260,7 @@ const StudentRegistration = () => {
     // Shown beside the QR on the last step: "Juan S. Dela Cruz" and "BS Information Technology · 2nd Year"
     const displayName = [
         studentData.first_name,
-        studentData.middle_name ? `${studentData.middle_name.trim()[0].toUpperCase()}.` : '',
+        middleNameText(studentData.middle_name) ? `${middleNameText(studentData.middle_name)[0].toUpperCase()}.` : '',
         studentData.last_name,
     ].filter(Boolean).join(' ');
     const ordinal = (n) => ({ 1: '1st', 2: '2nd', 3: '3rd' }[n] || `${n}th`);
@@ -237,7 +279,7 @@ const StudentRegistration = () => {
                 <img
                     src={osaLogo}
                     alt="OSAConnect: Smart student violation management"
-                    className="w-full max-w-[220px] sm:max-w-sm h-auto select-none dark:drop-shadow-[0_0_8px_rgba(255,255,255,0.55)]"
+                    className="w-full max-w-[270px] sm:max-w-[420px] h-auto select-none dark:drop-shadow-[0_0_8px_rgba(255,255,255,0.55)]"
                     draggable="false"
                 />
 
@@ -255,57 +297,58 @@ const StudentRegistration = () => {
                     <h1 className="mt-3 sm:mt-4 text-xl sm:text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white">{titles[step]}</h1>
 
                     {step === 1 && (
-                        <form onSubmit={requestOTP} className="mt-1 space-y-3 sm:space-y-4">
-                            <p className="text-xs sm:text-sm text-slate-700 dark:text-slate-300 mb-4 sm:mb-5">Use the same details as your USTP school ID.</p>
+                        <form onSubmit={requestOTP} className="mt-1 space-y-2.5 sm:space-y-4">
+                            <p className="text-xs sm:text-sm text-slate-700 dark:text-slate-300 mb-3 sm:mb-5">Use the same details as your USTP school ID.</p>
 
-                            <Field id="reg-id" label="Student ID number" hint="Numbers only, as printed on your school ID.">
+                            <Field id="reg-id" label="Student ID number" hint="10 numbers, as printed on your school ID.">
                                 <input id="reg-id" required type="text" inputMode="numeric" placeholder="Student ID number" value={studentData.student_id}
-                                    onChange={(e) => setStudentData({ ...studentData, student_id: e.target.value.replace(/\D/g, '').slice(0, 12) })} className={inputClass} />
+                                    maxLength={10} onChange={(e) => setStudentData({ ...studentData, student_id: e.target.value.replace(/\D/g, '').slice(0, 10) })} className={inputClass} />
                             </Field>
 
-                            <div className="grid grid-cols-2 sm:grid-cols-3 items-end gap-3">
+                            <div className="grid grid-cols-2 sm:grid-cols-3 items-end gap-x-2.5 gap-y-2.5 sm:gap-3">
                                 <Field id="reg-first" label="First name" className="col-span-2 sm:col-span-1">
                                     <input id="reg-first" required type="text" autoComplete="given-name" placeholder="First name" value={studentData.first_name} onChange={set('first_name')} className={inputClass} />
                                 </Field>
-                                <Field id="reg-middle" label="Middle name" optional>
-                                    <input id="reg-middle" type="text" autoComplete="additional-name" placeholder="Middle name" value={studentData.middle_name} onChange={set('middle_name')} className={inputClass} />
+                                <Field id="reg-middle" label="Middle name" info={MIDDLE_NAME_HINT}>
+                                    <input id="reg-middle" required type="text" autoComplete="additional-name" placeholder="Middle name" value={studentData.middle_name} onChange={set('middle_name')} className={inputClass} />
                                 </Field>
                                 <Field id="reg-last" label="Last name">
                                     <input id="reg-last" required type="text" autoComplete="family-name" placeholder="Last name" value={studentData.last_name} onChange={set('last_name')} className={inputClass} />
                                 </Field>
                             </div>
 
-                            <Field id="reg-gender" label="Gender">
-                                <select id="reg-gender" required value={studentData.gender} onChange={set('gender')} className={inputClass}>
-                                    <option value="" disabled>Choose your gender</option>
-                                    {GENDERS.map((g) => <option key={g} value={g}>{g}</option>)}
-                                </select>
-                            </Field>
-
                             {/* College first; it decides the program list and year levels (Grade 11/12 for SHS) */}
                             <Field id="reg-college" label="College">
-                                <select id="reg-college" required value={studentData.department} onChange={(e) => changeDepartment(e.target.value)} className={inputClass}>
+                                <select id="reg-college" required value={studentData.department} onChange={(e) => changeDepartment(e.target.value)} className={selectClass(!studentData.department)} style={selectArrow}>
                                     <option value="" disabled>Choose your college</option>
                                     {DEPARTMENTS.map((o) => <option key={o} value={o}>{o}</option>)}
                                 </select>
                             </Field>
 
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                <Field id="reg-program" label="Program">
-                                    <select id="reg-program" required disabled={!studentData.department} value={studentData.course} onChange={set('course')} className={inputClass}>
-                                        <option value="" disabled>{studentData.department ? 'Choose your program' : 'Choose a college first'}</option>
-                                        {courseOptions.map((o) => <option key={o} value={o}>{o}</option>)}
+                            <Field id="reg-program" label="Program">
+                                <select id="reg-program" required disabled={!studentData.department} value={studentData.course} onChange={set('course')} className={selectClass(!studentData.course)} style={selectArrow}>
+                                    <option value="" disabled>{studentData.department ? 'Choose your program' : 'Choose a college first'}</option>
+                                    {courseOptions.map((o) => <option key={o} value={o}>{o}</option>)}
+                                </select>
+                            </Field>
+
+                            {/* Short choices: side by side, also on phones */}
+                            <div className="grid grid-cols-2 gap-2.5 sm:gap-3">
+                                <Field id="reg-gender" label="Gender">
+                                    <select id="reg-gender" required value={studentData.gender} onChange={set('gender')} className={selectClass(!studentData.gender)} style={selectArrow}>
+                                        <option value="" disabled>Choose</option>
+                                        {GENDERS.map((g) => <option key={g} value={g}>{g}</option>)}
                                     </select>
                                 </Field>
                                 <Field id="reg-year" label="Year level">
-                                    <select id="reg-year" required disabled={!studentData.department} value={studentData.year_level} onChange={set('year_level')} className={inputClass}>
-                                        <option value="" disabled>{studentData.department ? 'Choose your year' : 'Choose a college first'}</option>
+                                    <select id="reg-year" required disabled={!studentData.department} value={studentData.year_level} onChange={set('year_level')} className={selectClass(!studentData.year_level)} style={selectArrow}>
+                                        <option value="" disabled>{studentData.department ? 'Choose' : 'College first'}</option>
                                         {yearOptions.map((y) => <option key={y.value} value={y.value}>{y.label}</option>)}
                                     </select>
                                 </Field>
                             </div>
 
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-3">
                                 <Field id="reg-contact" label="Contact number" hint="11 digits, like 09171234567.">
                                     <input id="reg-contact" required type="tel" inputMode="numeric" autoComplete="tel" maxLength={11} placeholder="Contact number" value={studentData.contact_number}
                                         onChange={(e) => setStudentData({ ...studentData, contact_number: e.target.value.replace(/\D/g, '').slice(0, 11) })} className={inputClass} />
@@ -315,7 +358,7 @@ const StudentRegistration = () => {
                                 </Field>
                             </div>
 
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div className="grid grid-cols-2 items-start gap-2.5 sm:gap-3">
                                 <Field id="reg-password" label="Password" hint="At least 8 characters.">
                                     <input id="reg-password" required type="password" autoComplete="new-password" minLength={8} placeholder="Password" value={studentData.password} onChange={set('password')} className={inputClass} />
                                 </Field>
@@ -326,11 +369,12 @@ const StudentRegistration = () => {
                                 </Field>
                             </div>
 
-                            <div className="flex items-center justify-between gap-3 pt-2">
-                                <span className="text-xs sm:text-sm text-slate-700 dark:text-slate-300">
-                                    Already registered? <Link to="/student" className="font-bold text-slate-900 dark:text-white underline underline-offset-2">Log in</Link>
+                            {/* One row on every screen: "Log in" beside the button (it wraps to two short lines on narrow phones) */}
+                            <div className="flex items-center justify-between gap-3">
+                                <span className="min-w-0 text-xs sm:text-sm leading-snug text-slate-700 dark:text-slate-300">
+                                    Already registered? <Link to="/student" className="font-bold whitespace-nowrap text-slate-900 dark:text-white underline underline-offset-2">Log in</Link>
                                 </span>
-                                <button type="submit" disabled={saving} className={primaryButton}>
+                                <button type="submit" disabled={saving} className={`${primaryButton} shrink-0 whitespace-nowrap`}>
                                     {saving ? <Loader2 className="animate-spin" size={18} /> : <>Send verification code <ChevronRight size={16} /></>}
                                 </button>
                             </div>

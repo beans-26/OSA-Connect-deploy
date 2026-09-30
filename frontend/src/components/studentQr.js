@@ -7,7 +7,7 @@
 //   - "NAME, ID, COURSE"
 //   - JSON with a student_id field
 // Anything else (OSA action codes, location codes, random QRs) returns null.
-const ID_PATTERN = /\b(20\d{7,})\b/;
+const ID_PATTERN = /\b(20\d{8})\b/; // USTP IDs: 10 numbers starting with 20
 
 export const parseStudentQr = (raw) => {
     const data = String(raw || '').trim();
