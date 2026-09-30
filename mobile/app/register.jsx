@@ -140,6 +140,10 @@ export default function Register() {
             showAlert('Missing Fields', 'Please fill in all required fields.');
             return;
         }
+        if (studentData.student_id.length !== 10) {
+            showAlert('Student ID', 'Student ID must be exactly 10 numbers, like 2023303188.');
+            return;
+        }
         const middleError = middleNameError(studentData.middle_name);
         if (middleError) {
             showAlert('Middle Name', middleError);
@@ -260,9 +264,9 @@ export default function Register() {
                 <View>
                     <Text style={[A.subtitle, styles.intro]}>Use the same details as your USTP school ID.</Text>
 
-                    <Field label="Student ID number" hint="Numbers only, as printed on your school ID.">
-                        <TextInput {...inputProps('id')} returnKeyType="go" onSubmitEditing={requestOTP} placeholder="Student ID number" keyboardType="number-pad" maxLength={12}
-                            value={studentData.student_id} onChangeText={(t) => set('student_id')(t.replace(/\D/g, '').slice(0, 12))} />
+                    <Field label="Student ID number" hint="10 numbers, as printed on your school ID.">
+                        <TextInput {...inputProps('id')} returnKeyType="go" onSubmitEditing={requestOTP} placeholder="Student ID number" keyboardType="number-pad" maxLength={10}
+                            value={studentData.student_id} onChangeText={(t) => set('student_id')(t.replace(/\D/g, '').slice(0, 10))} />
                     </Field>
 
                     <Field label="First name">

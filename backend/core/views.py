@@ -77,10 +77,14 @@ def _gender(value):
     return value if value in GENDERS else None
 
 
+STUDENT_ID_LENGTH = 10  # USTP IDs, e.g. 2023303188
+
+
 def student_id_error(sid):
-    """Error for a Student ID that can't be a USTP ID (numbers only, 6-12 digits), else None."""
-    if not (sid.isdigit() and 6 <= len(sid) <= 12):
-        return "Student ID must be numbers only, like 2023303188."
+    """Error for a Student ID that can't be a USTP ID (exactly STUDENT_ID_LENGTH numbers), else None.
+    Same rule as the registration and report forms (web and app)."""
+    if not (sid.isdigit() and len(sid) == STUDENT_ID_LENGTH):
+        return f"Student ID must be exactly {STUDENT_ID_LENGTH} numbers, like 2023303188."
     return None
 
 
@@ -516,6 +520,9 @@ class StudentViewSet(viewsets.ModelViewSet):
             # 2. Validate Student ID Uniqueness if changing
             new_student_id = data.get('student_id', '').strip()
             if new_student_id and new_student_id != student.student_id:
+                id_error = student_id_error(new_student_id)
+                if id_error:
+                    return Response({"error": id_error}, status=status.HTTP_400_BAD_REQUEST)
                 if Student.objects.filter(student_id=new_student_id).first():
                     return Response({"error": f"Student ID '{new_student_id}' is already in use."}, status=status.HTTP_400_BAD_REQUEST)
                 student.student_id = new_student_id

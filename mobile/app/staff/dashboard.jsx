@@ -81,11 +81,12 @@ export default function PersonnelDashboard() {
         }
     };
 
+    // Student IDs are 10 numbers: only digits, and the student is looked up once all 10 are typed
     const handleIdChange = (text) => {
-        const cleanText = text.trim();
+        const cleanText = text.replace(/\D/g, '').slice(0, 10);
         setForm((prev) => ({ ...prev, student_id: cleanText }));
         if (debounceTimer.current) clearTimeout(debounceTimer.current);
-        if (cleanText.length >= 5) {
+        if (cleanText.length === 10) {
             debounceTimer.current = setTimeout(() => fetchStudentData(cleanText), 500);
         }
     };
@@ -127,6 +128,10 @@ export default function PersonnelDashboard() {
         const missing = ['student_id', 'name', 'gender', 'course', 'department', 'email', 'contact', 'violation'].some((k) => !String(form[k] || '').trim());
         if (missing) {
             setAlertMessage({ visible: true, title: 'Missing details', message: 'Fill in every field and choose the violation.' });
+            return;
+        }
+        if (form.student_id.length !== 10) {
+            setAlertMessage({ visible: true, title: 'Student ID', message: 'Student ID must be exactly 10 numbers, like 2023303188.' });
             return;
         }
         setShowConfirmModal(true);
@@ -187,7 +192,8 @@ export default function PersonnelDashboard() {
                                             placeholderTextColor={colors.border}
                                             value={form.student_id}
                                             onChangeText={handleIdChange}
-                                            autoCapitalize="characters"
+                                            keyboardType="number-pad"
+                                            maxLength={10}
                                         />
                                         <TouchableOpacity style={styles.scanButton} onPress={startScan} accessibilityLabel="Scan student QR code">
                                             <ScanLine size={18} color="#fff" />
