@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <!-- Navy blue background -->
+  <rect width="64" height="64" rx="14" fill="#1B3A5C"/>
+  <!-- Gold C letter - the OSAConnect brand mark -->
+  <path d="M43 20.5C40.3 17.8 36.3 16 32 16C23.2 16 16 23.2 16 32C16 40.8 23.2 48 32 48C36.3 48 40.3 46.2 43 43.5L38.5 39C37 40.8 34.7 42 32 42C26.5 42 22 37.5 22 32C22 26.5 26.5 22 32 22C34.7 22 37 23.2 38.5 25L43 20.5Z" fill="#D4A843"/>
+</svg>
