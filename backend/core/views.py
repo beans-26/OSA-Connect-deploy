@@ -79,6 +79,9 @@ def _gender(value):
 
 STUDENT_ID_LENGTH = 10  # USTP IDs, e.g. 2023303188
 
+# Name of a record made from a report before the student registered (registering replaces it)
+UNREGISTERED_NAME = 'Unregistered Student'
+
 
 def student_id_error(sid):
     """Error for a Student ID that can't be a USTP ID (exactly STUDENT_ID_LENGTH numbers), else None.
@@ -765,7 +768,7 @@ class ViolationViewSet(viewsets.ModelViewSet):
                 if not student:
                     # No account yet: a placeholder under the ID (no password, so nobody can log in with it).
                     # The name is optional; registering replaces it with the student's own.
-                    student = Student(student_id=sid, name=name or 'Unregistered student', course='Unknown', department='Unknown').save()
+                    student = Student(student_id=sid, name=name or UNREGISTERED_NAME, course='Unknown', department='Unknown').save()
                 elif name and not student.password and name != student.name:
                     # Still a placeholder (e.g. from a guard's report): the admin's spelling of the name wins
                     student.name = name
@@ -826,6 +829,22 @@ class ViolationViewSet(viewsets.ModelViewSet):
         if id_error:
             return Response({"error": id_error}, status=status.HTTP_400_BAD_REQUEST)
 
+        # The violations: several at once (violation_types, the report forms since 2026-09-30) or one
+        # (violation_type / violation, older app versions). Each becomes its own report, with its own
+        # offense count and penalty, the same as reporting them one after the other.
+        raw_types = data.get('violation_types')
+        if not isinstance(raw_types, list):
+            raw_types = [data.get('violation_type') or data.get('violation')]
+        violation_types = []
+        for value in raw_types:
+            value = _short(value, 150)
+            if value and value not in violation_types:
+                violation_types.append(value)
+        if not violation_types:
+            return Response({"error": "Choose at least one violation."}, status=status.HTTP_400_BAD_REQUEST)
+        if len(violation_types) > 10:
+            return Response({"error": "Choose at most 10 violations in one report."}, status=status.HTTP_400_BAD_REQUEST)
+
         # 1. The report goes to the student with this ID, and only by ID: names can repeat, and
         # matching by name used to attach reports to the wrong person
         student = Student.objects.filter(student_id=student_id).first()
@@ -835,7 +854,7 @@ class ViolationViewSet(viewsets.ModelViewSet):
             # account and keeps this report (StudentViewSet.register_with_otp).
             student = Student(
                 student_id=student_id,
-                name=_short(data.get('name'), 100) or 'Unregistered student',
+                name=_short(data.get('name'), 100) or UNREGISTERED_NAME,
                 course=_short(data.get('course'), 100) or 'Unknown',
                 department=_short(data.get('department'), 100) or 'Unknown',
                 contact_number=_short(data.get('contact'), 20),
@@ -847,48 +866,39 @@ class ViolationViewSet(viewsets.ModelViewSet):
             student.gender = _gender(data.get('gender'))
             student.save()
             
-        # 2. Calculate offense count and punishment
-        violation_type = _short(data.get('violation_type') or data.get('violation'), 150) or 'Other'
-        offense_count = get_offense_count(student, violation_type)
-        punishment_info = get_punishment(violation_type, offense_count)
-        
-        # All violations now require Pending OSA Review (warnings replaced with community service hours)
-        violation_status = "Pending OSA Review"
-        notification_type = "action_required"
-        
-        # 3. ODM: Directly instantiate and save the ViolationReport to 'violation_reports' collection
+        # 2. One report per violation, each waiting for OSA's review, with its own offense count and penalty
+        reporter = ((data.get('reporting_guard') or 'OSA Administrator') if role_of(request) == 'admin'
+                    else (request.user.name or request.user.username))  # only admins may name someone else
+        description = _short(data.get('description'), MAX_DESCRIPTION_CHARS)
+        reports = []
         try:
-            # We save directly using Mongoengine to bypass any potential Serializer mapping issues
-            report = ViolationReport(
-                student=student,
-                violation_type=violation_type,
-                description=_short(data.get('description'), MAX_DESCRIPTION_CHARS),
-                # Who filed it comes from the login (only admins may name someone else)
-                reporting_guard=(data.get('reporting_guard') or 'OSA Administrator') if role_of(request) == 'admin'
-                else (request.user.name or request.user.username),
-                status=violation_status,
-                offense_count=offense_count,
-                punishment=punishment_info["punishment"],
-                created_at=utc_now()
-            )
-            report.save()
-            
-            # Send Email Notification
-            send_violation_email(report)
-            
-            print(f"DB SYNC SUCCESS: Violation {report.id} committed to collection 'violation_reports'")
-            print(f"Offense #{offense_count} for {violation_type}: {punishment_info['punishment']}")
-            
-            # 4. Return serialized data so the frontend can update UI
-            response_data = self.get_serializer(report).data
-            response_data["offense_count"] = offense_count
-            response_data["punishment"] = punishment_info["punishment"]
-            response_data["notification_type"] = notification_type
-            return Response(response_data, status=status.HTTP_201_CREATED)
-            
+            for violation_type in violation_types:
+                offense_count = get_offense_count(student, violation_type)
+                punishment_info = get_punishment(violation_type, offense_count)
+                report = ViolationReport(
+                    student=student,
+                    violation_type=violation_type,
+                    description=description,
+                    reporting_guard=reporter,
+                    status="Pending OSA Review",
+                    offense_count=offense_count,
+                    punishment=punishment_info["punishment"],
+                    created_at=utc_now()
+                ).save()
+                send_violation_email(report)
+                reports.append(report)
         except Exception as e:
-            print(f"DB SYNC FAILED: {str(e)}")
-            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            print(f"Violation report failed: {e}")
+            return Response({"error": str(e), "saved": len(reports)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        # The first report as before (older app versions read it), plus all of them
+        response_data = self.get_serializer(reports[0]).data
+        response_data["notification_type"] = "action_required"
+        response_data["reports"] = [
+            {"id": str(r.id), "violation_type": r.violation_type, "offense_count": r.offense_count, "punishment": r.punishment}
+            for r in reports
+        ]
+        return Response(response_data, status=status.HTTP_201_CREATED)
 
     @action(detail=True, methods=['post'])
     def approve(self, request, *args, **kwargs):

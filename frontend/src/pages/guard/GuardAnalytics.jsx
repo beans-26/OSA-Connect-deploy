@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import Sidebar from '../../components/Sidebar';
-import { BarChart3, Loader2 } from 'lucide-react';
+import { ChartColumnBig, Loader2 } from 'lucide-react';
 import BreakdownBars, { BREAKDOWN_COLORS } from '../../components/BreakdownBars';
 
 // Campus-wide violation counts for guards: by department, violation type, gender, year level and course.
@@ -12,11 +12,12 @@ const PERIODS = [
     { id: 'year', label: 'This Year' },
     { id: 'all', label: 'All Time' },
 ];
+// half: short lists that sit two to a row on phones (gender, year level)
 const BREAKDOWNS = [
     { id: 'department', label: 'Department' },
     { id: 'violation_type', label: 'Violation Type' },
-    { id: 'gender', label: 'Gender' },
-    { id: 'year_level', label: 'Year Level' },
+    { id: 'gender', label: 'Gender', half: true },
+    { id: 'year_level', label: 'Year Level', half: true },
     { id: 'course', label: 'Course' },
 ];
 
@@ -41,46 +42,55 @@ const GuardAnalytics = () => {
     return (
         <div className="flex bg-slate-50 dark:bg-slate-900 min-h-screen relative">
             <Sidebar role={userRole} />
-            <main className="page-enter flex-1 p-3 md:p-6 pt-20 md:pt-20 lg:pt-6 w-full max-w-full h-screen overflow-y-auto custom-scrollbar">
-                <header className="mb-4">
-                    <h1 className="flex items-center gap-2 text-xl md:text-2xl font-extrabold text-slate-900 dark:text-white tracking-tight">
-                        <BarChart3 className="text-ustp-blue dark:text-blue-400" size={24} /> Violation Analytics
-                    </h1>
-                    <p className="text-slate-500 dark:text-slate-400 mt-1 font-medium text-xs">Campus-wide counts of reported violations.</p>
-                </header>
+            <main className="page-enter flex-1 px-3 pb-3 md:p-6 pt-20 md:pt-20 lg:pt-6 w-full max-w-full h-screen overflow-y-auto custom-scrollbar">
+                {/* Same width and compact style as Violation History */}
+                <div className="mx-auto w-full max-w-5xl">
+                    <header className="mb-2.5 sm:mb-3">
+                        <h1 className="flex items-center gap-2 text-lg md:text-2xl font-extrabold text-slate-900 dark:text-white tracking-tight">
+                            <ChartColumnBig className="text-ustp-blue dark:text-blue-400 shrink-0" size={20} /> Violation Analytics
+                        </h1>
+                        <p className="text-slate-500 dark:text-slate-400 mt-0.5 font-medium text-xs">Campus-wide counts of reported violations.</p>
+                    </header>
 
-                <div className="mb-4 flex flex-wrap gap-2">
-                    {PERIODS.map((p) => (
-                        <button
-                            key={p.id}
-                            onClick={() => setPeriod(p.id)}
-                            className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest ${period === p.id ? 'bg-ustp-blue text-white shadow-md' : 'bg-white text-slate-600 border-2 border-slate-100 hover:border-ustp-blue dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700'}`}
-                        >
-                            {p.label}
-                        </button>
-                    ))}
-                </div>
-
-                {error ? (
-                    <p className="rounded-2xl bg-red-50 dark:bg-red-500/10 p-4 text-sm font-bold text-red-600 dark:text-red-400">{error}</p>
-                ) : !data ? (
-                    <div className="flex justify-center py-20"><Loader2 className="animate-spin text-slate-400" size={28} /></div>
-                ) : (
-                    <div className="space-y-4 pb-10">
-                        <div className="rounded-2xl border-2 border-red-100 dark:border-red-500/20 bg-red-50 dark:bg-red-500/10 p-5">
-                            <p className="text-[10px] font-black uppercase tracking-widest text-red-600 dark:text-red-400">Violations reported</p>
-                            <p className="mt-1 text-4xl font-black text-red-700 dark:text-red-300">{data.total}</p>
-                        </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-                            {BREAKDOWNS.map((b) => (
-                                <div key={b.id} className="card-premium p-4 md:p-6">
-                                    <h4 className="mb-4 font-black text-slate-800 dark:text-slate-200 uppercase tracking-widest text-xs">By {b.label}</h4>
-                                    <BreakdownBars rows={data[b.id] || []} total={data.total} color={BREAKDOWN_COLORS[b.id]} />
-                                </div>
-                            ))}
-                        </div>
+                    {/* The periods on one line (they scroll sideways on narrow phones) */}
+                    <div className="-mx-3 px-3 md:mx-0 md:px-0 mb-3 flex gap-1.5 overflow-x-auto no-scrollbar">
+                        {PERIODS.map((p) => (
+                            <button
+                                key={p.id}
+                                onClick={() => setPeriod(p.id)}
+                                className={`shrink-0 whitespace-nowrap rounded-full px-3 py-1.5 text-xs font-bold transition-colors ${period === p.id
+                                    ? 'bg-ustp-blue text-white'
+                                    : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700'}`}
+                            >
+                                {p.label}
+                            </button>
+                        ))}
                     </div>
-                )}
+
+                    {error ? (
+                        <p className="rounded-2xl bg-red-50 dark:bg-red-500/10 p-4 text-sm font-bold text-red-600 dark:text-red-400">{error}</p>
+                    ) : !data ? (
+                        <div className="flex justify-center py-16"><Loader2 className="animate-spin text-slate-400" size={26} /></div>
+                    ) : (
+                        <div className="space-y-2 sm:space-y-3 pb-10">
+                            <div className="flex items-center justify-between gap-3 rounded-xl sm:rounded-2xl border border-red-100 dark:border-red-500/20 bg-red-50 dark:bg-red-500/10 px-3.5 py-2 sm:px-4 sm:py-3">
+                                <p className="text-[10px] font-black uppercase tracking-widest text-red-600 dark:text-red-400">
+                                    Violations reported <span className="font-bold normal-case tracking-normal text-red-500/80 dark:text-red-300/70">· {PERIODS.find((p) => p.id === period)?.label}</span>
+                                </p>
+                                <p className="text-2xl sm:text-3xl font-black tabular-nums text-red-700 dark:text-red-300">{data.total}</p>
+                            </div>
+                            {/* Phones: two columns, the long lists across both and gender / year level side by side */}
+                            <div className="grid grid-cols-2 xl:grid-cols-3 gap-2 sm:gap-3">
+                                {BREAKDOWNS.map((b) => (
+                                    <div key={b.id} className={`${b.half ? 'col-span-1' : 'col-span-2 md:col-span-1'} ${b.half ? '' : 'xl:col-span-1'} min-w-0 rounded-xl sm:rounded-2xl border border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2.5 sm:px-4 sm:py-3.5 shadow-sm`}>
+                                        <h4 className="mb-1.5 sm:mb-2.5 font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest text-[10px]">By {b.label}</h4>
+                                        <BreakdownBars rows={data[b.id] || []} total={data.total} color={BREAKDOWN_COLORS[b.id]} compact />
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+                </div>
             </main>
         </div>
     );
