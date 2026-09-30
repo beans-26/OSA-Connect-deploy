@@ -34,6 +34,31 @@ class ETicketStatus(Enum):
     CLEARED = "Cleared"
     FINISHED = "Finished"
 
+ROMAN_SUFFIXES = {'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X'}
+
+
+def format_person_name(value):
+    """A name as the admin pages show it: every part starts with a capital letter, whatever the student
+    typed. "vincent macahilos DAGARAGA" -> "Vincent Macahilos Dagaraga", "bautista-reyes" -> "Bautista-Reyes",
+    "o'neil" -> "O'Neil". A part typed with its own mixed capitals keeps them ("McDonald"); III, IV stay."""
+    def part(p):
+        if not p:
+            return p
+        if p.rstrip('.').upper() in ROMAN_SUFFIXES and len(p.rstrip('.')) > 1:
+            return p.upper()
+        if p.islower() or p.isupper():
+            p = p.lower()
+        return p[0].upper() + p[1:]
+
+    def word(w):
+        w = '-'.join(part(p) for p in w.split('-'))
+        # O'Neil, D'Angelo: the letter after an apostrophe is capital too (not for a lone letter like "s")
+        pieces = w.split("'")
+        return "'".join(pieces[:1] + [p[0].upper() + p[1:] if len(p) > 1 else p for p in pieces[1:]])
+
+    return ' '.join(word(w) for w in str(value or '').split())
+
+
 class Student(Document):
     student_id = StringField(required=True, unique=True)
     name = StringField(required=True)
@@ -46,6 +71,10 @@ class Student(Document):
     password = StringField()
     qr_data = StringField()
     meta = {'collection': 'students', 'auto_create_index': False, 'strict': False}
+
+    def clean(self):
+        # Runs on every save (registration, guard reports, admin edits): names are stored capitalized
+        self.name = format_person_name(self.name) or self.name
 
 class ViolationReport(Document):
     student = ReferenceField(Student, required=True)

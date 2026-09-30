@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView, Modal,
 import { showAlert } from '../../components/showAlert';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useCameraPermissions } from 'expo-camera';
-import { AlertCircle, ScanLine, Send, CheckCircle2, LogOut, User, AlertTriangle } from 'lucide-react-native';
+import { AlertCircle, ScanLine, Send, CheckCircle2, LogOut, User, AlertTriangle, Check, X } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import SelectField from '../../components/SelectField';
 import { onCameraResult } from '../../components/cameraResults';
@@ -34,7 +34,8 @@ const nowTime = () => {
 
 const emptyForm = () => ({
     student_id: '', name: '', gender: '', course: '', department: '', contact: '',
-    email: '', violation: '', incident_date: today(), incident_time: nowTime(),
+    email: '', violations: [], // one or more; each becomes its own report
+    incident_date: today(), incident_time: nowTime(),
 });
 
 export default function PersonnelDashboard() {
@@ -125,7 +126,8 @@ export default function PersonnelDashboard() {
 
     // Same required fields as the website form
     const confirmSubmit = () => {
-        const missing = ['student_id', 'name', 'gender', 'course', 'department', 'email', 'contact', 'violation'].some((k) => !String(form[k] || '').trim());
+        const missing = ['student_id', 'name', 'gender', 'course', 'department', 'email', 'contact'].some((k) => !String(form[k] || '').trim())
+            || !form.violations.length;
         if (missing) {
             setAlertMessage({ visible: true, title: 'Missing details', message: 'Fill in every field and choose the violation.' });
             return;
@@ -141,7 +143,7 @@ export default function PersonnelDashboard() {
         setShowConfirmModal(false);
         setLoading(true);
         try {
-            await api.post('/violations/', { ...form, reporting_guard: reporterName });
+            await api.post('/violations/', { ...form, violation_types: form.violations, reporting_guard: reporterName });
             setSubmitted(true);
         } catch (error) {
             setAlertMessage({ visible: true, title: "Couldn't send the report", message: error.response?.data?.error || 'Check the details and try again.' });
@@ -155,7 +157,62 @@ export default function PersonnelDashboard() {
         setSubmitted(false);
     };
 
-    const selectedViolationLabel = VIOLATION_TYPES.find((v) => v.value === form.violation)?.label || form.violation;
+    // Ticks or unticks a violation; the list keeps the order of VIOLATION_TYPES
+    const toggleViolation = (value) => setForm((prev) => ({
+        ...prev,
+        violations: prev.violations.includes(value)
+            ? prev.violations.filter((v) => v !== value)
+            : VIOLATION_TYPES.map((v) => v.value).filter((v) => v === value || prev.violations.includes(v)),
+    }));
+    const violationLabels = form.violations.map((value) => VIOLATION_TYPES.find((v) => v.value === value)?.label || value);
+    // For the slip: "CITC", initials, and "Wed, Sep 30, 2026 · 8:46 PM"
+    const deptShort = (form.department.match(/\(([^)]+)\)\s*$/) || [])[1] || form.department;
+    const initials = form.name.trim().split(/\s+/).filter(Boolean).map((w) => w[0]).join('').slice(0, 2).toUpperCase() || '?';
+    const incidentWhen = (() => {
+        const d = new Date(`${form.incident_date}T${form.incident_time || '00:00'}`);
+        if (Number.isNaN(d.getTime())) return `${form.incident_date} · ${form.incident_time}`;
+        return `${d.toLocaleDateString('en-PH', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })} · ${d.toLocaleTimeString('en-PH', { hour: 'numeric', minute: '2-digit' })}`;
+    })();
+
+    // The report as a slip (same as the website): the student, the violations, when and who.
+    // sent: on the "Report sent" screen, with a "For review" tag.
+    const renderSlip = (sent) => (
+        <View style={styles.slip}>
+            <View style={styles.slipStudent}>
+                <View style={styles.slipAvatar}><Text style={styles.slipAvatarText}>{initials}</Text></View>
+                <View style={{ flex: 1, minWidth: 0 }}>
+                    <Text style={styles.slipName} numberOfLines={1}>{form.name || '—'}</Text>
+                    <Text style={styles.slipId}>{form.student_id}</Text>
+                    {!sent ? (
+                        <Text style={styles.slipMeta} numberOfLines={2}>{[form.course, deptShort, form.gender].filter(Boolean).join(' · ')}</Text>
+                    ) : null}
+                </View>
+                {sent ? <Text style={styles.slipTag}>FOR REVIEW</Text> : null}
+            </View>
+            <View style={styles.slipSection}>
+                <View style={styles.slipSectionHeader}>
+                    <Text style={styles.slipKicker}>{violationLabels.length > 1 ? 'VIOLATIONS' : 'VIOLATION'}</Text>
+                    {violationLabels.length > 1 ? <Text style={styles.slipCount}>{violationLabels.length} reports</Text> : null}
+                </View>
+                {violationLabels.map((label) => (
+                    <View key={label} style={styles.slipViolation}>
+                        <AlertTriangle size={14} color={isDarkMode ? '#fca5a5' : '#b91c1c'} />
+                        <Text style={styles.slipViolationText}>{label}</Text>
+                    </View>
+                ))}
+            </View>
+            <View style={styles.slipSection}>
+                <View style={styles.slipLine}>
+                    <Text style={styles.slipLineLabel}>When</Text>
+                    <Text style={styles.slipLineValue}>{incidentWhen}</Text>
+                </View>
+                <View style={styles.slipLine}>
+                    <Text style={styles.slipLineLabel}>Reported by</Text>
+                    <Text style={styles.slipLineValue} numberOfLines={1}>{reporterName}</Text>
+                </View>
+            </View>
+        </View>
+    );
 
     return (
         <View style={styles.container}>
@@ -266,16 +323,30 @@ export default function PersonnelDashboard() {
                                     <AlertTriangle size={16} color={colors.danger} />
                                     <Text style={styles.cardTitle}>Violation</Text>
                                 </View>
-                                <SelectField
-                                    value={form.violation}
-                                    options={VIOLATION_TYPES}
-                                    placeholder="Choose the violation"
-                                    title="Select Violation"
-                                    onChange={(v) => setForm((prev) => ({ ...prev, violation: v }))}
-                                    style={[styles.field, styles.violationField]}
-                                    textStyle={styles.violationText}
-                                    iconColor={styles.violationText.color}
-                                />
+                                {/* Tick every violation the student committed; each becomes its own report */}
+                                <Text style={styles.tinyLabel}>What happened (choose all that apply)</Text>
+                                <View style={styles.violationList}>
+                                    {VIOLATION_TYPES.map(({ label, value }) => {
+                                        const checked = form.violations.includes(value);
+                                        return (
+                                            <TouchableOpacity
+                                                key={value}
+                                                style={[styles.violationOption, checked && styles.violationOptionOn]}
+                                                onPress={() => toggleViolation(value)}
+                                                accessibilityRole="checkbox"
+                                                accessibilityState={{ checked }}
+                                            >
+                                                <View style={[styles.checkBox, checked && styles.checkBoxOn]}>
+                                                    {checked ? <Check size={13} color="#fff" strokeWidth={3} /> : null}
+                                                </View>
+                                                <Text style={[styles.violationOptionText, checked && styles.violationText]}>{label}</Text>
+                                            </TouchableOpacity>
+                                        );
+                                    })}
+                                </View>
+                                {form.violations.length > 1 ? (
+                                    <Text style={styles.violationCount}>{form.violations.length} violations: each is sent as its own report.</Text>
+                                ) : null}
                                 <View style={styles.row}>
                                     <View style={{ flex: 1 }}>
                                         <Text style={styles.tinyLabel}>Date</Text>
@@ -311,12 +382,14 @@ export default function PersonnelDashboard() {
                         </TouchableOpacity>
                     </View>
                 ) : (
+                    // Sent: the same slip, marked for review, so the guard sees exactly what went to OSA
                     <View style={[styles.card, styles.successCard]}>
                         <View style={styles.successIcon}>
-                            <CheckCircle2 size={32} color="#fff" />
+                            <CheckCircle2 size={30} color="#fff" />
                         </View>
-                        <Text style={styles.successTitle}>Report sent</Text>
-                        <Text style={styles.successText}>OSA will review it.</Text>
+                        <Text style={styles.successTitle}>{form.violations.length > 1 ? `${form.violations.length} reports sent` : 'Report sent'}</Text>
+                        <Text style={styles.successText}>OSA will review {form.violations.length > 1 ? 'them' : 'it'}. The student gets an email.</Text>
+                        {renderSlip(true)}
                         <TouchableOpacity style={styles.newEntryButton} onPress={resetForm}>
                             <Text style={styles.newEntryText}>Report another</Text>
                         </TouchableOpacity>
@@ -328,23 +401,30 @@ export default function PersonnelDashboard() {
             {/* Confirm before submitting, like the website */}
             <Modal visible={showConfirmModal} transparent animationType="fade">
                 <View style={styles.modalOverlay}>
-                    <View style={styles.modalContent}>
-                        <Text style={styles.modalTitle}>Check the report</Text>
-                        {[['Student', `${form.name} (${form.student_id})`], ['Gender', form.gender], ['Violation', selectedViolationLabel], ['Date & Time', `${form.incident_date} ${form.incident_time}`], ['Reported by', reporterName]].map(([k, v]) => (
-                            <View key={k} style={styles.confirmRow}>
-                                <Text style={styles.confirmLabel}>{k}</Text>
-                                <Text style={styles.confirmValue}>{v}</Text>
+                    <ScrollView style={styles.slipModal} contentContainerStyle={styles.slipModalContent}>
+                        <View style={styles.slipModalHeader}>
+                            <View style={{ flex: 1 }}>
+                                <Text style={styles.slipKicker}>VIOLATION REPORT</Text>
+                                <Text style={styles.slipModalTitle}>Check before sending</Text>
                             </View>
-                        ))}
-                        <View style={styles.modalActions}>
-                            <TouchableOpacity style={styles.modalCancelButton} onPress={() => setShowConfirmModal(false)}>
-                                <Text style={styles.modalCancelText}>Edit</Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity style={styles.modalConfirmButton} onPress={processSubmission}>
-                                <Text style={styles.modalConfirmText}>Send report</Text>
+                            <TouchableOpacity style={styles.slipClose} onPress={() => setShowConfirmModal(false)} accessibilityLabel="Close">
+                                <X size={18} color="#dc2626" />
                             </TouchableOpacity>
                         </View>
-                    </View>
+                        {renderSlip(false)}
+                        <Text style={styles.slipNote}>
+                            OSA reviews {form.violations.length > 1 ? 'each report' : 'the report'} before any penalty is given. The student gets an email about it.
+                        </Text>
+                        <View style={styles.slipActions}>
+                            <TouchableOpacity style={styles.slipEdit} onPress={() => setShowConfirmModal(false)}>
+                                <Text style={styles.slipEditText}>Edit</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity style={styles.slipSend} onPress={processSubmission}>
+                                <Send size={16} color="#fff" />
+                                <Text style={styles.slipSendText}>{form.violations.length > 1 ? `Send ${form.violations.length} reports` : 'Send report'}</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </ScrollView>
                 </View>
             </Modal>
 
@@ -426,7 +506,7 @@ const getStyles = (colors, isDarkMode, wide) => StyleSheet.create({
     card: {
         backgroundColor: colors.card,
         borderRadius: 24,
-        padding: wide ? 28 : 16,
+        padding: wide ? 28 : 14,
         borderWidth: 2,
         borderColor: isDarkMode ? colors.border : '#ffffff',
         shadowColor: '#000',
@@ -449,18 +529,18 @@ const getStyles = (colors, isDarkMode, wide) => StyleSheet.create({
     },
     columns: {
         flexDirection: wide ? 'row' : 'column',
-        gap: 10,
+        gap: wide ? 10 : 8,
     },
     column: {
         flex: wide ? 1 : undefined,
-        gap: 10,
+        gap: wide ? 10 : 8,
     },
     row: {
         flexDirection: 'row',
-        gap: 10,
+        gap: 8,
     },
     stack: {
-        gap: 10,
+        gap: 8,
     },
     tinyLabel: {
         fontSize: 9,
@@ -475,9 +555,10 @@ const getStyles = (colors, isDarkMode, wide) => StyleSheet.create({
         backgroundColor: colors.background,
         borderWidth: 2,
         borderColor: isDarkMode ? colors.border : '#f1f5f9',
-        borderRadius: 12,
-        height: 46,
-        paddingHorizontal: 12,
+        borderRadius: 10,
+        // Phones: shorter boxes so the form fits without long scrolling (same as registration)
+        height: wide ? 46 : 40,
+        paddingHorizontal: 11,
         fontSize: 14,
         fontWeight: 'bold',
         color: colors.text,
@@ -485,7 +566,7 @@ const getStyles = (colors, isDarkMode, wide) => StyleSheet.create({
         minWidth: 0,
     },
     idField: {
-        paddingRight: 56,
+        paddingRight: wide ? 56 : 50,
         fontWeight: '900',
         textTransform: 'uppercase',
     },
@@ -500,10 +581,38 @@ const getStyles = (colors, isDarkMode, wide) => StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center',
     },
-    violationField: {
-        backgroundColor: isDarkMode ? 'rgba(248, 113, 113, 0.12)' : '#fef2f2',
-        borderColor: isDarkMode ? 'rgba(248, 113, 113, 0.3)' : '#fee2e2',
+    // The violation tick boxes; a ticked one turns red like the old dropdown
+    // Two per row, also on phones, so the four fit in two lines
+    violationList: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+    violationOption: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 10,
+        borderWidth: 2,
+        borderRadius: 10,
+        paddingHorizontal: 10,
+        paddingVertical: 9,
+        flexBasis: '47%',
+        flexGrow: 1,
+        borderColor: colors.border,
+        backgroundColor: colors.background,
     },
+    violationOptionOn: {
+        backgroundColor: isDarkMode ? 'rgba(248, 113, 113, 0.12)' : '#fef2f2',
+        borderColor: isDarkMode ? 'rgba(248, 113, 113, 0.45)' : '#fca5a5',
+    },
+    violationOptionText: { flex: 1, fontSize: wide ? 14 : 13, fontWeight: '600', color: colors.text },
+    checkBox: {
+        width: 18,
+        height: 18,
+        borderRadius: 5,
+        borderWidth: 2,
+        borderColor: colors.textMuted,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    checkBoxOn: { backgroundColor: '#dc2626', borderColor: '#dc2626' },
+    violationCount: { fontSize: 12, fontWeight: '700', color: isDarkMode ? '#fca5a5' : '#dc2626', marginTop: -2 },
     violationText: {
         fontWeight: '900',
         color: isDarkMode ? '#fca5a5' : '#7f1d1d',
@@ -512,8 +621,8 @@ const getStyles = (colors, isDarkMode, wide) => StyleSheet.create({
         fontSize: 13,
     },
     submitButton: {
-        marginTop: 16,
-        height: 52,
+        marginTop: wide ? 16 : 12,
+        height: wide ? 52 : 46,
         borderRadius: 12,
         backgroundColor: colors.primary,
         flexDirection: 'row',
@@ -534,49 +643,132 @@ const getStyles = (colors, isDarkMode, wide) => StyleSheet.create({
     successCard: {
         alignItems: 'center',
         borderColor: isDarkMode ? 'rgba(52, 211, 153, 0.4)' : '#bbf7d0',
-        paddingVertical: 48,
+        paddingVertical: 24,
+        alignSelf: 'center',
+        width: '100%',
+        maxWidth: 480,
     },
     successIcon: {
-        width: 64,
-        height: 64,
-        borderRadius: 32,
+        width: 56,
+        height: 56,
+        borderRadius: 28,
         backgroundColor: '#22c55e',
         alignItems: 'center',
         justifyContent: 'center',
-        marginBottom: 24,
+        marginBottom: 12,
     },
-    successTitle: {
-        fontSize: 26,
-        fontWeight: '900',
-        fontStyle: 'italic',
-        textTransform: 'uppercase',
-        color: colors.text,
-    },
+    successTitle: { fontSize: 22, fontWeight: '900', color: colors.text },
     successText: {
-        marginTop: 12,
-        maxWidth: 280,
+        marginTop: 4,
+        marginBottom: 16,
         textAlign: 'center',
-        fontSize: 15,
-        fontWeight: 'bold',
-        lineHeight: 22,
+        fontSize: 13,
+        fontWeight: '600',
+        lineHeight: 19,
         color: colors.textMuted,
     },
     newEntryButton: {
-        marginTop: 32,
+        marginTop: 16,
         width: '100%',
-        maxWidth: 240,
-        paddingVertical: 16,
-        borderRadius: 16,
-        backgroundColor: isDarkMode ? colors.primary : '#0f172a',
+        paddingVertical: 14,
+        borderRadius: 12,
+        backgroundColor: colors.primary,
         alignItems: 'center',
     },
-    newEntryText: {
-        color: '#fff',
-        fontSize: 12,
-        fontWeight: '900',
-        textTransform: 'uppercase',
-        letterSpacing: 2,
+    newEntryText: { color: '#fff', fontSize: 14, fontWeight: '800' },
+    // The report slip (confirmation and "Report sent"), same design as the website
+    slip: { width: '100%', borderWidth: 1, borderColor: colors.border, borderRadius: 16, overflow: 'hidden' },
+    slipStudent: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 12,
+        paddingHorizontal: 14,
+        paddingVertical: 12,
+        backgroundColor: colors.background,
     },
+    slipAvatar: {
+        width: 42,
+        height: 42,
+        borderRadius: 21,
+        backgroundColor: isDarkMode ? 'rgba(59, 130, 246, 0.2)' : '#dbeafe',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    slipAvatarText: { fontSize: 14, fontWeight: '900', color: isDarkMode ? '#93c5fd' : '#1e3a8a' },
+    slipName: { fontSize: 15, fontWeight: '900', color: colors.text },
+    slipId: { fontSize: 12, fontWeight: '700', color: colors.textMuted, fontVariant: ['tabular-nums'] },
+    slipMeta: { fontSize: 12, fontWeight: '600', color: colors.textMuted },
+    slipTag: {
+        fontSize: 10,
+        fontWeight: '900',
+        letterSpacing: 0.8,
+        color: isDarkMode ? '#fcd34d' : '#b45309',
+        backgroundColor: isDarkMode ? 'rgba(245, 158, 11, 0.15)' : '#fef3c7',
+        paddingHorizontal: 9,
+        paddingVertical: 4,
+        borderRadius: 999,
+        overflow: 'hidden',
+    },
+    slipSection: {
+        paddingHorizontal: 14,
+        paddingVertical: 10,
+        gap: 6,
+        borderTopWidth: 1,
+        borderTopColor: colors.border,
+        borderStyle: 'dashed',
+    },
+    slipSectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+    slipKicker: { fontSize: 10, fontWeight: '900', letterSpacing: 1.8, color: colors.textMuted },
+    slipCount: {
+        fontSize: 10,
+        fontWeight: '900',
+        color: isDarkMode ? '#fca5a5' : '#b91c1c',
+        backgroundColor: isDarkMode ? 'rgba(248, 113, 113, 0.15)' : '#fee2e2',
+        paddingHorizontal: 8,
+        paddingVertical: 2,
+        borderRadius: 999,
+        overflow: 'hidden',
+    },
+    slipViolation: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+        paddingHorizontal: 10,
+        paddingVertical: 8,
+        borderRadius: 10,
+        backgroundColor: isDarkMode ? 'rgba(248, 113, 113, 0.12)' : '#fef2f2',
+    },
+    slipViolationText: { flex: 1, fontSize: 14, fontWeight: '800', color: isDarkMode ? '#fca5a5' : '#b91c1c' },
+    slipLine: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: 12 },
+    slipLineLabel: { fontSize: 12, fontWeight: '600', color: colors.textMuted },
+    slipLineValue: { flexShrink: 1, textAlign: 'right', fontSize: 13, fontWeight: '800', color: colors.text },
+    slipModal: { width: '100%', maxWidth: 440, maxHeight: '90%', flexGrow: 0, backgroundColor: colors.card, borderRadius: 24 },
+    slipModalContent: { padding: 18, gap: 12 },
+    slipModalHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
+    slipModalTitle: { fontSize: 18, fontWeight: '900', color: colors.text },
+    slipClose: {
+        width: 36,
+        height: 36,
+        borderRadius: 18,
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: isDarkMode ? 'rgba(248, 113, 113, 0.12)' : '#fef2f2',
+    },
+    slipNote: { fontSize: 12, lineHeight: 18, fontWeight: '500', color: colors.textMuted },
+    slipActions: { flexDirection: 'row', gap: 10 },
+    slipEdit: { flex: 1, paddingVertical: 12, borderRadius: 12, borderWidth: 2, borderColor: colors.border, alignItems: 'center' },
+    slipEditText: { fontSize: 14, fontWeight: '800', color: colors.text },
+    slipSend: {
+        flex: 1,
+        flexDirection: 'row',
+        gap: 8,
+        paddingVertical: 12,
+        borderRadius: 12,
+        backgroundColor: colors.primary,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    slipSendText: { fontSize: 14, fontWeight: '800', color: '#fff' },
     modalOverlay: {
         flex: 1,
         backgroundColor: 'rgba(15, 23, 42, 0.8)',

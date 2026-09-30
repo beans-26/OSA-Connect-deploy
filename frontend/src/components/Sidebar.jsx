@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { NavLink, Link, useNavigate } from 'react-router-dom';
-import { Shield, LayoutDashboard, User, AlertTriangle, Clock, LogOut, Menu, X, Users, History, BarChart3, Settings, HelpCircle, ChevronDown, ChevronRight, ChevronsLeft, ChevronsRight, FileSearch, Archive, TrendingUp, ShieldAlert } from 'lucide-react';
+import { LayoutDashboard, User, LogOut, Menu, X, Users, Settings, HelpCircle, ChevronDown, ChevronRight, ChevronsLeft, ChevronsRight, FileSearch, Archive, TrendingUp, ClipboardPen, ClipboardList, ChartColumnBig } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import logo from '../assets/osaconnect-logo.png';
 import logoDark from '../assets/osaconnect-logo-dark.png';
@@ -75,14 +75,16 @@ const Sidebar = ({ role }) => {
                 ]
             }
         ],
+        // Guards and faculty & staff: file a report (clipboard + pen), their past reports (clipboard list),
+        // and the counts (column chart). The report page's header shortcuts use the same icons.
         guard: [
-            { name: 'Report Violation', path: '/guard/report', icon: ShieldAlert },
-            { name: 'History', path: '/guard/history', icon: History },
-            { name: 'Analytics', path: '/guard/analytics', icon: BarChart3 },
+            { name: 'Report Violation', path: '/guard/report', icon: ClipboardPen },
+            { name: 'History', path: '/guard/history', icon: ClipboardList },
+            { name: 'Analytics', path: '/guard/analytics', icon: ChartColumnBig },
         ],
         staff: [
-            { name: 'Report Violation', path: '/staff/report', icon: ShieldAlert },
-            { name: 'History', path: '/staff/history', icon: History },
+            { name: 'Report Violation', path: '/staff/report', icon: ClipboardPen },
+            { name: 'History', path: '/staff/history', icon: ClipboardList },
         ],
         student: [
             { name: 'Service Hub', path: '/student/dashboard', icon: LayoutDashboard },
