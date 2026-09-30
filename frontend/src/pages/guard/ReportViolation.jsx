@@ -5,19 +5,13 @@ import QrScannerModal from '../../components/QrScannerModal';
 import { parseStudentQr, NOT_A_STUDENT_QR } from '../../components/studentQr';
 import { DEPARTMENTS, GENDERS, departmentForCourse, courseOptionsFor } from '../../lib/academics';
 import { GUARD_STAFF_LOGIN } from '../../lib/portals';
+// Violation types a guard or faculty & staff can report (shared with the admin's Report Violation)
+import { VIOLATIONS } from '../../lib/violationTypes';
 
 const inputClass = "w-full min-w-0 bg-slate-50 dark:bg-slate-900 border-2 border-slate-100 dark:border-slate-700 rounded-xl px-3 py-2.5 font-semibold text-sm text-slate-800 dark:text-slate-200 focus:border-ustp-blue outline-none transition-colors placeholder:text-slate-400 disabled:cursor-not-allowed disabled:opacity-60";
 const labelClass = "mb-1 ml-1 block text-xs font-bold text-slate-500 dark:text-slate-400";
 const headerLink = "flex items-center gap-1.5 px-3 py-1.5 bg-white dark:bg-slate-800 shadow-sm border border-slate-200 dark:border-slate-700 rounded-full text-slate-600 dark:text-slate-300 hover:text-ustp-blue font-bold text-xs";
 
-// Violation types a guard or faculty & staff can report: [value, label]. The value must match OSA's
-// penalty table (PUNISHMENT_SYSTEM in backend/core/views.py). Same list as the app.
-const VIOLATIONS = [
-    ['Curfew Violation', 'Curfew Violation'],
-    ['No ID / Improper ID Sling', 'No ID / Improper ID Sling'],
-    ['No School Uniform', 'No School Uniform'],
-    ['Dress Code Violation', 'Dress Code Violation'],
-];
 
 const emptyForm = () => ({
     student_id: '', name: '', gender: '', course: '', department: '', contact: '',
@@ -71,10 +65,11 @@ const ReportViolation = () => {
         } catch { /* not registered yet: typed in by hand */ }
     };
 
+    // Student IDs are 10 numbers: only digits, and the student is looked up once all 10 are typed
     const handleIdChange = (e) => {
-        const id = e.target.value;
+        const id = e.target.value.replace(/\D/g, '').slice(0, 10);
         setForm(prev => ({ ...prev, student_id: id }));
-        if (id.length >= 8) fetchStudentData(id);
+        if (id.length === 10) fetchStudentData(id);
     };
 
     const handleSubmit = (e) => {
@@ -232,7 +227,7 @@ const ReportViolation = () => {
                                     <div>
                                         <label className={labelClass} htmlFor="rv-id">Student ID (type it or scan their QR)</label>
                                         <div className="relative">
-                                            <input id="rv-id" required value={form.student_id} onChange={handleIdChange} placeholder="Student ID" inputMode="numeric" className={`${inputClass} pr-12`} />
+                                            <input id="rv-id" required value={form.student_id} onChange={handleIdChange} placeholder="Student ID" inputMode="numeric" maxLength={10} minLength={10} title="10 numbers, like 2023303188" className={`${inputClass} pr-12`} />
                                             <button type="button" onClick={() => setIsScanning(true)} aria-label="Scan student QR" className="absolute right-1.5 top-1.5 bottom-1.5 aspect-square bg-ustp-blue text-white rounded-lg flex items-center justify-center active:scale-95 transition-transform">
                                                 <Scan size={16} />
                                             </button>

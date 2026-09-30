@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import Sidebar from '../../components/Sidebar';
-import { Users, Search, ClipboardList, QrCode, CheckCircle, Edit2, Eye, UserX, UserPlus, AlertOctagon, Download, X } from 'lucide-react';
+import { Users, Search, Download, X } from 'lucide-react';
 import QRCode from 'react-qr-code';
-import { Shield, AlertCircle, CheckCircle2, Send, Clock, LocateFixed } from 'lucide-react';
 import ThemeToggle from '../../components/ThemeToggle';
-import { useServiceSites, ServiceSiteOptions, postAssignment } from '../../components/useServiceSites';
+import { useServiceSites } from '../../components/useServiceSites';
+import ReportViolationModal from '../../components/ReportViolationModal';
 import { DEPARTMENTS, DEPARTMENT_COURSES, yearLevelsFor, GENDERS } from '../../lib/academics';
 
 // Course <option>s grouped under their department
@@ -49,34 +49,30 @@ const AllStudents = () => {
         const current = editStudent.year_level;
         return current && !options.some((y) => y.value === current) ? [...options, { value: current, label: current }] : options;
     })();
-    const [selectedIds, setSelectedIds] = useState([]);
-    const [showBulkModal, setShowBulkModal] = useState(false);
+    // "Report Violation": one or more students by ID or name (components/ReportViolationModal.jsx)
+    const [showReportModal, setShowReportModal] = useState(false);
     const [saving, setSaving] = useState(false);
-    const [bulkForm, setBulkForm] = useState({
-        assigned_building: '',
-        manual_ids: ''
-    });
+
+    const fetchStudents = async () => {
+        try {
+            const response = await fetch('/api/students/');
+            const data = await response.json();
+            setStudents(data);
+        } catch (error) {
+            console.error('Error fetching students:', error);
+        } finally {
+            setLoading(false);
+        }
+    };
 
     useEffect(() => {
-        const fetchStudents = async () => {
-            try {
-                const response = await fetch('/api/students/');
-                const data = await response.json();
-                setStudents(data);
-            } catch (error) {
-                console.error('Error fetching students:', error);
-            } finally {
-                setLoading(false);
-            }
-        };
-
         fetchStudents();
         const interval = setInterval(fetchStudents, 5000);
 
-        // Check for bulk reporting flag from dashboard
+        // Opened from the dashboard's report shortcut (?bulk=true)
         const urlParams = new URLSearchParams(window.location.search);
         if (urlParams.get('bulk') === 'true') {
-            setShowBulkModal(true);
+            setShowReportModal(true);
             // Remove the param from URL without refreshing
             window.history.replaceState({}, document.title, window.location.pathname);
         }
@@ -129,61 +125,6 @@ const AllStudents = () => {
             alert('Failed to update student');
         } finally {
             setSaving(false);
-        }
-    };
-
-    const handleBulkReport = async (e) => {
-        e.preventDefault();
-        setSaving(true);
-        const reporter = JSON.parse(localStorage.getItem('user') || '{}').full_name || 'Admin';
-
-        // Merge selected IDs and manual entries
-        let finalIds = [...selectedIds];
-        if (bulkForm.manual_ids) {
-            const manual = bulkForm.manual_ids.split(/[\n,]+/).map(id => id.trim()).filter(id => id.length > 5);
-            finalIds = [...new Set([...finalIds, ...manual])];
-        }
-
-        if (finalIds.length === 0) {
-            alert('No student IDs provided');
-            setSaving(false);
-            return;
-        }
-
-        try {
-            // Asks "assign anyway?" when the building can't fit this many more students
-            const { ok, cancelled, data } = await postAssignment('/api/violations/bulk_create/', {
-                student_ids: finalIds,
-                assigned_building: bulkForm.assigned_building,
-                reporter: reporter
-            });
-
-            if (ok) {
-                alert(data.message || 'Bulk reporting completed successfully');
-                setSelectedIds([]);
-                setBulkForm({ assigned_building: '', manual_ids: '' });
-                setShowBulkModal(false);
-            } else if (!cancelled) {
-                alert(`Bulk reporting failed: ${data.error || 'Unknown error'}`);
-            }
-        } catch (error) {
-            alert('Server error during bulk reporting');
-        } finally {
-            setSaving(false);
-        }
-    };
-
-    const toggleSelect = (id) => {
-        setSelectedIds(prev =>
-            prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
-        );
-    };
-
-    const toggleSelectAll = () => {
-        if (selectedIds.length === filteredStudents.length) {
-            setSelectedIds([]);
-        } else {
-            setSelectedIds(filteredStudents.map(s => s.student_id));
         }
     };
 
@@ -274,15 +215,12 @@ const AllStudents = () => {
                         </p>
                     </div>
                     <div className="flex items-center gap-3 md:gap-4">
-                        {selectedIds.length > 0 && (
-                            <button
-                                onClick={() => setShowBulkModal(true)}
-                                className="flex items-center gap-2 bg-red-600 text-white px-6 py-3 rounded-2xl font-bold hover:bg-red-700 transition-all shadow-lg shadow-red-200 animate-in slide-in-from-right-4"
-                            >
-                                <Shield size={20} />
-                                {selectedIds.length === 1 ? 'Report' : `Bulk Report (${selectedIds.length})`}
-                            </button>
-                        )}
+                        <button
+                            onClick={() => setShowReportModal(true)}
+                            className="bg-red-600 text-white px-5 py-3 rounded-2xl font-bold text-sm hover:bg-red-700 transition-colors whitespace-nowrap"
+                        >
+                            Report Violation
+                        </button>
                         <ThemeToggle />
                     </div>
                 </header>
@@ -342,19 +280,7 @@ const AllStudents = () => {
                         <table className="w-full">
                             <thead>
                                 <tr className="text-left bg-slate-50 dark:bg-slate-900 border-b-2 border-slate-200 dark:border-slate-600">
-                                    {/* Select all: the same checkbox as each row, lined up above them */}
-                                    <th className="py-3 pl-4 pr-2 w-10">
-                                        <input
-                                            type="checkbox"
-                                            aria-label="Select all students"
-                                            title="Select all"
-                                            checked={selectedIds.length > 0 && selectedIds.length === filteredStudents.length}
-                                            ref={(el) => { if (el) el.indeterminate = selectedIds.length > 0 && selectedIds.length < filteredStudents.length; }}
-                                            onChange={toggleSelectAll}
-                                            className="w-4 h-4 align-middle rounded border-slate-300 text-red-500 focus:ring-red-500 cursor-pointer"
-                                        />
-                                    </th>
-                                    <th className="py-3 px-3 font-bold text-slate-500 dark:text-slate-400 font-medium text-sm">Student</th>
+                                    <th className="py-3 pl-5 pr-3 font-bold text-slate-500 dark:text-slate-400 font-medium text-sm">Student</th>
                                     <th className="py-3 px-3 font-bold text-slate-500 dark:text-slate-400 font-medium text-sm">Gender</th>
                                     <th className="py-3 px-3 font-bold text-slate-500 dark:text-slate-400 font-medium text-sm">Course &amp; Year</th>
                                     <th className="py-3 px-3 font-bold text-slate-500 dark:text-slate-400 font-medium text-sm">Dept</th>
@@ -365,17 +291,8 @@ const AllStudents = () => {
                             </thead>
                             <tbody>
                                 {filteredStudents.map((student) => (
-                                    <tr key={student.id} className={`border-b border-slate-100 dark:border-slate-700/50 transition-colors ${selectedIds.includes(student.student_id) ? 'bg-red-50/50 dark:bg-red-900/10' : 'hover:bg-slate-50 dark:hover:bg-slate-800/50'}`}>
-                                        <td className="py-4 pl-4 pr-2">
-                                            <input
-                                                type="checkbox"
-                                                aria-label={`Select ${student.name}`}
-                                                checked={selectedIds.includes(student.student_id)}
-                                                onChange={() => toggleSelect(student.student_id)}
-                                                className="w-4 h-4 align-middle rounded border-slate-300 text-red-500 focus:ring-red-500 cursor-pointer"
-                                            />
-                                        </td>
-                                        <td className="py-3 px-3">
+                                    <tr key={student.id} className="border-b border-slate-100 dark:border-slate-700/50 transition-colors hover:bg-slate-50 dark:hover:bg-slate-800/50">
+                                        <td className="py-3 pl-5 pr-3">
                                             <div className="flex items-center gap-3 min-w-[200px]">
                                                 <div className="w-10 h-10 rounded-full bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-400 flex items-center justify-center font-bold text-sm flex-shrink-0">
                                                     {student.name ? student.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() : '??'}
@@ -482,8 +399,12 @@ const AllStudents = () => {
                                     <input
                                         type="text"
                                         required
+                                        inputMode="numeric"
+                                        maxLength={10}
+                                        minLength={10}
+                                        title="10 numbers, like 2023303188"
                                         value={editStudent.student_id}
-                                        onChange={(e) => setEditStudent({ ...editStudent, student_id: e.target.value })}
+                                        onChange={(e) => setEditStudent({ ...editStudent, student_id: e.target.value.replace(/\D/g, '').slice(0, 10) })}
                                         className="w-full px-4 py-2.5 border-2 border-slate-100 dark:border-slate-700 rounded-xl focus:border-ustp-blue focus:outline-none bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white text-sm font-medium"
                                         placeholder="e.g., 2023303188"
                                     />
@@ -596,121 +517,14 @@ const AllStudents = () => {
                     </div>
                 </div>
             )}
-            {/* Bulk report: one violation, one building, several students */}
-            {showBulkModal && (() => {
-                const count = selectedIds.length;
-                const canSubmit = !saving && bulkForm.assigned_building && (count > 0 || bulkForm.manual_ids);
-                const label = 'text-xs font-bold text-slate-500 dark:text-slate-400 mb-1.5 block';
-                return (
-                <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-                    <div className="bg-white dark:bg-slate-800 rounded-3xl p-6 w-full max-w-md shadow-2xl overflow-y-auto max-h-[92vh]">
-                        <div className="flex justify-between items-start gap-4 mb-5">
-                            <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 bg-red-50 dark:bg-red-500/10 text-red-600 dark:text-red-400 rounded-xl flex items-center justify-center shrink-0">
-                                    <Shield size={20} />
-                                </div>
-                                <div>
-                                    <h2 className="text-lg font-black text-slate-900 dark:text-white leading-tight">Report students</h2>
-                                    <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">
-                                        {count > 0 ? `${count} student${count === 1 ? '' : 's'} selected` : 'Enter the student IDs below'}
-                                    </p>
-                                </div>
-                            </div>
-                            <button onClick={() => { setShowBulkModal(false); setSelectedIds([]); }} aria-label="Close" className="w-9 h-9 rounded-full bg-slate-100 dark:bg-slate-900 hover:bg-slate-200 flex items-center justify-center text-slate-500 shrink-0">
-                                <X size={18} />
-                            </button>
-                        </div>
-
-                        <form onSubmit={handleBulkReport} className="space-y-4">
-                            <div>
-                                <span className={label}>Violation</span>
-                                <p className="rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-700 px-4 py-3 text-sm font-bold text-red-600 dark:text-red-400">
-                                    Failure to attend mandatory campus event
-                                </p>
-                            </div>
-
-                            <div>
-                                <label className={label} htmlFor="bulk-building">Building for their community service</label>
-                                <select
-                                    id="bulk-building"
-                                    required
-                                    value={bulkForm.assigned_building || ''}
-                                    onChange={e => setBulkForm({ ...bulkForm, assigned_building: e.target.value })}
-                                    className="w-full bg-white dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm font-semibold outline-none focus:border-ustp-blue text-slate-900 dark:text-white"
-                                >
-                                    <ServiceSiteOptions {...serviceSites} placeholder="Choose a building" />
-                                </select>
-                            </div>
-
-                            {count === 0 ? (
-                                <div>
-                                    <div className="flex justify-between items-center mb-1.5">
-                                        <label className={label.replace(' mb-1.5', '')} htmlFor="bulk-ids">Student IDs</label>
-                                        <label className="flex items-center gap-1.5 cursor-pointer text-xs font-bold text-ustp-blue hover:underline">
-                                            <Download size={13} /> Upload CSV
-                                            <input
-                                                type="file"
-                                                accept=".csv,.txt"
-                                                className="hidden"
-                                                onChange={(e) => {
-                                                    const file = e.target.files[0];
-                                                    if (file) {
-                                                        const reader = new FileReader();
-                                                        reader.onload = (ev) => {
-                                                            const ids = ev.target.result.split(/[\n,]+/).map(id => id.trim()).filter(id => id.length > 5);
-                                                            setSelectedIds(ids);
-                                                        };
-                                                        reader.readAsText(file);
-                                                    }
-                                                }}
-                                            />
-                                        </label>
-                                    </div>
-                                    <textarea
-                                        id="bulk-ids"
-                                        rows="3"
-                                        placeholder="2023303188, 2023303189, ..."
-                                        value={bulkForm.manual_ids || ''}
-                                        onChange={e => setBulkForm({ ...bulkForm, manual_ids: e.target.value })}
-                                        className="w-full bg-white dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 font-mono text-sm focus:border-ustp-blue outline-none resize-none text-slate-900 dark:text-white"
-                                    />
-                                    <p className="mt-1 text-xs text-slate-400">Separate IDs with commas or new lines.</p>
-                                </div>
-                            ) : (
-                                <div>
-                                    <span className={label}>Students</span>
-                                    <div className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto">
-                                        {selectedIds.map(id => (
-                                            <span key={id} className="bg-slate-100 dark:bg-slate-900 pl-2.5 pr-1.5 py-1 rounded-lg text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
-                                                {id}
-                                                <button type="button" aria-label={`Remove ${id}`} onClick={() => setSelectedIds(selectedIds.filter(i => i !== id))} className="text-slate-400 hover:text-red-500"><X size={12} /></button>
-                                            </span>
-                                        ))}
-                                    </div>
-                                </div>
-                            )}
-
-                            <p className="text-xs font-medium text-slate-500 dark:text-slate-400 leading-5">
-                                These reports skip Pending Reviews: they're approved right away and the students can start serving at the building you chose.
-                            </p>
-
-                            <button
-                                type="submit"
-                                disabled={!canSubmit}
-                                className="w-full py-3.5 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-colors bg-red-600 text-white hover:bg-red-700 disabled:bg-slate-100 disabled:text-slate-400 dark:disabled:bg-slate-700 disabled:cursor-not-allowed"
-                            >
-                                {saving
-                                    ? <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Reporting…</>
-                                    : <><Send size={16} /> {count > 0 ? `Report ${count} student${count === 1 ? '' : 's'}` : 'Report students'}</>}
-                            </button>
-                            {!bulkForm.assigned_building && (
-                                <p className="text-center text-xs font-semibold text-slate-400">Choose a building first.</p>
-                            )}
-                        </form>
-                    </div>
-                </div>
-                );
-            })()}
+            {showReportModal && (
+                <ReportViolationModal
+                    students={students}
+                    serviceSites={serviceSites}
+                    onClose={() => setShowReportModal(false)}
+                    onReported={fetchStudents}
+                />
+            )}
         </div>
     );
 };
