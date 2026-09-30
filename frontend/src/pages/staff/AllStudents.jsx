@@ -482,8 +482,12 @@ const AllStudents = () => {
                                     <input
                                         type="text"
                                         required
+                                        inputMode="numeric"
+                                        maxLength={10}
+                                        minLength={10}
+                                        title="10 numbers, like 2023303188"
                                         value={editStudent.student_id}
-                                        onChange={(e) => setEditStudent({ ...editStudent, student_id: e.target.value })}
+                                        onChange={(e) => setEditStudent({ ...editStudent, student_id: e.target.value.replace(/\D/g, '').slice(0, 10) })}
                                         className="w-full px-4 py-2.5 border-2 border-slate-100 dark:border-slate-700 rounded-xl focus:border-ustp-blue focus:outline-none bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white text-sm font-medium"
                                         placeholder="e.g., 2023303188"
                                     />

@@ -160,6 +160,11 @@ const StudentRegistration = () => {
 
     const requestOTP = async (e) => {
         if (e) e.preventDefault();
+        if (studentData.student_id.length !== 10) {
+            alert('Student ID must be exactly 10 numbers, like 2023303188.');
+            document.getElementById('reg-id')?.focus();
+            return;
+        }
         const middleError = middleNameError(studentData.middle_name);
         if (middleError) {
             alert(middleError);
@@ -295,9 +300,9 @@ const StudentRegistration = () => {
                         <form onSubmit={requestOTP} className="mt-1 space-y-2.5 sm:space-y-4">
                             <p className="text-xs sm:text-sm text-slate-700 dark:text-slate-300 mb-3 sm:mb-5">Use the same details as your USTP school ID.</p>
 
-                            <Field id="reg-id" label="Student ID number" hint="Numbers only, as printed on your school ID.">
+                            <Field id="reg-id" label="Student ID number" hint="10 numbers, as printed on your school ID.">
                                 <input id="reg-id" required type="text" inputMode="numeric" placeholder="Student ID number" value={studentData.student_id}
-                                    onChange={(e) => setStudentData({ ...studentData, student_id: e.target.value.replace(/\D/g, '').slice(0, 12) })} className={inputClass} />
+                                    maxLength={10} onChange={(e) => setStudentData({ ...studentData, student_id: e.target.value.replace(/\D/g, '').slice(0, 10) })} className={inputClass} />
                             </Field>
 
                             <div className="grid grid-cols-2 sm:grid-cols-3 items-end gap-x-2.5 gap-y-2.5 sm:gap-3">

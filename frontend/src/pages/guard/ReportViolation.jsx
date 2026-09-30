@@ -71,10 +71,11 @@ const ReportViolation = () => {
         } catch { /* not registered yet: typed in by hand */ }
     };
 
+    // Student IDs are 10 numbers: only digits, and the student is looked up once all 10 are typed
     const handleIdChange = (e) => {
-        const id = e.target.value;
+        const id = e.target.value.replace(/\D/g, '').slice(0, 10);
         setForm(prev => ({ ...prev, student_id: id }));
-        if (id.length >= 8) fetchStudentData(id);
+        if (id.length === 10) fetchStudentData(id);
     };
 
     const handleSubmit = (e) => {
@@ -232,7 +233,7 @@ const ReportViolation = () => {
                                     <div>
                                         <label className={labelClass} htmlFor="rv-id">Student ID (type it or scan their QR)</label>
                                         <div className="relative">
-                                            <input id="rv-id" required value={form.student_id} onChange={handleIdChange} placeholder="Student ID" inputMode="numeric" className={`${inputClass} pr-12`} />
+                                            <input id="rv-id" required value={form.student_id} onChange={handleIdChange} placeholder="Student ID" inputMode="numeric" maxLength={10} minLength={10} title="10 numbers, like 2023303188" className={`${inputClass} pr-12`} />
                                             <button type="button" onClick={() => setIsScanning(true)} aria-label="Scan student QR" className="absolute right-1.5 top-1.5 bottom-1.5 aspect-square bg-ustp-blue text-white rounded-lg flex items-center justify-center active:scale-95 transition-transform">
                                                 <Scan size={16} />
                                             </button>
