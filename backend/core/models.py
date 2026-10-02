@@ -80,7 +80,10 @@ class ViolationReport(Document):
     student = ReferenceField(Student, required=True)
     violation_type = StringField(required=True)
     description = StringField()
+    # Who reported it, as shown everywhere: for a guard account, the name of the guard on duty they typed
+    # (the guards share accounts); for faculty & staff and admins, their account's name
     reporting_guard = StringField(required=True)
+    reporting_account = StringField()  # the login that filed it (username); a guard's History lists by this
     status = StringField(default=ViolationStatus.PENDING.value)
     offense_count = IntField(default=1)
     punishment = StringField()
@@ -130,6 +133,7 @@ class ETicket(Document):
     missed_days = ListField(StringField())  # 'YYYY-MM-DD' Philippine dates that added an hour
     missed_checked_through = StringField()  # last day already checked, so no day is counted twice
     created_at = DateTimeField(default=utc_now)
+    completed_at = DateTimeField()  # when the last hour was served (the student's "Hours completed" notification)
     meta = {'collection': 'etickets', 'auto_create_index': False, 'strict': False}
 
 class TimeLog(Document):

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import Sidebar from '../../components/Sidebar';
-import { Search, Check, X, ShieldAlert, User, Eye, AlertCircle, Inbox } from 'lucide-react';
+import { Search, X, User, AlertCircle, Inbox } from 'lucide-react';
 import ThemeToggle from '../../components/ThemeToggle';
 import { useServiceSites, ServiceSiteOptions, postAssignment } from '../../components/useServiceSites';
 
@@ -22,7 +22,7 @@ const PendingReviews = () => {
 
     const fetchReports = async () => {
         try {
-            const response = await fetch('/api/violations/');
+            const response = await fetch('/api/violations/?scope=open');
             const data = await response.json();
             const pending = data.filter(r => r.status.toLowerCase().includes('pending'));
             setReports(pending);
@@ -111,7 +111,7 @@ const PendingReviews = () => {
                     ) : (
                         <div className="space-y-2">
                             {filteredReports.map((report) => (
-                                <div key={report.id} className="p-2 md:p-3 bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 hover:border-ustp-blue rounded-xl transition-all shadow-sm group">
+                                <button type="button" key={report.id} onClick={() => setSelectedReport(report)} className="block w-full text-left cursor-pointer p-2 md:p-3 bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 hover:border-ustp-blue hover:bg-slate-50 dark:hover:bg-slate-700/40 focus-visible:outline-2 focus-visible:outline-ustp-blue rounded-xl transition-all shadow-sm group">
                                     <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
                                         <div className="flex gap-3 items-center flex-1">
                                             <div className="w-10 h-10 rounded-full bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-400 flex items-center justify-center shrink-0 transition-colors">
@@ -126,11 +126,8 @@ const PendingReviews = () => {
                                                 </div>
                                             </div>
                                         </div>
-                                        <div className="flex gap-4 w-full md:w-auto mt-2 md:mt-0 items-center justify-end">
-                                            <button onClick={() => setSelectedReport(report)} className="flex items-center gap-2 bg-slate-100 dark:bg-slate-800 hover:bg-ustp-blue dark:hover:bg-ustp-blue hover:text-white text-slate-700 dark:text-slate-300 px-4 py-2 rounded-xl font-bold text-xs transition-colors"><Eye size={16} /> Review</button>
-                                        </div>
                                     </div>
-                                </div>
+                                </button>
                             ))}
                         </div>
                     )}
@@ -164,7 +161,6 @@ const PendingReviews = () => {
                                     <p className="text-[9px] font-black uppercase text-slate-500 dark:text-slate-500 mb-0.5">Violation Type</p>
                                     <p className="font-bold text-red-600 dark:text-red-400 text-sm uppercase">{selectedReport.violation_type}</p>
                                 </div>
-                                <div className="bg-slate-50 dark:bg-slate-900/50 p-4 rounded-2xl border border-slate-200 dark:border-slate-800"><p className="text-[9px] font-black uppercase text-slate-500 dark:text-slate-500 mb-0.5">Description</p><p className="font-semibold text-slate-800 dark:text-slate-300 text-xs leading-relaxed">{selectedReport.description || 'No report description available.'}</p></div>
                                 <div className="grid grid-cols-2 gap-3">
                                     <div className="bg-slate-50 dark:bg-slate-900/50 p-4 rounded-2xl border border-slate-200 dark:border-slate-800"><p className="text-[9px] font-black uppercase text-slate-500 dark:text-slate-500 mb-0.5">Course</p><p className="font-bold text-slate-800 dark:text-slate-300 text-xs truncate">{selectedReport.student_details?.course}</p></div>
                                     <div className="bg-slate-50 dark:bg-slate-900/50 p-4 rounded-2xl border border-slate-200 dark:border-slate-800"><p className="text-[9px] font-black uppercase text-slate-500 dark:text-slate-500 mb-0.5">Dept</p><p className="font-bold text-slate-800 dark:text-slate-300 text-xs truncate">{selectedReport.student_details?.department}</p></div>

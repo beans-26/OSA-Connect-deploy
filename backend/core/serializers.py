@@ -1,3 +1,4 @@
+import datetime
 from rest_framework_mongoengine import serializers
 from .models import Student, ViolationReport, ETicket, TimeLog, SystemUser, utc_now
 
@@ -47,17 +48,43 @@ class ETicketSerializer(serializers.DocumentSerializer):
             data['deadline'] = deadline_end(instance).isoformat() + 'Z'
             data['days_to_finish'] = DAYS_TO_FINISH
         data['added_hours'] = instance.added_hours or 0
+        # Lists pass these in, loaded once for all tickets (views.ticket_list_extras); one ticket looks them up
+        extras = self.context.get('ticket_extras')
+        # When the hours were finished (student notifications). Tickets from before completed_at existed:
+        # the end of their last session; only looked up for tickets waiting for clearance.
+        done_at = instance.completed_at
+        if not done_at and instance.status == 'Completed':
+            if extras is not None:
+                done_at = extras['last_out'].get(instance.id)
+            else:
+                last = TimeLog.objects(eticket=instance, time_out__ne=None).order_by('-time_out').only('time_out').first()
+                done_at = last.time_out if last else None
+        data['completed_at'] = (done_at.isoformat() + 'Z') if done_at else None
+        # For the student's "you haven't served today" reminder: only open tickets need the lookup
+        if instance.status == 'Active':
+            if extras is not None:
+                data['served_today'] = instance.id in extras['served_today']
+            else:
+                from core.deadlines import _utc_midnight, PH
+                today_start = _utc_midnight(utc_now().replace(tzinfo=datetime.timezone.utc).astimezone(PH).date())
+                data['served_today'] = TimeLog.objects(eticket=instance, time_in__gte=today_start).count() > 0
+        else:
+            data['served_today'] = instance.status == 'Ongoing'
         data['active_time_in'] = None
         data['station'] = {'lat': instance.lat, 'lng': instance.lng, 'radius': instance.radius, 'site_code': getattr(instance, 'site_code', None)}
         from core.views import _assigned_site_code
-        assigned_code = _assigned_site_code(instance)
+        assigned_code = _assigned_site_code(instance, extras['sites'] if extras is not None else None)
         data['assigned_site'] = {'site_code': assigned_code, 'name': instance.assigned_location} if assigned_code else None
         if instance.status == 'Ongoing':
             try:
-                open_log = TimeLog.objects.filter(eticket=instance, time_out=None).first()
-                if open_log and open_log.time_in:
-                    data['active_time_in'] = open_log.time_in.isoformat()
-                    elapsed = (utc_now() - open_log.time_in).total_seconds() / 3600
+                if extras is not None:
+                    time_in = extras['open_since'].get(instance.id)
+                else:
+                    open_log = TimeLog.objects.filter(eticket=instance, time_out=None).first()
+                    time_in = open_log.time_in if open_log else None
+                if time_in:
+                    data['active_time_in'] = time_in.isoformat()
+                    elapsed = (utc_now() - time_in).total_seconds() / 3600
                     data['remaining_hours'] = max(0, instance.remaining_hours - elapsed)
             except: pass
 
@@ -84,6 +111,7 @@ class ETicketSerializer(serializers.DocumentSerializer):
                     'created_at': (v_ref.created_at.isoformat() + 'Z') if v_ref.created_at else None,
                     'assigned_building': v_ref.assigned_building,
                     'building_history': v_ref.building_history or [],
+                    'cleared_at': (v_ref.cleared_at.isoformat() + 'Z') if v_ref.cleared_at else None,
                     'student_details': {
                         'student_id': s_ref.student_id if s_ref else "Unknown",
                         'name': s_ref.name if s_ref else "Unknown",

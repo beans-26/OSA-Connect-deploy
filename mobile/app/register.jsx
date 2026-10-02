@@ -50,6 +50,8 @@ const Field = ({ label, info, hint, style, children }) => (
 export default function Register() {
     const [step, setStep] = useState(1);
     const [saving, setSaving] = useState(false);
+    // The code email is being sent (the code step shows "Sending code to …")
+    const [sendingCode, setSendingCode] = useState(false);
     const [otp, setOtp] = useState('');
     // When the latest code was sent, and a clock that ticks each second on step 2
     const [codeSentAt, setCodeSentAt] = useState(0);
@@ -162,7 +164,17 @@ export default function Register() {
             return;
         }
 
-        setSaving(true);
+        if (sendingCode) return;
+        // Straight to the code step while the email is sent (that takes a few seconds): the student sees
+        // "Sending code…" and can open their inbox. If the server says no (e.g. the ID is taken), back to step 1.
+        const resending = step === 2;
+        setOtp('');
+        const sentAt = currentTime();
+        setCodeSentAt(sentAt);
+        setNow(sentAt);
+        setStep(2);
+        setSendingCode(true);
+        setTimeout(() => focusBox(0), 300);
         try {
             // ID and contact are sent so a taken ID is caught before the code is emailed
             await api.post('/students/request_otp/', {
@@ -172,20 +184,15 @@ export default function Register() {
                 // Only used to greet the student in the code email
                 name: studentData.first_name
             });
-            setOtp('');
-            const sentAt = currentTime();
-            setCodeSentAt(sentAt);
-            setNow(sentAt);
-            setStep(2);
-            setTimeout(() => focusBox(0), 300);
         } catch (error) {
+            if (!resending) setStep(1);
             showAlert(
-                'Error',
+                "Couldn't send the code",
                 // No response at all means the backend is down or unreachable, not a bad email
-                error.response ? (error.response.data?.error || 'Check your email') : OFFLINE_MESSAGE
+                error.response ? (error.response.data?.error || 'Check your email and try again.') : OFFLINE_MESSAGE
             );
         } finally {
-            setSaving(false);
+            setSendingCode(false);
         }
     };
 
@@ -392,9 +399,9 @@ export default function Register() {
                     </View>
 
                     <View style={styles.panel}>
-                        <Mail size={16} color={C.navy} />
+                        {sendingCode ? <ActivityIndicator size="small" color={C.navy} /> : <Mail size={16} color={C.navy} />}
                         <Text style={styles.panelText}>
-                            Code sent to <Text style={styles.bold}>{studentData.email}</Text>
+                            {sendingCode ? 'Sending code to ' : 'Code sent to '}<Text style={styles.bold}>{studentData.email}</Text>{sendingCode ? '…' : ''}
                         </Text>
                     </View>
 
@@ -432,7 +439,7 @@ export default function Register() {
                         {resendIn > 0 ? (
                             <Text style={styles.small}>Resend in {resendIn}s</Text>
                         ) : (
-                            <TouchableOpacity onPress={requestOTP} disabled={saving}>
+                            <TouchableOpacity onPress={requestOTP} disabled={saving || sendingCode}>
                                 <Text style={A.linkText}>Resend code</Text>
                             </TouchableOpacity>
                         )}

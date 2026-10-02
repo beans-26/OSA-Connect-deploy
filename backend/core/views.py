@@ -3,7 +3,8 @@ from rest_framework.response import Response
 from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework import status
 from rest_framework.permissions import AllowAny
-from .models import Student, ViolationReport, ETicket, TimeLog, SystemUser, ServiceSite, ClearanceProof, utc_now
+from .models import Student, ViolationReport, ETicket, TimeLog, SystemUser, ServiceSite, ClearanceProof, utc_now, format_person_name
+from mongoengine.queryset.visitor import Q
 from .serializers import StudentSerializer, ViolationReportSerializer, ETicketSerializer, TimeLogSerializer
 from .passwords import hash_password, verify_password, check_and_upgrade
 from .emails import send_code_email, send_violation_notice
@@ -148,12 +149,53 @@ def _resolve_service_site(value):
             or ServiceSite.objects.filter(name__iexact=value, is_active=True).first())
 
 
-def _assigned_site_code(eticket):
+# Admin list scopes (?scope=): 'open' = cases still being worked on, plus anything reported in the last
+# 36 hours (the dashboard counts today's reports, dismissed ones too); 'archived' = finished cases.
+# Without a scope, everything (Analytics needs the whole history for its reports).
+OPEN_RECENT_HOURS = 36
+
+
+def _scoped_violations(qs, scope):
+    if scope == 'open':
+        recent = utc_now() - datetime.timedelta(hours=OPEN_RECENT_HOURS)
+        return qs.filter(Q(status__nin=['Cleared', 'Dismissed']) | Q(created_at__gte=recent))
+    if scope == 'archived':
+        return qs.filter(status__in=['Cleared', 'Completed'])
+    return qs
+
+
+def ticket_list_extras(tickets):
+    """What ETicketSerializer would otherwise look up once per ticket, loaded for a whole list in four queries:
+    open tickets with time served today, the running session's start, the end of the last session (finished
+    tickets saved before completed_at existed), and the active service sites by code and by name."""
+    from .deadlines import _utc_midnight, PH
+    logs = TimeLog._get_collection()
+    active = [t.id for t in tickets if t.status == 'Active']
+    ongoing = [t.id for t in tickets if t.status == 'Ongoing']
+    unfinished_at = [t.id for t in tickets if t.status == 'Completed' and not t.completed_at]
+    today_start = _utc_midnight(utc_now().replace(tzinfo=datetime.timezone.utc).astimezone(PH).date())
+    served_today = set(logs.distinct('eticket', {'eticket': {'$in': active}, 'time_in': {'$gte': today_start}})) if active else set()
+    open_since = {d['eticket']: d['time_in'] for d in logs.find({'eticket': {'$in': ongoing}, 'time_out': None}, {'eticket': 1, 'time_in': 1})} if ongoing else {}
+    last_out = {d['_id']: d['t'] for d in logs.aggregate([
+        {'$match': {'eticket': {'$in': unfinished_at}, 'time_out': {'$ne': None}}},
+        {'$group': {'_id': '$eticket', 't': {'$max': '$time_out'}}},
+    ])} if unfinished_at else {}
+    sites = {}
+    for site in ServiceSite.objects(is_active=True).only('site_code', 'name'):
+        sites[site.site_code.upper()] = site.site_code
+        sites.setdefault((site.name or '').strip().lower(), site.site_code)
+    return {'served_today': served_today, 'open_since': open_since, 'last_out': last_out, 'sites': sites}
+
+
+def _assigned_site_code(eticket, sites=None):
     """Site code the ticket must be served at. Tickets approved before sites were linked only saved
     the site's name as assigned_location, so fall back to matching that name."""
     code = getattr(eticket, 'assigned_site_code', None)
     if code:
         return code
+    if sites is not None:  # a list: the sites were loaded once (ticket_list_extras)
+        name = str(eticket.assigned_location or '').strip()
+        return sites.get(name.upper()) or sites.get(name.lower())
     site = _resolve_service_site(eticket.assigned_location) if eticket.assigned_location else None
     return site.site_code if site else None
 
@@ -211,7 +253,7 @@ class StudentViewSet(viewsets.ModelViewSet):
     serializer_class = StudentSerializer
 
     # Registration and password reset work without logging in; the rest needs the right login
-    PUBLIC_ACTIONS = ('request_otp', 'register_with_otp', 'request_password_reset', 'reset_password')
+    PUBLIC_ACTIONS = ('request_otp', 'register_with_otp', 'request_password_reset', 'verify_reset_code', 'reset_password')
     SELF_ACTIONS = ('change_password', 'request_email_change', 'confirm_email_change', 'update_contact')
 
     def get_permissions(self):
@@ -357,6 +399,30 @@ class StudentViewSet(viewsets.ModelViewSet):
             return Response({"error": error_msg}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     @action(detail=False, methods=['post'])
+    def verify_reset_code(self, request):
+        """Checks a password-reset code before the student types a new password (the code stays valid for
+        reset_password). A wrong code counts toward the same 5-try limit."""
+        from .models import OTPVerification
+        email = str(request.data.get('email', '')).strip().lower()
+        otp_input = str(request.data.get('otp', '')).strip()
+        if not email or not otp_input:
+            return Response({"error": "Enter the 6-digit code."}, status=status.HTTP_400_BAD_REQUEST)
+        verification = OTPVerification.objects.filter(email=email).first()
+        if not verification:
+            return Response({"error": "Invalid or expired reset code."}, status=status.HTTP_400_BAD_REQUEST)
+        if verification.attempts >= 5:
+            verification.delete()
+            return Response({"error": "Too many wrong codes. Please request a new one."}, status=status.HTTP_400_BAD_REQUEST)
+        if (utc_now() - verification.created_at).total_seconds() > 300:
+            verification.delete()
+            return Response({"error": "Reset code has expired. Please request a new one."}, status=status.HTTP_400_BAD_REQUEST)
+        if verification.otp != otp_input:
+            verification.attempts += 1
+            verification.save()
+            return Response({"error": "Invalid or expired reset code."}, status=status.HTTP_400_BAD_REQUEST)
+        return Response({"valid": True})
+
+    @action(detail=False, methods=['post'])
     def reset_password(self, request):
         from .models import OTPVerification
         data = request.data
@@ -367,7 +433,10 @@ class StudentViewSet(viewsets.ModelViewSet):
         
         if not email or not otp_input or not new_password:
             return Response({"error": "All fields are required"}, status=status.HTTP_400_BAD_REQUEST)
-            
+        # Same minimum as registration; checked before the code so a short password doesn't use up a try
+        if len(new_password) < 8:
+            return Response({"error": "Your new password needs at least 8 characters."}, status=status.HTTP_400_BAD_REQUEST)
+
         verification = OTPVerification.objects.filter(email=email).first()
         if not verification:
             return Response({"error": "Invalid or expired reset code."}, status=status.HTTP_400_BAD_REQUEST)
@@ -651,8 +720,8 @@ class ViolationViewSet(viewsets.ModelViewSet):
             return [IsReporter()]
         if self.action == 'list':
             return [IsLoggedIn()]
-        if self.action == 'summary':
-            return [IsReporter()]  # counts only, for the guards' analytics
+        if self.action in ('summary', 'monthly_report'):
+            return [IsReporter()]  # counts for the guards' analytics; the student rows are admin-only
         return [IsAdmin()]  # approve, dismiss, reassign, clearance, bulk reports, analytics, edits
 
     def get_queryset(self):
@@ -662,15 +731,26 @@ class ViolationViewSet(viewsets.ModelViewSet):
             me = Student.objects(student_id=self.request.user.username).first()
             return ViolationReport.objects(student=me).select_related() if me else ViolationReport.objects.none()
         if self.action == 'list' and role in ('guard', 'staff'):
-            # Guards and faculty & staff see the reports they filed
+            # Guards and faculty & staff see the reports their account filed: by reporting_account, and older
+            # reports (before it was kept) by the account's name, which they were saved under
             names = [n for n in (self.request.user.name, self.request.user.username) if n]
-            return ViolationReport.objects(reporting_guard__in=names).select_related()
+            mine = Q(reporting_account=self.request.user.username) | Q(reporting_account=None, reporting_guard__in=names)
+            return ViolationReport.objects(mine).select_related()
         # select_related loads the students in one query instead of one per violation
         student = _student_filter(self.request)
         if student is False:
             qs = ViolationReport.objects.all()
         else:
             qs = ViolationReport.objects(student=student) if student else ViolationReport.objects.none()
+        if self.action == 'list':
+            qs = _scoped_violations(qs, self.request.query_params.get('scope'))
+            year = self.request.query_params.get('year')
+            if year and year.isdigit():
+                # One Philippine calendar year (Analytics loads only the year it reports on)
+                ph = datetime.timezone(datetime.timedelta(hours=8))
+                start = datetime.datetime(int(year), 1, 1, tzinfo=ph).astimezone(datetime.timezone.utc).replace(tzinfo=None)
+                end = datetime.datetime(int(year) + 1, 1, 1, tzinfo=ph).astimezone(datetime.timezone.utc).replace(tzinfo=None)
+                qs = qs.filter(created_at__gte=start, created_at__lt=end)
         # select_related returns a plain list, which single-record routes (/violations/<id>/) can't use
         return qs.select_related() if self.action == 'list' and student is not None else qs
 
@@ -787,6 +867,7 @@ class ViolationViewSet(viewsets.ModelViewSet):
                     violation_type=violation_type,
                     description=description,
                     reporting_guard=reporter,
+                    reporting_account=request.user.username,
                     # No hours to serve: nothing to do, so it goes straight to the archives (same as approve)
                     status="Approved" if hours > 0 else "Completed",
                     assigned_building=assigned_building,
@@ -866,9 +947,17 @@ class ViolationViewSet(viewsets.ModelViewSet):
             student.gender = _gender(data.get('gender'))
             student.save()
             
-        # 2. One report per violation, each waiting for OSA's review, with its own offense count and penalty
-        reporter = ((data.get('reporting_guard') or 'OSA Administrator') if role_of(request) == 'admin'
-                    else (request.user.name or request.user.username))  # only admins may name someone else
+        # 2. One report per violation, each waiting for OSA's review, with its own offense count and penalty.
+        # Reported by: guards share accounts, so a guard account names the guard on duty (on_duty_name, typed on
+        # the report form; older app versions don't send it and keep the account's name). Faculty & staff are
+        # their own account; only admins may name someone else.
+        role = role_of(request)
+        if role == 'admin':
+            reporter = data.get('reporting_guard') or 'OSA Administrator'
+        elif role == 'guard':
+            reporter = format_person_name(_short(data.get('on_duty_name'), 100)) or request.user.name or request.user.username
+        else:
+            reporter = request.user.name or request.user.username
         description = _short(data.get('description'), MAX_DESCRIPTION_CHARS)
         reports = []
         try:
@@ -880,6 +969,7 @@ class ViolationViewSet(viewsets.ModelViewSet):
                     violation_type=violation_type,
                     description=description,
                     reporting_guard=reporter,
+                    reporting_account=request.user.username,
                     status="Pending OSA Review",
                     offense_count=offense_count,
                     punishment=punishment_info["punishment"],
@@ -1047,6 +1137,110 @@ class ViolationViewSet(viewsets.ModelViewSet):
             'total': len(reports),
             **{key: [{'label': k, 'count': v} for k, v in c.most_common()] for key, c in counters.items()},
         })
+
+    @action(detail=False, methods=['get'])
+    def monthly_report(self, request):
+        """One month of violations and community service, for the printable monthly report (admin Analytics
+        and guard Analytics). ?month=YYYY-MM (Philippine time; default this month). Everyone gets the totals,
+        charts and college breakdown; admins also get repeat violators and the case list. Student IDs are
+        shown in full."""
+        ph = datetime.timezone(datetime.timedelta(hours=8))
+        today = datetime.datetime.now(ph)
+        try:
+            year, month = [int(x) for x in str(request.query_params.get('month') or '').split('-')]
+            datetime.date(year, month, 1)
+        except (TypeError, ValueError):
+            year, month = today.year, today.month
+        to_utc = lambda d: datetime.datetime(d.year, d.month, d.day, tzinfo=ph).astimezone(datetime.timezone.utc).replace(tzinfo=None)
+        first = datetime.date(year, month, 1)
+        next_first = datetime.date(year + (month == 12), month % 12 + 1, 1)
+        prev_first = datetime.date(year - (month == 1), (month - 2) % 12 + 1, 1)
+        start, end, prev_start = to_utc(first), to_utc(next_first), to_utc(prev_first)
+
+        # Any period instead of a month (the admin's PDF for a day, month, quarter or year):
+        # ?start=&end=&prev_start= as ISO times; the previous period runs from prev_start to start
+        def parse_time(value):
+            try:
+                dt = datetime.datetime.fromisoformat(str(value).replace('Z', '+00:00'))
+            except (TypeError, ValueError):
+                return None
+            return dt.astimezone(datetime.timezone.utc).replace(tzinfo=None) if dt.tzinfo else dt
+        q_start, q_end = parse_time(request.query_params.get('start')), parse_time(request.query_params.get('end'))
+        custom_range = bool(q_start and q_end and q_start < q_end and (q_end - q_start).days <= 400)
+        if custom_range:
+            q_prev = parse_time(request.query_params.get('prev_start'))
+            start, end = q_start, q_end
+            prev_start = q_prev if q_prev and q_prev < start else start - (end - start)
+
+        reports = list(ViolationReport.objects(created_at__gte=start, created_at__lt=end).only(
+            'id', 'student', 'violation_type', 'status', 'created_at').order_by('created_at'))
+        prev_total = ViolationReport.objects(created_at__gte=prev_start, created_at__lt=start).count()
+        student_refs = {getattr(r._data.get('student'), 'id', r._data.get('student')) for r in reports}
+        students = {s.id: s for s in Student.objects(id__in=[i for i in student_refs if i]).only('student_id', 'department')}
+        tickets = {getattr(t._data.get('violation'), 'id', t._data.get('violation')): t
+                   for t in ETicket.objects(violation__in=[r.id for r in reports]).only('violation', 'total_hours_required', 'remaining_hours', 'status')}
+
+        def status_label(r):
+            t = tickets.get(r.id)
+            if r.status == 'Dismissed':
+                return 'Dismissed'
+            if r.status == 'Pending OSA Review':
+                return 'Pending'
+            if r.status == 'Cleared' or (t and t.status == 'Cleared'):
+                return 'Cleared'
+            if r.status == 'Completed' or (t and t.status == 'Completed'):
+                return 'Completed'
+            return 'Active'
+
+        labels = {r.id: status_label(r) for r in reports}
+        counted = [r for r in reports if labels[r.id] != 'Dismissed']  # charts and breakdowns leave dismissed out
+        approved = [r for r in reports if labels[r.id] in ('Active', 'Completed', 'Cleared')]
+        completed = [r for r in approved if labels[r.id] in ('Completed', 'Cleared')]
+        hours_assigned = sum((tickets[r.id].total_hours_required or 0) for r in approved if r.id in tickets)
+        hours_rendered = sum(max(0, (tickets[r.id].total_hours_required or 0) - (tickets[r.id].remaining_hours or 0)) for r in approved if r.id in tickets)
+
+        from collections import Counter
+        by_type = Counter(r.violation_type or 'Other' for r in counted).most_common()
+        # W1 = days 1-7, W2 = 8-14, ... (a 29-31 day month has a short W5); a custom period has no weeks here
+        weeks = [] if custom_range else [0] * (((next_first - first).days - 1) // 7 + 1)
+        for r in reports if not custom_range else []:
+            day = r.created_at.replace(tzinfo=datetime.timezone.utc).astimezone(ph).day
+            weeks[(day - 1) // 7] += 1
+        def student_of(r):
+            return students.get(getattr(r._data.get('student'), 'id', r._data.get('student')))
+        by_college = Counter(
+            ((student_of(r).department if student_of(r) else None) or 'Not recorded') for r in counted).most_common()
+
+        data = {
+            'month': f'{year:04d}-{month:02d}',
+            'month_label': first.strftime('%B %Y'),
+            'generated_at': _aware_iso(utc_now()),
+            'generated_by': request.user.name or request.user.username,
+            'summary': {
+                'violations': len(reports),
+                'previous_month': prev_total,
+                'approved': len(approved),
+                'dismissed': sum(1 for r in reports if labels[r.id] == 'Dismissed'),
+                'pending': sum(1 for r in reports if labels[r.id] == 'Pending'),
+                'hours_rendered': round(hours_rendered, 1),
+                'hours_assigned': round(hours_assigned, 1),
+                'completed': len(completed),
+            },
+            'by_type': [{'label': k, 'count': v} for k, v in by_type],
+            'weekly': [{'label': f'W{i + 1}', 'count': c} for i, c in enumerate(weeks)],
+            'by_college': [{'label': k, 'count': v} for k, v in by_college],
+        }
+        if role_of(request) == 'admin':
+            per_student = Counter(student_of(r).student_id for r in counted if student_of(r))
+            data['repeat_violators'] = [{'student_id': sid, 'cases': n} for sid, n in per_student.most_common() if n >= 2][:10]
+            data['cases'] = [{
+                'date': r.created_at.replace(tzinfo=datetime.timezone.utc).astimezone(ph).strftime('%b %d'),
+                'student_id': (student_of(r).student_id if student_of(r) else ''),
+                'violation': r.violation_type,
+                'status': labels[r.id],
+                'hours': round(tickets[r.id].total_hours_required or 0, 1) if r.id in tickets else 0,
+            } for r in reports]
+        return Response(data)
 
     def _clearance_violation(self, kwargs):
         try:
@@ -1272,6 +1466,11 @@ class ETicketViewSet(viewsets.ModelViewSet):
             return ETicket.objects.none()
         else:
             qs = ETicket.objects(violation__in=ViolationReport.objects(student=student).only('id'))
+        scope = self.request.query_params.get('scope')
+        if self.action == 'list' and scope == 'open':
+            qs = qs.filter(status__ne='Cleared')
+        elif self.action == 'list' and scope == 'archived':
+            qs = qs.filter(status__in=['Cleared', 'Completed'])
         # select_related returns a plain list, which single-record routes (/etickets/<id>/) can't use
         return qs.select_related(max_depth=2) if self.action == 'list' else qs
 
@@ -1290,7 +1489,8 @@ class ETicketViewSet(viewsets.ModelViewSet):
             ref_id = getattr(ref, 'id', ref)
             if ref_id in students:
                 v._data['student'] = students[ref_id]
-        return Response(self.get_serializer(tickets, many=True).data)
+        context = {**self.get_serializer_context(), 'ticket_extras': ticket_list_extras(tickets)}
+        return Response(self.get_serializer(tickets, many=True, context=context).data)
 
     @action(detail=True, methods=['post'])
     def print_iso_form(self, request, id=None):
@@ -1425,6 +1625,7 @@ def end_session(log, eticket, reason, time_out=None, lat=None, lng=None, distanc
     if eticket.remaining_hours <= 0.01:
         eticket.remaining_hours = 0
         eticket.status = "Completed"
+        eticket.completed_at = utc_now()
         eticket.violation.status = "Completed"
         eticket.violation.save()
     else:
@@ -1462,6 +1663,13 @@ class TimeLogViewSet(viewsets.ModelViewSet):
         if self.action in ('log_time', 'location_ping', 'log_event', 'receipts'):
             return [IsLoggedIn()]
         return [IsAdmin()]
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        # ?scope=archived (the Archives page): only the sessions of finished tickets, not every session ever logged
+        if self.action == 'list' and self.request.query_params.get('scope') == 'archived':
+            qs = qs.filter(eticket__in=ETicket.objects(status__in=['Cleared', 'Completed']).only('id'))
+        return qs
 
     def _forbidden_ticket(self):
         return Response({"error": "This isn't your e-ticket."}, status=status.HTTP_403_FORBIDDEN)

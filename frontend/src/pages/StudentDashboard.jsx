@@ -1,16 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { AlertTriangle, Play, QrCode, Clock, Navigation, ChevronRight, Download, Loader2, CheckCircle2, CircleUserRound, Settings } from 'lucide-react';
-import { isoFormPdf, reflectionFormPdf } from '../lib/isoFormPdf';
+import { AlertTriangle, Play, QrCode, Clock, Info, ChevronRight, CheckCircle2 } from 'lucide-react';
 import saluteFace from '../assets/salute.png';
 import { ticketStatusLabel, deadlineNotice } from '../lib/ticketStatus';
 import usePolling from '../lib/usePolling';
 import QrScannerModal from '../components/QrScannerModal';
 import SessionReceipt from '../components/SessionReceipt';
 import TicketDetails from '../components/TicketDetails';
-import { useStudentTheme } from '../components/useStudentTheme';
+import { useStudentShell } from '../components/StudentShell';
 import { timeGreeting, todayLabel, studentStatusLine } from '../lib/greeting';
-import { distanceMeters, compassDirection, formatDistance, directionsUrl, outsideSiteMessage } from '../lib/geo';
+import { outsideSiteMessage } from '../lib/geo';
 
 // Service site QR codes hold only the site code, e.g. "LIB-01" (same rule as backend/core/site_views.py).
 // Checked after the OSA action/building codes, which look similar ("OSA-START", "CITC-DEPT").
@@ -130,9 +128,79 @@ const clearPendingStop = () => {
 };
 const clockTime = (ms) => new Date(ms).toLocaleTimeString('en-PH', { hour: 'numeric', minute: '2-digit' });
 
-const StudentDashboard = () => {
-    const navigate = useNavigate();
-    const { isDarkMode } = useStudentTheme();
+// "Community service remaining" on Home before timing in: the countdown (hh:mm:ss), the hours required
+// and the site, and how much is done. Same as mobile/app/student/dashboard.jsx.
+const hms = (hours) => {
+    const total = Math.max(0, Math.round((hours || 0) * 3600));
+    return [Math.floor(total / 3600), Math.floor(total / 60) % 60, total % 60].map((n) => String(n).padStart(2, '0')).join(':');
+};
+const hm = (hours) => {
+    const mins = Math.max(0, Math.round((hours || 0) * 60));
+    return `${Math.floor(mins / 60)}h ${mins % 60}m`;
+};
+// The 3-day deadline behind the (i) under "Not timed in": shows on hover, and on tap / click (phones)
+const DeadlineInfo = ({ ticket }) => {
+    const [open, setOpen] = useState(false);
+    const ref = useRef(null);
+    useEffect(() => {
+        if (!open) return undefined;
+        const away = (e) => { if (!ref.current?.contains(e.target)) setOpen(false); };
+        document.addEventListener('pointerdown', away);
+        return () => document.removeEventListener('pointerdown', away);
+    }, [open]);
+    const notice = deadlineNotice(ticket);
+    if (!notice) return null;
+    return (
+        <div ref={ref} className="relative" onMouseEnter={() => setOpen(true)} onMouseLeave={() => setOpen(false)}>
+            <button
+                type="button"
+                onClick={() => setOpen((o) => !o)}
+                aria-expanded={open}
+                aria-label={notice.title}
+                className={`flex h-7 w-7 items-center justify-center rounded-full ${notice.overdue ? 'text-[#dc2626]' : 'text-[var(--s-muted)] hover:text-[var(--s-text)]'}`}
+            >
+                <Info size={17} />
+            </button>
+            {open && (
+                <div role="tooltip" className={`absolute right-0 top-8 z-20 w-64 rounded-xl border p-3 text-left shadow-lg ${notice.overdue ? 'border-[#fca5a5] bg-[#fee2e2]' : 'border-[#fde68a] bg-[#fffbeb]'}`}>
+                    <p className={`text-sm font-black ${notice.overdue ? 'text-[#b91c1c]' : 'text-[#92400e]'}`}>{notice.title}</p>
+                    <p className={`mt-0.5 text-xs font-semibold leading-5 ${notice.overdue ? 'text-[#991b1b]' : 'text-[#92400e]'}`}>{notice.message}</p>
+                </div>
+            )}
+        </div>
+    );
+};
+const ServiceRemaining = ({ ticket, remainingHours }) => {
+    const required = ticket.total_hours_required || 0;
+    const done = Math.max(0, required - remainingHours);
+    const pct = required ? Math.min(100, Math.round((done / required) * 100)) : 0;
+    const site = ticket.assigned_site?.name || ticket.assigned_location;
+    return (
+        <div className="mb-4 w-full text-left">
+            <div className="flex items-center justify-between gap-2">
+                <p className="text-sm font-bold text-[var(--s-muted)]">Community service remaining</p>
+                <span className="shrink-0 rounded-full bg-[var(--s-bg)] px-2.5 py-1 text-[11px] font-bold text-[var(--s-muted)]">Not timed in</span>
+            </div>
+            {/* The (i) sits beside the countdown, under the pill, so it adds no height */}
+            <div className="mt-1 flex items-start justify-between gap-2">
+                <p className="font-mono text-[44px] font-black leading-tight tabular-nums tracking-tight text-[var(--s-text)]">{hms(remainingHours)}</p>
+                <DeadlineInfo ticket={ticket} />
+            </div>
+            <p className="text-[13px] font-medium text-[var(--s-muted)]">of {Math.round(required * 100) / 100} hrs required{site ? ` · ${site}` : ''}</p>
+            <div className="mt-3 h-2 overflow-hidden rounded-full bg-[var(--s-bg)]" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100} aria-label="Hours done">
+                <div className="h-full rounded-full bg-[var(--s-accent)]" style={{ width: `${pct}%` }} />
+            </div>
+            <div className="mt-1.5 flex justify-between text-xs font-semibold text-[var(--s-muted)]">
+                <span>{hm(done)} done</span>
+                <span>{pct}%</span>
+            </div>
+        </div>
+    );
+};
+
+const DashboardBody = () => {
+    // Theme, and the side menu's copy of the records (its badge and "hours remaining" stay current)
+    const { isDarkMode, setRecords } = useStudentShell();
     const [violations, setViolations] = useState([]);
     const [tickets, setTickets] = useState([]);
 
@@ -255,7 +323,8 @@ const StudentDashboard = () => {
         : 0;
 
     // Every 5 s while the tab is visible (the session state from the other device, the timer's base)
-    usePolling(() => fetchStudentData(), 5000, [user.username]);
+    // Every 5 s while a session runs (the server may stop it); otherwise every 30 s
+    usePolling(() => fetchStudentData(), timerActive ? 5000 : 30000, [user.username]);
 
     // Back online: record a stop saved while offline right away (fetchStudentData sends it first)
     useEffect(() => {
@@ -532,6 +601,7 @@ const StudentDashboard = () => {
 
             setViolations(studentViolations);
             setTickets(studentTickets);
+            setRecords({ violations: studentViolations, tickets: studentTickets });
 
             // Check for active Backend Timer
             if (openTickets.length > 0) {
@@ -577,7 +647,6 @@ const StudentDashboard = () => {
         let forcedLat = null;
         let forcedLng = null;
         let forcedRadius = 15; // 15 meters as requested
-        const pinnedLoc = JSON.parse(localStorage.getItem('pinned-citc-loc') || 'null');
 
         // 1. Dynamic Coordinate QR (LAT:8.485121,LNG:124.656512)
         if (payloadCode.includes("LAT:") && payloadCode.includes("LNG:")) {
@@ -745,33 +814,9 @@ const StudentDashboard = () => {
     const hub = activeTicket?.lat != null && activeTicket?.lng != null
         ? { lat: activeTicket.lat, lng: activeTicket.lng, radius: activeTicket.radius || 15 }
         : null;
-    const approachDistance = hub && location
-        ? distanceMeters({ latitude: location.lat, longitude: location.lng }, { latitude: hub.lat, longitude: hub.lng })
-        : null;
-    const approachInside = approachDistance != null && approachDistance <= hub.radius;
-    const approachDirection = hub && location
-        ? compassDirection({ latitude: location.lat, longitude: location.lng }, { latitude: hub.lat, longitude: hub.lng })
-        : '';
 
     // Hours served but not cleared yet: the student brings the signed ISO form and reflection paper to OSA
     const clearanceTicket = tickets.find((t) => t.status === 'Completed');
-    // The blank forms (PDF), filled in by hand: FM-USTP-OSA-013 time log and FM-USTP-OSA-14 reflection form.
-    // Any number of downloads, while the student has a violation to serve or to be cleared.
-    const formsTicket = activeTicket || clearanceTicket;
-    const [formBusy, setFormBusy] = useState(null);
-    const downloadForm = async (kind) => {
-        if (formBusy) return;
-        setFormBusy(kind);
-        try {
-            const pdf = await (kind === 'iso' ? isoFormPdf() : reflectionFormPdf());
-            pdf.save(kind === 'iso' ? 'FM-USTP-OSA-013 ISO Form.pdf' : 'FM-USTP-OSA-14 Reflection Form.pdf');
-        } catch {
-            alert("Couldn't make the form. Try again.");
-        } finally {
-            setFormBusy(null);
-        }
-    };
-
     // Hours served: the student still has to bring the signed ISO form to OSA to be cleared.
     // Shown after the time-out receipt, once per ticket.
     const completedTicket = !receipt && tickets.find((t) => t.status === 'Completed' && !seenCompleted.includes(t.id));
@@ -788,7 +833,7 @@ const StudentDashboard = () => {
         'bg-[#faf5ff] text-[#7c3aed]';
 
     return (
-        <div className="student-ui" data-theme={isDarkMode ? 'dark' : 'light'}>
+        <>
             {/* QR Scanner (start) */}
             {isScanning && (
                 <QrScannerModal
@@ -831,23 +876,15 @@ const StudentDashboard = () => {
                 />
             )}
 
-            <main className="mx-auto w-full max-w-xl px-5 pb-16 pt-4">
+            <main className="mx-auto w-full max-w-xl px-4 pb-10 pt-4">
                 {/* Header */}
-                <header className="mb-6 flex items-center justify-between">
+                <header className="mb-4 flex items-center justify-between">
                     <div className="flex-1">
                         <p className="mb-1 text-xs font-bold uppercase tracking-[1.5px] text-[var(--s-muted)]">{todayLabel()}</p>
-                        <h1 className="text-2xl font-black tracking-[0.3px] text-[var(--s-text)]">{timeGreeting()}, {displayName}</h1>
-                        <p className="mt-1 text-sm font-semibold text-[var(--s-muted)]">{studentStatusLine({ sessionActive: timerActive, openTicket: activeTicket })}</p>
-                    </div>
-                    {/* Profile settings (Help & Support is in there), like the mobile dashboard header */}
-                    <div className="flex items-center gap-2.5">
-                        <button
-                            onClick={() => navigate('/student/settings')}
-                            aria-label="Settings"
-                            className="flex h-11 w-11 items-center justify-center rounded-full bg-[var(--s-card)] text-[var(--s-text)] shadow-[0_2px_8px_rgba(0,0,0,0.05)] hover:border-[var(--s-primary)] hover:scale-105 active:scale-95 transition-all"
-                        >
-                            <Settings size={22} strokeWidth={2.2} />
-                        </button>
+                        <h2 className="text-2xl font-black tracking-[0.3px] text-[var(--s-text)]">{timeGreeting()}, {displayName}</h2>
+                        {(timerActive || activeTicket) && (
+                            <p className="mt-1 text-sm font-semibold text-[var(--s-muted)]">{studentStatusLine({ sessionActive: timerActive, openTicket: activeTicket })}</p>
+                        )}
                     </div>
                 </header>
 
@@ -864,165 +901,115 @@ const StudentDashboard = () => {
                     </div>
                 )}
 
-                {/* 3-day deadline: when to finish, and hours added for missed days */}
-                {(() => {
-                    const notice = deadlineNotice(activeTicket);
-                    if (!notice) return null;
-                    return (
-                        <div className={`mb-4 flex gap-3 rounded-[16px] border p-4 ${notice.overdue ? 'border-[#fca5a5] bg-[#fee2e2]' : 'border-[#fde68a] bg-[#fffbeb]'}`}>
-                            {notice.overdue
-                                ? <AlertTriangle size={20} className="mt-0.5 shrink-0 text-[#dc2626]" />
-                                : <Clock size={20} className="mt-0.5 shrink-0 text-[#d97706]" />}
-                            <div>
-                                <p className={`text-sm font-black ${notice.overdue ? 'text-[#b91c1c]' : 'text-[#92400e]'}`}>{notice.title}</p>
-                                <p className={`mt-0.5 text-xs font-semibold leading-5 ${notice.overdue ? 'text-[#991b1b]' : 'text-[#92400e]'}`}>{notice.message}</p>
-                            </div>
-                        </div>
-                    );
-                })()}
+                {/* Service card while there's community service to do; otherwise just a hello */}
+                {timerActive || activeTicket ? (
+                    <section className={`mb-4 rounded-[24px] bg-[var(--s-card)] p-4 sm:p-5 shadow-[0_8px_30px_rgba(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.2)] border border-[var(--s-border)] ${isOutOfBounds ? 'border-[1.5px] border-[#ef4444]' : ''}`}>
+                        {timerActive ? (
+                            <>
+                                <div className="mb-3 flex items-center">
+                                    <Play size={16} className={isOutOfBounds ? 'text-[#ef4444]' : 'text-[var(--s-success)]'} />
+                                    <span className={`ml-2 text-xs font-black uppercase tracking-[2px] ${isOutOfBounds ? 'text-[#ef4444]' : 'text-[var(--s-success)]'}`}>
+                                        Live Community Service
+                                    </span>
+                                </div>
+                                <div className="my-2 text-[52px] font-black leading-tight tabular-nums text-[var(--s-text)] font-mono">
+                                    {formatRemainingTime()}
+                                </div>
 
-                {/* Active Session Card / Service Obligation Hub */}
-                <section className={`mb-6 rounded-[28px] bg-[var(--s-card)] p-8 sm:p-10 shadow-[0_8px_30px_rgba(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.2)] border border-[var(--s-border)] ${isOutOfBounds ? 'border-[1.5px] border-[#ef4444]' : ''}`}>
-                    {timerActive ? (
-                        <>
-                            <div className="mb-3 flex items-center">
-                                <Play size={16} className={isOutOfBounds ? 'text-[#ef4444]' : 'text-[var(--s-success)]'} />
-                                <span className={`ml-2 text-xs font-black uppercase tracking-[2px] ${isOutOfBounds ? 'text-[#ef4444]' : 'text-[var(--s-success)]'}`}>
-                                    Live Community Service
-                                </span>
-                            </div>
-                            <div className="my-2 text-[52px] font-black leading-tight tabular-nums text-[var(--s-text)] font-mono">
-                                {formatRemainingTime()}
-                            </div>
+                                {/* Location status */}
+                                <div className={`mt-3 flex items-center gap-2 rounded-xl border p-3 ${isOutOfBounds ? 'border-[#fca5a5] bg-[#fee2e2]' : 'border-[var(--s-border)] bg-[var(--s-bg)]'}`}>
+                                    <span className={`h-2 w-2 rounded-full ${isOutOfBounds ? 'bg-[#ef4444]' : 'bg-[var(--s-success)]'}`} />
+                                    <span className={`text-[13px] font-bold ${isOutOfBounds ? 'text-[#ef4444]' : 'text-[var(--s-muted)]'}`}>
+                                        {!monitoringLocation || !location
+                                            ? 'Fetching location...'
+                                            : isOutOfBounds
+                                                ? `Out of bounds — ${Math.round(currentDistance)}m away`
+                                                : `Within service area — ${Math.round(currentDistance)}m from hub`}
+                                    </span>
+                                </div>
 
-                            {/* Location status */}
-                            <div className={`mt-3 flex items-center gap-2 rounded-xl border p-3 ${isOutOfBounds ? 'border-[#fca5a5] bg-[#fee2e2]' : 'border-[var(--s-border)] bg-[var(--s-bg)]'}`}>
-                                <span className={`h-2 w-2 rounded-full ${isOutOfBounds ? 'bg-[#ef4444]' : 'bg-[var(--s-success)]'}`} />
-                                <span className={`text-[13px] font-bold ${isOutOfBounds ? 'text-[#ef4444]' : 'text-[var(--s-muted)]'}`}>
-                                    {!monitoringLocation || !location
-                                        ? 'Fetching location...'
-                                        : isOutOfBounds
-                                            ? `Out of bounds — ${Math.round(currentDistance)}m away`
-                                            : `Within service area — ${Math.round(currentDistance)}m from hub`}
-                                </span>
-                            </div>
+                                {/* Unmounted while a scanner is open: iPhone Safari drew the map over the camera */}
+                                {hub && !isScanning && !showStopScanner && (
+                                    <GeofenceMap hub={hub} location={location} isOutOfBounds={isOutOfBounds} isDarkMode={isDarkMode} />
+                                )}
 
-                            {/* Unmounted while a scanner is open: iPhone Safari drew the map over the camera */}
-                            {hub && !isScanning && !showStopScanner && (
-                                <GeofenceMap hub={hub} location={location} isOutOfBounds={isOutOfBounds} isDarkMode={isDarkMode} />
-                            )}
-
-                            {warningCountdown !== null && (
-                                <div className="mt-4 flex items-center justify-between rounded-[18px] bg-[#e11d48] px-[18px] py-3.5 shadow-[0_4px_6px_rgba(225,29,72,0.2)]">
-                                    <div className="flex flex-1 items-center">
-                                        <AlertTriangle size={24} strokeWidth={2.5} className="text-white" />
-                                        <div className="ml-3">
-                                            <p className="text-[13px] font-black uppercase tracking-[0.5px] text-white">Warning: Out of Boundary</p>
-                                            <p className="mt-0.5 text-xs font-semibold text-[#fecdd3]">Return to area immediately!</p>
+                                {warningCountdown !== null && (
+                                    <div className="mt-4 flex items-center justify-between rounded-[18px] bg-[#e11d48] px-[18px] py-3.5 shadow-[0_4px_6px_rgba(225,29,72,0.2)]">
+                                        <div className="flex flex-1 items-center">
+                                            <AlertTriangle size={24} strokeWidth={2.5} className="text-white" />
+                                            <div className="ml-3">
+                                                <p className="text-[13px] font-black uppercase tracking-[0.5px] text-white">Warning: Out of Boundary</p>
+                                                <p className="mt-0.5 text-xs font-semibold text-[#fecdd3]">Return to area immediately!</p>
+                                            </div>
                                         </div>
+                                        <div className="rounded-xl bg-white px-3 py-1.5 text-xl font-black text-[#e11d48]">{warningCountdown}</div>
                                     </div>
-                                    <div className="rounded-xl bg-white px-3 py-1.5 text-xl font-black text-[#e11d48]">{warningCountdown}</div>
-                                </div>
-                            )}
+                                )}
 
-                            {endCooldown > 0 && (
-                                <div className="mt-4 flex items-center justify-center gap-1.5 rounded-xl border border-[#fde68a] bg-[#fffbeb] p-2.5 text-xs font-bold text-[#b45309]">
-                                    <Clock size={13} className="text-[#f59e0b]" />
-                                    Please wait {endCooldown}s before ending session
-                                </div>
-                            )}
-                            <button
-                                onClick={() => setShowStopScanner(true)}
-                                disabled={endCooldown > 0}
-                                className="mt-4 w-full rounded-2xl bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-700 hover:to-red-700 p-4 text-sm font-bold uppercase tracking-[1px] text-white disabled:opacity-50 shadow-lg shadow-rose-500/20 active:scale-[0.98] transition-all cursor-pointer"
-                            >
-                                {endCooldown > 0 ? `Scan to End Service (${endCooldown}s)` : 'Scan to End Service'}
-                            </button>
-                        </>
-                    ) : (
-                        <div className="text-center flex flex-col items-center">
-                            {/* Sky-blue icon container */}
-                            <div className="mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-[#eff6ff] text-[#1e3a8a] dark:bg-blue-950/50 dark:text-blue-400 border border-blue-100/60 dark:border-blue-900/40 shadow-xs">
-                                <QrCode size={30} strokeWidth={2.2} />
+                                {endCooldown > 0 && (
+                                    <div className="mt-4 flex items-center justify-center gap-1.5 rounded-xl border border-[#fde68a] bg-[#fffbeb] p-2.5 text-xs font-bold text-[#b45309]">
+                                        <Clock size={13} className="text-[#f59e0b]" />
+                                        Please wait {endCooldown}s before ending session
+                                    </div>
+                                )}
+                                <button
+                                    onClick={() => setShowStopScanner(true)}
+                                    disabled={endCooldown > 0}
+                                    className="mt-4 w-full rounded-2xl bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-700 hover:to-red-700 p-4 text-sm font-bold uppercase tracking-[1px] text-white disabled:opacity-50 shadow-lg shadow-rose-500/20 active:scale-[0.98] transition-all cursor-pointer"
+                                >
+                                    {endCooldown > 0 ? `Scan to End Service (${endCooldown}s)` : 'Scan to End Service'}
+                                </button>
+                            </>
+                        ) : (
+                            <div className="flex flex-col items-center text-center">
+                                {activeTicket ? (
+                                    <>
+                                        {/* 1. What's left to serve */}
+                                        <ServiceRemaining ticket={activeTicket} remainingHours={displayHours} />
+
+                                        {/* 2. The map to the site */}
+                                        {hub && (
+                                            <div className="mb-3 w-full text-left">
+                                                {!isScanning && !showStopScanner && (
+                                                    <GeofenceMap hub={hub} location={location} isOutOfBounds={false} isDarkMode={isDarkMode} approach />
+                                                )}
+                                            </div>
+                                        )}
+
+                                        {/* 3. Where to go */}
+                                        <p className="mb-3 max-w-md text-xs sm:text-sm font-medium leading-relaxed text-[var(--s-muted)]">
+                                            Go to <span className="font-bold text-[var(--s-text)]">{activeTicket.assigned_site?.name || activeTicket.assigned_location || 'your service site'}</span> and scan the QR code to start your timer.
+                                        </p>
+                                    </>
+                                ) : null}
+
+                                {/* 4. Time in */}
+                                <button 
+                                    onClick={() => setIsScanning(true)} 
+                                    className="inline-flex items-center justify-center gap-2.5 rounded-2xl bg-gradient-to-r from-[#1d4ed8] to-[#4338ca] hover:from-[#1e40af] hover:to-[#3730a3] px-8 py-3.5 text-sm font-bold text-white shadow-lg shadow-blue-500/25 hover:shadow-blue-500/35 hover:scale-[1.02] active:scale-[0.98] transition-all tracking-wide cursor-pointer"
+                                >
+                                    <QrCode size={18} strokeWidth={2.2} />
+                                    <span>Scan QR Code to Time-In</span>
+                                </button>
                             </div>
-
-                            {/* Title */}
-                            <h2 className="mb-2 text-xl sm:text-2xl font-black tracking-tight text-[var(--s-text)]">
-                                Service Obligation Hub
-                            </h2>
-
-                            {/* Subtitle */}
-                            {activeTicket?.assigned_site ? (
-                                <p className="mb-6 max-w-md text-xs sm:text-sm font-medium leading-relaxed text-[var(--s-muted)]">
-                                    Report to <span className="font-bold text-[var(--s-text)]">{activeTicket.assigned_site.name}</span> and scan your assigned location QR code to initiate real-time GPS-verified community service.
-                                </p>
-                            ) : (
-                                <p className="mb-6 max-w-md text-xs sm:text-sm font-medium leading-relaxed text-[var(--s-muted)]">
-                                    Scan your assigned location QR code to initiate real-time GPS-verified community service.
-                                </p>
-                            )}
-
-                            {/* Guide to the site: where you are, how far, which way */}
-                            {hub && (
-                                <div className="mb-6 w-full text-left">
-                                    <div className={`flex items-center gap-2 rounded-xl border p-3 ${approachInside ? 'border-[#a7f3d0] bg-[#ecfdf5]' : 'border-[var(--s-border)] bg-[var(--s-bg)]'}`}>
-                                        <Navigation size={14} className={approachInside ? 'text-[var(--s-success)]' : 'text-[var(--s-primary)]'} />
-                                        <span className={`text-[13px] font-bold ${approachInside ? 'text-[#047857]' : 'text-[var(--s-muted)]'}`}>
-                                            {!location
-                                                ? 'Finding your location…'
-                                                : approachInside
-                                                    ? "You're at the site. Scan the QR code to start."
-                                                    : `${activeTicket?.assigned_site?.name || 'Service site'}: ${formatDistance(approachDistance)} away, ${approachDirection}`}
-                                        </span>
-                                    </div>
-                                    {!isScanning && !showStopScanner && (
-                                        <GeofenceMap hub={hub} location={location} isOutOfBounds={false} isDarkMode={isDarkMode} approach />
-                                    )}
-                                    {!approachInside && (
-                                        <a
-                                            href={directionsUrl({ latitude: hub.lat, longitude: hub.lng })}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl border border-[var(--s-border)] bg-[var(--s-bg)] p-3 text-[13px] font-bold text-[var(--s-text)] hover:border-[var(--s-primary)] transition-all"
-                                        >
-                                            <Navigation size={15} /> Get directions
-                                        </a>
-                                    )}
-                                </div>
-                            )}
-
-                            {/* Action Button */}
-                            <button 
-                                onClick={() => setIsScanning(true)} 
-                                className="inline-flex items-center justify-center gap-2.5 rounded-2xl bg-gradient-to-r from-[#1d4ed8] to-[#4338ca] hover:from-[#1e40af] hover:to-[#3730a3] px-8 py-3.5 text-sm font-bold text-white shadow-lg shadow-blue-500/25 hover:shadow-blue-500/35 hover:scale-[1.02] active:scale-[0.98] transition-all tracking-wide cursor-pointer"
-                            >
-                                <QrCode size={18} strokeWidth={2.2} />
-                                <span>Scan QR Code to Time-In</span>
-                            </button>
+                        )}
+                    </section>
+                ) : !loading && (
+                    <section className="mb-4 flex items-center gap-3 rounded-[24px] border border-[var(--s-border)] bg-[var(--s-card)] p-4 sm:p-5">
+                        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#dcfce7] text-[#059669] dark:bg-emerald-500/15 dark:text-emerald-300">
+                            <CheckCircle2 size={22} />
+                        </span>
+                        <div className="min-w-0">
+                            <p className="text-base font-black text-[var(--s-text)]">Hello, {displayName}!</p>
+                            <p className="mt-0.5 text-sm font-medium text-[var(--s-muted)]">You currently don&apos;t have any community service to render.</p>
                         </div>
-                    )}
-                </section>
+                    </section>
+                )}
 
                 {/* E-Tickets */}
-                <section className="mb-6">
-                    <h2 className="mb-1 text-lg font-black text-[var(--s-text)]">E-Tickets</h2>
-                    <p className="mb-4 text-sm font-medium text-[var(--s-muted)]">Tap a ticket to see its service log</p>
-                    {/* The two forms to bring to OSA (only while there's a violation to serve or clear) */}
-                    {formsTicket && (
-                        <div className="mb-4 grid grid-cols-2 gap-2">
-                            {[['iso', 'ISO Form'], ['reflection', 'Reflection Form']].map(([kind, label]) => (
-                                <button
-                                    key={kind}
-                                    onClick={() => downloadForm(kind)}
-                                    disabled={!!formBusy}
-                                    className="flex items-center justify-center gap-1.5 rounded-xl border border-[var(--s-border)] bg-[var(--s-card)] px-3 py-2.5 text-xs font-bold text-[var(--s-text)] hover:border-[var(--s-primary)] disabled:opacity-60"
-                                >
-                                    {formBusy === kind ? <Loader2 size={15} className="animate-spin" /> : <Download size={15} />} {label}
-                                </button>
-                            ))}
-                        </div>
-                    )}
-
+                <section className="mb-4">
+                    <h2 className="mb-0.5 text-lg font-black text-[var(--s-text)]">E-Tickets</h2>
+                    <p className="mb-3 text-sm font-medium text-[var(--s-muted)]">Tap a ticket to see its service log and forms</p>
                     {loading ? (
                         <div className="mt-4 flex justify-center">
                             <span className="h-5 w-5 animate-spin rounded-full border-2 border-[var(--s-primary)] border-t-transparent" />
@@ -1055,8 +1042,9 @@ const StudentDashboard = () => {
                     )}
                 </section>
             </main>
-        </div>
+        </>
     );
 };
 
-export default StudentDashboard;
+// Home (inside the student layout, components/StudentShell.jsx)
+export default DashboardBody;
