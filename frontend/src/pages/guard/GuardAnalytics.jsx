@@ -35,7 +35,7 @@ const GuardAnalytics = () => {
             .catch((e) => { if (!cancelled) setError(e.message === 'server' ? "Couldn't load the analytics." : "Can't reach the server. Check your connection."); });
         setData(null);
         load();
-        const poll = setInterval(load, 30000);
+        const poll = setInterval(() => document.visibilityState === 'visible' && load(), 30000);
         return () => { cancelled = true; clearInterval(poll); };
     }, [period]);
 

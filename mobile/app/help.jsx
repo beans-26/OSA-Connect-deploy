@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, StatusBar, Platform, Linking, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, StatusBar, Linking, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import {
@@ -152,7 +152,7 @@ export default function Help() {
                                     </View>
                                     <View style={styles.stepText}>
                                         <Text style={styles.stepTitle}>{step.title}</Text>
-                                        <Text style={styles.body}>{step.text}</Text>
+                                        {!!step.text && <Text style={styles.body}>{step.text}</Text>}
                                     </View>
                                 </View>
                             ))}
@@ -167,13 +167,6 @@ export default function Help() {
                                 ))}
                             </Card>
                         ))}
-
-                        <Card icon={Scale} title="Violations and penalties" {...cardProps}>
-                            <View style={{ marginBottom: 14 }}>
-                                <Paragraphs items={help.student.penalties_note} styles={styles} />
-                            </View>
-                            <PenaltiesTable {...cardProps} />
-                        </Card>
 
                         <Card icon={Wrench} title="Troubleshooting" {...cardProps}>
                             {help.student.troubleshooting.map((item, i) => (
@@ -198,6 +191,7 @@ export default function Help() {
                     </>
                 )}
 
+                {!isStudent && (
                 <Card icon={LifeBuoy} title="Contact OSA" {...cardProps}>
                     {[[MapPin, contact.office], [Clock, contact.hours], [Mail, contact.email], [Phone, contact.phone]].map(([Icon, value]) => (
                         <View key={value} style={styles.contactRow}>
@@ -206,10 +200,15 @@ export default function Help() {
                         </View>
                     ))}
                 </Card>
+                )}
 
                 {isStudent && (
-                    <Card icon={ShieldCheck} title="Privacy notice" {...cardProps}>
+                    <Card icon={ShieldCheck} title="Privacy and safety" {...cardProps}>
                         <Paragraphs items={help.student.privacy} styles={styles} />
+                        <View style={styles.safetyBlock}>
+                            <Text style={[styles.stepTitle, { marginBottom: 8 }]}>{help.student.safety[0]}</Text>
+                            <Paragraphs items={help.student.safety.slice(1)} styles={styles} />
+                        </View>
                     </Card>
                 )}
 
@@ -343,10 +342,11 @@ const getStyles = (colors) => StyleSheet.create({
         paddingLeft: 12,
         paddingBottom: 18,
     },
+    safetyBlock: { marginTop: 16, paddingTop: 16, borderTopWidth: 1, borderTopColor: colors.border },
     stepTitle: {
         fontSize: 15,
-        lineHeight: 28,
-        fontWeight: '900',
+        lineHeight: 24,
+        fontWeight: '700',
         color: colors.text,
     },
     penaltyBox: {

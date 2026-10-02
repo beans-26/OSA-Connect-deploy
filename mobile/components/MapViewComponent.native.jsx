@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, StyleSheet } from 'react-native';
+import { View } from 'react-native';
 import MapView, { Circle, Marker, Polyline } from 'react-native-maps';
 
 export default function MapViewComponent({

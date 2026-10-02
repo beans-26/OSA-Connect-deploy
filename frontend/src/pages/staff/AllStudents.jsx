@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import usePolling from '../../lib/usePolling';
 import Sidebar from '../../components/Sidebar';
 import { Users, Search, Download, X } from 'lucide-react';
 import QRCode from 'react-qr-code';
@@ -14,12 +15,6 @@ const CourseOptions = () => DEPARTMENTS.map((dept) => (
     </optgroup>
 ));
 
-const PRESET_LOCATIONS = [
-    { name: 'OSA Admin Office (5-Foot Test)', lat: 8.4855, lng: 124.6564, radius: 2 },
-    { name: 'CITC Dept (5-Foot Test)', lat: 8.4858, lng: 124.6562, radius: 2 },
-    { name: 'CSM Dept (5-Foot Test)', lat: 8.4852, lng: 124.6568, radius: 2 },
-    { name: 'Campus Grounds', lat: 8.4853, lng: 124.6568, radius: 100 },
-];
 
 const AllStudents = () => {
     const userRole = JSON.parse(localStorage.getItem('user') || '{}').role || 'staff';
@@ -65,9 +60,10 @@ const AllStudents = () => {
         }
     };
 
+    // The whole student list: every minute, only while the tab is visible (was every 5 s)
+    usePolling(() => fetchStudents(), 60000);
+
     useEffect(() => {
-        fetchStudents();
-        const interval = setInterval(fetchStudents, 5000);
 
         // Opened from the dashboard's report shortcut (?bulk=true)
         const urlParams = new URLSearchParams(window.location.search);
@@ -76,16 +72,9 @@ const AllStudents = () => {
             // Remove the param from URL without refreshing
             window.history.replaceState({}, document.title, window.location.pathname);
         }
-
-        return () => clearInterval(interval);
     }, []);
 
 
-
-    const handleShowQR = (student) => {
-        setSelectedStudent(student);
-        setShowQRModal(true);
-    };
 
     const handleEditClick = (student) => {
         setSelectedStudent(student);
