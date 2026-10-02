@@ -121,18 +121,18 @@
       {
         "title": "Location isn't working",
         "a": [
-          "- Turn on location services (GPS). The app won't open the scanner while location is off.",
-          "- Allow location permission for OSAConnect.",
-          "- Turn on Precise location: Android 12+ in the app's location permission, iPhone under Settings > OSAConnect > Location.",
+          "- Turn on location services (GPS). The scanner won't open while location is off.",
+          "- Android (OSAConnect app): Settings > Apps > OSAConnect > Permissions > Location > Allow, and turn on Use precise location.",
+          "- iPhone (Safari): Settings > Privacy & Security > Location Services > Safari Websites > While Using the App, and turn on Precise Location.",
           "- If you see \"GPS signal lost\" during a session, turn location back on."
         ]
       },
       {
         "title": "The camera is blocked",
         "a": [
-          "- Android: Settings > Apps > OSAConnect > Permissions > Camera > Allow.",
-          "- iPhone: Settings > OSAConnect > Camera, then turn it on.",
-          "- Browser: tap the lock or camera icon in the address bar, set Camera to Allow, then reload the page.",
+          "- Android (OSAConnect app): Settings > Apps > OSAConnect > Permissions > Camera > Allow.",
+          "- iPhone (Safari): Settings > Apps > Safari > Camera > Allow (on older iPhones: Settings > Safari > Camera).",
+          "- Other browsers: tap the lock or camera icon in the address bar, set Camera to Allow, then reload the page.",
           "- Close other apps that might be using the camera."
         ]
       },

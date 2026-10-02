@@ -14,8 +14,9 @@ export const GEO_MESSAGES = {
     insecure: 'Location only works on a secure (https://) page. Open the site through its https:// address.',
     unsupported: "This browser can't read your location. Try Chrome or Safari on your phone.",
     permission:
-        'Location access is blocked. Allow it in your browser: tap the lock/info icon next to the address bar, ' +
-        'set Location to "Allow", then try again. On iPhone also check Settings > Privacy & Security > Location Services > Safari.',
+        'Location access is blocked. On iPhone (Safari): tap the page menu button on the left of the address bar (it shows aA or a page icon) > Website Settings > Location > Allow, ' +
+        'and check Settings > Privacy & Security > Location Services > Safari Websites. On other browsers: tap the lock icon ' +
+        'next to the address bar and set Location to Allow. Then try again.',
     unavailable: "Your phone couldn't get a GPS fix. Turn on Location/GPS and try again outdoors or near a window.",
     'not-enough': 'Not enough accurate readings. Try again outdoors or near a window.',
     cancelled: 'Location capture was cancelled.',
