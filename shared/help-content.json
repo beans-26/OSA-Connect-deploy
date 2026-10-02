@@ -21,7 +21,7 @@
         "title": "Go to your assigned location."
       },
       {
-        "title": "Scan the QR code and take a selfie to start the timer."
+        "title": "Scan the QR code to start the timer."
       },
       {
         "title": "Stay inside the service area while the timer runs."
@@ -150,15 +150,13 @@
       "- Account details: your name, student ID, course, department, year level, email, contact number, and password.",
       "- Reports: violation type, description, the reporter's name, and the date.",
       "- Location: the app reads your phone's GPS while your dashboard is open, to check the service area. Your location is sent to OSA only when you start a session.",
-      "OSA administrators can view reports and time logs in the admin dashboard.",
-      "Records are kept for [data retention period].",
-      "For questions or requests about your data, contact [data protection officer contact]."
+      "OSA administrators can view reports and time logs in the admin dashboard."
     ],
     "safety": [
       "Safety",
       "- Serve only at your assigned location. The timer only runs there, and only while your phone shows you inside the service area.",
       "- If you feel unsafe where you are serving, stop the timer and go to the nearest guard or the OSA office. The hours you served so far are kept.",
-      "- Never share your password or let someone else serve or scan for you. Each session is tied to your account and the selfie you take when you start.",
+      "- Never share your password or let someone else serve or scan for you. Each session is tied to your account and your phone's location.",
       "- OSA will never ask for your password by email, text or chat."
     ]
   },

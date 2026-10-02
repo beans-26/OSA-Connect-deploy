@@ -9,7 +9,7 @@ const APP_VERSION = '1.0';
 // The profile and contact details are on Personal Info.
 const SettingsBody = () => {
     const navigate = useNavigate();
-    const { isDarkMode, changeTheme, reminders, setReminders, openLogout } = useStudentShell();
+    const { isDarkMode, changeTheme, reminders, setReminders, dataSaver, setDataSaver, openLogout } = useStudentShell();
     return (
         <main className="mx-auto w-full max-w-xl px-4 pb-10 pt-4">
             <Group label="Appearance">
@@ -18,11 +18,14 @@ const SettingsBody = () => {
             <Group label="Notifications">
                 <ToggleRow title="Deadline reminders" subtitle="Remind me if I haven't served" checked={reminders} onChange={setReminders} />
             </Group>
+            <Group label="Data">
+                <ToggleRow title="Data saver" subtitle="Load the map only when tapped and refresh less often" checked={dataSaver} onChange={setDataSaver} />
+            </Group>
             <Group label="Security">
                 <Row title="Change password" onClick={() => navigate('/student/settings/password')} />
             </Group>
             <Group label="Support">
-                <Row title="Help & Support" subtitle="FAQ, penalties, troubleshooting and contact info" onClick={() => navigate('/help')} />
+                <Row title="Help & Support" subtitle="FAQ, penalties, troubleshooting and contact info" onClick={() => navigate('/student/help')} />
                 <Row title="About OSAConnect" value={`Version ${APP_VERSION}`} />
             </Group>
             <button

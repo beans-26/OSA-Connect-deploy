@@ -39,6 +39,7 @@ const Settings = page(() => import('./pages/student/Settings'));
 const PersonalInfo = page(() => import('./pages/student/PersonalInfo'));
 const StudentNotifications = page(() => import('./pages/student/Notifications'));
 const ChangePassword = page(() => import('./pages/student/ChangePassword'));
+const StudentHelp = page(() => import('./pages/student/Help'));
 const StudentShell = page(() => import('./components/StudentShell'));
 const Help = page(() => import('./pages/Help'));
 const LandingPage = page(() => import('./pages/LandingPage'));
@@ -95,7 +96,7 @@ const OldLoginRedirect = ({ to }) => <Navigate to={to} replace state={useLocatio
 const SIDEBAR_PAGES = /^\/(admin\/|help$|guard\/history$)/;
 // The student pages share one layout (components/StudentShell.jsx): one key, so it stays mounted and its
 // side menu slides closed over the next page (the layout fades the page content itself)
-const STUDENT_SHELL_PAGES = /^\/student\/(dashboard|personal-info|notifications|settings(\/password)?)$/;
+const STUDENT_SHELL_PAGES = /^\/student\/(dashboard|personal-info|notifications|help|settings(\/password)?)$/;
 
 // Fades each page in when the route changes. Opacity only: a transform here would
 // break the pages' position: fixed modals and menus while the animation runs.
@@ -162,6 +163,7 @@ function App() {
             <Route path="/student/settings/password" element={<ChangePassword />} />
             <Route path="/student/personal-info" element={<PersonalInfo />} />
             <Route path="/student/notifications" element={<StudentNotifications />} />
+            <Route path="/student/help" element={<StudentHelp />} />
           </Route>
           <Route path="/student/*" element={<Navigate to="/student/dashboard" replace />} />
           {/* Old link from when students were mobile-only */}
