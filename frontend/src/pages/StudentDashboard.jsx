@@ -7,6 +7,8 @@ import QrScannerModal from '../components/QrScannerModal';
 import SessionReceipt from '../components/SessionReceipt';
 import TicketDetails from '../components/TicketDetails';
 import { useStudentShell } from '../components/StudentShell';
+import MapGate from '../components/MapGate';
+import { IDLE_REFRESH_MS, SAVER_REFRESH_MS } from '../lib/studentNotifications';
 import { timeGreeting, todayLabel, studentStatusLine } from '../lib/greeting';
 import { outsideSiteMessage } from '../lib/geo';
 
@@ -200,7 +202,7 @@ const ServiceRemaining = ({ ticket, remainingHours }) => {
 
 const DashboardBody = () => {
     // Theme, and the side menu's copy of the records (its badge and "hours remaining" stay current)
-    const { isDarkMode, setRecords } = useStudentShell();
+    const { isDarkMode, setRecords, dataSaver } = useStudentShell();
     const [violations, setViolations] = useState([]);
     const [tickets, setTickets] = useState([]);
 
@@ -323,8 +325,9 @@ const DashboardBody = () => {
         : 0;
 
     // Every 5 s while the tab is visible (the session state from the other device, the timer's base)
-    // Every 5 s while a session runs (the server may stop it); otherwise every 30 s
-    usePolling(() => fetchStudentData(), timerActive ? 5000 : 30000, [user.username]);
+    // Every 5 s while a session runs (the server may stop it); otherwise every 30 s, or every 3 min with
+    // data saver on (coming back to the tab always refreshes right away)
+    usePolling(() => fetchStudentData(), timerActive ? 5000 : (dataSaver ? SAVER_REFRESH_MS : IDLE_REFRESH_MS), [user.username]);
 
     // Back online: record a stop saved while offline right away (fetchStudentData sends it first)
     useEffect(() => {
@@ -930,7 +933,7 @@ const DashboardBody = () => {
 
                                 {/* Unmounted while a scanner is open: iPhone Safari drew the map over the camera */}
                                 {hub && !isScanning && !showStopScanner && (
-                                    <GeofenceMap hub={hub} location={location} isOutOfBounds={isOutOfBounds} isDarkMode={isDarkMode} />
+                                    <MapGate><GeofenceMap hub={hub} location={location} isOutOfBounds={isOutOfBounds} isDarkMode={isDarkMode} /></MapGate>
                                 )}
 
                                 {warningCountdown !== null && (
@@ -971,7 +974,7 @@ const DashboardBody = () => {
                                         {hub && (
                                             <div className="mb-3 w-full text-left">
                                                 {!isScanning && !showStopScanner && (
-                                                    <GeofenceMap hub={hub} location={location} isOutOfBounds={false} isDarkMode={isDarkMode} approach />
+                                                    <MapGate><GeofenceMap hub={hub} location={location} isOutOfBounds={false} isDarkMode={isDarkMode} approach /></MapGate>
                                                 )}
                                             </div>
                                         )}

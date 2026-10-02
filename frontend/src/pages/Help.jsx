@@ -3,7 +3,7 @@ import { ChevronDown, Mail, Phone, MapPin, Clock, Scale, LifeBuoy, ShieldCheck, 
 import Sidebar from '../components/Sidebar';
 // Shared with the mobile app (mobile/app/help.jsx); see the _about note in the file
 import help from '../../../shared/help-content.json';
-import StudentHelp from './student/Help';
+import { Navigate } from 'react-router-dom';
 
 // Paragraphs starting with "- " are grouped into bullet lists
 const Paragraphs = ({ items }) => {
@@ -32,15 +32,19 @@ const Paragraphs = ({ items }) => {
 
 const answerFor = (item) => item.web || item.a || [];
 
-const Collapsible = ({ title, children, defaultOpen = false }) => (
-    <details open={defaultOpen} className="group border-b border-slate-100 last:border-b-0 dark:border-slate-700">
-        <summary className="flex cursor-pointer list-none items-center justify-between gap-4 py-4 text-left font-bold text-slate-800 dark:text-slate-100 [&::-webkit-details-marker]:hidden">
-            <span>{title}</span>
-            <ChevronDown size={18} className="shrink-0 text-slate-400 transition-transform group-open:rotate-180" />
-        </summary>
-        <div className="pb-5">{children}</div>
-    </details>
-);
+// A plain button, not <details>/<summary>: Safari doesn't lay out a <summary> as a flex row
+const Collapsible = ({ title, children, defaultOpen = false }) => {
+    const [open, setOpen] = useState(defaultOpen);
+    return (
+        <div className="border-b border-slate-100 last:border-b-0 dark:border-slate-700">
+            <button type="button" onClick={() => setOpen(!open)} aria-expanded={open} className="flex w-full items-center justify-between gap-4 py-4 text-left font-bold text-slate-800 dark:text-slate-100">
+                <span>{title}</span>
+                <ChevronDown size={18} className={`shrink-0 text-slate-400 transition-transform ${open ? 'rotate-180' : ''}`} />
+            </button>
+            {open && <div className="pb-5">{children}</div>}
+        </div>
+    );
+};
 
 const Section = ({ id, icon: Icon, title, intro, children }) => (
     <section id={id} className="card-premium scroll-mt-24 p-5 md:p-8">
@@ -111,7 +115,8 @@ const PenaltiesTable = () => {
 const Help = () => {
     const user = JSON.parse(localStorage.getItem('user') || '{}');
     const role = user.role;
-    if (role === 'student') return <StudentHelp />;
+    // Students have their own Help & Support inside the student layout
+    if (role === 'student') return <Navigate to="/student/help" replace />;
     const isAdmin = role === 'admin';
     const { contact, report_problem: problem } = help;
     const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(problem.email)}&su=${encodeURIComponent(problem.subject)}&body=${encodeURIComponent(problem.body)}`;

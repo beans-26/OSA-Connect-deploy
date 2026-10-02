@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
-  View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, StatusBar, AppState, Modal, Image
+  View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, StatusBar, AppState, Modal, Image, RefreshControl
 } from 'react-native';
 import { showAlert } from '../../components/showAlert';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -22,6 +22,8 @@ import { canTrackInBackground, startTracking, stopTracking, isTrackingSession, s
 import TicketDetails from '../../components/TicketDetails';
 import { ticketStatusLabel, deadlineNotice } from '../../components/ticketStatus';
 import { StudentTopBar, useStudentShell } from '../../components/StudentShell';
+import MapGate from '../../components/MapGate';
+import { IDLE_REFRESH_MS, SAVER_REFRESH_MS } from '../../components/studentNotifications';
 
 // Out of the area (or location off) this long stops the session; same as the website
 const OUT_OF_BOUNDS_S = 30;
@@ -107,7 +109,8 @@ export default function Dashboard() {
     const router = useRouter();
     const { isDarkMode, colors } = useTheme();
     // The side menu's copy of the records (its badge and "hours remaining" stay current)
-    const { setRecords } = useStudentShell();
+    const { setRecords, dataSaver } = useStudentShell();
+    const [refreshing, setRefreshing] = useState(false);
     const styles = getStyles(colors);
 
     const [violations, setViolations] = useState([]);
@@ -145,13 +148,19 @@ export default function Dashboard() {
 
     // Keyed on the user: AuthContext restores the session asynchronously, so it may be null on first render.
     // Polls like the web dashboard so actions taken on either platform show up here: every 5 s while a
-    // session runs (the server may stop it), otherwise every 30 s, and not while the app is in the background.
+    // session runs (the server may stop it), otherwise every 30 s (every 3 min with data saver on), and not
+    // while the app is in the background. Coming back to the app, or pulling the screen down, refreshes now.
     useEffect(() => {
         if (!user?.username) return;
         fetchData();
-        const poll = setInterval(() => AppState.currentState === 'active' && fetchData(), timerActive ? 5000 : 30000);
-        return () => clearInterval(poll);
-    }, [user?.username, timerActive]);
+        const poll = setInterval(() => AppState.currentState === 'active' && fetchData(), timerActive ? 5000 : (dataSaver ? SAVER_REFRESH_MS : IDLE_REFRESH_MS));
+        const sub = AppState.addEventListener('change', (state) => state === 'active' && fetchData());
+        return () => { clearInterval(poll); sub.remove(); };
+    }, [user?.username, timerActive, dataSaver]);
+    const pullRefresh = async () => {
+        setRefreshing(true);
+        try { await fetchData(); } finally { setRefreshing(false); }
+    };
 
     useEffect(() => {
         setupLocationTracking();
@@ -623,6 +632,7 @@ export default function Dashboard() {
                 style={styles.container}
                 contentContainerStyle={styles.scrollContent}
                 showsVerticalScrollIndicator={false}
+                refreshControl={<RefreshControl refreshing={refreshing} onRefresh={pullRefresh} colors={[colors.primary]} tintColor={colors.primary} />}
             >
                 {/* Header */}
                 <View style={styles.header}>
@@ -690,7 +700,8 @@ export default function Dashboard() {
                                     </View>
                                 )}
 
-                                {/* Geofence Map */}
+                                {/* Geofence Map (on tap with data saver on) */}
+                                <MapGate>
                                 <View style={styles.mapContainer}>
                                     <View style={styles.liveGpsBadge}>
                                         <Text style={styles.liveGpsText}>LIVE GPS FEED</Text>
@@ -728,6 +739,7 @@ export default function Dashboard() {
                                         <Text style={styles.mapLegendRadius}>Radius: {targetLocation ? targetLocation.radius : 50}m</Text>
                                     </View>
                                 </View>
+                                </MapGate>
                                 {isOutOfBounds && locationEnabled && (
                                     <View style={styles.redWarningBanner}>
                                         <View style={styles.redWarningLeft}>
@@ -779,6 +791,7 @@ export default function Dashboard() {
                                 {/* 2. The map to the site */}
                                 {siteTarget && (
                                     <View style={styles.approachBox}>
+                                        <MapGate>
                                         <View style={[styles.mapContainer, { height: 240, marginTop: 0 }]}>
                                             <View style={styles.liveGpsBadge}>
                                                 <Text style={styles.liveGpsText}>ROUTE TO SITE</Text>
@@ -810,6 +823,7 @@ export default function Dashboard() {
                                                 <Text style={styles.mapLegendRadius}>Radius: {targetLocation.radius}m · starts when you scan</Text>
                                             </View>
                                         </View>
+                                        </MapGate>
                                     </View>
                                 )}
                                 {/* 3. Where to go */}
