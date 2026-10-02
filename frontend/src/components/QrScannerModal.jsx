@@ -77,7 +77,7 @@ const QrScannerModal = ({ title, subtitle, accent = '#1e3a8a', allowUpload = fal
                 const msg = String(err?.name || err || '');
                 setErrorMsg(
                     /NotAllowed|Permission/i.test(msg)
-                        ? 'Camera access was blocked. Allow camera permission in your browser settings, then try again.'
+                        ? 'Camera access is blocked. On iPhone (Safari): tap the page menu button on the left of the address bar (it shows aA or a page icon) > Website Settings > Camera > Allow, and check Settings > Apps > Safari > Camera. On other browsers: tap the lock icon next to the address bar and allow Camera. Then try again.'
                         : /NotFound|no camera/i.test(msg)
                             ? `No camera was found on this device.${allowUpload ? ' You can upload a photo of the QR code instead.' : ''}`
                             : 'The camera could not be started. Close other apps using it and try again.'

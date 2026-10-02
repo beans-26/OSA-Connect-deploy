@@ -10,7 +10,7 @@ import { useStudentShell } from '../components/StudentShell';
 import MapGate from '../components/MapGate';
 import { IDLE_REFRESH_MS, SAVER_REFRESH_MS } from '../lib/studentNotifications';
 import { timeGreeting, todayLabel, studentStatusLine } from '../lib/greeting';
-import { outsideSiteMessage } from '../lib/geo';
+import { outsideSiteMessage, GEO_MESSAGES } from '../lib/geo';
 
 // Service site QR codes hold only the site code, e.g. "LIB-01" (same rule as backend/core/site_views.py).
 // Checked after the OSA action/building codes, which look similar ("OSA-START", "CITC-DEPT").
@@ -769,7 +769,7 @@ const DashboardBody = () => {
             });
         } catch (err) {
             console.error(err);
-            if (err.code === 1) alert("PERMISSION DENIED: Please reset location permissions in your browser settings.");
+            if (err.code === 1) alert(GEO_MESSAGES.permission);
             else if (err.code === 3) alert("GPS TIMEOUT: Move closer to a window for a better signal.");
             else alert("Error: " + (err.message || "Unknown Failure"));
         }
