@@ -1,12 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useLocation } from 'react-router-dom';
+import {  } from 'react-router-dom';
 import Sidebar from '../components/Sidebar';
 import QRCode from 'react-qr-code';
 import {
     AlertTriangle,
     Clock,
     FileText,
-    Inbox,
     User,
     Check,
     X,
@@ -27,14 +26,12 @@ import {
     ClipboardList,
     QrCode,
     CheckCircle,
-    Upload,
     Loader2,
     Archive
 } from 'lucide-react';
 import { timeGreeting, todayLabel, adminStatusLine } from '../lib/greeting';
 import { useServiceSites, ServiceSiteOptions, postAssignment } from '../components/useServiceSites';
 import { DEPARTMENTS, GENDERS, departmentShort } from '../lib/academics';
-import { photoToDataUrl } from '../lib/photo';
 import { ticketStatusLabel } from '../lib/ticketStatus';
 import ThemeToggle from '../components/ThemeToggle';
 import usePolling from '../lib/usePolling';
@@ -155,10 +152,9 @@ const ViolationModal = ({ report, ticket, onClose, onAction, onReassigned, onCle
     const [savingBuilding, setSavingBuilding] = useState(false);
     const [buildingError, setBuildingError] = useState('');
     const serviceSites = useServiceSites();
-    // Clearance: the two uploaded photos by kind, which one is uploading, and the approve in progress
+    // Clearance: the two photos by kind (taken with the phone camera link) and the approve in progress
     const [proofs, setProofs] = useState({});
     const [proofsLoading, setProofsLoading] = useState(false);
-    const [uploading, setUploading] = useState(null);
     const [clearing, setClearing] = useState(false);
     const [clearError, setClearError] = useState('');
     const clearance = report && awaitsClearance(report, ticket);
@@ -215,27 +211,6 @@ const ViolationModal = ({ report, ticket, onClose, onAction, onReassigned, onCle
         const timer = setInterval(check, 3000);
         return () => clearInterval(timer);
     }, [phoneLink, report?.id]);
-
-    const uploadProof = async (kind, file) => {
-        if (!file) return;
-        setUploading(kind);
-        setClearError('');
-        try {
-            const image = await photoToDataUrl(file);
-            const response = await fetch(`/api/violations/${report.id}/clearance_proof/`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ kind, image }),
-            });
-            const data = await response.json().catch(() => ({}));
-            if (!response.ok) throw new Error(data.error || "Couldn't upload the photo.");
-            setProofs((prev) => ({ ...prev, [kind]: { image, ...data } }));
-        } catch (e) {
-            setClearError(e.message === 'Failed to fetch' ? "Can't reach the server. Please try again." : e.message);
-        } finally {
-            setUploading(null);
-        }
-    };
 
     const approveClearance = async () => {
         setClearing(true);
@@ -518,7 +493,7 @@ const ViolationModal = ({ report, ticket, onClose, onAction, onReassigned, onCle
                             </h4>
                             <div className="rounded-[24px] border border-amber-200 dark:border-amber-500/30 bg-amber-50/60 dark:bg-amber-500/10 p-4 space-y-3">
                                 <p className="text-xs font-semibold text-amber-800 dark:text-amber-300">
-                                    Hours completed. Upload a photo of the student's signed ISO form and their reflection paper, then approve to move this violation to the archives.
+                                    Hours completed. Take a photo of the student's signed ISO form and their reflection paper with your phone camera, then approve to move this violation to the archives.
                                 </p>
                                 {proofsLoading ? (
                                     <div className="flex justify-center py-6"><Loader2 className="animate-spin text-slate-400" size={22} /></div>
@@ -526,7 +501,6 @@ const ViolationModal = ({ report, ticket, onClose, onAction, onReassigned, onCle
                                     <div className="grid grid-cols-2 gap-3">
                                         {CLEARANCE_FILES.map((f) => {
                                             const proof = proofs[f.kind];
-                                            const busy = uploading === f.kind;
                                             return (
                                                 <div key={f.kind} className="min-w-0 rounded-2xl border border-amber-200 dark:border-slate-700 bg-white dark:bg-slate-900/60 p-2.5 flex flex-col gap-2">
                                                     <div className="flex items-center justify-between gap-1.5">
@@ -540,17 +514,6 @@ const ViolationModal = ({ report, ticket, onClose, onAction, onReassigned, onCle
                                                     ) : (
                                                         <div className="h-32 rounded-lg bg-slate-50 dark:bg-slate-800 flex items-center justify-center px-2 text-center text-[10px] font-semibold text-slate-400">{f.hint}</div>
                                                     )}
-                                                    <label className={`flex items-center justify-center gap-1.5 w-full py-2 rounded-xl border-2 border-dashed font-black text-[9px] uppercase tracking-widest cursor-pointer transition-colors ${uploading ? 'opacity-60 pointer-events-none' : 'border-amber-300 dark:border-amber-500/40 text-amber-800 dark:text-amber-300 hover:bg-amber-100/60 dark:hover:bg-amber-500/10'}`}>
-                                                        {busy ? <Loader2 size={13} className="animate-spin" /> : <Upload size={13} />}
-                                                        {busy ? 'Uploading…' : proof?.image ? 'Replace' : 'Upload photo'}
-                                                        <input
-                                                            type="file"
-                                                            accept="image/*"
-                                                            capture="environment"
-                                                            className="hidden"
-                                                            onChange={(e) => { uploadProof(f.kind, e.target.files?.[0]); e.target.value = ''; }}
-                                                        />
-                                                    </label>
                                                 </div>
                                             );
                                         })}
@@ -633,8 +596,8 @@ const ViolationModal = ({ report, ticket, onClose, onAction, onReassigned, onCle
                     {clearance && (
                         <button
                             onClick={approveClearance}
-                            disabled={!bothUploaded || clearing || !!uploading}
-                            title={bothUploaded ? undefined : 'Upload the ISO form and the reflection paper first'}
+                            disabled={!bothUploaded || clearing}
+                            title={bothUploaded ? undefined : 'Take photos of the ISO form and the reflection paper first'}
                             className="w-full flex items-center justify-center gap-2 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                             {clearing ? <Loader2 size={16} className="animate-spin" /> : <Archive size={16} />}
@@ -671,7 +634,7 @@ const StaffDashboard = () => {
     const [notifications, setNotifications] = useState([]);
 
     // Every 5 s while the tab is open and visible
-    usePolling(() => fetchDashboardData(), 5000);
+    usePolling(() => fetchDashboardData(), 10000);
 
     const handleAction = async (reportId, newStatus) => {
         try {
@@ -686,10 +649,11 @@ const StaffDashboard = () => {
 
     const fetchDashboardData = async () => {
         try {
-            // Both at once. (Every time log used to be downloaded here too, every 5 s, but nothing used it.)
+            // Both at once, and only the cases still open (scope=open): cleared and dismissed cases from past
+            // months aren't re-downloaded on every refresh. (scope=open also includes the last 36 h for today's counts.)
             const [violations, tickets] = await Promise.all([
-                fetch('/api/violations/?t=' + Date.now()).then((r) => r.json()),
-                fetch('/api/etickets/?t=' + Date.now()).then((r) => r.json()).catch(() => []),
+                fetch('/api/violations/?scope=open&t=' + Date.now()).then((r) => r.json()),
+                fetch('/api/etickets/?scope=open&t=' + Date.now()).then((r) => r.json()).catch(() => []),
             ]);
 
             const today = new Date().toDateString();

@@ -1,15 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
-  View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, StatusBar, Platform, Linking, AppState, Modal, Image
+  View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, StatusBar, AppState, Modal, Image
 } from 'react-native';
 import { showAlert } from '../../components/showAlert';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { QrCode, Play, AlertTriangle, X, Clock, Navigation, ChevronRight, Download, CheckCircle2, CircleUserRound } from 'lucide-react-native';
-import * as Print from 'expo-print';
-import * as Sharing from 'expo-sharing';
-import { Directory, File, Paths } from 'expo-file-system';
-import { isoFormHtml } from '../../../shared/iso-form';
-import { reflectionFormHtml } from '../../../shared/reflection-form';
+import { QrCode, Play, AlertTriangle, Clock, Info, ChevronRight, CheckCircle2 } from 'lucide-react-native';
 import { useCameraPermissions } from 'expo-camera';
 import * as Location from 'expo-location';
 import { useAuth } from '../../components/AuthContext';
@@ -20,12 +15,13 @@ import { onCameraResult } from '../../components/cameraResults';
 import { parseServiceQr, serviceQrAction, NOT_A_START_QR, NOT_A_STOP_QR } from '../../components/serviceQr';
 import { useTheme } from '../../components/ThemeContext';
 import { timeGreeting, todayLabel, studentStatusLine } from '../../components/greeting';
-import { compassDirection, formatDistance, directionsUrl, outsideSiteMessage } from '../../components/geo';
+import { outsideSiteMessage } from '../../components/geo';
 import SessionReceipt from '../../components/SessionReceipt';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { canTrackInBackground, startTracking, stopTracking, isTrackingSession, sendLocationPing, notifyTimerStopped, LAST_RECEIPT_KEY } from '../../components/backgroundTracking';
 import TicketDetails from '../../components/TicketDetails';
 import { ticketStatusLabel, deadlineNotice } from '../../components/ticketStatus';
+import { StudentTopBar, useStudentShell } from '../../components/StudentShell';
 
 // Out of the area (or location off) this long stops the session; same as the website
 const OUT_OF_BOUNDS_S = 30;
@@ -49,16 +45,69 @@ const LiveTimer = ({ elapsedSeconds, requiredSeconds, textStyle }) => {
     return <Text style={textStyle}>{h}:{m}:{s}</Text>;
 };
 
-const formatTime = (date) => {
-    return new Date(date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
-};
-
 const COMPLETED_SEEN_KEY = 'osa-completed-notice-seen';
+
+// "Community service remaining" before timing in: the countdown (hh:mm:ss), the hours required and the
+// site, and how much is done. Same as ServiceRemaining in frontend/src/pages/StudentDashboard.jsx.
+const hms = (hours) => {
+    const total = Math.max(0, Math.round((hours || 0) * 3600));
+    return [Math.floor(total / 3600), Math.floor(total / 60) % 60, total % 60].map((n) => String(n).padStart(2, '0')).join(':');
+};
+const hm = (hours) => {
+    const mins = Math.max(0, Math.round((hours || 0) * 60));
+    return `${Math.floor(mins / 60)}h ${mins % 60}m`;
+};
+// The (i) under "Not timed in" shows the 3-day deadline when tapped (hover on the website)
+function ServiceRemaining({ ticket, colors, isDarkMode }) {
+    const [showDeadline, setShowDeadline] = useState(false);
+    const notice = deadlineNotice(ticket);
+    const remainingHours = ticket.base_remaining_hours ?? ticket.remaining_hours ?? 0;
+    const required = ticket.total_hours_required || 0;
+    const done = Math.max(0, required - remainingHours);
+    const pct = required ? Math.min(100, Math.round((done / required) * 100)) : 0;
+    const site = ticket.assigned_site?.name || ticket.assigned_location;
+    const accent = isDarkMode ? '#3b82f6' : '#2563eb';
+    return (
+        <View style={{ alignSelf: 'stretch', marginBottom: 14 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                <Text style={{ flexShrink: 1, fontSize: 14, fontWeight: '700', color: colors.textMuted }}>Community service remaining</Text>
+                <View style={{ backgroundColor: colors.background, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4 }}>
+                    <Text style={{ fontSize: 11, fontWeight: '700', color: colors.textMuted }}>Not timed in</Text>
+                </View>
+            </View>
+            {/* The (i) sits beside the countdown, under the pill, so it adds no height */}
+            <View style={{ marginTop: 4, flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 }}>
+                <Text style={{ fontSize: 44, fontWeight: '900', color: colors.text, fontVariant: ['tabular-nums'], letterSpacing: -0.5 }}>{hms(remainingHours)}</Text>
+                {notice && (
+                    <TouchableOpacity onPress={() => setShowDeadline((v) => !v)} hitSlop={10} style={{ paddingTop: 6, paddingRight: 4 }} accessibilityRole="button" accessibilityLabel={notice.title} accessibilityState={{ expanded: showDeadline }}>
+                        <Info size={18} color={notice.overdue ? '#dc2626' : colors.textMuted} />
+                    </TouchableOpacity>
+                )}
+            </View>
+            {notice && showDeadline && (
+                <View style={{ marginBottom: 8, borderWidth: 1, borderRadius: 12, padding: 12, borderColor: notice.overdue ? '#fca5a5' : '#fde68a', backgroundColor: notice.overdue ? '#fee2e2' : '#fffbeb' }}>
+                    <Text style={{ fontSize: 14, fontWeight: '900', color: notice.overdue ? '#b91c1c' : '#92400e' }}>{notice.title}</Text>
+                    <Text style={{ marginTop: 2, fontSize: 12, lineHeight: 18, fontWeight: '600', color: notice.overdue ? '#991b1b' : '#92400e' }}>{notice.message}</Text>
+                </View>
+            )}
+            <Text style={{ fontSize: 13, color: colors.textMuted }}>of {Math.round(required * 100) / 100} hrs required{site ? ` · ${site}` : ''}</Text>
+            <View style={{ marginTop: 12, height: 8, borderRadius: 4, backgroundColor: colors.background, overflow: 'hidden' }} accessibilityRole="progressbar" accessibilityValue={{ min: 0, max: 100, now: pct }}>
+                <View style={{ height: '100%', width: `${pct}%`, borderRadius: 4, backgroundColor: accent }} />
+            </View>
+            <View style={{ marginTop: 6, flexDirection: 'row', justifyContent: 'space-between' }}>
+                <Text style={{ fontSize: 12, fontWeight: '600', color: colors.textMuted }}>{hm(done)} done</Text>
+                <Text style={{ fontSize: 12, fontWeight: '600', color: colors.textMuted }}>{pct}%</Text>
+            </View>
+        </View>
+    );
+}
 
 export default function Dashboard() {
     const { user } = useAuth();
     const router = useRouter();
     const { isDarkMode, colors } = useTheme();
+    // The side menu's copy of the records (its badge and "hours remaining" stay current)
+    const { setRecords } = useStudentShell();
     const styles = getStyles(colors);
 
     const [violations, setViolations] = useState([]);
@@ -95,13 +144,14 @@ export default function Dashboard() {
     const locationSubscription = useRef(null);
 
     // Keyed on the user: AuthContext restores the session asynchronously, so it may be null on first render.
-    // Polls like the web dashboard so actions taken on either platform show up here.
+    // Polls like the web dashboard so actions taken on either platform show up here: every 5 s while a
+    // session runs (the server may stop it), otherwise every 30 s, and not while the app is in the background.
     useEffect(() => {
         if (!user?.username) return;
         fetchData();
-        const poll = setInterval(fetchData, 5000);
+        const poll = setInterval(() => AppState.currentState === 'active' && fetchData(), timerActive ? 5000 : 30000);
         return () => clearInterval(poll);
-    }, [user?.username]);
+    }, [user?.username, timerActive]);
 
     useEffect(() => {
         setupLocationTracking();
@@ -134,6 +184,7 @@ export default function Dashboard() {
                 : [];
             setViolations(studentViolations);
             setTickets(studentTickets);
+            setRecords({ violations: studentViolations, tickets: studentTickets });
             // Same ticket selection and countdown source as the web dashboard
             const activeTicket = studentTickets.find(t => t.status === 'Ongoing')
                 || studentTickets.find(t => t.status === 'Active');
@@ -212,48 +263,6 @@ export default function Dashboard() {
 
     // Hours served but not cleared yet: the student brings the signed ISO form and reflection paper to OSA
     const clearanceTicket = tickets.find((t) => t.status === 'Completed');
-    // The blank forms (PDF), filled in by hand: FM-USTP-OSA-013 time log (A4 landscape) and FM-USTP-OSA-14
-    // reflection form (A4 portrait). Any number of downloads, while there's a violation to serve or clear.
-    // Same as the website.
-    const formsTicket = openTicket || clearanceTicket;
-    const FORMS = {
-        iso: { label: 'ISO Form', file: 'FM-USTP-OSA-013 ISO Form.pdf', html: isoFormHtml, width: 842, height: 595 },
-        reflection: { label: 'Reflection Form', file: 'FM-USTP-OSA-14 Reflection Form.pdf', html: reflectionFormHtml, width: 595, height: 842 },
-    };
-    const DOWNLOAD_FOLDER = 'content://com.android.externalstorage.documents/tree/primary%3ADownload';
-    const [formBusy, setFormBusy] = useState(null);
-    const downloadForm = async (kind) => {
-        if (formBusy) return;
-        const form = FORMS[kind];
-        setFormBusy(kind);
-        try {
-            // A4 in points
-            const { uri } = await Print.printToFileAsync({ html: form.html(), width: form.width, height: form.height });
-            const pdf = new File(Paths.cache, form.file);
-            if (pdf.exists) pdf.delete();
-            await new File(uri).move(pdf);
-
-            // Android: saved in the phone's Download folder. Apps can only write there after the student
-            // picks it, so the folder picker opens on Download. Elsewhere: the share sheet.
-            if (Platform.OS === 'android') {
-                let folder;
-                try {
-                    folder = await Directory.pickDirectoryAsync(DOWNLOAD_FOLDER);
-                } catch {
-                    return; // Picker closed
-                }
-                folder.createFile(form.file, 'application/pdf').write(await pdf.bytes());
-                showAlert(`${form.label} downloaded`, `Saved as ${form.file} in the folder you picked (Download).`);
-            } else {
-                await Sharing.shareAsync(pdf.uri, { mimeType: 'application/pdf', UTI: 'com.adobe.pdf', dialogTitle: `Save ${form.label}` });
-            }
-        } catch {
-            showAlert('Download failed', `Couldn't make the ${form.label.toLowerCase()}. Try again.`);
-        } finally {
-            setFormBusy(null);
-        }
-    };
-
     // Records something that happened during the session for the time-out receipt
     const logSessionEvent = (type) => {
         if (!openTicket) return;
@@ -581,9 +590,6 @@ export default function Dashboard() {
     // (only when the ticket has a real location; targetLocation falls back to a default campus point)
     const openStation = (tickets.find(t => t.status === 'Ongoing') || tickets.find(t => t.status === 'Active'))?.station;
     const siteTarget = targetLocation && openStation?.lat != null ? { latitude: targetLocation.lat, longitude: targetLocation.lng } : null;
-    const approachDistance = siteTarget && location ? getDistance(location.latitude, location.longitude, siteTarget.latitude, siteTarget.longitude) : null;
-    const approachInside = approachDistance != null && approachDistance <= (targetLocation?.radius || 50);
-    const approachDirection = siteTarget && location ? compassDirection(location, siteTarget) : '';
 
     return (
         <View style={{ flex: 1 }}>
@@ -611,7 +617,8 @@ export default function Dashboard() {
         </Modal>
         <TicketDetails ticket={openedTicket} onClose={() => setOpenedTicket(null)} />
         <SafeAreaView style={styles.safeArea}>
-            <StatusBar barStyle={isDarkMode ? "light-content" : "dark-content"} backgroundColor={colors.background} />
+            <StatusBar barStyle={isDarkMode ? "light-content" : "dark-content"} backgroundColor={colors.card} />
+            <StudentTopBar title="Home" />
             <ScrollView
                 style={styles.container}
                 contentContainerStyle={styles.scrollContent}
@@ -622,13 +629,9 @@ export default function Dashboard() {
                     <View style={styles.headerLeft}>
                         <Text style={styles.greeting}>{todayLabel()}</Text>
                         <Text style={styles.userName}>{timeGreeting()}, {displayName}</Text>
-                        <Text style={styles.subGreeting}>{studentStatusLine({ sessionActive: timerActive, openTicket: tickets.find(t => t.status === 'Ongoing') || tickets.find(t => t.status === 'Active') })}</Text>
-                    </View>
-                    <View style={styles.headerRight}>
-                        {/* Profile settings (Help & Support is in there). Same as the website. */}
-                        <TouchableOpacity style={styles.iconButton} onPress={() => router.push('/student/settings')} accessibilityLabel="Profile settings">
-                            <CircleUserRound size={24} color={colors.text} strokeWidth={2.2} />
-                        </TouchableOpacity>
+                        {(timerActive || openTicket) && (
+                            <Text style={styles.subGreeting}>{studentStatusLine({ sessionActive: timerActive, openTicket })}</Text>
+                        )}
                     </View>
                 </View>
 
@@ -645,238 +648,198 @@ export default function Dashboard() {
                     </View>
                 )}
 
-                {/* 3-day deadline: when to finish, and hours added for missed days. Same as the website. */}
-                {(() => {
-                    const notice = deadlineNotice(openTicket);
-                    if (!notice) return null;
-                    return (
-                        <View style={[styles.deadlineBox, notice.overdue && styles.deadlineBoxOverdue]}>
-                            {notice.overdue
-                                ? <AlertTriangle size={20} color="#dc2626" style={{ marginTop: 2 }} />
-                                : <Clock size={20} color="#d97706" style={{ marginTop: 2 }} />}
-                            <View style={{ flex: 1 }}>
-                                <Text style={[styles.deadlineTitle, notice.overdue && { color: '#b91c1c' }]}>{notice.title}</Text>
-                                <Text style={[styles.deadlineText, notice.overdue && { color: '#991b1b' }]}>{notice.message}</Text>
-                            </View>
-                        </View>
-                    );
-                })()}
-
-                {/* Active Session Card */}
-                <View style={[styles.sessionCard, isOutOfBounds && styles.sessionCardWarning]}>
-                    {timerActive ? (
-                        <>
-                            <View style={styles.sessionCardHeader}>
-                                <Play size={16} color={isOutOfBounds ? '#ef4444' : colors.success} />
-                                <Text style={[styles.sessionCardTitle, isOutOfBounds && { color: '#ef4444' }]}>
-                                    Live Community Service
-                                </Text>
-                            </View>
-                            <View style={styles.timerContainer}>
-                                <LiveTimer
-                                    elapsedSeconds={elapsedSeconds}
-                                    requiredSeconds={requiredSeconds}
-                                    textStyle={styles.timerText}
-                                />
-                            </View>
-                            {/* Location status */}
-                            <View style={[styles.locationCard, isOutOfBounds && styles.locationCardWarn]}>
-                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                                    <View style={[styles.locationDot, isOutOfBounds && styles.locationDotWarn]} />
-                                    <Text style={[styles.locationStatus, isOutOfBounds && { color: '#ef4444' }]}>
-                                        {location
-                                            ? isOutOfBounds
-                                                ? `Out of bounds — ${Math.round(currentDistance)}m away`
-                                                : `Within service area — ${Math.round(currentDistance)}m from hub`
-                                            : 'Fetching location...'}
+                {/* Service card while there's community service to do; otherwise just a hello. Same as the website. */}
+                {timerActive || openTicket ? (
+                    <View style={[styles.sessionCard, isOutOfBounds && styles.sessionCardWarning]}>
+                        {timerActive ? (
+                            <>
+                                <View style={styles.sessionCardHeader}>
+                                    <Play size={16} color={isOutOfBounds ? '#ef4444' : colors.success} />
+                                    <Text style={[styles.sessionCardTitle, isOutOfBounds && { color: '#ef4444' }]}>
+                                        Live Community Service
                                     </Text>
                                 </View>
-                            </View>
-
-                            {/* 20-second cooldown indicator */}
-                            {scanCooldown > 0 && (
-                                <View style={styles.cooldownBox}>
-                                    <Clock size={13} color="#f59e0b" />
-                                    <Text style={styles.cooldownText}>
-                                        Please wait {scanCooldown}s before ending session
-                                    </Text>
+                                <View style={styles.timerContainer}>
+                                    <LiveTimer
+                                        elapsedSeconds={elapsedSeconds}
+                                        requiredSeconds={requiredSeconds}
+                                        textStyle={styles.timerText}
+                                    />
                                 </View>
-                            )}
-
-                            {/* Geofence Map */}
-                            <View style={styles.mapContainer}>
-                                <View style={styles.liveGpsBadge}>
-                                    <Text style={styles.liveGpsText}>LIVE GPS FEED</Text>
-                                </View>
-                                <MapViewComponent
-                                    style={styles.map}
-                                    region={{
-                                        latitude: targetLocation ? targetLocation.lat : 8.4859,
-                                        longitude: targetLocation ? targetLocation.lng : 124.6567,
-                                        latitudeDelta: 0.0015,
-                                        longitudeDelta: 0.0015,
-                                    }}
-                                    isDarkMode={isDarkMode}
-                                    darkMapStyle={darkMapStyle}
-                                    targetLocation={targetLocation}
-                                    isOutOfBounds={isOutOfBounds}
-                                    location={location}
-                                    hubMarkerDotStyle={styles.hubMarkerDot}
-                                    studentMarkerDotStyle={[
-                                        styles.studentMarkerDot,
-                                        { backgroundColor: isOutOfBounds ? '#ef4444' : '#10b981' }
-                                    ]}
-                                />
-                                <View style={styles.mapLegend}>
-                                    <View style={styles.mapLegendItem}>
-                                        <View style={[styles.mapLegendDot, { backgroundColor: '#1e3a8a' }]} />
-                                        <Text style={styles.mapLegendText}>Service site</Text>
-                                    </View>
-                                    {location && (
-                                        <View style={styles.mapLegendItem}>
-                                            <View style={[styles.mapLegendDot, { backgroundColor: isOutOfBounds ? '#ef4444' : '#10b981' }]} />
-                                            <Text style={styles.mapLegendText}>You</Text>
-                                        </View>
-                                    )}
-                                    <Text style={styles.mapLegendRadius}>Radius: {targetLocation ? targetLocation.radius : 50}m</Text>
-                                </View>
-                            </View>
-                            {isOutOfBounds && locationEnabled && (
-                                <View style={styles.redWarningBanner}>
-                                    <View style={styles.redWarningLeft}>
-                                        <AlertTriangle size={24} color="#ffffff" strokeWidth={2.5} />
-                                        <View style={styles.redWarningTextContainer}>
-                                            <Text style={styles.redWarningTitle}>WARNING: OUT OF BOUNDARY</Text>
-                                            <Text style={styles.redWarningSubtitle}>Return to area immediately!</Text>
-                                        </View>
-                                    </View>
-                                    <View style={styles.redWarningTimerBox}>
-                                        <Text style={styles.redWarningTimerText}>{warningCountdown ?? OUT_OF_BOUNDS_S}</Text>
-                                    </View>
-                                </View>
-                            )}
-                            {!locationEnabled && (
-                                <View style={[styles.redWarningBanner, { backgroundColor: '#f59e0b', shadowColor: '#f59e0b' }]}>
-                                    <View style={styles.redWarningLeft}>
-                                        <AlertTriangle size={24} color="#ffffff" strokeWidth={2.5} />
-                                        <View style={styles.redWarningTextContainer}>
-                                            <Text style={styles.redWarningTitle}>GPS SIGNAL LOST</Text>
-                                            <Text style={[styles.redWarningSubtitle, { color: '#fef3c7' }]}>
-                                                Turn location back on or your timer stops!
-                                            </Text>
-                                        </View>
-                                    </View>
-                                    {timerActive && warningCountdown != null && (
-                                        <View style={styles.redWarningTimerBox}>
-                                            <Text style={[styles.redWarningTimerText, { color: '#f59e0b' }]}>{warningCountdown}</Text>
-                                        </View>
-                                    )}
-                                </View>
-                            )}
-                            <TouchableOpacity
-                                style={[styles.endButtonBlue, scanCooldown > 0 && styles.endButtonDisabled]}
-                                onPress={scanCooldown === 0 ? startScan : null}
-                                activeOpacity={scanCooldown > 0 ? 1 : 0.7}
-                            >
-                                <Text style={styles.endButtonBlueText}>
-                                    {scanCooldown > 0 ? `Scan to End (${scanCooldown}s)` : 'Scan to End Service'}
-                                </Text>
-                            </TouchableOpacity>
-                        </>
-                    ) : (
-                        <>
-                            <View style={styles.noSessionIcon}>
-                                <QrCode size={48} color={colors.border} strokeWidth={1.5} />
-                            </View>
-                            <Text style={styles.noSessionTitle}>No Active Session</Text>
-                            {assignedSite ? (
-                                // Assigned by the admin: only this site's QR starts the timer
-                                <Text style={styles.noSessionSubtitle}>
-                                    Go to <Text style={{ fontWeight: '900', color: colors.text }}>{assignedSite.name}</Text> and scan{'\n'}the QR code posted there to start.
-                                </Text>
-                            ) : (
-                                <Text style={styles.noSessionSubtitle}>
-                                    Scan an activity QR code to start{'\n'}tracking your community service hours.
-                                </Text>
-                            )}
-                            {/* Guide to the site: where you are, how far, which way */}
-                            {siteTarget && (
-                                <View style={styles.approachBox}>
-                                    <View style={[styles.approachStatus, approachInside && styles.approachStatusInside]}>
-                                        <Navigation size={14} color={approachInside ? '#059669' : colors.primary} />
-                                        <Text style={[styles.approachStatusText, approachInside && { color: '#047857' }]}>
-                                            {!location
-                                                ? 'Finding your location…'
-                                                : approachInside
-                                                    ? "You're at the site. Scan the QR code to start."
-                                                    : `${assignedSite?.name || 'Service site'}: ${formatDistance(approachDistance)} away, ${approachDirection}`}
+                                {/* Location status */}
+                                <View style={[styles.locationCard, isOutOfBounds && styles.locationCardWarn]}>
+                                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                                        <View style={[styles.locationDot, isOutOfBounds && styles.locationDotWarn]} />
+                                        <Text style={[styles.locationStatus, isOutOfBounds && { color: '#ef4444' }]}>
+                                            {location
+                                                ? isOutOfBounds
+                                                    ? `Out of bounds — ${Math.round(currentDistance)}m away`
+                                                    : `Within service area — ${Math.round(currentDistance)}m from hub`
+                                                : 'Fetching location...'}
                                         </Text>
                                     </View>
-                                    <View style={[styles.mapContainer, { height: 280 }]}>
-                                        <View style={styles.liveGpsBadge}>
-                                            <Text style={styles.liveGpsText}>ROUTE TO SITE</Text>
+                                </View>
+
+                                {/* 20-second cooldown indicator */}
+                                {scanCooldown > 0 && (
+                                    <View style={styles.cooldownBox}>
+                                        <Clock size={13} color="#f59e0b" />
+                                        <Text style={styles.cooldownText}>
+                                            Please wait {scanCooldown}s before ending session
+                                        </Text>
+                                    </View>
+                                )}
+
+                                {/* Geofence Map */}
+                                <View style={styles.mapContainer}>
+                                    <View style={styles.liveGpsBadge}>
+                                        <Text style={styles.liveGpsText}>LIVE GPS FEED</Text>
+                                    </View>
+                                    <MapViewComponent
+                                        style={styles.map}
+                                        region={{
+                                            latitude: targetLocation ? targetLocation.lat : 8.4859,
+                                            longitude: targetLocation ? targetLocation.lng : 124.6567,
+                                            latitudeDelta: 0.0015,
+                                            longitudeDelta: 0.0015,
+                                        }}
+                                        isDarkMode={isDarkMode}
+                                        darkMapStyle={darkMapStyle}
+                                        targetLocation={targetLocation}
+                                        isOutOfBounds={isOutOfBounds}
+                                        location={location}
+                                        hubMarkerDotStyle={styles.hubMarkerDot}
+                                        studentMarkerDotStyle={[
+                                            styles.studentMarkerDot,
+                                            { backgroundColor: isOutOfBounds ? '#ef4444' : '#10b981' }
+                                        ]}
+                                    />
+                                    <View style={styles.mapLegend}>
+                                        <View style={styles.mapLegendItem}>
+                                            <View style={[styles.mapLegendDot, { backgroundColor: '#1e3a8a' }]} />
+                                            <Text style={styles.mapLegendText}>Service site</Text>
                                         </View>
-                                        <MapViewComponent
-                                            style={[styles.map, { height: 280 }]}
-                                            region={{ latitude: targetLocation.lat, longitude: targetLocation.lng, latitudeDelta: 0.004, longitudeDelta: 0.004 }}
-                                            isDarkMode={isDarkMode}
-                                            darkMapStyle={darkMapStyle}
-                                            targetLocation={targetLocation}
-                                            isOutOfBounds={false}
-                                            location={location}
-                                            approach
-                                            hubMarkerDotStyle={styles.hubMarkerDot}
-                                            studentMarkerDotStyle={[styles.studentMarkerDot, { backgroundColor: '#0ea5e9' }]}
-                                        />
-                                        {/* Same legend as the website's map */}
-                                        <View style={styles.mapLegend}>
+                                        {location && (
                                             <View style={styles.mapLegendItem}>
-                                                <View style={[styles.mapLegendDot, { backgroundColor: '#1e3a8a' }]} />
-                                                <Text style={styles.mapLegendText}>Service site</Text>
+                                                <View style={[styles.mapLegendDot, { backgroundColor: isOutOfBounds ? '#ef4444' : '#10b981' }]} />
+                                                <Text style={styles.mapLegendText}>You</Text>
                                             </View>
-                                            {location && (
-                                                <View style={styles.mapLegendItem}>
-                                                    <View style={[styles.mapLegendDot, { backgroundColor: '#0ea5e9' }]} />
-                                                    <Text style={styles.mapLegendText}>You</Text>
-                                                </View>
-                                            )}
-                                            <Text style={styles.mapLegendRadius}>Radius: {targetLocation.radius}m · starts when you scan</Text>
+                                        )}
+                                        <Text style={styles.mapLegendRadius}>Radius: {targetLocation ? targetLocation.radius : 50}m</Text>
+                                    </View>
+                                </View>
+                                {isOutOfBounds && locationEnabled && (
+                                    <View style={styles.redWarningBanner}>
+                                        <View style={styles.redWarningLeft}>
+                                            <AlertTriangle size={24} color="#ffffff" strokeWidth={2.5} />
+                                            <View style={styles.redWarningTextContainer}>
+                                                <Text style={styles.redWarningTitle}>WARNING: OUT OF BOUNDARY</Text>
+                                                <Text style={styles.redWarningSubtitle}>Return to area immediately!</Text>
+                                            </View>
+                                        </View>
+                                        <View style={styles.redWarningTimerBox}>
+                                            <Text style={styles.redWarningTimerText}>{warningCountdown ?? OUT_OF_BOUNDS_S}</Text>
                                         </View>
                                     </View>
-                                    {!approachInside && (
-                                        <TouchableOpacity
-                                            style={styles.directionsButton}
-                                            onPress={() => Linking.openURL(directionsUrl(siteTarget)).catch(() => showAlert('Maps unavailable', "Couldn't open a maps app on this phone."))}
-                                        >
-                                            <Navigation size={15} color={colors.text} />
-                                            <Text style={styles.directionsText}>Get directions</Text>
-                                        </TouchableOpacity>
-                                    )}
-                                </View>
-                            )}
-                            <TouchableOpacity style={styles.scanCta} onPress={startScan}>
-                                <Text style={styles.scanCtaText}>Scan QR Code</Text>
-                            </TouchableOpacity>
-                        </>
-                    )}
-                </View>
+                                )}
+                                {!locationEnabled && (
+                                    <View style={[styles.redWarningBanner, { backgroundColor: '#f59e0b', shadowColor: '#f59e0b' }]}>
+                                        <View style={styles.redWarningLeft}>
+                                            <AlertTriangle size={24} color="#ffffff" strokeWidth={2.5} />
+                                            <View style={styles.redWarningTextContainer}>
+                                                <Text style={styles.redWarningTitle}>GPS SIGNAL LOST</Text>
+                                                <Text style={[styles.redWarningSubtitle, { color: '#fef3c7' }]}>
+                                                    Turn location back on or your timer stops!
+                                                </Text>
+                                            </View>
+                                        </View>
+                                        {timerActive && warningCountdown != null && (
+                                            <View style={styles.redWarningTimerBox}>
+                                                <Text style={[styles.redWarningTimerText, { color: '#f59e0b' }]}>{warningCountdown}</Text>
+                                            </View>
+                                        )}
+                                    </View>
+                                )}
+                                <TouchableOpacity
+                                    style={[styles.endButtonBlue, scanCooldown > 0 && styles.endButtonDisabled]}
+                                    onPress={scanCooldown === 0 ? startScan : null}
+                                    activeOpacity={scanCooldown > 0 ? 1 : 0.7}
+                                >
+                                    <Text style={styles.endButtonBlueText}>
+                                        {scanCooldown > 0 ? `Scan to End (${scanCooldown}s)` : 'Scan to End Service'}
+                                    </Text>
+                                </TouchableOpacity>
+                            </>
+                        ) : (
+                            <>
+                                {openTicket ? (
+                                    // 1. What's left to serve
+                                    <ServiceRemaining ticket={openTicket} colors={colors} isDarkMode={isDarkMode} />
+                                ) : null}
+                                {/* 2. The map to the site */}
+                                {siteTarget && (
+                                    <View style={styles.approachBox}>
+                                        <View style={[styles.mapContainer, { height: 240, marginTop: 0 }]}>
+                                            <View style={styles.liveGpsBadge}>
+                                                <Text style={styles.liveGpsText}>ROUTE TO SITE</Text>
+                                            </View>
+                                            <MapViewComponent
+                                                style={[styles.map, { height: 240 }]}
+                                                region={{ latitude: targetLocation.lat, longitude: targetLocation.lng, latitudeDelta: 0.004, longitudeDelta: 0.004 }}
+                                                isDarkMode={isDarkMode}
+                                                darkMapStyle={darkMapStyle}
+                                                targetLocation={targetLocation}
+                                                isOutOfBounds={false}
+                                                location={location}
+                                                approach
+                                                hubMarkerDotStyle={styles.hubMarkerDot}
+                                                studentMarkerDotStyle={[styles.studentMarkerDot, { backgroundColor: '#0ea5e9' }]}
+                                            />
+                                            {/* Same legend as the website's map */}
+                                            <View style={styles.mapLegend}>
+                                                <View style={styles.mapLegendItem}>
+                                                    <View style={[styles.mapLegendDot, { backgroundColor: '#1e3a8a' }]} />
+                                                    <Text style={styles.mapLegendText}>Service site</Text>
+                                                </View>
+                                                {location && (
+                                                    <View style={styles.mapLegendItem}>
+                                                        <View style={[styles.mapLegendDot, { backgroundColor: '#0ea5e9' }]} />
+                                                        <Text style={styles.mapLegendText}>You</Text>
+                                                    </View>
+                                                )}
+                                                <Text style={styles.mapLegendRadius}>Radius: {targetLocation.radius}m · starts when you scan</Text>
+                                            </View>
+                                        </View>
+                                    </View>
+                                )}
+                                {/* 3. Where to go */}
+                                {openTicket && (
+                                    <Text style={styles.reportText}>
+                                        Go to <Text style={{ fontWeight: '800', color: colors.text }}>{assignedSite?.name || openTicket.assigned_location || 'your service site'}</Text> and scan the QR code to start your timer.
+                                    </Text>
+                                )}
+                                {/* 4. Time in */}
+                                <TouchableOpacity style={styles.scanCta} onPress={startScan}>
+                                    <QrCode size={18} color="#fff" strokeWidth={2.2} />
+                                    <Text style={styles.scanCtaText}>Scan QR Code to Time-In</Text>
+                                </TouchableOpacity>
+                            </>
+                        )}
+                    </View>
+                ) : !loading && (
+                    <View style={styles.helloCard}>
+                        <View style={styles.helloIcon}><CheckCircle2 size={22} color="#059669" /></View>
+                        <View style={{ flex: 1 }}>
+                            <Text style={styles.helloTitle}>Hello, {displayName}!</Text>
+                            <Text style={styles.helloText}>You currently don't have any community service to render.</Text>
+                        </View>
+                    </View>
+                )}
 
                 {/* E-Tickets */}
                 <View style={styles.section}>
                     <Text style={styles.sectionTitle}>E-Tickets</Text>
-                    <Text style={styles.sectionSubtitle}>Tap a ticket to see its service log</Text>
-                    {/* The two forms to bring to OSA (only while there's a violation to serve or clear) */}
-                    {formsTicket && (
-                        <View style={styles.formsRow}>
-                            {Object.entries(FORMS).map(([kind, form]) => (
-                                <TouchableOpacity key={kind} style={styles.printButton} onPress={() => downloadForm(kind)} disabled={!!formBusy} accessibilityRole="button">
-                                    {formBusy === kind ? <ActivityIndicator size="small" color={colors.text} /> : <Download size={15} color={colors.text} />}
-                                    <Text style={styles.printButtonText}>{form.label}</Text>
-                                </TouchableOpacity>
-                            ))}
-                        </View>
-                    )}
-
+                    <Text style={styles.sectionSubtitle}>Tap a ticket to see its service log and forms</Text>
                     {loading ? (
                         <ActivityIndicator color={colors.primary} style={{ marginTop: 16 }} />
                     ) : tickets.length === 0 ? (
@@ -950,15 +913,10 @@ const getStyles = (colors) => StyleSheet.create({
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        marginBottom: 24,
+        marginBottom: 16,
     },
     headerLeft: {
         flex: 1,
-    },
-    headerRight: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 10,
     },
     greeting: {
         fontSize: 12,
@@ -983,24 +941,11 @@ const getStyles = (colors) => StyleSheet.create({
         marginTop: 4,
         lineHeight: 20,
     },
-    iconButton: {
-        width: 44,
-        height: 44,
-        borderRadius: 22,
-        backgroundColor: colors.card,
-        justifyContent: 'center',
-        alignItems: 'center',
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.05,
-        shadowRadius: 8,
-        elevation: 2,
-    },
     sessionCard: {
         backgroundColor: colors.card,
         borderRadius: 20,
-        padding: 24,
-        marginBottom: 24,
+        padding: 16,
+        marginBottom: 16,
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.08,
@@ -1037,70 +982,20 @@ const getStyles = (colors) => StyleSheet.create({
         fontVariant: ['tabular-nums'],
         lineHeight: 65,
     },
-    noSessionIcon: {
-        alignItems: 'center',
-        marginBottom: 16,
-        marginTop: 8,
-    },
-    noSessionTitle: {
-        fontSize: 18,
-        fontWeight: '900',
-        color: colors.text,
-        marginBottom: 8,
-        textAlign: 'center',
-        lineHeight: 28,
-    },
-    noSessionSubtitle: {
-        fontSize: 14,
-        color: colors.textMuted,
-        textAlign: 'center',
-        marginBottom: 20,
-        fontWeight: '500',
-        lineHeight: 20,
-    },
+    helloCard: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: colors.card, borderRadius: 20, borderWidth: 1, borderColor: colors.border, padding: 16, marginBottom: 16 },
+    helloIcon: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#dcfce7', alignItems: 'center', justifyContent: 'center' },
+    helloTitle: { fontSize: 16, fontWeight: '900', color: colors.text },
+    helloText: { marginTop: 2, fontSize: 14, fontWeight: '500', color: colors.textMuted },
+    reportText: { fontSize: 13, lineHeight: 19, color: colors.textMuted, textAlign: 'center', marginTop: 0, marginBottom: 12, paddingHorizontal: 4 },
     approachBox: {
         width: '100%',
-        marginBottom: 16,
-    },
-    approachStatus: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 8,
-        padding: 12,
-        borderRadius: 12,
-        borderWidth: 1,
-        borderColor: colors.border,
-        backgroundColor: colors.background,
-    },
-    approachStatusInside: {
-        borderColor: '#a7f3d0',
-        backgroundColor: '#ecfdf5',
-    },
-    approachStatusText: {
-        flex: 1,
-        fontSize: 13,
-        fontWeight: '700',
-        color: colors.textMuted,
-    },
-    directionsButton: {
-        marginTop: 12,
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: 8,
-        padding: 12,
-        borderRadius: 12,
-        borderWidth: 1,
-        borderColor: colors.border,
-        backgroundColor: colors.background,
-    },
-    directionsText: {
-        fontSize: 13,
-        fontWeight: '700',
-        color: colors.text,
+        marginBottom: 12,
     },
     scanCta: {
         backgroundColor: colors.primary,
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
         paddingVertical: 12,
         paddingHorizontal: 28,
         borderRadius: 12,
@@ -1324,25 +1219,7 @@ const getStyles = (colors) => StyleSheet.create({
         fontWeight: '900',
     },
     section: {
-        marginBottom: 24,
-    },
-    printButton: {
-        flex: 1,
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: 6,
-        borderWidth: 1,
-        borderColor: colors.border,
-        backgroundColor: colors.card,
-        borderRadius: 12,
-        paddingHorizontal: 12,
-        paddingVertical: 8,
-    },
-    printButtonText: {
-        fontSize: 12,
-        fontWeight: '700',
-        color: colors.text,
+        marginBottom: 16,
     },
     sectionTitle: {
         fontSize: 18,
@@ -1355,7 +1232,7 @@ const getStyles = (colors) => StyleSheet.create({
         fontSize: 14,
         color: colors.textMuted,
         fontWeight: '500',
-        marginBottom: 16,
+        marginBottom: 12,
         lineHeight: 20,
     },
     emptyLogs: {
@@ -1430,8 +1307,6 @@ const getStyles = (colors) => StyleSheet.create({
     logStatusTextAwaiting: { color: '#b45309' },
     deadlineBox: { flexDirection: 'row', gap: 12, borderWidth: 1, borderColor: '#fde68a', backgroundColor: '#fffbeb', borderRadius: 16, padding: 16, marginBottom: 16 },
     clearanceBox: { borderColor: '#a7f3d0', backgroundColor: '#ecfdf5' },
-    formsRow: { flexDirection: 'row', gap: 8, marginBottom: 16 },
-    deadlineBoxOverdue: { borderColor: '#fca5a5', backgroundColor: '#fee2e2' },
     deadlineTitle: { fontSize: 14, fontWeight: '900', color: '#92400e' },
     deadlineText: { marginTop: 2, fontSize: 12, lineHeight: 18, fontWeight: '600', color: '#92400e' },
     completedOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', alignItems: 'center', justifyContent: 'center', padding: 20 },

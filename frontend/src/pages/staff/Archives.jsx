@@ -1,6 +1,7 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState } from 'react';
+import usePolling from '../../lib/usePolling';
 import Sidebar from '../../components/Sidebar';
-import { Archive, User, CheckCircle, Clock, Search, ChevronDown, XCircle, Download, Printer } from 'lucide-react';
+import { Archive, CheckCircle, Search, ChevronDown, XCircle, Download} from 'lucide-react';
 import ThemeToggle from '../../components/ThemeToggle';
 import ArchivedCase from '../../components/ArchivedCase';
 import jsPDF from 'jspdf';
@@ -18,19 +19,16 @@ const Archives = () => {
     // The case opened by clicking it (its id, so the 30 s refresh shows the latest data)
     const [openCaseId, setOpenCaseId] = useState(null);
 
-    useEffect(() => {
-        fetchData();
-        // Archives change rarely; refresh every 30 s instead of re-downloading everything every 5 s
-        const poll = setInterval(fetchData, 30000);
-        return () => clearInterval(poll);
-    }, []);
+    // Archives change rarely: every minute, only while the tab is visible
+    usePolling(() => fetchData(), 60000);
 
     const fetchData = async () => {
         try {
             const [vResp, tResp, lResp] = await Promise.all([
-                fetch('/api/violations/'),
-                fetch('/api/etickets/'),
-                fetch('/api/timelogs/')
+                // Only finished cases and their sessions (scope=archived), not every record ever made
+                fetch('/api/violations/?scope=archived'),
+                fetch('/api/etickets/?scope=archived'),
+                fetch('/api/timelogs/?scope=archived')
             ]);
             if (!vResp.ok || !tResp.ok || !lResp.ok) throw new Error('Server error');
             const [v, t, l] = await Promise.all([vResp.json(), tResp.json(), lResp.json()]);

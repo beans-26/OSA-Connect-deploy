@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
+import usePolling from '../../lib/usePolling';
 import Sidebar from '../../components/Sidebar';
 import { ClipboardList, AlertTriangle, Search } from 'lucide-react';
 import { departmentShort } from '../../lib/academics';
@@ -41,11 +42,8 @@ const GuardHistory = () => {
     const [searchTerm, setSearchTerm] = useState('');
     const [filter, setFilter] = useState('all');
 
-    useEffect(() => {
-        fetchViolations();
-        const interval = setInterval(fetchViolations, 5000);
-        return () => clearInterval(interval);
-    }, []);
+    // Every 30 s, only while the tab is visible (was every 5 s, even in a hidden tab)
+    usePolling(() => fetchViolations(), 30000);
 
     const fetchViolations = async () => {
         try {

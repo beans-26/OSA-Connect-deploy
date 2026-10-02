@@ -1,6 +1,9 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Scan, Send, CheckCircle2, ClipboardList, X, LogOut, ChartColumnBig, User, AlertTriangle, Loader2 } from 'lucide-react';
+import { Scan, Send, CheckCircle2, ClipboardList, X, LogOut, ChartColumnBig, User, UserCheck, AlertTriangle, Loader2 } from 'lucide-react';
+
+// The guard-on-duty name typed on this device, filled in again for the next report
+const ON_DUTY_KEY = 'osa-guard-on-duty';
 import QrScannerModal from '../../components/QrScannerModal';
 import { parseStudentQr, NOT_A_STUDENT_QR } from '../../components/studentQr';
 import { DEPARTMENTS, GENDERS, departmentForCourse, courseOptionsFor } from '../../lib/academics';
@@ -31,6 +34,13 @@ const ReportViolation = () => {
     const user = JSON.parse(localStorage.getItem('user') || '{}');
     const userRole = user.role || 'guard';
     const userName = user.full_name || 'Personnel';
+    // Guards share accounts, so a guard account types the name of the guard on duty (kept on this device for
+    // the next report). It's the "Reported by" OSA sees. Faculty & staff report as themselves.
+    const isGuard = userRole === 'guard';
+    const [onDutyName, setOnDutyName] = useState(() => {
+        try { return localStorage.getItem(ON_DUTY_KEY) || ''; } catch { return ''; }
+    });
+    const reporterName = isGuard ? (onDutyName.trim() || '—') : userName;
 
     const [sent, setSent] = useState(false);
     const [loading, setLoading] = useState(false);
@@ -83,6 +93,10 @@ const ReportViolation = () => {
             alert('Choose at least one violation.');
             return;
         }
+        if (isGuard) {
+            if (!onDutyName.trim()) { alert('Type the name of the guard on duty.'); return; }
+            try { localStorage.setItem(ON_DUTY_KEY, onDutyName.trim()); } catch { /* private mode */ }
+        }
         setShowConfirmModal(true);
     };
 
@@ -101,7 +115,7 @@ const ReportViolation = () => {
             const response = await fetch('/api/violations/', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ ...form, violation_types: form.violations, reporting_guard: userName }),
+                body: JSON.stringify({ ...form, violation_types: form.violations, reporting_guard: userName, on_duty_name: isGuard ? onDutyName.trim() : undefined }),
             });
             if (response.ok) setSent(true);
             else {
@@ -197,7 +211,7 @@ const ReportViolation = () => {
                                 </div>
                                 <div className="flex items-baseline justify-between gap-4">
                                     <dt className="shrink-0 text-xs font-semibold text-slate-500 dark:text-slate-400">Reported by</dt>
-                                    <dd className="min-w-0 truncate text-right font-bold text-slate-800 dark:text-slate-200">{userName}</dd>
+                                    <dd className="min-w-0 truncate text-right font-bold text-slate-800 dark:text-slate-200">{reporterName}</dd>
                                 </div>
                             </dl>
                         </div>
@@ -281,6 +295,18 @@ const ReportViolation = () => {
                 <div className="max-w-4xl mx-auto w-full pb-10">
                     {!sent ? (
                         <form onSubmit={handleSubmit} className="card-premium p-3.5 sm:p-6 space-y-4 sm:space-y-5">
+                            {/* Guard accounts are shared: who is on duty (remembered on this device) */}
+                            {isGuard && (
+                                <div className="flex flex-col sm:flex-row sm:items-center gap-1.5 sm:gap-3 rounded-xl border-2 border-blue-100 dark:border-blue-900/60 bg-blue-50/60 dark:bg-blue-950/30 px-3 py-2.5">
+                                    <label htmlFor="rv-onduty" className="flex shrink-0 items-center gap-1.5 text-xs font-black text-ustp-blue dark:text-blue-300">
+                                        <UserCheck size={15} /> Guard on duty
+                                    </label>
+                                    <input id="rv-onduty" required value={onDutyName} maxLength={100} autoComplete="name"
+                                        onChange={(e) => setOnDutyName(e.target.value)}
+                                        onBlur={() => { try { localStorage.setItem(ON_DUTY_KEY, onDutyName.trim()); } catch { /* private mode */ } }}
+                                        placeholder="Your full name" className={`${inputClass} !bg-white dark:!bg-slate-900`} />
+                                </div>
+                            )}
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-5">
                                 {/* Student */}
                                 <section className="space-y-2.5 sm:space-y-3 min-w-0">
@@ -416,7 +442,7 @@ const ReportViolation = () => {
                                     ))}
                                 </ul>
                                 <p className="border-t border-dashed border-slate-200 dark:border-slate-700 px-4 py-2.5 text-xs font-semibold text-slate-500 dark:text-slate-400">
-                                    {incidentWhen} · by {userName}
+                                    {incidentWhen} · by {reporterName}
                                 </p>
                             </div>
 

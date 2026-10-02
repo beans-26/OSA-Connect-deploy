@@ -1,31 +1,41 @@
 {
   "_about": "Help page text shared by the website (frontend/src/pages/Help.jsx) and the mobile app (mobile/app/help.jsx). Answers are arrays of paragraphs; a paragraph starting with '- ' renders as a bullet. An item may have 'a' (both platforms) or 'web'/'mobile' (platform-specific). Values in [square brackets] are placeholders the OSA must fill in. Written against the code on 2026-09-23; update this file when the behavior changes. The penalties table is NOT here: both apps load it from GET /api/violations/punishments/ (backend/core/views.py PUNISHMENT_SYSTEM).",
-
   "contact": {
     "office": "[OSA office location]",
     "hours": "[OSA office hours]",
     "email": "[OSA office email]",
     "phone": "[OSA office phone]"
   },
-
   "report_problem": {
     "email": "osaconnect.system@gmail.com",
     "subject": "OSAConnect problem report",
     "body": "Describe the problem:\n\nWhat were you doing when it happened?\n\nDevice and app version:\n"
   },
-
   "student": {
     "intro": "Everything you need to know about violations, e-tickets, and serving your community service hours.",
-
     "flow": [
-      { "title": "Reported", "text": "A guard or staff member records the violation. You get an email notice if your email is on file." },
-      { "title": "Under review", "text": "OSA reviews the report and either approves or dismisses it. Pending reports don't appear in the app yet." },
-      { "title": "E-ticket issued", "text": "If approved, an e-ticket with your required hours and assigned building appears on your dashboard. You have 3 days to start (Sundays not counted)." },
-      { "title": "Serve your hours", "text": "Scan the QR code at your assigned building, stay in the service area, then scan the stop code to end. Hours can be split across sessions." },
-      { "title": "For clearance", "text": "When your remaining hours reach zero, bring your signed ISO form and reflection paper to the OSA office." },
-      { "title": "Cleared", "text": "Once OSA approves your documents, your violation is marked as Cleared." }
+      {
+        "title": "Tap your e-ticket and download the ISO Form and Reflection Form."
+      },
+      {
+        "title": "Go to your assigned location."
+      },
+      {
+        "title": "Scan the QR code and take a selfie to start the timer."
+      },
+      {
+        "title": "Stay inside the service area while the timer runs."
+      },
+      {
+        "title": "Scan the QR code again to stop the timer."
+      },
+      {
+        "title": "Repeat until your remaining time reaches 00:00:00."
+      },
+      {
+        "title": "Bring your filled-out ISO Form and Reflection Form to the OSA Office."
+      }
     ],
-
     "faq": [
       {
         "group": "Community service",
@@ -47,7 +57,6 @@
               "To see past sessions, tap an e-ticket on your dashboard. Its service log is grouped by date: tap a date to list that day's sessions (Session 1, Session 2, ...), then tap a session to open its receipt."
             ]
           },
-
           {
             "q": "What does \"Out of bounds\" mean?",
             "a": [
@@ -95,45 +104,10 @@
               "When OSA approves the report, the reviewer assigns the building and the final number of required hours, which is what appears on your e-ticket.",
               "Violation types that aren't in the table are recorded as \"To be determined\" with a suggested 4 hours."
             ]
-          },
-          {
-            "q": "How do I appeal?",
-            "a": [
-              "The app doesn't have an appeal feature. [appeal procedure]"
-            ]
-          }
-        ]
-      },
-      {
-        "group": "Account",
-        "items": [
-          {
-            "q": "I forgot my password.",
-            "a": [
-              "On the login screen, tap Forgot Password and enter your registered email. Enter the 6-digit code we email you (it expires after 5 minutes), then set a new password."
-            ]
-          },
-          {
-            "q": "How do I change my email or contact number?",
-            "a": [
-              "Open Profile Settings and tap Change next to your email or contact number, then enter your current password. For a new email, we send a 6-digit code to that address; enter it within 5 minutes to save it. You can change your password in Security Settings."
-            ]
-          },
-          {
-            "q": "What is my personal QR code for?",
-            "a": [
-              "It's in Profile Settings and contains your student ID. Guards scan it to fill in your details when filing a report. It isn't used to start or end service sessions."
-            ]
           }
         ]
       }
     ],
-
-    "penalties_note": [
-      "Hours by offense number for each violation type. Once you pass the last listed offense, the last penalty applies again.",
-      "This is the suggested penalty recorded with a report. OSA sets the final required hours when it approves the report."
-    ],
-
     "troubleshooting": [
       {
         "title": "The QR code won't scan",
@@ -171,7 +145,6 @@
         ]
       }
     ],
-
     "privacy": [
       "Under the Data Privacy Act of 2012 (Republic Act No. 10173), OSAConnect collects only what it needs to manage violations and community service.",
       "- Account details: your name, student ID, course, department, year level, email, contact number, and password.",
@@ -180,9 +153,15 @@
       "OSA administrators can view reports and time logs in the admin dashboard.",
       "Records are kept for [data retention period].",
       "For questions or requests about your data, contact [data protection officer contact]."
+    ],
+    "safety": [
+      "Safety",
+      "- Serve only at your assigned location. The timer only runs there, and only while your phone shows you inside the service area.",
+      "- If you feel unsafe where you are serving, stop the timer and go to the nearest guard or the OSA office. The hours you served so far are kept.",
+      "- Never share your password or let someone else serve or scan for you. Each session is tied to your account and the selfie you take when you start.",
+      "- OSA will never ask for your password by email, text or chat."
     ]
   },
-
   "staff": {
     "intro": "How to file violation reports as a guard or staff member.",
     "sections": [
@@ -233,7 +212,6 @@
       }
     ]
   },
-
   "admin": {
     "intro": "Managing reports, service hours, and records.",
     "sections": [

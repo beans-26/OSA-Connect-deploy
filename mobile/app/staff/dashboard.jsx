@@ -1,9 +1,10 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView, Modal, ActivityIndicator, useWindowDimensions } from 'react-native';
 import { showAlert } from '../../components/showAlert';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useCameraPermissions } from 'expo-camera';
-import { AlertCircle, ScanLine, Send, CheckCircle2, LogOut, User, AlertTriangle, Check, X } from 'lucide-react-native';
+import { AlertCircle, ScanLine, Send, CheckCircle2, LogOut, User, UserCheck, AlertTriangle, Check, X } from 'lucide-react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 import SelectField from '../../components/SelectField';
 import { onCameraResult } from '../../components/cameraResults';
@@ -32,6 +33,9 @@ const nowTime = () => {
     return `${pad(d.getHours())}:${pad(d.getMinutes())}`;
 };
 
+// The guard-on-duty name typed on this phone, filled in again for the next report (same as the website)
+const ON_DUTY_KEY = 'osa-guard-on-duty';
+
 const emptyForm = () => ({
     student_id: '', name: '', gender: '', course: '', department: '', contact: '',
     email: '', violations: [], // one or more; each becomes its own report
@@ -56,7 +60,15 @@ export default function PersonnelDashboard() {
     const [form, setForm] = useState(emptyForm);
     const debounceTimer = useRef(null);
 
-    const reporterName = user?.full_name || user?.username || 'Personnel';
+    const accountName = user?.full_name || user?.username || 'Personnel';
+    // Guards share accounts, so a guard account types the name of the guard on duty (kept on this phone for
+    // the next report). It's the "Reported by" OSA sees. Faculty & staff report as themselves.
+    const isGuard = user?.role === 'guard';
+    const [onDutyName, setOnDutyName] = useState('');
+    useEffect(() => {
+        AsyncStorage.getItem(ON_DUTY_KEY).then((saved) => { if (saved) setOnDutyName(saved); }).catch(() => {});
+    }, []);
+    const reporterName = isGuard ? (onDutyName.trim() || '—') : accountName;
 
     const fetchStudentData = async (id) => {
         const cleanId = id?.trim();
@@ -136,6 +148,13 @@ export default function PersonnelDashboard() {
             setAlertMessage({ visible: true, title: 'Student ID', message: 'Student ID must be exactly 10 numbers, like 2023303188.' });
             return;
         }
+        if (isGuard) {
+            if (!onDutyName.trim()) {
+                setAlertMessage({ visible: true, title: 'Guard on duty', message: 'Type the name of the guard on duty.' });
+                return;
+            }
+            AsyncStorage.setItem(ON_DUTY_KEY, onDutyName.trim()).catch(() => {});
+        }
         setShowConfirmModal(true);
     };
 
@@ -143,7 +162,7 @@ export default function PersonnelDashboard() {
         setShowConfirmModal(false);
         setLoading(true);
         try {
-            await api.post('/violations/', { ...form, violation_types: form.violations, reporting_guard: reporterName });
+            await api.post('/violations/', { ...form, violation_types: form.violations, reporting_guard: accountName, on_duty_name: isGuard ? onDutyName.trim() : undefined });
             setSubmitted(true);
         } catch (error) {
             setAlertMessage({ visible: true, title: "Couldn't send the report", message: error.response?.data?.error || 'Check the details and try again.' });
@@ -221,7 +240,7 @@ export default function PersonnelDashboard() {
                 <View style={styles.pageHeader}>
                     <View style={{ flex: 1 }}>
                         <Text style={styles.pageTitle}>Report a violation</Text>
-                        <Text style={styles.pageSubtitle}>Signed in as {reporterName}</Text>
+                        <Text style={styles.pageSubtitle}>Signed in as {accountName}</Text>
                     </View>
                     <View style={styles.pillRow}>
                         <TouchableOpacity style={styles.pill} onPress={logout} accessibilityLabel="Log Out">
@@ -233,6 +252,26 @@ export default function PersonnelDashboard() {
 
                 {!submitted ? (
                     <View style={styles.card}>
+                        {/* Guard accounts are shared: who is on duty (remembered on this phone) */}
+                        {isGuard ? (
+                            <View style={styles.onDuty}>
+                                <View style={styles.onDutyLabelRow}>
+                                    <UserCheck size={15} color={colors.primary} />
+                                    <Text style={styles.onDutyLabel}>Guard on duty</Text>
+                                </View>
+                                <TextInput
+                                    style={[styles.field, styles.onDutyField]}
+                                    placeholder="Your full name"
+                                    placeholderTextColor={colors.textMuted}
+                                    value={onDutyName}
+                                    onChangeText={setOnDutyName}
+                                    onEndEditing={() => AsyncStorage.setItem(ON_DUTY_KEY, onDutyName.trim()).catch(() => {})}
+                                    autoCapitalize="words"
+                                    autoComplete="name"
+                                    maxLength={100}
+                                />
+                            </View>
+                        ) : null}
                         <View style={styles.columns}>
                             {/* Left column: the student */}
                             <View style={styles.column}>
@@ -581,6 +620,19 @@ const getStyles = (colors, isDarkMode, wide) => StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center',
     },
+    // Guard on duty (guard accounts only), above the form
+    onDuty: {
+        borderWidth: 2,
+        borderColor: isDarkMode ? 'rgba(59, 130, 246, 0.35)' : '#dbeafe',
+        backgroundColor: isDarkMode ? 'rgba(30, 58, 138, 0.25)' : '#eff6ff',
+        borderRadius: 12,
+        padding: 10,
+        marginBottom: 12,
+        gap: 6,
+    },
+    onDutyLabelRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+    onDutyLabel: { fontSize: 12, fontWeight: '900', color: colors.primary },
+    onDutyField: { backgroundColor: colors.card },
     // The violation tick boxes; a ticked one turns red like the old dropdown
     // Two per row, also on phones, so the four fit in two lines
     violationList: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
@@ -795,24 +847,6 @@ const getStyles = (colors, isDarkMode, wide) => StyleSheet.create({
         alignItems: 'center',
         marginBottom: 12,
     },
-    confirmRow: {
-        paddingVertical: 10,
-        borderBottomWidth: 1,
-        borderBottomColor: colors.border,
-    },
-    confirmLabel: {
-        fontSize: 10,
-        fontWeight: '900',
-        letterSpacing: 1,
-        textTransform: 'uppercase',
-        color: colors.textMuted,
-    },
-    confirmValue: {
-        marginTop: 2,
-        fontSize: 14,
-        fontWeight: 'bold',
-        color: colors.text,
-    },
     modalMessage: {
         fontSize: 14,
         color: colors.textMuted,
@@ -823,17 +857,6 @@ const getStyles = (colors, isDarkMode, wide) => StyleSheet.create({
         justifyContent: 'flex-end',
         gap: 12,
         marginTop: 24,
-    },
-    modalCancelButton: {
-        paddingVertical: 12,
-        paddingHorizontal: 18,
-        borderRadius: 12,
-        backgroundColor: colors.background,
-    },
-    modalCancelText: {
-        fontSize: 14,
-        fontWeight: 'bold',
-        color: colors.textMuted,
     },
     modalConfirmButton: {
         paddingVertical: 12,
