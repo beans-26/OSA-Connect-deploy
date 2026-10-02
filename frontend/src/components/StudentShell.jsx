@@ -4,7 +4,7 @@ import { ArrowLeft, Bell, BellOff, House, LogOut, Menu, SlidersHorizontal, User,
 import NotificationItem from './NotificationItem';
 import { useStudentTheme } from './useStudentTheme';
 import { logoutStudent } from './studentSession';
-import { buildNotifications, hoursLabel, markSeen, readReminders, readSeen, remainingHours, saveReminders } from '../lib/studentNotifications';
+import { buildNotifications, hoursLabel, markSeen, readReminders, readSeen, remainingHours, saveReminders, readDataSaver, saveDataSaver, IDLE_REFRESH_MS, SAVER_REFRESH_MS } from '../lib/studentNotifications';
 import usePolling from '../lib/usePolling';
 
 // The layout route of every student page (mirrors mobile/components/StudentShell.jsx): a top bar with the menu,
@@ -28,6 +28,7 @@ const PAGES = {
     '/student/notifications': { title: 'Notifications' },
     '/student/settings': { title: 'Settings' },
     '/student/settings/password': { title: 'Change password', back: '/student/settings' },
+    '/student/help': { title: 'Help & Support', back: '/student/settings' },
 };
 
 // Set inline: the global colour-transition rule in index.css would override a transition class
@@ -59,6 +60,7 @@ export default function StudentShell() {
     const [profile, setProfile] = useState(null);
     const [records, setRecords] = useState({ violations: [], tickets: [] });
     const [reminders, setRemindersState] = useState(readReminders);
+    const [dataSaver, setDataSaverState] = useState(readDataSaver);
     const [seen, setSeen] = useState(() => readSeen(user.username));
     const [logoutAsk, setLogoutAsk] = useState(null); // null | { timerRunning }
     const [loggingOut, setLoggingOut] = useState(false);
@@ -85,7 +87,7 @@ export default function StudentShell() {
         if (!user.username) return;
         fetch(`/api/students/${encodeURIComponent(user.username)}/`).then((r) => (r.ok ? r.json() : null)).then((p) => p && setProfile(p)).catch(() => {});
     }, [user.username]);
-    usePolling(load, 30000);
+    usePolling(load, dataSaver ? SAVER_REFRESH_MS : IDLE_REFRESH_MS);
 
     useEffect(() => { setMenuOpen(false); setBellOpen(false); }, [pathname]);
     useEffect(() => {
@@ -112,6 +114,7 @@ export default function StudentShell() {
         setSeen(readSeen(user.username));
     }, [notifications, seen, user.username]);
     const setReminders = (on) => { saveReminders(on); setRemindersState(on); };
+    const setDataSaver = (on) => { saveDataSaver(on); setDataSaverState(on); };
 
     const toggleBell = () => {
         if (bellOpen) return setBellOpen(false);
@@ -138,7 +141,7 @@ export default function StudentShell() {
     const name = profile?.name || user.full_name || user.name || 'Student';
     const value = {
         ...theme, user, profile, setProfile, records, setRecords: takeRecords, reload: load,
-        notifications, unread, seen, markAllRead, reminders, setReminders, openLogout,
+        notifications, unread, seen, markAllRead, reminders, setReminders, dataSaver, setDataSaver, openLogout,
     };
 
     return (

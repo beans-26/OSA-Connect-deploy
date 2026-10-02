@@ -1,4 +1,4 @@
-// Hands results from the camera screens (scan, selfie) back to the screen that opened them.
+// Hands results from the camera screens (the QR scanner) back to the screen that opened them.
 // The opener registers a one-shot handler before navigating; the camera screen emits and goes back.
 const handlers = {};
 

@@ -13,7 +13,7 @@ import { Group, Row, ToggleRow } from '../../components/SettingsList';
 export default function Settings() {
     const router = useRouter();
     const { isDarkMode, changeTheme, colors } = useTheme();
-    const { reminders, setReminders, openLogout } = useStudentShell();
+    const { reminders, setReminders, dataSaver, setDataSaver, openLogout } = useStudentShell();
     const styles = getStyles(colors);
     const version = Constants.expoConfig?.version || '1.0';
 
@@ -27,6 +27,9 @@ export default function Settings() {
                 </Group>
                 <Group label="Notifications">
                     <ToggleRow title="Deadline reminders" subtitle="Remind me if I haven't served" value={reminders} onValueChange={setReminders} />
+                </Group>
+                <Group label="Data">
+                    <ToggleRow title="Data saver" subtitle="Load the map only when tapped and refresh less often" value={dataSaver} onValueChange={setDataSaver} />
                 </Group>
                 <Group label="Security">
                     <Row title="Change password" onPress={() => router.push('/student/change-password')} />
