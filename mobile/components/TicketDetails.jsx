@@ -7,10 +7,12 @@ import { BlurView } from 'expo-blur';
 import { useTheme } from './ThemeContext';
 import api from '../services/api';
 import { SessionReceiptBody, receiptDate, formatDuration, FLAGGED_ENDS } from './SessionReceipt';
+import ServiceForms from './ServiceForms';
 
 // Opened by tapping an e-ticket on the student dashboard: the ticket, then its service log grouped by
 // date. Each date is a toggle listing that day's sessions (Session 1, 2, ...); tapping one opens its
 // receipt (several can be open at once). Mirrors frontend/src/components/TicketDetails.jsx.
+// The coloured title bar stays put while the receipt scrolls; the ISO and reflection forms are in here too.
 export default function TicketDetails({ ticket, onClose }) {
     const { colors } = useTheme();
     const insets = useSafeAreaInsets();
@@ -70,7 +72,7 @@ export default function TicketDetails({ ticket, onClose }) {
                         <Text style={styles.title}>{ticket.violation_details?.violation_type || 'Violation'}</Text>
                     </View>
                     <TouchableOpacity onPress={onClose} style={styles.close} accessibilityLabel="Close">
-                        <X size={18} color={colors.textMuted} />
+                        <X size={18} color="#fff" />
                     </TouchableOpacity>
                 </View>
 
@@ -108,6 +110,8 @@ export default function TicketDetails({ ticket, onClose }) {
                             </View>
                         )}
                     </View>
+
+                    {['Active', 'Ongoing', 'Completed'].includes(ticket.status) && <ServiceForms />}
 
                     <Text style={styles.sectionTitle}>SERVICE LOG</Text>
                     {error ? (
@@ -173,11 +177,12 @@ export default function TicketDetails({ ticket, onClose }) {
 
 const getStyles = (colors) => StyleSheet.create({
     overlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: Platform.OS === 'android' ? 'rgba(15,23,42,0.6)' : 'rgba(15,23,42,0.35)' },
-    sheet: { maxHeight: '85%', backgroundColor: colors.card, borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingTop: 8, width: '100%', maxWidth: 576, alignSelf: 'center' },
-    header: { flexDirection: 'row', alignItems: 'flex-start', paddingHorizontal: 20, paddingVertical: 12, gap: 12 },
-    kicker: { fontSize: 10, fontWeight: '900', letterSpacing: 2, color: colors.textMuted },
-    title: { fontSize: 18, fontWeight: '900', color: colors.text },
-    close: { padding: 8, borderRadius: 20, backgroundColor: colors.background },
+    sheet: { maxHeight: '85%', backgroundColor: colors.card, borderTopLeftRadius: 24, borderTopRightRadius: 24, overflow: 'hidden', width: '100%', maxWidth: 576, alignSelf: 'center' },
+    // Outside the ScrollView, so it stays at the top while the receipt scrolls
+    header: { flexDirection: 'row', alignItems: 'flex-start', paddingHorizontal: 20, paddingVertical: 16, gap: 12, backgroundColor: '#1d4ed8', marginBottom: 16 },
+    kicker: { fontSize: 10, fontWeight: '900', letterSpacing: 2, color: '#dbeafe' },
+    title: { fontSize: 18, fontWeight: '900', color: '#fff' },
+    close: { padding: 8, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.15)' },
     receipt: { borderWidth: 1, borderColor: colors.border, borderRadius: 16, overflow: 'hidden', marginBottom: 8 },
     receiptHeader: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1 },
     receiptTitle: { fontSize: 14, fontWeight: '900' },

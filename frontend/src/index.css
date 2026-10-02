@@ -77,6 +77,11 @@ body {
   --s-border: #e2e8f0;
   --s-danger: #ef4444;
   --s-success: #10b981;
+  /* the side menu and settings: active item, toggles, avatar, "hours remaining" chip */
+  --s-accent: #2563eb;
+  --s-accent-soft: #eef2ff;
+  --s-warn-bg: #fef3c7;
+  --s-warn-text: #92400e;
   background-color: var(--s-bg);
   color: var(--s-text);
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
@@ -93,6 +98,10 @@ body {
   --s-border: #334155;
   --s-danger: #f87171;
   --s-success: #34d399;
+  --s-accent: #3b82f6;
+  --s-accent-soft: rgba(59, 130, 246, 0.16);
+  --s-warn-bg: rgba(245, 158, 11, 0.16);
+  --s-warn-text: #fcd34d;
 }
 
 /* The student receipt (components/TicketDetails.jsx) opened on admin pages, e.g. from the Archives:

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { NavLink, Link, useNavigate } from 'react-router-dom';
 import { LayoutDashboard, User, LogOut, Menu, X, Users, Settings, HelpCircle, ChevronDown, ChevronRight, ChevronsLeft, ChevronsRight, FileSearch, Archive, TrendingUp, ClipboardPen, ClipboardList, ChartColumnBig } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';

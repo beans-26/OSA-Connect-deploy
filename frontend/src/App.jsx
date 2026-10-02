@@ -36,6 +36,10 @@ const AllStudents = page(() => import('./pages/staff/AllStudents'));
 const Analytics = page(() => import('./pages/staff/Analytics'));
 const StudentDashboard = page(() => import('./pages/StudentDashboard'));
 const Settings = page(() => import('./pages/student/Settings'));
+const PersonalInfo = page(() => import('./pages/student/PersonalInfo'));
+const StudentNotifications = page(() => import('./pages/student/Notifications'));
+const ChangePassword = page(() => import('./pages/student/ChangePassword'));
+const StudentShell = page(() => import('./components/StudentShell'));
 const Help = page(() => import('./pages/Help'));
 const LandingPage = page(() => import('./pages/LandingPage'));
 
@@ -89,6 +93,9 @@ const OldLoginRedirect = ({ to }) => <Navigate to={to} replace state={useLocatio
 
 // Pages with a sidebar animate only their <main> (the .page-enter class) so the sidebar stays still
 const SIDEBAR_PAGES = /^\/(admin\/|help$|guard\/history$)/;
+// The student pages share one layout (components/StudentShell.jsx): one key, so it stays mounted and its
+// side menu slides closed over the next page (the layout fades the page content itself)
+const STUDENT_SHELL_PAGES = /^\/student\/(dashboard|personal-info|notifications|settings(\/password)?)$/;
 
 // Fades each page in when the route changes. Opacity only: a transform here would
 // break the pages' position: fixed modals and menus while the animation runs.
@@ -96,7 +103,7 @@ const PageFade = ({ children }) => {
   const location = useLocation();
   return (
     <motion.div
-      key={location.pathname}
+      key={STUDENT_SHELL_PAGES.test(location.pathname) ? 'student-shell' : location.pathname}
       initial={SIDEBAR_PAGES.test(location.pathname) ? false : { opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.25, ease: 'easeOut' }}
@@ -148,8 +155,14 @@ function App() {
           <Route path="/help" element={<ProtectedRoute element={<Help />} allowedRoles={['admin', 'staff', 'guard', 'student']} />} />
           <Route path="/admin/help" element={<Navigate to="/help" replace />} />
 
-          <Route path="/student/dashboard" element={<ProtectedRoute element={<StudentDashboard />} allowedRoles={['student']} />} />
-          <Route path="/student/settings" element={<ProtectedRoute element={<Settings />} allowedRoles={['student']} />} />
+          {/* Student pages share one layout (top bar and side menu, components/StudentShell.jsx) */}
+          <Route element={<ProtectedRoute element={<StudentShell />} allowedRoles={['student']} />}>
+            <Route path="/student/dashboard" element={<StudentDashboard />} />
+            <Route path="/student/settings" element={<Settings />} />
+            <Route path="/student/settings/password" element={<ChangePassword />} />
+            <Route path="/student/personal-info" element={<PersonalInfo />} />
+            <Route path="/student/notifications" element={<StudentNotifications />} />
+          </Route>
           <Route path="/student/*" element={<Navigate to="/student/dashboard" replace />} />
           {/* Old link from when students were mobile-only */}
           <Route path="/mobile-only" element={<Navigate to={STUDENT_LOGIN} replace />} />

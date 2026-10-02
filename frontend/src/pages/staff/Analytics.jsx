@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import Sidebar from '../../components/Sidebar';
 import { Bar } from 'react-chartjs-2';
 import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, Tooltip } from 'chart.js';
@@ -18,7 +18,10 @@ const STATUS_STYLES = {
 };
 
 // Daily, monthly, quarterly and annual violation reports, each downloadable as a PDF
-const ReportsPanel = ({ violations }) => {
+// Reports start from the year OSAConnect went live
+const FIRST_YEAR = 2025;
+
+const ReportsPanel = () => {
     const now = new Date();
     const [period, setPeriod] = useState('monthly');
     const [sel, setSel] = useState({
@@ -28,16 +31,27 @@ const ReportsPanel = ({ violations }) => {
         year: now.getFullYear(),
     });
     const [downloading, setDownloading] = useState(false);
-    const trendRef = useRef(null);
+
+    // Only the selected year's violations are downloaded (not every report ever made), once per year picked
+    const year = period === 'daily' ? Number(sel.date.slice(0, 4)) : sel.year;
+    const [byYear, setByYear] = useState({});
+    useEffect(() => {
+        if (byYear[year]) return;
+        fetch(`/api/violations/?year=${year}`)
+            .then((r) => (r.ok ? r.json() : []))
+            .then((data) => setByYear((prev) => ({ ...prev, [year]: Array.isArray(data) ? data : [] })))
+            .catch((error) => console.error('Error fetching violations:', error));
+    }, [year, byYear]);
+    const violations = byYear[year] || [];
 
     const report = buildReport(violations, period, sel);
-    const years = [...new Set([now.getFullYear(), ...violations.map((v) => new Date(v.created_at).getFullYear()).filter(Boolean)])].sort((a, b) => b - a);
+    const years = Array.from({ length: Math.max(1, now.getFullYear() - FIRST_YEAR + 1) }, (_, i) => now.getFullYear() - i);
     const selectClass = 'px-3 py-2 bg-white dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 rounded-xl text-sm font-semibold text-slate-600 dark:text-slate-300 focus:border-ustp-blue outline-none';
 
     const download = async () => {
         setDownloading(true);
         try {
-            await downloadReportPdf(report, trendRef.current?.toBase64Image?.('image/png', 1));
+            await downloadReportPdf(report);
         } catch (e) {
             console.error(e);
             alert("Couldn't make the PDF. Please try again.");
@@ -127,7 +141,6 @@ const ReportsPanel = ({ violations }) => {
                 <h4 className="mb-4 font-black text-slate-800 dark:text-slate-200 uppercase tracking-widest text-xs">{report.range.trendTitle}</h4>
                 <div className="h-64">
                     <Bar
-                        ref={trendRef}
                         data={trendData}
                         options={{
                             responsive: true,
@@ -183,14 +196,6 @@ const ReportsPanel = ({ violations }) => {
 // The admin Analytics page: the violation reports above (the old overview charts were the same data)
 const Analytics = () => {
     const userRole = JSON.parse(localStorage.getItem('user') || '{}').role || 'staff';
-    const [violations, setViolations] = useState([]);
-
-    useEffect(() => {
-        fetch('/api/violations/')
-            .then((r) => (r.ok ? r.json() : []))
-            .then((data) => setViolations(Array.isArray(data) ? data : []))
-            .catch((error) => console.error('Error fetching violations:', error));
-    }, []);
 
     return (
         <div className="flex bg-slate-50 dark:bg-slate-900 min-h-screen">
@@ -205,7 +210,7 @@ const Analytics = () => {
                         <ThemeToggle />
                     </header>
 
-                    <ReportsPanel violations={violations} />
+                    <ReportsPanel />
                 </main>
             </div>
         </div>

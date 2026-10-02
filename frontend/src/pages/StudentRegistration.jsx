@@ -69,6 +69,8 @@ const Field = ({ id, label, info, hint, className = "", children }) => (
 const StudentRegistration = () => {
     const [step, setStep] = useState(1);
     const [saving, setSaving] = useState(false);
+    // The code email is being sent (the code step shows "Sending code to …")
+    const [sendingCode, setSendingCode] = useState(false);
     const [otp, setOtp] = useState('');
     // When the latest code was sent, and a clock that ticks each second on step 2
     const [codeSentAt, setCodeSentAt] = useState(0);
@@ -179,7 +181,16 @@ const StudentRegistration = () => {
             alert('Passwords do not match. Please re-enter your password.');
             return;
         }
-        setSaving(true);
+        if (sendingCode) return;
+        // Straight to the code step while the email is sent (that takes a few seconds): the student sees
+        // "Sending code…" and can open their inbox. If the server says no (e.g. the ID is taken), back to step 1.
+        const resending = step === 2;
+        setOtp('');
+        setCodeSentAt(Date.now());
+        setNow(Date.now());
+        setStep(2);
+        setSendingCode(true);
+        setTimeout(() => focusBox(0), 0);
         try {
             const response = await fetch('/api/students/request_otp/', {
                 method: 'POST',
@@ -193,21 +204,17 @@ const StudentRegistration = () => {
                     name: studentData.first_name
                 })
             });
-            if (response.ok) {
-                setOtp('');
-                setCodeSentAt(Date.now());
-                setNow(Date.now());
-                setStep(2);
-                setTimeout(() => focusBox(0), 0);
-            } else {
+            if (!response.ok) {
                 const data = await response.json().catch(() => ({}));
-                alert(data.error || 'Check your email');
+                if (!resending) setStep(1);
+                alert(data.error || "Couldn't send the code. Check your email and try again.");
             }
         } catch {
             // No response at all means the backend is down or unreachable, not a bad email
+            if (!resending) setStep(1);
             alert(OFFLINE_MESSAGE);
         } finally {
-            setSaving(false);
+            setSendingCode(false);
         }
     };
 
@@ -396,8 +403,13 @@ const StudentRegistration = () => {
                             </div>
 
                             <div className="flex items-center gap-2.5 rounded-md border border-white/80 dark:border-white/15 bg-white/60 dark:bg-slate-900/50 px-3 sm:px-4 py-2.5 sm:py-3 text-sm text-slate-800 dark:text-slate-200">
-                                <Mail size={16} className="shrink-0 text-blue-900 dark:text-blue-300" aria-hidden="true" />
-                                <span className="min-w-0">Code sent to <span className="font-bold text-slate-900 dark:text-white break-all">{studentData.email}</span></span>
+                                {sendingCode
+                                    ? <Loader2 size={16} className="shrink-0 animate-spin text-blue-900 dark:text-blue-300" aria-hidden="true" />
+                                    : <Mail size={16} className="shrink-0 text-blue-900 dark:text-blue-300" aria-hidden="true" />}
+                                <span className="min-w-0" aria-live="polite">
+                                    {sendingCode ? 'Sending code to ' : 'Code sent to '}
+                                    <span className="font-bold text-slate-900 dark:text-white break-all">{studentData.email}</span>{sendingCode ? '…' : ''}
+                                </span>
                             </div>
 
                             <fieldset className="mt-3 sm:mt-4">
@@ -430,7 +442,7 @@ const StudentRegistration = () => {
                                 {resendIn > 0 ? (
                                     <span>Resend in <span className="tabular-nums">{resendIn}s</span></span>
                                 ) : (
-                                    <button type="button" onClick={requestOTP} disabled={saving} className="font-bold text-slate-900 dark:text-white underline underline-offset-2 disabled:opacity-60">Resend code</button>
+                                    <button type="button" onClick={requestOTP} disabled={saving || sendingCode} className="font-bold text-slate-900 dark:text-white underline underline-offset-2 disabled:opacity-60">Resend code</button>
                                 )}
                             </p>
 

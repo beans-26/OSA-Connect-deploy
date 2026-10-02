@@ -1,15 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { 
-    Shield, 
+import {  
     QrCode, 
     Bell, 
     Clock, 
     LayoutDashboard, 
     CheckCircle, 
     ArrowRight, 
-    FileText, 
-    Activity, 
+    FileText,  
     Menu,
     X
 } from 'lucide-react';

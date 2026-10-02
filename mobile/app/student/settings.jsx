@@ -1,515 +1,55 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, ActivityIndicator, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, Modal, StatusBar, Switch } from 'react-native';
-import { showAlert } from '../../components/showAlert';
+import React from 'react';
+import { ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { User, Mail, Phone, BookOpen, Building2, Lock, ArrowLeft, LogOut, AlertTriangle, Moon, CircleQuestionMark, ChevronRight } from 'lucide-react-native';
+import { LogOut } from 'lucide-react-native';
+import Constants from 'expo-constants';
 import { useRouter } from 'expo-router';
-import { useAuth } from '../../components/AuthContext';
 import { useTheme } from '../../components/ThemeContext';
-import api from '../../services/api';
-import ContactDetailsCard from '../../components/ContactDetailsCard';
+import { StudentTopBar, useStudentShell } from '../../components/StudentShell';
+import { Group, Row, ToggleRow } from '../../components/SettingsList';
 
+// Mirrors frontend/src/pages/student/Settings.jsx: Appearance, Notifications, Security, Support, Log out.
+// The profile and contact details are on Personal Info.
 export default function Settings() {
-    const { user, logout } = useAuth();
     const router = useRouter();
-    const { isDarkMode, themeMode, changeTheme, colors } = useTheme();
+    const { isDarkMode, changeTheme, colors } = useTheme();
+    const { reminders, setReminders, openLogout } = useStudentShell();
     const styles = getStyles(colors);
-
-    const [studentInfo, setStudentInfo] = useState(null);
-    const [loading, setLoading] = useState(true);
-
-    const [passwords, setPasswords] = useState({ current: '', new: '', confirm: '' });
-    const [passwordLoading, setPasswordLoading] = useState(false);
-    const [showLogoutModal, setShowLogoutModal] = useState(false);
-    // Whether a service timer is running: only then does the log-out question mention it. Same as the website.
-    const [timerRunning, setTimerRunning] = useState(false);
-    const openLogout = async () => {
-        let running = true; // can't check (offline): keep the warning
-        try {
-            const { data } = await api.get('/etickets/', { params: { student_id: user.username } });
-            running = Array.isArray(data) && data.some((t) => t.status === 'Ongoing');
-        } catch { /* keep the warning */ }
-        setTimerRunning(running);
-        setShowLogoutModal(true);
-    };
-
-    useEffect(() => {
-        fetchStudentInfo();
-    }, [user?.username]);
-
-    const fetchStudentInfo = async () => {
-        if (!user?.username) return;
-        try {
-            const response = await api.get(`/students/${user.username}/`);
-            setStudentInfo(response.data);
-        } catch (error) {
-            showAlert('Error', 'Failed to fetch student profile');
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const handleChangePassword = async () => {
-        if (!passwords.current || !passwords.new || !passwords.confirm) {
-            showAlert('Error', 'Please fill all password fields');
-            return;
-        }
-        if (passwords.new !== passwords.confirm) {
-            showAlert('Error', 'New passwords do not match');
-            return;
-        }
-        
-        setPasswordLoading(true);
-        try {
-            await api.post('/students/change_password/', {
-                student_id: studentInfo.student_id,
-                current_password: passwords.current,
-                new_password: passwords.new
-            });
-            showAlert('Success', 'Password updated successfully!');
-            setPasswords({ current: '', new: '', confirm: '' });
-        } catch (err) {
-            showAlert('Error', err.response?.data?.error || 'Failed to update password');
-        } finally {
-            setPasswordLoading(false);
-        }
-    };
-
-    if (loading) {
-        return (
-            <View style={styles.centerContainer}>
-                <ActivityIndicator size="large" color={colors.primary} />
-            </View>
-        );
-    }
-
-    if (!studentInfo) {
-        return (
-            <View style={styles.centerContainer}>
-                <Text style={styles.errorText}>Profile not found. Please contact administration.</Text>
-            </View>
-        );
-    }
+    const version = Constants.expoConfig?.version || '1.0';
 
     return (
-        <SafeAreaView style={styles.safeArea}>
-            <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.container}>
-                
-                {/* Custom Header */}
-                <View style={styles.customHeader}>
-                    <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-                        <ArrowLeft size={24} color={colors.text} />
-                    </TouchableOpacity>
-                    <Text style={styles.headerTitleText}>Profile Settings</Text>
-                    <View style={{ width: 24 }} />
-                </View>
-
-                <ScrollView contentContainerStyle={styles.scrollContent}>
-                    
-                {/* Basic Information */}
-                <View style={styles.card}>
-                    <View style={styles.cardHeader}>
-                        <User size={18} color={colors.primary} />
-                        <Text style={styles.cardTitle}>Basic Information</Text>
-                    </View>
-
-                    <View style={styles.infoGroup}>
-                        <Text style={styles.infoLabel}>Full Identity Name</Text>
-                        <Text style={styles.infoValue}>{studentInfo.name}</Text>
-                    </View>
-
-                    <View style={styles.infoGroup}>
-                        <Text style={styles.infoLabel}>Student ID</Text>
-                        <Text style={styles.infoValue}>{studentInfo.student_id}</Text>
-                    </View>
-
-                    <View style={styles.row}>
-                        <View style={[styles.infoGroup, {flex: 1}]}>
-                            <View style={styles.labelRow}>
-                                <BookOpen size={12} color={colors.textMuted} style={styles.labelIcon}/>
-                                <Text style={styles.infoLabel}>Course</Text>
-                            </View>
-                            <Text style={styles.infoValueSmall}>{studentInfo.course || 'N/A'}</Text>
-                        </View>
-                        <View style={[styles.infoGroup, {flex: 1}]}>
-                            <View style={styles.labelRow}>
-                                <Building2 size={12} color={colors.textMuted} style={styles.labelIcon}/>
-                                <Text style={styles.infoLabel}>Department</Text>
-                            </View>
-                            <Text style={styles.infoValueSmall}>{studentInfo.department || 'N/A'}</Text>
-                        </View>
-                    </View>
-                </View>
-
-                {/* Contact Details: email (verified by code) and contact number can be changed */}
-                <ContactDetailsCard
-                    studentInfo={studentInfo}
-                    onUpdated={(changes) => setStudentInfo((prev) => ({ ...prev, ...changes }))}
-                    styles={styles}
-                    colors={colors}
-                />
-
-                {/* Appearance Settings */}
-                <View style={styles.card}>
-                    <View style={styles.cardHeader}>
-                        <Moon size={18} color={colors.primary} />
-                        <Text style={styles.cardTitle}>Appearance</Text>
-                    </View>
-                    
-                    <View style={styles.switchRow}>
-                        <View>
-                            <Text style={styles.infoValueSmall}>Dark Mode</Text>
-                            <Text style={[styles.infoLabel, { textTransform: 'none', marginTop: 2 }]}>
-                                {themeMode === 'system' ? 'Syncs with system settings' : 'Manually enabled'}
-                            </Text>
-                        </View>
-                        <Switch
-                            value={isDarkMode}
-                            onValueChange={(val) => changeTheme(val ? 'dark' : 'light')}
-                            trackColor={{ false: colors.border, true: colors.success }}
-                            thumbColor="#fff"
-                        />
-                    </View>
-                </View>
-
-                {/* Security Settings */}
-                <View style={styles.card}>
-                    <View style={styles.cardHeader}>
-                        <Lock size={18} color={colors.primary} />
-                        <Text style={styles.cardTitle}>Security Settings</Text>
-                    </View>
-
-                    <View style={styles.inputGroup}>
-                        <Text style={styles.infoLabel}>Current Password</Text>
-                        <TextInput
-                            style={styles.input}
-                            placeholder="••••••••"
-                            placeholderTextColor={colors.textMuted}
-                            secureTextEntry
-                            value={passwords.current}
-                            onChangeText={(t) => setPasswords({...passwords, current: t})}
-                        />
-                    </View>
-
-                    <View style={styles.inputGroup}>
-                        <Text style={styles.infoLabel}>New Password</Text>
-                        <TextInput
-                            style={styles.input}
-                            placeholder="••••••••"
-                            placeholderTextColor={colors.textMuted}
-                            secureTextEntry
-                            value={passwords.new}
-                            onChangeText={(t) => setPasswords({...passwords, new: t})}
-                        />
-                    </View>
-
-                    <View style={styles.inputGroup}>
-                        <Text style={styles.infoLabel}>Confirm New Password</Text>
-                        <TextInput
-                            style={styles.input}
-                            placeholder="••••••••"
-                            placeholderTextColor={colors.textMuted}
-                            secureTextEntry
-                            value={passwords.confirm}
-                            onChangeText={(t) => setPasswords({...passwords, confirm: t})}
-                        />
-                    </View>
-
-                    <TouchableOpacity 
-                        style={[styles.primaryButton, passwordLoading && styles.disabledButton]} 
-                        onPress={handleChangePassword}
-                        disabled={passwordLoading}
-                    >
-                        {passwordLoading ? (
-                            <ActivityIndicator color="#fff" />
-                        ) : (
-                            <Text style={styles.primaryButtonText}>Update Password</Text>
-                        )}
-                    </TouchableOpacity>
-                </View>
-
-                <TouchableOpacity style={styles.helpRow} onPress={() => router.push('/help')}>
-                    <CircleQuestionMark size={20} color={colors.primary} />
-                    <View style={{ flex: 1, marginLeft: 12 }}>
-                        <Text style={styles.helpTitle}>Help & Support</Text>
-                        <Text style={styles.helpSubtitle}>FAQ, penalties, troubleshooting, and contact info</Text>
-                    </View>
-                    <ChevronRight size={18} color={colors.textMuted} />
+        <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
+            <StatusBar barStyle={isDarkMode ? 'light-content' : 'dark-content'} backgroundColor={colors.card} />
+            <StudentTopBar title="Settings" />
+            <ScrollView contentContainerStyle={styles.content}>
+                <Group label="Appearance">
+                    <ToggleRow title="Dark mode" subtitle="Easier on the eyes at night" value={isDarkMode} onValueChange={(on) => changeTheme(on ? 'dark' : 'light')} />
+                </Group>
+                <Group label="Notifications">
+                    <ToggleRow title="Deadline reminders" subtitle="Remind me if I haven't served" value={reminders} onValueChange={setReminders} />
+                </Group>
+                <Group label="Security">
+                    <Row title="Change password" onPress={() => router.push('/student/change-password')} />
+                </Group>
+                <Group label="Support">
+                    <Row title="Help & Support" subtitle="FAQ, penalties, troubleshooting and contact info" onPress={() => router.push('/help')} />
+                    <Row title="About OSAConnect" value={`Version ${version}`} />
+                </Group>
+                <TouchableOpacity style={styles.logout} onPress={openLogout} accessibilityRole="button">
+                    <LogOut size={18} color={colors.danger} />
+                    <Text style={styles.logoutText}>Log out</Text>
                 </TouchableOpacity>
-
-                <TouchableOpacity
-                    style={styles.logoutButton}
-                    onPress={openLogout}
-                >
-                    <LogOut size={20} color={colors.danger} />
-                    <Text style={styles.logoutButtonText}>Log Out</Text>
-                </TouchableOpacity>
-
             </ScrollView>
-        </KeyboardAvoidingView>
-
-            <Modal visible={showLogoutModal} transparent={true} animationType="fade">
-                <View style={styles.modalOverlay}>
-                    <View style={styles.modalContent}>
-                        <View style={styles.modalHeader}>
-                            <AlertTriangle size={24} color={colors.danger} />
-                            <Text style={styles.modalTitle}>Log Out</Text>
-                        </View>
-                        <Text style={styles.modalMessage}>{timerRunning ? 'Are you sure you want to log out? Your running service timer will stop.' : 'Are you sure you want to log out?'}</Text>
-                        <View style={styles.modalActions}>
-                            <TouchableOpacity style={styles.modalCancelButton} onPress={() => setShowLogoutModal(false)}>
-                                <Text style={styles.modalCancelText}>Cancel</Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity style={styles.modalConfirmButton} onPress={() => {
-                                setShowLogoutModal(false);
-                                logout();
-                            }}>
-                                <Text style={styles.modalConfirmText}>Log Out</Text>
-                            </TouchableOpacity>
-                        </View>
-                    </View>
-                </View>
-            </Modal>
-
         </SafeAreaView>
     );
 }
 
 const getStyles = (colors) => StyleSheet.create({
-    safeArea: {
-        flex: 1,
-        backgroundColor: colors.background,
+    safeArea: { flex: 1, backgroundColor: colors.background },
+    content: { padding: 16, paddingBottom: 40 },
+    logout: {
+        marginTop: 4, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, padding: 16,
+        borderRadius: 16, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.card,
     },
-    container: {
-        flex: 1,
-        backgroundColor: colors.background,
-    },
-    customHeader: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        paddingHorizontal: 20,
-        paddingVertical: 16,
-        backgroundColor: colors.background,
-        width: '100%',
-        maxWidth: 576,
-        alignSelf: 'center',
-    },
-    backButton: {
-        padding: 4,
-    },
-    headerTitleText: {
-        fontSize: 18,
-        fontWeight: 'bold',
-        color: colors.text,
-    },
-    centerContainer: {
-        flex: 1,
-        backgroundColor: colors.background,
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    // Centered 576px column on wide screens, like the website's max-w-xl
-    scrollContent: {
-        padding: 16,
-        paddingBottom: 40,
-        width: '100%',
-        maxWidth: 576,
-        alignSelf: 'center',
-    },
-    errorText: {
-        color: colors.textMuted,
-        fontWeight: 'bold',
-        fontSize: 14,
-    },
-    card: {
-        backgroundColor: colors.card,
-        borderRadius: 16,
-        padding: 20,
-        marginBottom: 16,
-        borderWidth: 2,
-        borderColor: colors.border,
-    },
-    cardHeader: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        marginBottom: 20,
-    },
-    cardTitle: {
-        fontSize: 12,
-        fontWeight: '900',
-        color: colors.primary,
-        textTransform: 'uppercase',
-        letterSpacing: 2,
-        marginLeft: 12,
-    },
-    infoGroup: {
-        marginBottom: 16,
-    },
-    row: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        gap: 16,
-    },
-    labelRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        marginBottom: 4,
-    },
-    labelIcon: {
-        marginRight: 6,
-    },
-    infoLabel: {
-        fontSize: 10,
-        fontWeight: '900',
-        color: colors.textMuted,
-        textTransform: 'uppercase',
-        letterSpacing: 1,
-        marginBottom: 4,
-    },
-    infoValue: {
-        fontSize: 18,
-        fontWeight: 'bold',
-        color: colors.text,
-    },
-    infoValueSmall: {
-        fontSize: 14,
-        fontWeight: 'bold',
-        color: colors.text,
-        textTransform: 'uppercase',
-    },
-    inputGroup: {
-        marginBottom: 16,
-    },
-    input: {
-        backgroundColor: colors.background,
-        borderWidth: 1,
-        borderColor: colors.border,
-        borderRadius: 8,
-        padding: 12,
-        color: colors.text,
-        fontWeight: '600',
-    },
-    primaryButton: {
-        backgroundColor: colors.secondary,
-        height: 48,
-        borderRadius: 8,
-        justifyContent: 'center',
-        alignItems: 'center',
-        marginTop: 8,
-    },
-    disabledButton: {
-        opacity: 0.7,
-    },
-    primaryButtonText: {
-        color: '#ffffff',
-        fontWeight: 'bold',
-        fontSize: 10,
-        textTransform: 'uppercase',
-        letterSpacing: 2,
-    },
-    switchRow: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-    },
-    helpRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: colors.card,
-        borderWidth: 2,
-        borderColor: colors.border,
-        borderRadius: 16,
-        padding: 16,
-        marginBottom: 16,
-    },
-    helpTitle: {
-        fontSize: 14,
-        fontWeight: 'bold',
-        color: colors.text,
-    },
-    helpSubtitle: {
-        fontSize: 12,
-        color: colors.textMuted,
-        marginTop: 2,
-    },
-    logoutButton: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        backgroundColor: colors.card,
-        borderWidth: 2,
-        borderColor: colors.danger,
-        padding: 16,
-        borderRadius: 16,
-        marginTop: 8,
-    },
-    logoutButtonText: {
-        color: colors.danger,
-        fontWeight: '900',
-        fontSize: 14,
-        textTransform: 'uppercase',
-        letterSpacing: 1,
-        marginLeft: 8,
-    },
-    modalOverlay: {
-        flex: 1,
-        backgroundColor: 'rgba(0,0,0,0.5)',
-        justifyContent: 'center',
-        alignItems: 'center',
-        padding: 20,
-    },
-    modalContent: {
-        backgroundColor: colors.card,
-        borderRadius: 24,
-        padding: 24,
-        width: '100%',
-        maxWidth: 400,
-    },
-    modalHeader: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        marginBottom: 12,
-    },
-    modalTitle: {
-        fontSize: 18,
-        fontWeight: '900',
-        color: colors.danger,
-        textTransform: 'uppercase',
-        letterSpacing: 1,
-        marginLeft: 8,
-    },
-    modalMessage: {
-        fontSize: 14,
-        color: colors.text,
-        marginBottom: 24,
-        lineHeight: 20,
-    },
-    modalActions: {
-        flexDirection: 'row',
-        gap: 12,
-    },
-    modalCancelButton: {
-        flex: 1,
-        padding: 14,
-        borderRadius: 12,
-        backgroundColor: colors.background,
-        alignItems: 'center',
-    },
-    modalCancelText: {
-        fontWeight: 'bold',
-        color: colors.textMuted,
-    },
-    modalConfirmButton: {
-        flex: 1,
-        padding: 14,
-        borderRadius: 12,
-        backgroundColor: colors.danger,
-        alignItems: 'center',
-    },
-    modalConfirmText: {
-        fontSize: 14,
-        fontWeight: 'bold',
-        color: '#fff',
-    },
+    logoutText: { fontSize: 15, fontWeight: '600', color: colors.danger },
 });
