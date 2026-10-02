@@ -7,7 +7,7 @@ import NotificationItem from './NotificationItem';
 import { useAuth } from './AuthContext';
 import { useTheme } from './ThemeContext';
 import api from '../services/api';
-import { buildNotifications, hoursLabel, readReminders, readSeen, remainingHours, saveReminders, saveSeen, syncDeadlineReminder } from './studentNotifications';
+import { buildNotifications, hoursLabel, readReminders, readSeen, remainingHours, saveReminders, saveSeen, syncDeadlineReminder, readDataSaver, saveDataSaver, IDLE_REFRESH_MS, SAVER_REFRESH_MS } from './studentNotifications';
 
 // The frame of the student screens (mirrors frontend/src/components/StudentShell.jsx): StudentTopBar (menu,
 // title, notification bell) and the side menu (Home, Personal Info, Notifications, Settings, Log out).
@@ -43,6 +43,7 @@ export function StudentShellProvider({ children }) {
     const [profile, setProfile] = useState(null);
     const [records, setRecords] = useState({ violations: [], tickets: [] });
     const [reminders, setRemindersState] = useState(true);
+    const [dataSaver, setDataSaverState] = useState(true);
     const [seen, setSeen] = useState(new Set());
     const [menuOpen, setMenuOpen] = useState(false);
     const [menuShown, setMenuShown] = useState(false); // stays true while the close animation runs
@@ -54,6 +55,7 @@ export function StudentShellProvider({ children }) {
         if (!username) return;
         readSeen(username).then(setSeen);
         readReminders().then(setRemindersState);
+        readDataSaver().then(setDataSaverState);
         api.get(`/students/${username}/`).then(({ data }) => setProfile(data)).catch(() => {});
     }, [username]);
 
@@ -75,9 +77,9 @@ export function StudentShellProvider({ children }) {
     }, [username]);
     useEffect(() => {
         load();
-        const timer = setInterval(load, 30000);
+        const timer = setInterval(load, dataSaver ? SAVER_REFRESH_MS : IDLE_REFRESH_MS);
         return () => clearInterval(timer);
-    }, [load]);
+    }, [load, dataSaver]);
 
     // Reschedule the 6 AM phone reminder when anything it depends on changes
     const reminderKey = records.tickets.map((t) => `${t.id}:${t.status}:${t.served_today}`).join('|');
@@ -106,6 +108,7 @@ export function StudentShellProvider({ children }) {
         saveSeen(username, next);
     }, [notifications, seen, username]);
     const setReminders = (on) => { setRemindersState(on); saveReminders(on); };
+    const setDataSaver = (on) => { setDataSaverState(on); saveDataSaver(on); };
 
     const openLogout = async () => {
         setMenuOpen(false);
@@ -127,7 +130,7 @@ export function StudentShellProvider({ children }) {
     const styles = getStyles(colors, sc);
     const value = {
         profile, setProfile, records, setRecords: takeRecords, reload: load, notifications, unread, seen, markAllRead,
-        reminders, setReminders, openLogout, openMenu: () => setMenuOpen(true), go,
+        reminders, setReminders, dataSaver, setDataSaver, openLogout, openMenu: () => setMenuOpen(true), go,
     };
 
     return (

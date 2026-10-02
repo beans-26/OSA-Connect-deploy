@@ -4,6 +4,16 @@
 import { deadlineNotice } from './ticketStatus';
 
 export const REMINDERS_KEY = 'osa-deadline-reminders';
+// Data saver (Settings, on unless turned off): the map loads on tap and idle refreshes are every few minutes
+export const DATA_SAVER_KEY = 'osa-data-saver';
+export const IDLE_REFRESH_MS = 30000;
+export const SAVER_REFRESH_MS = 180000;
+export const readDataSaver = () => {
+    try { return localStorage.getItem(DATA_SAVER_KEY) !== 'off'; } catch { return true; }
+};
+export const saveDataSaver = (on) => {
+    try { localStorage.setItem(DATA_SAVER_KEY, on ? 'on' : 'off'); } catch { /* not kept */ }
+};
 const seenKey = (username) => `osa-notifications-seen:${username}`;
 const phToday = () => new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Manila' });
 // The "You haven't served today" reminder starts at 6:00 AM Philippine time (hidden before then) and is
