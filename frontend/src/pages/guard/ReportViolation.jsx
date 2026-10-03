@@ -1,13 +1,12 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Scan, Send, CheckCircle2, ClipboardList, X, LogOut, ChartColumnBig, User, UserCheck, AlertTriangle, Loader2 } from 'lucide-react';
+import { Scan, Send, CheckCircle2, X, User, UserCheck, AlertTriangle, Loader2 } from 'lucide-react';
 
 // The guard-on-duty name typed on this device, filled in again for the next report
 const ON_DUTY_KEY = 'osa-guard-on-duty';
 import QrScannerModal from '../../components/QrScannerModal';
 import { parseStudentQr, NOT_A_STUDENT_QR } from '../../components/studentQr';
 import { DEPARTMENTS, GENDERS, departmentForCourse, courseOptionsFor } from '../../lib/academics';
-import { GUARD_STAFF_LOGIN } from '../../lib/portals';
 // Violation types a guard or faculty & staff can report (shared with the admin's Report Violation)
 import { VIOLATIONS } from '../../lib/violationTypes';
 
@@ -18,7 +17,6 @@ const inputClass = "w-full min-w-0 bg-slate-50 dark:bg-slate-900 border-2 border
 const selectClass = (empty) => `${inputClass} appearance-none truncate bg-[length:14px] bg-[right_0.6rem_center] bg-no-repeat pr-8 ${empty ? '!text-slate-400 !font-medium' : ''}`;
 const selectArrow = { backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E\")" };
 const labelClass = "mb-1 ml-1 block text-xs font-bold text-slate-500 dark:text-slate-400";
-const headerLink = "flex items-center gap-1.5 px-3 py-1.5 bg-white dark:bg-slate-800 shadow-sm border border-slate-200 dark:border-slate-700 rounded-full text-slate-600 dark:text-slate-300 hover:text-ustp-blue font-bold text-xs";
 
 
 const emptyForm = () => ({
@@ -46,7 +44,6 @@ const ReportViolation = () => {
     const [loading, setLoading] = useState(false);
     const [isScanning, setIsScanning] = useState(false);
     const [showConfirmModal, setShowConfirmModal] = useState(false);
-    const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
     const [form, setForm] = useState(emptyForm);
 
     // The scanner only hands over codes that parseStudentQr accepts (see validate below)
@@ -144,8 +141,9 @@ const ReportViolation = () => {
         return `${d.toLocaleDateString('en-PH', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })} · ${d.toLocaleTimeString('en-PH', { hour: 'numeric', minute: '2-digit' })}`;
     })();
 
+    // Inside the guard / faculty & staff layout (components/ReporterShell.jsx): top bar, menu and Log out live there
     return (
-        <div className="flex bg-slate-50 dark:bg-slate-900 min-h-screen relative">
+        <>
             {isScanning && (
                 <QrScannerModal
                     title="Scan Student QR"
@@ -231,67 +229,7 @@ const ReportViolation = () => {
             )}
 
             {/* Confirmation modal before logging out */}
-            {showLogoutConfirm && (
-                <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
-                    <div className="bg-white dark:bg-slate-800 rounded-3xl p-6 w-full max-w-sm shadow-2xl animate-in zoom-in-95 duration-150 border border-slate-100 dark:border-slate-700">
-                        <div className="w-12 h-12 bg-red-50 dark:bg-red-950/50 text-red-500 dark:text-red-400 rounded-full flex items-center justify-center mx-auto mb-4">
-                            <LogOut size={22} />
-                        </div>
-                        <h3 className="text-lg font-black text-slate-900 dark:text-white text-center">Log out?</h3>
-                        <p className="text-sm font-medium text-slate-500 dark:text-slate-400 text-center mt-1 mb-6">
-                            Are you sure you want to log out of your account?
-                        </p>
-                        <div className="flex gap-3">
-                            <button
-                                onClick={() => setShowLogoutConfirm(false)}
-                                className="flex-1 py-3 bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-200 rounded-xl font-bold text-sm hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors"
-                            >
-                                Cancel
-                            </button>
-                            <button
-                                onClick={() => { localStorage.clear(); window.location.href = GUARD_STAFF_LOGIN; }}
-                                className="flex-1 py-3 bg-red-600 text-white rounded-xl font-bold text-sm hover:bg-red-700 transition-colors shadow-md shadow-red-200 dark:shadow-none"
-                            >
-                                Log Out
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            <main className="flex-1 p-3 md:p-10 w-full max-w-full h-screen overflow-y-auto custom-scrollbar">
-                <header className="max-w-4xl mx-auto w-full mb-2.5 flex items-center justify-between gap-4 px-4 sm:px-6">
-                    <div className="min-w-0">
-                        <h1 className="text-xl md:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">Report a violation</h1>
-                        <p className="mt-1 text-xs md:text-sm font-semibold text-slate-500 dark:text-slate-400 flex items-center gap-1.5 flex-wrap">
-                            <span>Signed in as</span>
-                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-50 text-ustp-blue border border-blue-200/60 dark:bg-blue-950/60 dark:text-blue-300 dark:border-blue-800/60 shadow-xs">
-                                {userName}
-                            </span>
-                        </p>
-                    </div>
-                    <div className="flex items-center gap-2 shrink-0">
-                        {['guard', 'staff'].includes(userRole) && (
-                            <Link to={`/${userRole}/history`} className={headerLink}>
-                                <ClipboardList size={14} /> <span className="hidden sm:inline">History</span>
-                            </Link>
-                        )}
-                        {userRole === 'guard' && (
-                            <Link to="/guard/analytics" className={headerLink}>
-                                <ChartColumnBig size={14} /> <span className="hidden sm:inline">Analytics</span>
-                            </Link>
-                        )}
-                        <button
-                            onClick={() => setShowLogoutConfirm(true)}
-                            aria-label="Log out"
-                            className="flex items-center gap-1.5 px-3.5 py-1.5 bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-800/60 hover:bg-red-100 dark:hover:bg-red-900/60 shadow-sm rounded-full font-bold text-xs transition-colors"
-                        >
-                            <LogOut size={14} className="shrink-0 text-red-500 dark:text-red-400" />
-                            <span>Log out</span>
-                        </button>
-                    </div>
-                </header>
-
+            <main className="w-full px-3 py-4 md:px-6 md:py-6">
                 <div className="max-w-4xl mx-auto w-full pb-10">
                     {!sent ? (
                         <form onSubmit={handleSubmit} className="card-premium p-3.5 sm:p-6 space-y-4 sm:space-y-5">
@@ -456,7 +394,7 @@ const ReportViolation = () => {
                     )}
                 </div>
             </main>
-        </div>
+        </>
     );
 };
 

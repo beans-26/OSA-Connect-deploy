@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
-import Sidebar from '../../components/Sidebar';
-import { ChartColumnBig, Loader2 } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import BreakdownBars, { BREAKDOWN_COLORS } from '../../components/BreakdownBars';
 
 // Campus-wide violation counts for guards: by department, violation type, gender, year level and course.
@@ -22,7 +21,6 @@ const BREAKDOWNS = [
 ];
 
 const GuardAnalytics = () => {
-    const userRole = JSON.parse(localStorage.getItem('user') || '{}').role || 'guard';
     const [period, setPeriod] = useState('month');
     const [data, setData] = useState(null);
     const [error, setError] = useState('');
@@ -40,16 +38,13 @@ const GuardAnalytics = () => {
     }, [period]);
 
     return (
-        <div className="flex bg-slate-50 dark:bg-slate-900 min-h-screen relative">
-            <Sidebar role={userRole} />
-            <main className="page-enter flex-1 px-3 pb-3 md:p-6 pt-20 md:pt-20 lg:pt-6 w-full max-w-full h-screen overflow-y-auto custom-scrollbar">
+        // Inside the guard / faculty & staff layout (components/ReporterShell.jsx): the title is in its top bar
+        <>
+            <main className="w-full px-3 py-4 md:px-6 md:py-6">
                 {/* Same width and compact style as Violation History */}
                 <div className="mx-auto w-full max-w-5xl">
                     <header className="mb-2.5 sm:mb-3">
-                        <h1 className="flex items-center gap-2 text-lg md:text-2xl font-extrabold text-slate-900 dark:text-white tracking-tight">
-                            <ChartColumnBig className="text-ustp-blue dark:text-blue-400 shrink-0" size={20} /> Violation Analytics
-                        </h1>
-                        <p className="text-slate-500 dark:text-slate-400 mt-0.5 font-medium text-xs">Campus-wide counts of reported violations.</p>
+                        <p className="text-slate-500 dark:text-slate-400 font-medium text-xs">Campus-wide counts of reported violations.</p>
                     </header>
 
                     {/* The periods on one line (they scroll sideways on narrow phones) */}
@@ -92,7 +87,7 @@ const GuardAnalytics = () => {
                     )}
                 </div>
             </main>
-        </div>
+        </>
     );
 };
 
