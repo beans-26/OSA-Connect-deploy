@@ -41,6 +41,7 @@ const StudentNotifications = page(() => import('./pages/student/Notifications'))
 const ChangePassword = page(() => import('./pages/student/ChangePassword'));
 const StudentHelp = page(() => import('./pages/student/Help'));
 const StudentShell = page(() => import('./components/StudentShell'));
+const ReporterShell = page(() => import('./components/ReporterShell'));
 const Help = page(() => import('./pages/Help'));
 const LandingPage = page(() => import('./pages/LandingPage'));
 
@@ -97,6 +98,8 @@ const SIDEBAR_PAGES = /^\/(admin\/|help$|guard\/history$)/;
 // The student pages share one layout (components/StudentShell.jsx): one key, so it stays mounted and its
 // side menu slides closed over the next page (the layout fades the page content itself)
 const STUDENT_SHELL_PAGES = /^\/student\/(dashboard|personal-info|notifications|help|settings(\/password)?)$/;
+// Same for the guard and faculty & staff pages (components/ReporterShell.jsx)
+const REPORTER_SHELL_PAGES = /^\/(guard\/(report|history|analytics)|staff\/(report|history|help))$/;
 
 // Fades each page in when the route changes. Opacity only: a transform here would
 // break the pages' position: fixed modals and menus while the animation runs.
@@ -104,7 +107,7 @@ const PageFade = ({ children }) => {
   const location = useLocation();
   return (
     <motion.div
-      key={STUDENT_SHELL_PAGES.test(location.pathname) ? 'student-shell' : location.pathname}
+      key={STUDENT_SHELL_PAGES.test(location.pathname) ? 'student-shell' : REPORTER_SHELL_PAGES.test(location.pathname) ? (location.pathname.startsWith('/staff/') ? 'staff-shell' : 'guard-shell') : location.pathname}
       initial={SIDEBAR_PAGES.test(location.pathname) ? false : { opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.25, ease: 'easeOut' }}
@@ -136,13 +139,19 @@ function App() {
           {/* Opened on the admin's phone from the QR in a violation's details; the link itself is the permission */}
           <Route path="/capture/:token" element={<ClearanceCapture />} />
 
-          <Route path="/guard/report" element={<ProtectedRoute element={<ReportViolation />} allowedRoles={['guard', 'admin']} />} />
-          <Route path="/guard/history" element={<ProtectedRoute element={<GuardHistory />} allowedRoles={['guard', 'admin']} />} />
-          <Route path="/guard/analytics" element={<ProtectedRoute element={<GuardAnalytics />} allowedRoles={['guard', 'admin']} />} />
+          {/* Guard and faculty & staff pages share one layout (top bar and side menu, components/ReporterShell.jsx) */}
+          <Route element={<ProtectedRoute element={<ReporterShell />} allowedRoles={['guard', 'admin']} />}>
+            <Route path="/guard/report" element={<ReportViolation />} />
+            <Route path="/guard/history" element={<GuardHistory />} />
+            <Route path="/guard/analytics" element={<GuardAnalytics />} />
+          </Route>
           <Route path="/guard/*" element={<Navigate to="/guard/report" replace />} />
 
-          <Route path="/staff/report" element={<ProtectedRoute element={<ReportViolation />} allowedRoles={['staff']} />} />
-          <Route path="/staff/history" element={<ProtectedRoute element={<GuardHistory />} allowedRoles={['staff']} />} />
+          <Route element={<ProtectedRoute element={<ReporterShell />} allowedRoles={['staff']} />}>
+            <Route path="/staff/report" element={<ReportViolation />} />
+            <Route path="/staff/history" element={<GuardHistory />} />
+            <Route path="/staff/help" element={<Help embedded />} />
+          </Route>
           <Route path="/staff/*" element={<Navigate to="/staff/report" replace />} />
 
           <Route path="/admin/overview" element={<ProtectedRoute element={<StaffDashboard />} allowedRoles={['admin']} />} />

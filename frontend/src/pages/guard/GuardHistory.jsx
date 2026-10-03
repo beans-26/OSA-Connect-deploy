@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import usePolling from '../../lib/usePolling';
-import Sidebar from '../../components/Sidebar';
 import { ClipboardList, AlertTriangle, Search } from 'lucide-react';
 import { departmentShort } from '../../lib/academics';
 
@@ -34,8 +33,6 @@ const shortWhen = (iso) => {
 };
 
 const GuardHistory = () => {
-    const user = JSON.parse(localStorage.getItem('user') || '{}');
-    const userRole = user.role || 'guard';
 
     const [violations, setViolations] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -69,17 +66,16 @@ const GuardHistory = () => {
     const counts = Object.fromEntries(FILTERS.map(([key, , test]) => [key, violations.filter((v) => test(v.status)).length]));
 
     return (
-        <div className="flex bg-slate-50 dark:bg-slate-900 min-h-screen relative">
-            <Sidebar role={userRole} />
-            <main className="page-enter flex-1 px-3 pb-3 md:p-6 pt-20 md:pt-20 lg:pt-6 w-full max-w-full h-screen overflow-hidden flex flex-col">
-                <header className="mb-3 shrink-0 mx-auto w-full max-w-3xl">
-                    <h1 className="text-xl md:text-2xl font-extrabold text-slate-900 dark:text-white tracking-tight">Violation History</h1>
-                    <p className="text-slate-500 dark:text-slate-400 mt-0.5 font-medium text-xs">
+        // Inside the guard / faculty & staff layout (components/ReporterShell.jsx): the title is in its top bar
+        <>
+            <main className="w-full px-3 py-4 md:px-6 md:py-6">
+                <header className="mb-3 mx-auto w-full max-w-3xl">
+                    <p className="text-slate-500 dark:text-slate-400 font-medium text-xs">
                         {loading ? 'Loading your reports…' : `${filteredViolations.length} of ${violations.length} report${violations.length === 1 ? '' : 's'}`}
                     </p>
                 </header>
 
-                <div className="flex-1 overflow-y-auto pb-10 custom-scrollbar">
+                <div className="pb-10">
                     <div className="mx-auto w-full max-w-3xl">
                         {/* Search, then the status filters on one line (they scroll sideways on narrow phones) */}
                         <div className="relative mb-2.5">
@@ -156,7 +152,7 @@ const GuardHistory = () => {
                     </div>
                 </div>
             </main>
-        </div>
+        </>
     );
 };
 
