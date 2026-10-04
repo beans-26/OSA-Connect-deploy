@@ -10,3 +10,4 @@ export const VIOLATIONS = [
 // The admin's "Report Violation" (Students page) is only for students who missed a mandatory event;
 // the admin sets the hours
 export const EVENT_VIOLATION = 'Failure to attend mandatory campus event';
+

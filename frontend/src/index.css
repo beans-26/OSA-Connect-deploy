@@ -84,19 +84,8 @@ body {
   --s-warn-text: #92400e;
   background-color: var(--s-bg);
   color: var(--s-text);
-  /* iPhones get SF Pro (the system font); other devices get Inter, the closest free match */
-  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   min-height: 100vh;
-}
-
-/* Thin line icons on every student page (lucide sets stroke-width as an attribute; CSS takes precedence) */
-.student-ui svg.lucide {
-  stroke-width: 1.6px;
-}
-
-/* Settings-style rows (components/SettingsList.jsx): the divider starts after the icon, like iOS lists */
-.student-ui .s-row:not(:first-child) .s-row-body {
-  border-top: 1px solid var(--s-border);
 }
 
 .student-ui[data-theme="dark"] {
@@ -224,4 +213,13 @@ body {
 .leaflet-bar {
   border: none !important;
   box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1) !important;
+}
+/* Flo-style typography for the guard and faculty & staff pages (components/ReporterShell.jsx):
+   SF Pro on iPhone and Mac, Inter (the closest free match) elsewhere */
+.flo-type,
+.flo-type input,
+.flo-type select,
+.flo-type button,
+.flo-type textarea {
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
 }

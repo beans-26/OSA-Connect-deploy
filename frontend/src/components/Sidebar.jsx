@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { NavLink, Link, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, User, LogOut, Menu, X, Users, Settings, HelpCircle, ChevronDown, ChevronRight, ChevronsLeft, ChevronsRight, FileSearch, Archive, TrendingUp, ClipboardPen, ClipboardList, ChartColumnBig } from 'lucide-react';
+import { LayoutDashboard, User, LogOut, Menu, X, Users, Settings, HelpCircle, ChevronDown, ChevronRight, ChevronsLeft, ChevronsRight, FileSearch, Archive, TrendingUp, Gavel, History, ChartPie } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import logo from '../assets/osaconnect-logo.png';
 import logoDark from '../assets/osaconnect-logo-dark.png';
@@ -78,13 +78,13 @@ const Sidebar = ({ role }) => {
         // Guards and faculty & staff: file a report (clipboard + pen), their past reports (clipboard list),
         // and the counts (column chart). The report page's header shortcuts use the same icons.
         guard: [
-            { name: 'Report Violation', path: '/guard/report', icon: ClipboardPen },
-            { name: 'History', path: '/guard/history', icon: ClipboardList },
-            { name: 'Analytics', path: '/guard/analytics', icon: ChartColumnBig },
+            { name: 'Report Violation', path: '/guard/report', icon: Gavel },
+            { name: 'History', path: '/guard/history', icon: History },
+            { name: 'Analytics', path: '/guard/analytics', icon: ChartPie },
         ],
         staff: [
-            { name: 'Report Violation', path: '/staff/report', icon: ClipboardPen },
-            { name: 'History', path: '/staff/history', icon: ClipboardList },
+            { name: 'Report Violation', path: '/staff/report', icon: Gavel },
+            { name: 'History', path: '/staff/history', icon: History },
         ],
         student: [
             { name: 'Service Hub', path: '/student/dashboard', icon: LayoutDashboard },

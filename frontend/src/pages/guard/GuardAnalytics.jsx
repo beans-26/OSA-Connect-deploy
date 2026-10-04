@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Building2, Users, Layers, GraduationCap } from 'lucide-react';
 import BreakdownBars, { BREAKDOWN_COLORS } from '../../components/BreakdownBars';
 
 // Campus-wide violation counts for guards: by department, violation type, gender, year level and course.
@@ -13,11 +13,11 @@ const PERIODS = [
 ];
 // half: short lists that sit two to a row on phones (gender, year level)
 const BREAKDOWNS = [
-    { id: 'department', label: 'Department' },
+    { id: 'department', label: 'Department', icon: Building2 },
     { id: 'violation_type', label: 'Violation Type' },
-    { id: 'gender', label: 'Gender', half: true },
-    { id: 'year_level', label: 'Year Level', half: true },
-    { id: 'course', label: 'Course' },
+    { id: 'gender', label: 'Gender', half: true, icon: Users },
+    { id: 'year_level', label: 'Year Level', half: true, icon: Layers },
+    { id: 'course', label: 'Course', icon: GraduationCap },
 ];
 
 const GuardAnalytics = () => {
@@ -69,16 +69,16 @@ const GuardAnalytics = () => {
                     ) : (
                         <div className="space-y-2 sm:space-y-3 pb-10">
                             <div className="flex items-center justify-between gap-3 rounded-xl sm:rounded-2xl border border-red-100 dark:border-red-500/20 bg-red-50 dark:bg-red-500/10 px-3.5 py-2 sm:px-4 sm:py-3">
-                                <p className="text-[10px] font-black uppercase tracking-widest text-red-600 dark:text-red-400">
+                                <p className="text-[10px] font-bold uppercase tracking-widest text-red-600 dark:text-red-400">
                                     Violations reported <span className="font-bold normal-case tracking-normal text-red-500/80 dark:text-red-300/70">· {PERIODS.find((p) => p.id === period)?.label}</span>
                                 </p>
-                                <p className="text-2xl sm:text-3xl font-black tabular-nums text-red-700 dark:text-red-300">{data.total}</p>
+                                <p className="text-2xl sm:text-3xl font-bold tabular-nums text-red-700 dark:text-red-300">{data.total}</p>
                             </div>
                             {/* Phones: two columns, the long lists across both and gender / year level side by side */}
                             <div className="grid grid-cols-2 xl:grid-cols-3 gap-2 sm:gap-3">
                                 {BREAKDOWNS.map((b) => (
                                     <div key={b.id} className={`${b.half ? 'col-span-1' : 'col-span-2 md:col-span-1'} ${b.half ? '' : 'xl:col-span-1'} min-w-0 rounded-xl sm:rounded-2xl border border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2.5 sm:px-4 sm:py-3.5 shadow-sm`}>
-                                        <h4 className="mb-1.5 sm:mb-2.5 font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest text-[10px]">By {b.label}</h4>
+                                        <h4 className="mb-1.5 sm:mb-2.5 flex items-center gap-1.5 font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest text-[10px]">{b.icon && <b.icon size={13} className="shrink-0" aria-hidden="true" />} By {b.label}</h4>
                                         <BreakdownBars rows={data[b.id] || []} total={data.total} color={BREAKDOWN_COLORS[b.id]} compact />
                                     </div>
                                 ))}

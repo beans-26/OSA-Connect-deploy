@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import usePolling from '../../lib/usePolling';
-import { ClipboardList, AlertTriangle, Search } from 'lucide-react';
+import { ClipboardList, Search } from 'lucide-react';
 import { departmentShort } from '../../lib/academics';
 
 // The reports a guard (or faculty & staff) filed, newest first, with where each one is in OSA's process.
@@ -137,11 +137,11 @@ const GuardHistory = () => {
                                                         {s.course && s.course !== 'Unknown' && ` · ${s.course}`}
                                                     </p>
                                                 </div>
-                                                <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-black uppercase tracking-wide ${statusTone}`}>{statusLabel}</span>
+                                                <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${statusTone}`}>{statusLabel}</span>
                                             </div>
                                             <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1">
                                                 <span className="inline-flex items-center gap-1 rounded-md bg-red-50 dark:bg-red-500/10 px-2 py-0.5 text-xs font-bold text-red-700 dark:text-red-300">
-                                                    <AlertTriangle size={12} className="shrink-0" /> {report.violation_type}
+                                                    {report.violation_type}
                                                 </span>
                                                 <span className="text-xs text-slate-400 dark:text-slate-500">
                                                     {shortWhen(report.created_at)}{report.reporting_guard ? ` · ${report.reporting_guard}` : ''}

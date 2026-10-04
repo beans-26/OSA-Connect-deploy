@@ -2,12 +2,11 @@ import { AlertTriangle, CheckCircle2, Clock, Info } from 'lucide-react';
 
 // One notification row, used by the Notifications page and the bell's panel (StudentShell).
 // Mirrors mobile/components/NotificationItem.jsx.
-// Line icon in the tone's colour (no filled circle), like a settings list
 const TONES = {
-    info: { icon: Info, className: 'text-blue-600 dark:text-blue-300' },
-    warn: { icon: Clock, className: 'text-amber-600 dark:text-amber-300' },
-    good: { icon: CheckCircle2, className: 'text-emerald-600 dark:text-emerald-300' },
-    bad: { icon: AlertTriangle, className: 'text-red-600 dark:text-red-300' },
+    info: { icon: Info, className: 'bg-blue-100 text-blue-700 dark:bg-blue-500/15 dark:text-blue-300' },
+    warn: { icon: Clock, className: 'bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300' },
+    good: { icon: CheckCircle2, className: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300' },
+    bad: { icon: AlertTriangle, className: 'bg-red-100 text-red-600 dark:bg-red-500/15 dark:text-red-300' },
 };
 
 const when = (iso) => {
@@ -23,18 +22,16 @@ const when = (iso) => {
 export default function NotificationItem({ n, fresh, compact = false }) {
     const { icon: Icon, className } = TONES[n.tone] || TONES.info;
     return (
-        <li className={`s-row flex pl-4 ${fresh ? 'bg-[var(--s-accent-soft)]' : ''}`}>
-            <Icon size={24} className={`mr-4 mt-3.5 shrink-0 ${className}`} aria-hidden="true" />
-            <div className={`s-row-body flex min-w-0 flex-1 gap-3 pr-4 ${compact ? 'py-3' : 'py-3.5'}`}>
-                <div className="min-w-0 flex-1">
-                    <div className="flex items-baseline justify-between gap-2">
-                        <p className="text-[16px] font-medium text-[var(--s-text)]">{n.title}</p>
-                        <span className="shrink-0 text-[12px] text-[var(--s-muted)]">{when(n.at)}</span>
-                    </div>
-                    <p className={`mt-0.5 text-[14px] leading-5 text-[var(--s-muted)] ${compact ? 'line-clamp-2' : ''}`}>{n.body}</p>
+        <li className={`flex gap-3 ${compact ? 'px-3.5 py-3' : 'px-4 py-3.5'} [&:not(:first-child)]:border-t [&:not(:first-child)]:border-[var(--s-border)] ${fresh ? 'bg-[var(--s-accent-soft)]' : ''}`}>
+            <span className={`mt-0.5 flex ${compact ? 'h-8 w-8' : 'h-9 w-9'} shrink-0 items-center justify-center rounded-full ${className}`}><Icon size={compact ? 15 : 17} /></span>
+            <div className="min-w-0 flex-1">
+                <div className="flex items-baseline justify-between gap-2">
+                    <p className="text-sm font-bold text-[var(--s-text)]">{n.title}</p>
+                    <span className="shrink-0 text-[11px] text-[var(--s-muted)]">{when(n.at)}</span>
                 </div>
-                {fresh && <span className="mt-2 h-2 w-2 shrink-0 rounded-full bg-[var(--s-accent)]" aria-label="New" />}
+                <p className={`mt-0.5 text-xs leading-5 text-[var(--s-muted)] ${compact ? 'line-clamp-2' : ''}`}>{n.body}</p>
             </div>
+            {fresh && <span className="mt-2 h-2 w-2 shrink-0 rounded-full bg-[var(--s-accent)]" aria-label="New" />}
         </li>
     );
 }
