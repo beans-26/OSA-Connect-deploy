@@ -4,6 +4,17 @@ import { Search, X, User, AlertCircle, Inbox } from 'lucide-react';
 import ThemeToggle from '../../components/ThemeToggle';
 import { useServiceSites, ServiceSiteOptions, postAssignment } from '../../components/useServiceSites';
 
+// The OSA handbook penalty a report gets on approval, from GET /api/violations/punishments/ (same rule as
+// get_punishment in backend core/views.py): its type's penalty for this offense number, the last listed one
+// for later offenses, and the default for types not in the table. Admins don't choose the hours.
+const penaltyFor = (table, report) => {
+    if (!table) return null;
+    const rule = table.rules.find((r) => r.violation_type === report.violation_type);
+    if (!rule) return table.default;
+    const offense = Number(report.offense_count) || 1;
+    return rule.offenses.find((o) => o.offense === offense) || rule.offenses[rule.offenses.length - 1];
+};
+
 const PendingReviews = () => {
     const userRole = JSON.parse(localStorage.getItem('user') || '{}').role || 'staff';
     const [reports, setReports] = useState([]);
@@ -11,13 +22,17 @@ const PendingReviews = () => {
     const [selectedReport, setSelectedReport] = useState(null);
     const [searchTerm, setSearchTerm] = useState('');
     const [assignedBuildings, setAssignedBuildings] = useState({});
-    const [customHours, setCustomHours] = useState({});
+    // null while loading, false if it couldn't be loaded
+    const [penalties, setPenalties] = useState(null);
     // Buildings are the registered service sites (Settings > Service Sites)
     const serviceSites = useServiceSites();
-    const HOURS_OPTIONS = ['3', '5', '6'];
 
     useEffect(() => {
         fetchReports();
+        fetch('/api/violations/punishments/')
+            .then((r) => (r.ok ? r.json() : Promise.reject(r.status)))
+            .then(setPenalties)
+            .catch(() => setPenalties(false));
     }, []);
 
     const fetchReports = async () => {
@@ -33,19 +48,21 @@ const PendingReviews = () => {
         }
     };
 
-    const handleAction = async (reportId, newStatus) => {
-        const assigned_building = assignedBuildings[reportId];
-        const custom_hours = customHours[reportId];
-        
-        if (newStatus === 'Approved' && (!assigned_building || !custom_hours)) {
-            alert("Please assign a building and required hours before approval");
+    const handleAction = async (report, newStatus) => {
+        const reportId = report.id;
+        // Community service needs a building; a sanction with no hours (no entry into the campus) doesn't
+        const needsBuilding = (penaltyFor(penalties, report)?.hours || 0) > 0;
+        const assigned_building = needsBuilding ? assignedBuildings[reportId] : undefined;
+
+        if (newStatus === 'Approved' && needsBuilding && !assigned_building) {
+            alert("Please assign a building before approval");
             return;
         }
 
         try {
             const endpoint = newStatus === 'Approved' ? 'approve' : 'dismiss';
             // Approving into a full building asks "assign anyway?" first
-            const { ok, cancelled, data } = await postAssignment(`/api/violations/${reportId}/${endpoint}/`, { assigned_building, custom_hours });
+            const { ok, cancelled, data } = await postAssignment(`/api/violations/${reportId}/${endpoint}/`, { assigned_building });
             if (ok) {
                 setSelectedReport(null);
                 fetchReports();
@@ -165,43 +182,57 @@ const PendingReviews = () => {
                                     <div className="bg-slate-50 dark:bg-slate-900/50 p-4 rounded-2xl border border-slate-200 dark:border-slate-800"><p className="text-[9px] font-black uppercase text-slate-500 dark:text-slate-500 mb-0.5">Course</p><p className="font-bold text-slate-800 dark:text-slate-300 text-xs truncate">{selectedReport.student_details?.course}</p></div>
                                     <div className="bg-slate-50 dark:bg-slate-900/50 p-4 rounded-2xl border border-slate-200 dark:border-slate-800"><p className="text-[9px] font-black uppercase text-slate-500 dark:text-slate-500 mb-0.5">Dept</p><p className="font-bold text-slate-800 dark:text-slate-300 text-xs truncate">{selectedReport.student_details?.department}</p></div>
                                 </div>
-                                <div className="grid grid-cols-2 gap-3">
-                                    <div className="bg-slate-50 dark:bg-slate-900/50 p-4 rounded-2xl border border-slate-100 dark:border-slate-800">
-                                        <p className="text-[9px] font-black uppercase text-slate-400 dark:text-slate-500 mb-1.5">Assign Building *</p>
-                                        <select 
-                                            value={assignedBuildings[selectedReport.id] || ''} 
-                                            onChange={(e) => setAssignedBuildings({...assignedBuildings, [selectedReport.id]: e.target.value})}
-                                            className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-xs font-bold text-slate-700 dark:text-slate-300 focus:border-ustp-blue outline-none transition-all"
-                                        >
-                                            <ServiceSiteOptions {...serviceSites} placeholder="Choose..." />
-                                        </select>
-                                    </div>
-                                    <div className="bg-slate-50 dark:bg-slate-900/50 p-4 rounded-2xl border border-slate-100 dark:border-slate-800">
-                                        <p className="text-[9px] font-black uppercase text-slate-400 dark:text-slate-500 mb-1.5">Required Hours *</p>
-                                        <select 
-                                            value={customHours[selectedReport.id] || ''} 
-                                            onChange={(e) => setCustomHours({...customHours, [selectedReport.id]: e.target.value})}
-                                            className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-xs font-bold text-slate-700 dark:text-slate-300 focus:border-ustp-blue outline-none transition-all"
-                                        >
-                                            <option value="">Select...</option>
-                                            {HOURS_OPTIONS.map(h => <option key={h} value={h}>{h} Hours</option>)}
-                                        </select>
-                                    </div>
-                                </div>
+                                {(() => {
+                                    // The handbook penalty for this offense; only community service needs a building
+                                    const penalty = penaltyFor(penalties, selectedReport);
+                                    const hasHours = (penalty?.hours || 0) > 0;
+                                    return (
+                                        <>
+                                            <div className={`p-4 rounded-2xl border ${penalty && !hasHours ? 'bg-red-50 border-red-200 dark:bg-red-900/10 dark:border-red-700/30' : 'bg-slate-50 border-slate-200 dark:bg-slate-900/50 dark:border-slate-800'}`}>
+                                                <p className="text-[9px] font-black uppercase text-slate-500 dark:text-slate-500 mb-0.5">Penalty (OSA Student Handbook)</p>
+                                                <p className={`font-bold text-sm ${penalty && !hasHours ? 'text-red-700 dark:text-red-400' : 'text-slate-800 dark:text-slate-200'}`}>
+                                                    {penalties === null ? 'Loading penalty…'
+                                                        : penalties === false ? "Couldn't load the penalty table. Reload the page." : penalty?.punishment}
+                                                </p>
+                                                {penalty && !hasHours && (
+                                                    <p className="mt-1 text-[11px] font-semibold text-red-600/80 dark:text-red-400/80">No community service: approving records this sanction and moves the case to the archives.</p>
+                                                )}
+                                            </div>
+                                            {hasHours && (
+                                                <div className="bg-slate-50 dark:bg-slate-900/50 p-4 rounded-2xl border border-slate-100 dark:border-slate-800">
+                                                    <p className="text-[9px] font-black uppercase text-slate-400 dark:text-slate-500 mb-1.5">Assign Building *</p>
+                                                    <select
+                                                        value={assignedBuildings[selectedReport.id] || ''}
+                                                        onChange={(e) => setAssignedBuildings({...assignedBuildings, [selectedReport.id]: e.target.value})}
+                                                        className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-xs font-bold text-slate-700 dark:text-slate-300 focus:border-ustp-blue outline-none transition-all"
+                                                    >
+                                                        <ServiceSiteOptions {...serviceSites} placeholder="Choose..." />
+                                                    </select>
+                                                </div>
+                                            )}
+                                        </>
+                                    );
+                                })()}
                             </div>
                             <div className="p-6 pt-0 flex gap-3">
-                                <button onClick={() => handleAction(selectedReport.id, 'Dismissed')} className="flex-1 py-3 bg-red-50 text-red-600 dark:bg-red-900/20 dark:text-red-400 rounded-xl font-bold text-[10px] uppercase tracking-widest hover:bg-red-500 hover:text-white transition-all">Dismiss Case</button>
-                                <button 
-                                    onClick={() => handleAction(selectedReport.id, 'Approved')}
-                                    disabled={!assignedBuildings[selectedReport.id] || !customHours[selectedReport.id]}
-                                    className={`flex-1 py-3 rounded-xl font-bold text-[10px] uppercase tracking-widest transition-all ${
-                                        assignedBuildings[selectedReport.id] && customHours[selectedReport.id]
-                                        ? 'bg-emerald-500 text-white hover:bg-emerald-600 shadow-lg shadow-emerald-500/20'
-                                        : 'bg-slate-100 text-slate-400 dark:bg-slate-800 dark:text-slate-500 cursor-not-allowed'
-                                    }`}
-                                >
-                                    Approve Case
-                                </button>
+                                <button onClick={() => handleAction(selectedReport, 'Dismissed')} className="flex-1 py-3 bg-red-50 text-red-600 dark:bg-red-900/20 dark:text-red-400 rounded-xl font-bold text-[10px] uppercase tracking-widest hover:bg-red-500 hover:text-white transition-all">Dismiss Case</button>
+                                {(() => {
+                                    const penalty = penaltyFor(penalties, selectedReport);
+                                    const ready = penalty && ((penalty.hours || 0) <= 0 || assignedBuildings[selectedReport.id]);
+                                    return (
+                                        <button
+                                            onClick={() => handleAction(selectedReport, 'Approved')}
+                                            disabled={!ready}
+                                            className={`flex-1 py-3 rounded-xl font-bold text-[10px] uppercase tracking-widest transition-all ${
+                                                ready
+                                                ? 'bg-emerald-500 text-white hover:bg-emerald-600 shadow-lg shadow-emerald-500/20'
+                                                : 'bg-slate-100 text-slate-400 dark:bg-slate-800 dark:text-slate-500 cursor-not-allowed'
+                                            }`}
+                                        >
+                                            Approve Case
+                                        </button>
+                                    );
+                                })()}
                             </div>
                         </div>
                     </div>

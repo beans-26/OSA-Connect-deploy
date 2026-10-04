@@ -101,12 +101,12 @@ const StudentIdleGuard = () => {
                 style={{ backgroundColor: 'var(--s-card)', minHeight: 0 }}
             >
                 <Clock size={36} className="mx-auto mb-3 text-[var(--s-primary)]" />
-                <h3 id="idle-title" className="text-lg font-black text-[var(--s-text)]">Still there?</h3>
+                <h3 id="idle-title" className="text-lg font-semibold text-[var(--s-text)]">Still there?</h3>
                 <p className="mt-2 text-sm leading-5 text-[var(--s-muted)]">
                     {"You haven't used OSAConnect for an hour. You'll be logged out and any running service timer will stop in"}
                 </p>
-                <p className="my-4 text-5xl font-black tabular-nums text-[var(--s-danger)]">{secondsLeft}</p>
-                <button onClick={stillHere} className="w-full rounded-xl bg-[var(--s-primary)] p-3.5 text-sm font-bold uppercase tracking-[1px] text-white">
+                <p className="my-4 text-5xl font-semibold tabular-nums text-[var(--s-danger)]">{secondsLeft}</p>
+                <button onClick={stillHere} className="w-full rounded-xl bg-[var(--s-primary)] p-3.5 text-sm font-bold text-white">
                     {"I'm still here"}
                 </button>
             </div>

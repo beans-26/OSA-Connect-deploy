@@ -89,7 +89,8 @@ const PenaltiesTable = () => {
                                     <div key={label} className="rounded-xl bg-slate-50 px-2 py-2 dark:bg-slate-900/60">
                                         <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">{label}</p>
                                         <p className={`text-base font-black ${repeated ? 'text-slate-400' : 'text-slate-900 dark:text-white'}`}>
-                                            {shown ? `${shown.hours} h` : '—'}
+                                            {/* A penalty without hours is a sanction (no entry into the campus) */}
+                                            {shown ? (shown.hours > 0 ? `${shown.hours} h` : 'No entry') : '—'}
                                         </p>
                                     </div>
                                 );
@@ -171,7 +172,7 @@ const Help = ({ embedded = false }) => {
                                 ))}
                             </Section>
 
-                            <Section id="penalties" icon={Scale} title="Violations and penalties" intro="Suggested community service hours by offense number.">
+                            <Section id="penalties" icon={Scale} title="Violations and penalties" intro="Penalties by offense number, from the OSA Student Handbook (Section 3, Non-Academic Light Offenses).">
                                 <div className="mt-3">
                                     <PenaltiesTable />
                                 </div>

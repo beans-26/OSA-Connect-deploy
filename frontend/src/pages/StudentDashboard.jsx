@@ -13,7 +13,7 @@ import { timeGreeting, todayLabel, studentStatusLine } from '../lib/greeting';
 import { outsideSiteMessage, GEO_MESSAGES } from '../lib/geo';
 
 // Service site QR codes hold only the site code, e.g. "LIB-01" (same rule as backend/core/site_views.py).
-// Checked after the OSA action/building codes, which look similar ("OSA-START", "CITC-DEPT").
+// They are the only codes that start or end the timer (the old OSA action and building codes were retired).
 const SITE_CODE_PATTERN = /^[A-Z0-9]{2,10}-[A-Z0-9]{1,6}$/;
 
 // Leaflet geofence map framed like the mobile map card (site, radius, and your position).
@@ -91,7 +91,7 @@ const GeofenceMap = ({ hub, location, isOutOfBounds, isDarkMode, approach = fals
         // isolate: Leaflet's panes use z-index 400+, which otherwise drew the map over the QR scanner (z-70)
         <div className={`relative isolate mt-3 w-full overflow-hidden rounded-[14px] border border-[var(--s-border)] ${approach ? 'h-[280px]' : 'h-[200px]'}`}>
             <div ref={containerRef} className={`h-full w-full ${isDarkMode ? 'brightness-[.8] contrast-[1.1]' : ''}`} />
-            <div className="absolute right-3 top-3 z-[500] rounded-full bg-[var(--s-card)] px-3 py-1.5 text-[9px] font-black tracking-[1px] text-[var(--s-text)] shadow">
+            <div className="absolute right-3 top-3 z-[500] rounded-full bg-[var(--s-card)] px-3 py-1.5 text-[9px] font-semibold tracking-[1px] text-[var(--s-text)] shadow">
                 {approach ? 'ROUTE TO SITE' : 'LIVE GPS FEED'}
             </div>
             <div className="absolute bottom-2 left-2 z-[500] rounded-lg bg-[var(--s-card)] px-2 py-1.5 shadow">
@@ -165,7 +165,7 @@ const DeadlineInfo = ({ ticket }) => {
             </button>
             {open && (
                 <div role="tooltip" className={`absolute right-0 top-8 z-20 w-64 rounded-xl border p-3 text-left shadow-lg ${notice.overdue ? 'border-[#fca5a5] bg-[#fee2e2]' : 'border-[#fde68a] bg-[#fffbeb]'}`}>
-                    <p className={`text-sm font-black ${notice.overdue ? 'text-[#b91c1c]' : 'text-[#92400e]'}`}>{notice.title}</p>
+                    <p className={`text-sm font-semibold ${notice.overdue ? 'text-[#b91c1c]' : 'text-[#92400e]'}`}>{notice.title}</p>
                     <p className={`mt-0.5 text-xs font-semibold leading-5 ${notice.overdue ? 'text-[#991b1b]' : 'text-[#92400e]'}`}>{notice.message}</p>
                 </div>
             )}
@@ -185,7 +185,7 @@ const ServiceRemaining = ({ ticket, remainingHours }) => {
             </div>
             {/* The (i) sits beside the countdown, under the pill, so it adds no height */}
             <div className="mt-1 flex items-start justify-between gap-2">
-                <p className="font-mono text-[44px] font-black leading-tight tabular-nums tracking-tight text-[var(--s-text)]">{hms(remainingHours)}</p>
+                <p className="font-mono text-[44px] font-semibold leading-tight tabular-nums tracking-tight text-[var(--s-text)]">{hms(remainingHours)}</p>
                 <DeadlineInfo ticket={ticket} />
             </div>
             <p className="text-[13px] font-medium text-[var(--s-muted)]">of {Math.round(required * 100) / 100} hrs required{site ? ` · ${site}` : ''}</p>
@@ -273,10 +273,7 @@ const DashboardBody = () => {
                 body: JSON.stringify({
                     eticket_id: pendingActionData.ticketId,
                     action: pendingActionData.actionType,
-                    lat: pendingActionData.forcedLat,
-                    lng: pendingActionData.forcedLng,
-                    radius: pendingActionData.forcedRadius,
-                    // Registered service site: the server looks up its location and radius from the code
+                    // The service site's code: the server looks up its location and radius
                     site_code: pendingActionData.siteCode || null,
                     // Where the student is; the server only starts the timer inside the site's radius
                     student_lat: pendingActionData.studentLat ?? null,
@@ -637,135 +634,67 @@ const DashboardBody = () => {
         }
     };
 
+    // Time in: only a registered service site's QR (Admin > Settings > Service Sites), e.g. "LIB-01"
     const processCode = async (codeToProcess) => {
-        const rawCode = codeToProcess || "";
-        const payloadCode = rawCode.trim().toUpperCase();
+        const siteCode = (codeToProcess || "").trim().toUpperCase();
 
         if (!activeTicket) {
             alert("No active Service Obligations. Please wait for the Admin to assign your fresh violation.");
             return;
         }
-
-        let actionType = null;
-        let forcedLat = null;
-        let forcedLng = null;
-        let forcedRadius = 15; // 15 meters as requested
-
-        // 1. Dynamic Coordinate QR (LAT:8.485121,LNG:124.656512)
-        if (payloadCode.includes("LAT:") && payloadCode.includes("LNG:")) {
-            try {
-                const latMatch = payloadCode.match(/LAT:(-?\d+\.\d+)/);
-                const lngMatch = payloadCode.match(/LNG:(-?\d+\.\d+)/);
-                if (latMatch && lngMatch) {
-                    forcedLat = parseFloat(latMatch[1]);
-                    forcedLng = parseFloat(lngMatch[1]);
-                    forcedRadius = 15;
-                    actionType = 'in';
-                }
-            } catch (e) {
-                console.error("Coordinate parsing error:", e);
-            }
-        }
-
-        // 2. Specific Building/Dept Codes
-        if (!actionType) {
-            if (payloadCode.includes("XKMBPQLVJZWFRCYTNDHSGEUIA") || payloadCode.includes("CITC-DEPT")) {
-                forcedLat = 8.503306;
-                forcedLng = 124.660861;
-                forcedRadius = 15;
-                actionType = 'in';
-            } else if (payloadCode.includes("CSM-DEPT")) {
-                forcedLat = 8.485421;
-                forcedLng = 124.656812;
-                forcedRadius = 15;
-                actionType = 'in';
-            } else if (payloadCode.includes("CEA-DEPT")) {
-                forcedLat = 8.485721;
-                forcedLng = 124.657112;
-                forcedRadius = 15;
-                actionType = 'in';
-            }
-        }
-
-        // 3. System Action Codes
-        if (!actionType) {
-            if (payloadCode.includes("OSA-START") || payloadCode.includes("OSA-RESUME")) {
-                actionType = 'in';
-            } else if (payloadCode.includes("OSA-PAUSE") || payloadCode.includes("OSA-STOP") || payloadCode.includes("OSA-OUT")) {
-                actionType = 'out';
-            }
-        }
-
-        // 4. Registered service site (Admin > Settings > Service Sites), e.g. "LIB-01"
-        let siteCode = null;
-        if (!actionType && SITE_CODE_PATTERN.test(payloadCode)) {
-            siteCode = payloadCode;
-            actionType = 'in';
-            forcedLat = null;
-            forcedLng = null;
-            forcedRadius = null;
-        }
-
-        if (!actionType) {
-            alert("Invalid QR Code. Please scan a valid location or action code.");
+        if (!SITE_CODE_PATTERN.test(siteCode)) {
+            alert("Invalid QR code. Scan the QR code posted at your service site.");
             return;
         }
         try {
             // Time-in needs the student's position: the server checks they're inside the site's radius
+            if (!navigator.geolocation) {
+                alert("SECURITY BLOCK: Geocation is not supported by this browser.");
+                return;
+            }
+
             let position = null;
-            if (actionType === 'in') {
-                if (!navigator.geolocation) {
-                    alert("SECURITY BLOCK: Geocation is not supported by this browser.");
-                    return;
-                }
-
-                try {
-                    // A fix from the last 10 s is used as is; only otherwise wait for GPS
-                    const fix = lastFixRef.current;
-                    position = fix.at && Date.now() - fix.at < 10000
-                        ? { coords: { latitude: fix.lat, longitude: fix.lng, accuracy: fix.accuracy } }
-                        : await new Promise((resolve, reject) => {
-                            navigator.geolocation.getCurrentPosition(resolve, reject, {
-                                enableHighAccuracy: true,
-                                timeout: 8000,
-                                maximumAge: 10000
-                            });
+            try {
+                // A fix from the last 10 s is used as is; only otherwise wait for GPS
+                const fix = lastFixRef.current;
+                position = fix.at && Date.now() - fix.at < 10000
+                    ? { coords: { latitude: fix.lat, longitude: fix.lng, accuracy: fix.accuracy } }
+                    : await new Promise((resolve, reject) => {
+                        navigator.geolocation.getCurrentPosition(resolve, reject, {
+                            enableHighAccuracy: true,
+                            timeout: 8000,
+                            maximumAge: 10000
                         });
-                } catch (locErr) {
-                    if (locErr.code === 1) {
-                        alert("ACCESS DENIED: You must enable Location Services to start your service timer.");
-                    } else if (locErr.code === 3) {
-                        alert("GPS TIMEOUT: Please move to an area with better signal and try again.");
-                    } else {
-                        alert("LOCATION ERROR: Unable to verify your position. Please ensure GPS is ON.");
-                    }
-                    return;
+                    });
+            } catch (locErr) {
+                if (locErr.code === 1) {
+                    alert("ACCESS DENIED: You must enable Location Services to start your service timer.");
+                } else if (locErr.code === 3) {
+                    alert("GPS TIMEOUT: Please move to an area with better signal and try again.");
+                } else {
+                    alert("LOCATION ERROR: Unable to verify your position. Please ensure GPS is ON.");
                 }
+                return;
+            }
 
-                // Outside the site: say so right away (the server checks this too)
-                const assigned = activeTicket.assigned_site;
-                const site = siteCode
-                    ? (assigned?.site_code === siteCode && activeTicket.lat != null
-                        ? { latitude: activeTicket.lat, longitude: activeTicket.lng, radius: activeTicket.radius || 50 }
-                        : null)
-                    : (forcedLat != null ? { latitude: forcedLat, longitude: forcedLng, radius: forcedRadius || 5 } : null);
-                const outside = site && outsideSiteMessage(position.coords, site, siteCode ? assigned?.name : 'the service point');
-                if (outside) {
-                    alert(outside);
-                    return;
-                }
+            // Outside the site: say so right away (the server checks this too)
+            const assigned = activeTicket.assigned_site;
+            const site = assigned?.site_code === siteCode && activeTicket.lat != null
+                ? { latitude: activeTicket.lat, longitude: activeTicket.lng, radius: activeTicket.radius || 50 }
+                : null;
+            const outside = site && outsideSiteMessage(position.coords, site, assigned?.name);
+            if (outside) {
+                alert(outside);
+                return;
             }
 
             await submitAction({
                 ticketId: activeTicket.id,
-                actionType,
-                forcedLat,
-                forcedLng,
-                forcedRadius,
+                actionType: 'in',
                 siteCode,
-                studentLat: position?.coords.latitude,
-                studentLng: position?.coords.longitude,
-                accuracy: position?.coords.accuracy
+                studentLat: position.coords.latitude,
+                studentLng: position.coords.longitude,
+                accuracy: position.coords.accuracy
             });
         } catch (err) {
             console.error(err);
@@ -782,11 +711,9 @@ const DashboardBody = () => {
             return;
         }
 
-        // The service site's own QR also ends the session (the server checks it's the same site)
-        const isStopCode = ["OSA-PAUSE", "VNZMXBCALSKDJFHGQPWIEURYT", "OSA-STOP"].includes(payloadCode);
-        const siteCode = !isStopCode && SITE_CODE_PATTERN.test(payloadCode) ? payloadCode : null;
-        if (!isStopCode && !siteCode) {
-            alert(`INVALID CODE: ${payloadCode}. Scan your service site's QR code or the OSA stop code.`);
+        // The service site's QR ends the session (the server checks it's the site where it started)
+        if (!SITE_CODE_PATTERN.test(payloadCode)) {
+            alert(`INVALID CODE: ${payloadCode}. Scan your service site's QR code.`);
             return;
         }
 
@@ -794,10 +721,7 @@ const DashboardBody = () => {
             await submitAction({
                 ticketId: activeTicket.id,
                 actionType: 'out',
-                forcedLat: null,
-                forcedLng: null,
-                forcedRadius: null,
-                siteCode
+                siteCode: payloadCode
             });
         } catch (err) {
             alert("Network failure processing action code.");
@@ -855,7 +779,7 @@ const DashboardBody = () => {
                         <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-[#dcfce7]">
                             <CheckCircle2 size={30} className="text-[#10b981]" />
                         </div>
-                        <h2 id="completed-title" className="text-lg font-black text-[var(--s-text)]">Service hours completed!</h2>
+                        <h2 id="completed-title" className="text-lg font-semibold text-[var(--s-text)]">Service hours completed!</h2>
                         <p className="mt-2 text-sm font-medium leading-5 text-[var(--s-muted)]">
                             You've finished the community service for <span className="font-bold text-[var(--s-text)]">{completedTicket.violation_details?.violation_type || 'your violation'}</span>.
                             Please proceed to the <span className="font-bold text-[var(--s-text)]">OSA office</span> with your signed ISO form and reflection paper to verify and properly clear your violation.
@@ -872,7 +796,7 @@ const DashboardBody = () => {
             {showStopScanner && (
                 <QrScannerModal
                     title="Scan to End Service"
-                    subtitle="Scan your service site QR or the OSA stop code"
+                    subtitle="Scan your service site's QR code"
                     accent="#ef4444"
                     onClose={() => setShowStopScanner(false)}
                     onResult={(text) => { setShowStopScanner(false); processStopCode(text); }}
@@ -883,8 +807,8 @@ const DashboardBody = () => {
                 {/* Header */}
                 <header className="mb-4 flex items-center justify-between">
                     <div className="flex-1">
-                        <p className="mb-1 text-xs font-bold uppercase tracking-[1.5px] text-[var(--s-muted)]">{todayLabel()}</p>
-                        <h2 className="text-2xl font-black tracking-[0.3px] text-[var(--s-text)]">{timeGreeting()}, {displayName}</h2>
+                        <p className="mb-1 text-xs font-bold text-[var(--s-muted)]">{todayLabel()}</p>
+                        <h2 className="text-2xl font-semibold tracking-[0.3px] text-[var(--s-text)]">{timeGreeting()}, {displayName}</h2>
                         {(timerActive || activeTicket) && (
                             <p className="mt-1 text-sm font-semibold text-[var(--s-muted)]">{studentStatusLine({ sessionActive: timerActive, openTicket: activeTicket })}</p>
                         )}
@@ -896,7 +820,7 @@ const DashboardBody = () => {
                     <div className="mb-4 flex gap-3 rounded-[16px] border border-[#a7f3d0] bg-[#ecfdf5] p-4">
                         <CheckCircle2 size={20} className="mt-0.5 shrink-0 text-[#059669]" />
                         <div>
-                            <p className="text-sm font-black text-[#065f46]">Go to the OSA office to be cleared</p>
+                            <p className="text-sm font-semibold text-[#065f46]">Go to the OSA office to be cleared</p>
                             <p className="mt-0.5 text-xs font-semibold leading-5 text-[#047857]">
                                 Your hours for {clearanceTicket.violation_details?.violation_type || 'your violation'} are complete. Bring your signed ISO form and your reflection paper to the OSA office. Your violation is cleared once OSA approves them.
                             </p>
@@ -906,16 +830,16 @@ const DashboardBody = () => {
 
                 {/* Service card while there's community service to do; otherwise just a hello */}
                 {timerActive || activeTicket ? (
-                    <section className={`mb-4 rounded-[24px] bg-[var(--s-card)] p-4 sm:p-5 shadow-[0_8px_30px_rgba(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.2)] border border-[var(--s-border)] ${isOutOfBounds ? 'border-[1.5px] border-[#ef4444]' : ''}`}>
+                    <section className={`mb-4 rounded-[20px] bg-[var(--s-card)] p-4 sm:p-5 shadow-[0_1px_3px_rgba(15,23,42,0.06)] ${isOutOfBounds ? 'border-[1.5px] border-[#ef4444]' : ''}`}>
                         {timerActive ? (
                             <>
                                 <div className="mb-3 flex items-center">
                                     <Play size={16} className={isOutOfBounds ? 'text-[#ef4444]' : 'text-[var(--s-success)]'} />
-                                    <span className={`ml-2 text-xs font-black uppercase tracking-[2px] ${isOutOfBounds ? 'text-[#ef4444]' : 'text-[var(--s-success)]'}`}>
+                                    <span className={`ml-2 text-xs font-semibold ${isOutOfBounds ? 'text-[#ef4444]' : 'text-[var(--s-success)]'}`}>
                                         Live Community Service
                                     </span>
                                 </div>
-                                <div className="my-2 text-[52px] font-black leading-tight tabular-nums text-[var(--s-text)] font-mono">
+                                <div className="my-2 text-[52px] font-semibold leading-tight tabular-nums text-[var(--s-text)] font-mono">
                                     {formatRemainingTime()}
                                 </div>
 
@@ -941,11 +865,11 @@ const DashboardBody = () => {
                                         <div className="flex flex-1 items-center">
                                             <AlertTriangle size={24} strokeWidth={2.5} className="text-white" />
                                             <div className="ml-3">
-                                                <p className="text-[13px] font-black uppercase tracking-[0.5px] text-white">Warning: Out of Boundary</p>
+                                                <p className="text-[13px] font-semibold text-white">Warning: Out of Boundary</p>
                                                 <p className="mt-0.5 text-xs font-semibold text-[#fecdd3]">Return to area immediately!</p>
                                             </div>
                                         </div>
-                                        <div className="rounded-xl bg-white px-3 py-1.5 text-xl font-black text-[#e11d48]">{warningCountdown}</div>
+                                        <div className="rounded-xl bg-white px-3 py-1.5 text-xl font-semibold text-[#e11d48]">{warningCountdown}</div>
                                     </div>
                                 )}
 
@@ -958,7 +882,7 @@ const DashboardBody = () => {
                                 <button
                                     onClick={() => setShowStopScanner(true)}
                                     disabled={endCooldown > 0}
-                                    className="mt-4 w-full rounded-2xl bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-700 hover:to-red-700 p-4 text-sm font-bold uppercase tracking-[1px] text-white disabled:opacity-50 shadow-lg shadow-rose-500/20 active:scale-[0.98] transition-all cursor-pointer"
+                                    className="mt-4 w-full rounded-2xl bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-700 hover:to-red-700 p-4 text-sm font-bold text-white disabled:opacity-50 shadow-lg shadow-rose-500/20 active:scale-[0.98] transition-all cursor-pointer"
                                 >
                                     {endCooldown > 0 ? `Scan to End Service (${endCooldown}s)` : 'Scan to End Service'}
                                 </button>
@@ -998,12 +922,12 @@ const DashboardBody = () => {
                         )}
                     </section>
                 ) : !loading && (
-                    <section className="mb-4 flex items-center gap-3 rounded-[24px] border border-[var(--s-border)] bg-[var(--s-card)] p-4 sm:p-5">
+                    <section className="mb-4 flex items-center gap-3 rounded-[20px] bg-[var(--s-card)] shadow-[0_1px_3px_rgba(15,23,42,0.06)] p-4 sm:p-5">
                         <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#dcfce7] text-[#059669] dark:bg-emerald-500/15 dark:text-emerald-300">
                             <CheckCircle2 size={22} />
                         </span>
                         <div className="min-w-0">
-                            <p className="text-base font-black text-[var(--s-text)]">Hello, {displayName}!</p>
+                            <p className="text-base font-semibold text-[var(--s-text)]">Hello, {displayName}!</p>
                             <p className="mt-0.5 text-sm font-medium text-[var(--s-muted)]">You currently don&apos;t have any community service to render.</p>
                         </div>
                     </section>
@@ -1011,7 +935,7 @@ const DashboardBody = () => {
 
                 {/* E-Tickets */}
                 <section className="mb-4">
-                    <h2 className="mb-0.5 text-lg font-black text-[var(--s-text)]">E-Tickets</h2>
+                    <h2 className="mb-0.5 text-lg font-semibold text-[var(--s-text)]">E-Tickets</h2>
                     <p className="mb-3 text-sm font-medium text-[var(--s-muted)]">Tap a ticket to see its service log and forms</p>
                     {loading ? (
                         <div className="mt-4 flex justify-center">
@@ -1021,14 +945,14 @@ const DashboardBody = () => {
                         <div className="flex flex-col items-center gap-2 py-6 text-[var(--s-border)]">
                             {/* 🫡 in black and white (Noto emoji art as an image, so every device shows it) */}
                             <img src={saluteFace} alt="" className="h-11 w-11 select-none" draggable="false" />
-                            <p className="text-[13px] italic text-[var(--s-muted)]">No tickets, keep it up busseng!</p>
+                            <p className="text-[13px] italic text-[var(--s-muted)]">No e-tickets. You have no community service to serve.</p>
                         </div>
                     ) : (
                         tickets.map((ticket, idx) => (
                             <button
                                 key={ticket.id || idx}
                                 onClick={() => setOpenTicket(ticket)}
-                                className="mb-2 flex w-full items-center rounded-xl border border-[var(--s-border)] bg-[var(--s-card)] p-3.5 text-left shadow-[0_1px_4px_rgba(0,0,0,0.04)] hover:border-[var(--s-primary)]"
+                                className="mb-2 flex w-full items-center rounded-[20px] bg-[var(--s-card)] p-4 text-left shadow-[0_1px_3px_rgba(15,23,42,0.06)] hover:bg-[var(--s-bg)]"
                             >
                                 <span className={`mr-3 h-2 w-2 shrink-0 rounded-full ${ticket.status === 'Active' ? 'bg-[#ff6b35]' : 'bg-[var(--s-success)]'}`} />
                                 <div className="min-w-0 flex-1">

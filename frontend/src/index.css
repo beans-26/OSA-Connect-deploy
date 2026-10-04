@@ -84,8 +84,19 @@ body {
   --s-warn-text: #92400e;
   background-color: var(--s-bg);
   color: var(--s-text);
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  /* iPhones get SF Pro (the system font); other devices get Inter, the closest free match */
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   min-height: 100vh;
+}
+
+/* Thin line icons on every student page (lucide sets stroke-width as an attribute; CSS takes precedence) */
+.student-ui svg.lucide {
+  stroke-width: 1.6px;
+}
+
+/* Settings-style rows (components/SettingsList.jsx): the divider starts after the icon, like iOS lists */
+.student-ui .s-row:not(:first-child) .s-row-body {
+  border-top: 1px solid var(--s-border);
 }
 
 .student-ui[data-theme="dark"] {

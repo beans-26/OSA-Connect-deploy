@@ -1,6 +1,6 @@
 import { Suspense, createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Bell, BellOff, House, LogOut, Menu, SlidersHorizontal, User, X } from 'lucide-react';
+import { ArrowLeft, Bell, BellOff, House, Menu, SlidersHorizontal, User, X } from 'lucide-react';
 import NotificationItem from './NotificationItem';
 import { useStudentTheme } from './useStudentTheme';
 import { logoutStudent } from './studentSession';
@@ -148,23 +148,23 @@ export default function StudentShell() {
         <ShellContext.Provider value={value}>
             <div className="student-ui" data-theme={theme.isDarkMode ? 'dark' : 'light'}>
                 {/* Top bar */}
-                <div className="sticky top-0 z-30 border-b border-[var(--s-border)] bg-[var(--s-card)]/95 backdrop-blur">
+                <div className="sticky top-0 z-30 bg-[var(--s-bg)]/90 backdrop-blur">
                     <div className="mx-auto flex h-14 w-full max-w-xl items-center justify-between px-3">
                         {back ? (
                             <button onClick={() => navigate(back)} aria-label="Back" className="flex h-10 w-10 items-center justify-center rounded-full text-[var(--s-text)] hover:bg-[var(--s-bg)]">
-                                <ArrowLeft size={22} />
+                                <ArrowLeft size={24} />
                             </button>
                         ) : (
                             <button onClick={() => setMenuOpen(true)} aria-label="Open menu" aria-expanded={menuOpen} className="flex h-10 w-10 items-center justify-center rounded-full text-[var(--s-text)] hover:bg-[var(--s-bg)]">
-                                <Menu size={22} />
+                                <Menu size={24} />
                             </button>
                         )}
-                        <h1 className="truncate px-2 text-base font-bold text-[var(--s-text)]">{title}</h1>
+                        <h1 className="truncate px-2 text-[17px] font-semibold text-[var(--s-text)]">{title}</h1>
                         {/* No bell on the Notifications page itself */}
                         {pathname === '/student/notifications' ? <span className="h-10 w-10" aria-hidden="true" /> : (
                             <div ref={bellRef} className="relative">
                                 <button onClick={toggleBell} aria-label={`Notifications${unread ? `, ${unread} new` : ''}`} aria-expanded={bellOpen} aria-haspopup="dialog" className={`relative flex h-10 w-10 items-center justify-center rounded-full text-[var(--s-text)] hover:bg-[var(--s-bg)] ${bellOpen ? 'bg-[var(--s-bg)]' : ''}`}>
-                                    <Bell size={21} />
+                                    <Bell size={23} />
                                     {unread > 0 && (
                                         <span className="absolute right-1 top-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-[var(--s-danger)] px-1 text-[10px] font-bold leading-none text-white ring-2 ring-[var(--s-card)]">
                                             {unread > 9 ? '9+' : unread}
@@ -173,12 +173,12 @@ export default function StudentShell() {
                                 </button>
                                 {/* Stays mounted so it can fade and drop in / out (inline: the global colour-transition rule would override a class) */}
                                 {(
-                                    <div role="dialog" aria-label="Notifications" aria-hidden={!bellOpen} inert={!bellOpen ? '' : undefined} style={bellOpen ? BELL_OPEN : BELL_CLOSED} className="absolute right-0 top-12 z-40 w-[min(22rem,calc(100vw-24px))] overflow-hidden rounded-2xl border border-[var(--s-border)] bg-[var(--s-card)] text-left shadow-xl">
-                                        <p className="border-b border-[var(--s-border)] px-4 py-3 text-sm font-bold text-[var(--s-text)]">Notifications</p>
+                                    <div role="dialog" aria-label="Notifications" aria-hidden={!bellOpen} inert={!bellOpen ? '' : undefined} style={bellOpen ? BELL_OPEN : BELL_CLOSED} className="absolute right-0 top-12 z-40 w-[min(22rem,calc(100vw-24px))] overflow-hidden rounded-[20px] bg-[var(--s-card)] text-left shadow-[0_8px_30px_rgba(15,23,42,0.12)]">
+                                        <p className="px-4 pb-2 pt-4 text-[17px] font-semibold text-[var(--s-text)]">Notifications</p>
                                         {notifications.length === 0 ? (
                                             <div className="flex flex-col items-center px-4 py-8 text-center">
                                                 <BellOff size={26} className="text-[var(--s-muted)]" />
-                                                <p className="mt-2 text-xs text-[var(--s-muted)]">No notifications yet.</p>
+                                                <p className="mt-2 text-[15px] text-[var(--s-muted)]">No notifications yet.</p>
                                             </div>
                                         ) : (
                                             <ul className="max-h-[60vh] overflow-y-auto">
@@ -186,7 +186,7 @@ export default function StudentShell() {
                                             </ul>
                                         )}
                                         {notifications.length > 0 && (
-                                            <button onClick={() => navigate('/student/notifications')} className="w-full border-t border-[var(--s-border)] px-4 py-3 text-center text-sm font-semibold text-[var(--s-accent)] hover:bg-[var(--s-bg)]">
+                                            <button onClick={() => navigate('/student/notifications')} className="w-full border-t border-[var(--s-border)] px-4 py-3.5 text-center text-[15px] font-medium text-[var(--s-accent)] hover:bg-[var(--s-bg)]">
                                                 See all notifications{notifications.length > 5 ? ` (${notifications.length})` : ''}
                                             </button>
                                         )}
@@ -214,19 +214,19 @@ export default function StudentShell() {
                     style={slideStyle}
                 >
                     <div className="flex items-center gap-3 px-4 pb-3 pt-5">
-                        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[var(--s-accent)] text-sm font-bold text-white">{initials(name)}</div>
+                        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[var(--s-accent)] text-[15px] font-semibold text-white">{initials(name)}</div>
                         <div className="min-w-0 flex-1">
-                            <p className="truncate text-sm font-bold text-[var(--s-text)]">{name}</p>
-                            <p className="truncate text-xs text-[var(--s-muted)]">{user.username}</p>
+                            <p className="truncate text-[17px] font-semibold text-[var(--s-text)]">{name}</p>
+                            <p className="truncate text-[13px] text-[var(--s-muted)]">{user.username}</p>
                         </div>
                         <button onClick={() => setMenuOpen(false)} aria-label="Close menu" className="flex h-9 w-9 items-center justify-center rounded-full text-[var(--s-muted)] hover:bg-[var(--s-bg)]">
-                            <X size={20} />
+                            <X size={24} />
                         </button>
                     </div>
                     {left > 0.001 && (
-                        <p className="mx-4 mb-2 rounded-lg bg-[var(--s-warn-bg)] px-3 py-2 text-xs font-bold text-[var(--s-warn-text)]">{hoursLabel(left)} of service remaining</p>
+                        <p className="mx-4 mb-2 rounded-[14px] bg-[var(--s-warn-bg)] px-3.5 py-2.5 text-[13px] font-medium text-[var(--s-warn-text)]">{hoursLabel(left)} of service remaining</p>
                     )}
-                    <nav className="mt-1 flex flex-col gap-1 px-2">
+                    <nav className="mx-3 mt-2 overflow-hidden rounded-[20px] bg-[var(--s-bg)]">
                         {NAV.map(({ to, label, icon: Icon, badge }) => {
                             const active = pathname === to || (to === '/student/settings' && pathname.startsWith('/student/settings'));
                             return (
@@ -234,28 +234,27 @@ export default function StudentShell() {
                                     key={to}
                                     onClick={() => { setMenuOpen(false); if (!active) navigate(to); }}
                                     aria-current={active ? 'page' : undefined}
-                                    className={`flex items-center gap-3.5 rounded-xl px-3 py-3 text-left text-sm transition-colors ${active ? 'bg-[var(--s-accent-soft)] font-bold text-[var(--s-accent)]' : 'font-medium text-[var(--s-text)] hover:bg-[var(--s-bg)]'}`}
+                                    className={`s-row flex w-full items-center pl-4 text-left transition-colors ${active ? 'text-[var(--s-accent)]' : 'text-[var(--s-text)] hover:bg-[var(--s-card)]'}`}
                                 >
-                                    <Icon size={19} strokeWidth={active ? 2.3 : 2} />
-                                    <span className="flex-1">{label}</span>
-                                    {badge && unread > 0 && <span className="rounded-full bg-[var(--s-danger)] px-2 py-0.5 text-[11px] font-bold text-white">{unread}</span>}
+                                    <Icon size={24} className="mr-4 shrink-0" />
+                                    <span className="s-row-body flex min-w-0 flex-1 items-center gap-3 py-4 pr-4">
+                                        <span className={`flex-1 text-[17px] ${active ? 'font-semibold' : 'font-normal'}`}>{label}</span>
+                                        {badge && unread > 0 && <span className="rounded-full bg-[var(--s-danger)] px-2 py-0.5 text-[12px] font-semibold text-white">{unread}</span>}
+                                    </span>
                                 </button>
                             );
                         })}
                     </nav>
-                    <button onClick={openLogout} className="mt-auto flex items-center gap-3.5 px-5 py-5 text-sm font-medium text-[var(--s-danger)] hover:opacity-80">
-                        <LogOut size={18} /> Log out
-                    </button>
                 </aside>
 
                 {logoutAsk && (
                     <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/30 p-4 backdrop-blur-[2px]" onClick={() => setLogoutAsk(null)}>
-                        <div role="alertdialog" aria-modal="true" aria-labelledby="logout-title" className="w-full max-w-[260px] rounded-xl border border-[var(--s-border)] bg-[var(--s-card)] p-4 text-center shadow-lg" onClick={(e) => e.stopPropagation()}>
-                            <p id="logout-title" className="text-sm font-semibold text-[var(--s-text)]">Log out?</p>
-                            <p className="mt-1 text-xs text-[var(--s-muted)]">{logoutAsk.timerRunning ? 'Your running service timer will stop.' : 'Are you sure you want to log out of your account?'}</p>
-                            <div className="mt-3 flex gap-2">
-                                <button onClick={() => setLogoutAsk(null)} className="flex-1 rounded-lg border border-[var(--s-border)] py-2 text-xs font-medium text-[var(--s-muted)] hover:bg-[var(--s-bg)]">Cancel</button>
-                                <button onClick={logout} disabled={loggingOut} className="flex-1 rounded-lg bg-rose-600 py-2 text-xs font-medium text-white hover:bg-rose-700 disabled:opacity-60">{loggingOut ? 'Logging out…' : 'Log Out'}</button>
+                        <div role="alertdialog" aria-modal="true" aria-labelledby="logout-title" className="w-full max-w-[300px] rounded-[20px] bg-[var(--s-card)] p-5 text-center shadow-[0_8px_30px_rgba(15,23,42,0.12)]" onClick={(e) => e.stopPropagation()}>
+                            <p id="logout-title" className="text-[17px] font-semibold text-[var(--s-text)]">Log out?</p>
+                            <p className="mt-1 text-[15px] leading-snug text-[var(--s-muted)]">{logoutAsk.timerRunning ? 'Your running service timer will stop.' : 'Are you sure you want to log out of your account?'}</p>
+                            <div className="mt-4 flex gap-2">
+                                <button onClick={() => setLogoutAsk(null)} className="flex-1 rounded-full bg-[var(--s-bg)] py-2.5 text-[15px] font-medium text-[var(--s-text)] hover:brightness-95">Cancel</button>
+                                <button onClick={logout} disabled={loggingOut} className="flex-1 rounded-full bg-rose-600 py-2.5 text-[15px] font-medium text-white hover:bg-rose-700 disabled:opacity-60">{loggingOut ? 'Logging out…' : 'Log Out'}</button>
                             </div>
                         </div>
                     </div>

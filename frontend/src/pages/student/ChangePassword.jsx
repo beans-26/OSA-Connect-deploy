@@ -43,7 +43,7 @@ const PasswordForm = () => {
     ];
     return (
         <main className="mx-auto w-full max-w-xl px-4 pb-10 pt-4">
-            <form onSubmit={submit} className="rounded-2xl border border-[var(--s-border)] bg-[var(--s-card)] p-4">
+            <form onSubmit={submit} className="rounded-[20px] bg-[var(--s-card)] shadow-[0_1px_3px_rgba(15,23,42,0.06)] p-4">
                 {message.text && (
                     <p role="status" className={`mb-3 rounded-lg px-3 py-2.5 text-center text-xs font-bold ${message.type === 'success' ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-600'}`}>{message.text}</p>
                 )}

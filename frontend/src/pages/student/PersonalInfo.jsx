@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useStudentShell } from '../../components/StudentShell';
+import { Mail, Phone, UserRound, IdCard, GraduationCap, Building2, Layers, User } from 'lucide-react';
 import { Group, InfoRow } from '../../components/SettingsList';
 
 const postJson = async (url, body) => {
@@ -88,7 +89,7 @@ const ContactDetails = ({ studentInfo, onUpdated }) => {
                 <p role="status" className={`mx-4 mt-3 rounded-lg px-3 py-2.5 text-center text-xs font-bold ${message.type === 'success' ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-600'}`}>{message.text}</p>
             )}
             <div>
-                <InfoRow label="Email" value={studentInfo.email} action={editing !== 'email' && <button onClick={() => open('email')} className={changeBtn}>Change</button>} />
+                <InfoRow icon={Mail} label="Email" value={studentInfo.email} action={editing !== 'email' && <button onClick={() => open('email')} className={changeBtn}>Change</button>} />
                 {editing === 'email' && (
                     !codeSentTo ? (
                         <form onSubmit={sendEmailCode} className="space-y-3 px-4 pb-4">
@@ -112,7 +113,7 @@ const ContactDetails = ({ studentInfo, onUpdated }) => {
                 )}
             </div>
             <div className="border-t border-[var(--s-border)]">
-                <InfoRow label="Contact number" value={studentInfo.contact_number} action={editing !== 'contact' && <button onClick={() => open('contact')} className={changeBtn}>Change</button>} />
+                <InfoRow icon={Phone} label="Contact number" value={studentInfo.contact_number} action={editing !== 'contact' && <button onClick={() => open('contact')} className={changeBtn}>Change</button>} />
                 {editing === 'contact' && (
                     <form onSubmit={saveContact} className="space-y-3 px-4 pb-4">
                         <input required type="tel" inputMode="numeric" maxLength={11} placeholder="New contact number" value={form.value} onChange={(e) => setForm({ ...form, value: e.target.value.replace(/\D/g, '').slice(0, 11) })} className={input} />
@@ -140,12 +141,12 @@ const PersonalInfoBody = () => {
     return (
         <main className="mx-auto w-full max-w-xl px-4 pb-10 pt-4">
             <Group label="Basic information">
-                <InfoRow label="Full name" value={profile.name} />
-                <InfoRow label="Student ID" value={profile.student_id} />
-                <InfoRow label="Course" value={profile.course} />
-                <InfoRow label="College" value={profile.department} />
-                <InfoRow label="Year level" value={yearText(profile.year_level)} />
-                <InfoRow label="Gender" value={profile.gender} />
+                <InfoRow icon={UserRound} label="Full name" value={profile.name} />
+                <InfoRow icon={IdCard} label="Student ID" value={profile.student_id} />
+                <InfoRow icon={GraduationCap} label="Course" value={profile.course} />
+                <InfoRow icon={Building2} label="College" value={profile.department} />
+                <InfoRow icon={Layers} label="Year level" value={yearText(profile.year_level)} />
+                <InfoRow icon={User} label="Gender" value={profile.gender} />
             </Group>
             <ContactDetails studentInfo={profile} onUpdated={(changes) => setProfile((p) => ({ ...p, ...changes }))} />
             <p className="px-1 text-xs text-[var(--s-muted)]">Wrong name, course or college? Visit the OSA office to have it corrected.</p>
