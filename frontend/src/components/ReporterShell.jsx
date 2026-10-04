@@ -1,6 +1,6 @@
 import { Suspense, useEffect, useState } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { ChartColumnBig, CircleHelp, ClipboardList, ClipboardPen, LogOut, Menu, X } from 'lucide-react';
+import { ChartPie, CircleHelp, Gavel, History, LogOut, Menu, X } from 'lucide-react';
 import { loginPathFor } from '../lib/portals';
 
 // The layout route of the guard and faculty & staff pages, built like the student one (StudentShell.jsx):
@@ -18,13 +18,13 @@ const PAGES = {
 // Guards: report, history, analytics. Faculty & staff: report, history, help.
 const NAV = {
     guard: [
-        { to: '/guard/report', label: 'Report Violation', icon: ClipboardPen },
-        { to: '/guard/history', label: 'History', icon: ClipboardList },
-        { to: '/guard/analytics', label: 'Analytics', icon: ChartColumnBig },
+        { to: '/guard/report', label: 'Report Violation', icon: Gavel },
+        { to: '/guard/history', label: 'History', icon: History },
+        { to: '/guard/analytics', label: 'Analytics', icon: ChartPie },
     ],
     staff: [
-        { to: '/staff/report', label: 'Report Violation', icon: ClipboardPen },
-        { to: '/staff/history', label: 'History', icon: ClipboardList },
+        { to: '/staff/report', label: 'Report Violation', icon: Gavel },
+        { to: '/staff/history', label: 'History', icon: History },
         { to: '/staff/help', label: 'Help', icon: CircleHelp },
     ],
 };
@@ -65,7 +65,7 @@ export default function ReporterShell() {
     };
 
     return (
-        <div className="min-h-screen bg-slate-50 dark:bg-slate-900">
+        <div className="flo-type min-h-screen bg-slate-50 dark:bg-slate-900">
             {/* Top bar */}
             <div className="sticky top-0 z-30 border-b border-slate-200 bg-white/95 backdrop-blur dark:border-slate-800 dark:bg-slate-900/95">
                 <div className="mx-auto flex h-14 w-full max-w-5xl items-center gap-2 px-3">
@@ -131,7 +131,7 @@ export default function ReporterShell() {
                         <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-red-50 text-red-500 dark:bg-red-950/50 dark:text-red-400">
                             <LogOut size={22} />
                         </div>
-                        <h3 id="reporter-logout" className="text-lg font-black text-slate-900 dark:text-white">Log out?</h3>
+                        <h3 id="reporter-logout" className="text-lg font-bold text-slate-900 dark:text-white">Log out?</h3>
                         <p className="mb-6 mt-1 text-sm font-medium text-slate-500 dark:text-slate-400">Are you sure you want to log out of your account?</p>
                         <div className="flex gap-3">
                             <button onClick={() => setAskLogout(false)} className="flex-1 rounded-xl bg-slate-100 py-3 text-sm font-bold text-slate-600 hover:bg-slate-200 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600">Cancel</button>

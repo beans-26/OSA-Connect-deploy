@@ -74,8 +74,8 @@ const TicketDetails = ({ ticket, onClose, children, forAdmin = false }) => {
                 {/* Stays at the top while the receipt scrolls */}
                 <div className="sticky top-0 z-10 flex items-start justify-between gap-3 bg-gradient-to-r from-[#1d4ed8] to-[#4338ca] px-5 py-4 shadow-md">
                     <div className="min-w-0">
-                        <p className="text-xs font-semibold text-blue-100">E-Ticket</p>
-                        <h2 id="ticket-title" className="text-lg font-semibold text-white">{ticket.violation_details?.violation_type || 'Violation'}</h2>
+                        <p className="text-[10px] font-black uppercase tracking-[2px] text-blue-100">E-Ticket</p>
+                        <h2 id="ticket-title" className="text-lg font-black text-white">{ticket.violation_details?.violation_type || 'Violation'}</h2>
                     </div>
                     <button onClick={onClose} aria-label="Close" className="rounded-full bg-white/15 p-2 text-white hover:bg-white/25">
                         <X size={18} />
@@ -88,14 +88,14 @@ const TicketDetails = ({ ticket, onClose, children, forAdmin = false }) => {
                         <div className={`flex items-center gap-3 border-b px-4 py-3 ${headerStyle[0]}`}>
                             <HeaderIcon size={20} className={`shrink-0 ${headerStyle[1]}`} />
                             <div className="min-w-0">
-                                <p className={`text-sm font-semibold ${headerStyle[1]}`}>{summary.header.title}</p>
+                                <p className={`text-sm font-black ${headerStyle[1]}`}>{summary.header.title}</p>
                                 <p className={`text-[11px] font-semibold ${headerStyle[2]}`}>{summary.header.subtitle}</p>
                             </div>
                         </div>
                         <div className="px-4">
                             {summary.sections.map((section) => (
                                 <div key={section.title} className="border-t border-dashed border-[var(--s-border)] py-3 first:border-t-0">
-                                    <p className="mb-1 text-xs font-semibold text-[var(--s-muted)]">{section.title}</p>
+                                    <p className="mb-1 text-[9px] font-black uppercase tracking-[2px] text-[var(--s-muted)]">{section.title}</p>
                                     {section.lines.map(([label, value, tone]) => (
                                         <div key={label} className="flex items-baseline justify-between gap-4 py-1">
                                             <span className="shrink-0 text-[11px] font-semibold text-[var(--s-muted)]">{label}</span>
@@ -106,7 +106,7 @@ const TicketDetails = ({ ticket, onClose, children, forAdmin = false }) => {
                             ))}
                             {summary.buildings.length > 0 && (
                                 <div className="border-t border-dashed border-[var(--s-border)] py-3">
-                                    <p className="mb-1 text-xs font-semibold text-[var(--s-muted)]">Building{summary.buildings.length === 1 ? '' : 's'} Assigned</p>
+                                    <p className="mb-1 text-[9px] font-black uppercase tracking-[2px] text-[var(--s-muted)]">Building{summary.buildings.length === 1 ? '' : 's'} Assigned</p>
                                     <ol className="space-y-1 py-1">
                                         {summary.buildings.map((b, i) => (
                                             <li key={i} className="flex items-baseline justify-between gap-4">
@@ -125,7 +125,7 @@ const TicketDetails = ({ ticket, onClose, children, forAdmin = false }) => {
                     {/* The blank forms to fill in by hand and bring to OSA */}
                     {!forAdmin && ['Active', 'Ongoing', 'Completed'].includes(ticket.status) && (
                         <div className="mb-5">
-                            <p className="mb-2 text-xs font-semibold text-[var(--s-muted)]">Forms to bring to OSA</p>
+                            <p className="mb-2 text-[10px] font-black uppercase tracking-[2px] text-[var(--s-muted)]">Forms to bring to OSA</p>
                             <div className="grid grid-cols-2 gap-2">
                                 {[['iso', 'ISO Form'], ['reflection', 'Reflection Form']].map(([kind, label]) => (
                                     <button
@@ -143,11 +143,11 @@ const TicketDetails = ({ ticket, onClose, children, forAdmin = false }) => {
 
                     {children}
 
-                    <p className="mb-2 text-xs font-semibold text-[var(--s-muted)]">Service Log</p>
+                    <p className="mb-2 text-[10px] font-black uppercase tracking-[2px] text-[var(--s-muted)]">Service Log</p>
                     {error ? (
                         <div className="flex flex-col items-center gap-2.5 py-3">
                             <p className="text-center text-sm font-semibold text-red-500">{error}</p>
-                            <button onClick={() => setAttempt((n) => n + 1)} className="rounded-lg border border-[var(--s-border)] px-4 py-2 text-xs font-semibold text-[var(--s-primary)]">
+                            <button onClick={() => setAttempt((n) => n + 1)} className="rounded-lg border border-[var(--s-border)] px-4 py-2 text-[11px] font-black uppercase tracking-[1px] text-[var(--s-primary)]">
                                 Try Again
                             </button>
                         </div>

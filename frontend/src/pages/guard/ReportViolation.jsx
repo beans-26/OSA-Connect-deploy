@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Scan, Send, CheckCircle2, X, User, UserCheck, AlertTriangle, Loader2 } from 'lucide-react';
+import { Scan, Send, CheckCircle2, X, UserRound, UserCheck, Loader2, IdCard, Building2, GraduationCap, Users, Phone, Mail, CalendarDays, Clock } from 'lucide-react';
 
 // The guard-on-duty name typed on this device, filled in again for the next report
 const ON_DUTY_KEY = 'osa-guard-on-duty';
@@ -17,6 +17,13 @@ const inputClass = "w-full min-w-0 bg-slate-50 dark:bg-slate-900 border-2 border
 const selectClass = (empty) => `${inputClass} appearance-none truncate bg-[length:14px] bg-[right_0.6rem_center] bg-no-repeat pr-8 ${empty ? '!text-slate-400 !font-medium' : ''}`;
 const selectArrow = { backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E\")" };
 const labelClass = "mb-1 ml-1 block text-xs font-bold text-slate-500 dark:text-slate-400";
+
+// A field label with its icon
+const Label = ({ htmlFor, icon: Icon, children }) => (
+    <label htmlFor={htmlFor} className="mb-1 ml-1 flex items-center gap-1.5 text-xs font-bold text-slate-500 dark:text-slate-400">
+        <Icon size={13} className="shrink-0" aria-hidden="true" /> {children}
+    </label>
+);
 
 
 const emptyForm = () => ({
@@ -163,8 +170,8 @@ const ReportViolation = () => {
                     <div className="bg-white dark:bg-slate-800 rounded-3xl w-full max-w-md shadow-2xl max-h-[90vh] overflow-y-auto" role="dialog" aria-modal="true" aria-labelledby="confirm-title">
                         <div className="flex items-start justify-between gap-3 px-5 pt-5 pb-3">
                             <div>
-                                <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">Violation report</p>
-                                <h2 id="confirm-title" className="text-lg font-black text-slate-900 dark:text-white leading-tight">Check before sending</h2>
+                                <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400">Violation report</p>
+                                <h2 id="confirm-title" className="text-lg font-bold text-slate-900 dark:text-white leading-tight">Check before sending</h2>
                             </div>
                             <button onClick={() => setShowConfirmModal(false)} aria-label="Close" className="w-9 h-9 shrink-0 rounded-full bg-red-50 dark:bg-red-500/10 text-red-600 dark:text-red-400 hover:bg-red-100 flex items-center justify-center">
                                 <X size={18} />
@@ -174,9 +181,9 @@ const ReportViolation = () => {
                         <div className="mx-5 overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-700">
                             {/* Student */}
                             <div className="flex items-center gap-3 bg-slate-50 dark:bg-slate-900/60 px-4 py-3.5">
-                                <div className="w-11 h-11 shrink-0 rounded-full bg-blue-100 text-ustp-blue dark:bg-blue-500/20 dark:text-blue-300 flex items-center justify-center text-sm font-black">{initials}</div>
+                                <div className="w-11 h-11 shrink-0 rounded-full bg-blue-100 text-ustp-blue dark:bg-blue-500/20 dark:text-blue-300 flex items-center justify-center text-sm font-bold">{initials}</div>
                                 <div className="min-w-0">
-                                    <p className="truncate text-base font-black text-slate-900 dark:text-white">{form.name || '—'}</p>
+                                    <p className="truncate text-base font-bold text-slate-900 dark:text-white">{form.name || '—'}</p>
                                     <p className="font-mono text-xs font-bold text-slate-500 dark:text-slate-400">{form.student_id}</p>
                                     <p className="truncate text-xs font-semibold text-slate-500 dark:text-slate-400">
                                         {[form.course, deptShort, form.gender].filter(Boolean).join(' · ')}
@@ -187,15 +194,15 @@ const ReportViolation = () => {
                             {/* Violations */}
                             <div className="border-t border-dashed border-slate-200 dark:border-slate-700 px-4 py-3">
                                 <div className="mb-2 flex items-center justify-between">
-                                    <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">{violationLabels.length > 1 ? 'Violations' : 'Violation'}</p>
+                                    <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400">{violationLabels.length > 1 ? 'Violations' : 'Violation'}</p>
                                     {violationLabels.length > 1 && (
-                                        <span className="rounded-full bg-red-100 dark:bg-red-500/15 px-2 py-0.5 text-[10px] font-black text-red-700 dark:text-red-300">{violationLabels.length} reports</span>
+                                        <span className="rounded-full bg-red-100 dark:bg-red-500/15 px-2 py-0.5 text-[10px] font-bold text-red-700 dark:text-red-300">{violationLabels.length} reports</span>
                                     )}
                                 </div>
                                 <ul className="space-y-1.5">
                                     {violationLabels.map((v) => (
                                         <li key={v} className="flex items-center gap-2 rounded-lg bg-red-50 dark:bg-red-500/10 px-3 py-2 text-sm font-bold text-red-700 dark:text-red-300">
-                                            <AlertTriangle size={14} className="shrink-0" /> {v}
+                                            {v}
                                         </li>
                                     ))}
                                 </ul>
@@ -236,7 +243,7 @@ const ReportViolation = () => {
                             {/* Guard accounts are shared: who is on duty (remembered on this device) */}
                             {isGuard && (
                                 <div className="flex flex-col sm:flex-row sm:items-center gap-1.5 sm:gap-3 rounded-xl border-2 border-blue-100 dark:border-blue-900/60 bg-blue-50/60 dark:bg-blue-950/30 px-3 py-2.5">
-                                    <label htmlFor="rv-onduty" className="flex shrink-0 items-center gap-1.5 text-xs font-black text-ustp-blue dark:text-blue-300">
+                                    <label htmlFor="rv-onduty" className="flex shrink-0 items-center gap-1.5 text-xs font-bold text-ustp-blue dark:text-blue-300">
                                         <UserCheck size={15} /> Guard on duty
                                     </label>
                                     <input id="rv-onduty" required value={onDutyName} maxLength={100} autoComplete="name"
@@ -248,11 +255,11 @@ const ReportViolation = () => {
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-5">
                                 {/* Student */}
                                 <section className="space-y-2.5 sm:space-y-3 min-w-0">
-                                    <h2 className="flex items-center gap-2 text-sm font-black text-slate-800 dark:text-slate-200">
-                                        <User size={16} className="text-ustp-blue" /> Student
+                                    <h2 className="flex items-center gap-2 text-sm font-bold text-slate-800 dark:text-slate-200">
+                                        <UserRound size={16} className="text-ustp-blue" /> Student
                                     </h2>
                                     <div>
-                                        <label className={labelClass} htmlFor="rv-id">Student ID (type it or scan their QR)</label>
+                                        <Label htmlFor="rv-id" icon={IdCard}>Student ID (type it or scan their QR)</Label>
                                         <div className="relative">
                                             <input id="rv-id" required value={form.student_id} onChange={handleIdChange} placeholder="Student ID" inputMode="numeric" maxLength={10} minLength={10} title="10 numbers, like 2023303188" className={`${inputClass} pr-12`} />
                                             <button type="button" onClick={() => setIsScanning(true)} aria-label="Scan student QR" className="absolute right-1.5 top-1.5 bottom-1.5 aspect-square bg-ustp-blue text-white rounded-lg flex items-center justify-center active:scale-95 transition-transform">
@@ -261,13 +268,13 @@ const ReportViolation = () => {
                                         </div>
                                     </div>
                                     <div>
-                                        <label className={labelClass} htmlFor="rv-name">Full name</label>
+                                        <Label htmlFor="rv-name" icon={UserRound}>Full name</Label>
                                         <input id="rv-name" required placeholder="Full name" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} className={inputClass} />
                                     </div>
                                     {/* Department first, then only its courses (same as registration) */}
                                     <div className="grid grid-cols-2 gap-2.5 sm:gap-3">
                                         <div className="min-w-0">
-                                            <label className={labelClass} htmlFor="rv-dept">Department</label>
+                                            <Label htmlFor="rv-dept" icon={Building2}>Department</Label>
                                             <select id="rv-dept" required value={form.department} onChange={e => {
                                                 const department = e.target.value;
                                                 setForm({ ...form, department, course: courseOptionsFor(department).includes(form.course) ? form.course : '' });
@@ -277,7 +284,7 @@ const ReportViolation = () => {
                                             </select>
                                         </div>
                                         <div className="min-w-0">
-                                            <label className={labelClass} htmlFor="rv-course">Course</label>
+                                            <Label htmlFor="rv-course" icon={GraduationCap}>Course</Label>
                                             <select id="rv-course" required disabled={!form.department} value={form.course} onChange={e => setForm({ ...form, course: e.target.value })} className={selectClass(!form.course)} style={selectArrow}>
                                                 <option value="">{form.department ? 'Choose' : 'Department first'}</option>
                                                 {courseOptionsFor(form.department, form.course).map(c => <option key={c} value={c}>{c}</option>)}
@@ -287,27 +294,27 @@ const ReportViolation = () => {
                                     {/* Short fields side by side, also on phones */}
                                     <div className="grid grid-cols-2 gap-2.5 sm:gap-3">
                                         <div className="min-w-0">
-                                            <label className={labelClass} htmlFor="rv-gender">Gender</label>
+                                            <Label htmlFor="rv-gender" icon={Users}>Gender</Label>
                                             <select id="rv-gender" required value={form.gender} onChange={e => setForm({ ...form, gender: e.target.value })} className={selectClass(!form.gender)} style={selectArrow}>
                                                 <option value="">Choose</option>
                                                 {GENDERS.map(g => <option key={g} value={g}>{g}</option>)}
                                             </select>
                                         </div>
                                         <div className="min-w-0">
-                                            <label className={labelClass} htmlFor="rv-contact">Contact number</label>
+                                            <Label htmlFor="rv-contact" icon={Phone}>Contact number</Label>
                                             <input id="rv-contact" required type="tel" placeholder="Contact number" value={form.contact} onChange={e => setForm({ ...form, contact: e.target.value })} className={inputClass} />
                                         </div>
                                     </div>
                                     <div>
-                                        <label className={labelClass} htmlFor="rv-email">Email</label>
+                                        <Label htmlFor="rv-email" icon={Mail}>Email</Label>
                                         <input id="rv-email" required type="email" placeholder="Email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} className={inputClass} />
                                     </div>
                                 </section>
 
                                 {/* Violation */}
                                 <section className="space-y-2.5 sm:space-y-3 min-w-0">
-                                    <h2 className="flex items-center gap-2 text-sm font-black text-slate-800 dark:text-slate-200">
-                                        <AlertTriangle size={16} className="text-red-500" /> Violation
+                                    <h2 className="flex items-center gap-2 text-sm font-bold text-slate-800 dark:text-slate-200">
+                                        Violation
                                     </h2>
                                     {/* Tick every violation the student committed; each becomes its own report */}
                                     <fieldset>
@@ -333,11 +340,11 @@ const ReportViolation = () => {
                                     {/* min-w-0 + appearance-none stop iPhone Safari's date/time boxes from spilling past the card */}
                                     <div className="grid grid-cols-2 gap-2.5 sm:gap-3">
                                         <div className="min-w-0">
-                                            <label className={labelClass} htmlFor="rv-date">Date</label>
+                                            <Label htmlFor="rv-date" icon={CalendarDays}>Date</Label>
                                             <input id="rv-date" type="date" required value={form.incident_date} onChange={e => setForm({ ...form, incident_date: e.target.value })} className={`${inputClass} appearance-none`} />
                                         </div>
                                         <div className="min-w-0">
-                                            <label className={labelClass} htmlFor="rv-time">Time</label>
+                                            <Label htmlFor="rv-time" icon={Clock}>Time</Label>
                                             <input id="rv-time" type="time" required value={form.incident_time} onChange={e => setForm({ ...form, incident_time: e.target.value })} className={`${inputClass} appearance-none`} />
                                         </div>
                                     </div>
@@ -347,7 +354,7 @@ const ReportViolation = () => {
                                 </section>
                             </div>
 
-                            <button type="submit" disabled={loading} className="bg-ustp-blue text-white w-full py-3 sm:py-3.5 rounded-xl text-sm font-black flex items-center justify-center gap-2 hover:bg-blue-800 active:scale-[0.99] transition-transform disabled:opacity-60">
+                            <button type="submit" disabled={loading} className="bg-ustp-blue text-white w-full py-3 sm:py-3.5 rounded-xl text-sm font-bold flex items-center justify-center gap-2 hover:bg-blue-800 active:scale-[0.99] transition-transform disabled:opacity-60">
                                 {loading ? <Loader2 size={18} className="animate-spin" /> : <Send size={18} />}
                                 {loading ? 'Sending…' : 'Submit report'}
                             </button>
@@ -359,23 +366,23 @@ const ReportViolation = () => {
                                 <div className="w-14 h-14 bg-emerald-500 rounded-full flex items-center justify-center mx-auto mb-3">
                                     <CheckCircle2 className="text-white" size={30} />
                                 </div>
-                                <h2 className="text-2xl font-black text-slate-900 dark:text-white">{violationLabels.length > 1 ? `${violationLabels.length} reports sent` : 'Report sent'}</h2>
+                                <h2 className="text-2xl font-bold text-slate-900 dark:text-white">{violationLabels.length > 1 ? `${violationLabels.length} reports sent` : 'Report sent'}</h2>
                                 <p className="mt-1 text-sm font-medium text-slate-500 dark:text-slate-400">OSA will review {violationLabels.length > 1 ? 'them' : 'it'}. The student gets an email.</p>
                             </div>
 
                             <div className="mt-5 overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-700 text-left">
                                 <div className="flex items-center gap-3 bg-slate-50 dark:bg-slate-900/60 px-4 py-3">
-                                    <div className="w-10 h-10 shrink-0 rounded-full bg-blue-100 text-ustp-blue dark:bg-blue-500/20 dark:text-blue-300 flex items-center justify-center text-sm font-black">{initials}</div>
+                                    <div className="w-10 h-10 shrink-0 rounded-full bg-blue-100 text-ustp-blue dark:bg-blue-500/20 dark:text-blue-300 flex items-center justify-center text-sm font-bold">{initials}</div>
                                     <div className="min-w-0">
-                                        <p className="truncate text-sm font-black text-slate-900 dark:text-white">{form.name || '—'}</p>
+                                        <p className="truncate text-sm font-bold text-slate-900 dark:text-white">{form.name || '—'}</p>
                                         <p className="font-mono text-xs font-bold text-slate-500 dark:text-slate-400">{form.student_id}</p>
                                     </div>
-                                    <span className="ml-auto shrink-0 rounded-full bg-amber-100 dark:bg-amber-500/15 px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-amber-700 dark:text-amber-300">For review</span>
+                                    <span className="ml-auto shrink-0 rounded-full bg-amber-100 dark:bg-amber-500/15 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-amber-700 dark:text-amber-300">For review</span>
                                 </div>
                                 <ul className="border-t border-dashed border-slate-200 dark:border-slate-700 px-4 py-3 space-y-1.5">
                                     {violationLabels.map((v) => (
                                         <li key={v} className="flex items-center gap-2 text-sm font-bold text-red-700 dark:text-red-300">
-                                            <AlertTriangle size={14} className="shrink-0" /> {v}
+                                            {v}
                                         </li>
                                     ))}
                                 </ul>

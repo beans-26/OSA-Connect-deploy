@@ -91,7 +91,7 @@ const GeofenceMap = ({ hub, location, isOutOfBounds, isDarkMode, approach = fals
         // isolate: Leaflet's panes use z-index 400+, which otherwise drew the map over the QR scanner (z-70)
         <div className={`relative isolate mt-3 w-full overflow-hidden rounded-[14px] border border-[var(--s-border)] ${approach ? 'h-[280px]' : 'h-[200px]'}`}>
             <div ref={containerRef} className={`h-full w-full ${isDarkMode ? 'brightness-[.8] contrast-[1.1]' : ''}`} />
-            <div className="absolute right-3 top-3 z-[500] rounded-full bg-[var(--s-card)] px-3 py-1.5 text-[9px] font-semibold tracking-[1px] text-[var(--s-text)] shadow">
+            <div className="absolute right-3 top-3 z-[500] rounded-full bg-[var(--s-card)] px-3 py-1.5 text-[9px] font-black tracking-[1px] text-[var(--s-text)] shadow">
                 {approach ? 'ROUTE TO SITE' : 'LIVE GPS FEED'}
             </div>
             <div className="absolute bottom-2 left-2 z-[500] rounded-lg bg-[var(--s-card)] px-2 py-1.5 shadow">
@@ -165,7 +165,7 @@ const DeadlineInfo = ({ ticket }) => {
             </button>
             {open && (
                 <div role="tooltip" className={`absolute right-0 top-8 z-20 w-64 rounded-xl border p-3 text-left shadow-lg ${notice.overdue ? 'border-[#fca5a5] bg-[#fee2e2]' : 'border-[#fde68a] bg-[#fffbeb]'}`}>
-                    <p className={`text-sm font-semibold ${notice.overdue ? 'text-[#b91c1c]' : 'text-[#92400e]'}`}>{notice.title}</p>
+                    <p className={`text-sm font-black ${notice.overdue ? 'text-[#b91c1c]' : 'text-[#92400e]'}`}>{notice.title}</p>
                     <p className={`mt-0.5 text-xs font-semibold leading-5 ${notice.overdue ? 'text-[#991b1b]' : 'text-[#92400e]'}`}>{notice.message}</p>
                 </div>
             )}
@@ -185,7 +185,7 @@ const ServiceRemaining = ({ ticket, remainingHours }) => {
             </div>
             {/* The (i) sits beside the countdown, under the pill, so it adds no height */}
             <div className="mt-1 flex items-start justify-between gap-2">
-                <p className="font-mono text-[44px] font-semibold leading-tight tabular-nums tracking-tight text-[var(--s-text)]">{hms(remainingHours)}</p>
+                <p className="text-[44px] font-black leading-tight tabular-nums tracking-tight text-[var(--s-text)]">{hms(remainingHours)}</p>
                 <DeadlineInfo ticket={ticket} />
             </div>
             <p className="text-[13px] font-medium text-[var(--s-muted)]">of {Math.round(required * 100) / 100} hrs required{site ? ` · ${site}` : ''}</p>
@@ -779,7 +779,7 @@ const DashboardBody = () => {
                         <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-[#dcfce7]">
                             <CheckCircle2 size={30} className="text-[#10b981]" />
                         </div>
-                        <h2 id="completed-title" className="text-lg font-semibold text-[var(--s-text)]">Service hours completed!</h2>
+                        <h2 id="completed-title" className="text-lg font-black text-[var(--s-text)]">Service hours completed!</h2>
                         <p className="mt-2 text-sm font-medium leading-5 text-[var(--s-muted)]">
                             You've finished the community service for <span className="font-bold text-[var(--s-text)]">{completedTicket.violation_details?.violation_type || 'your violation'}</span>.
                             Please proceed to the <span className="font-bold text-[var(--s-text)]">OSA office</span> with your signed ISO form and reflection paper to verify and properly clear your violation.
@@ -807,8 +807,8 @@ const DashboardBody = () => {
                 {/* Header */}
                 <header className="mb-4 flex items-center justify-between">
                     <div className="flex-1">
-                        <p className="mb-1 text-xs font-bold text-[var(--s-muted)]">{todayLabel()}</p>
-                        <h2 className="text-2xl font-semibold tracking-[0.3px] text-[var(--s-text)]">{timeGreeting()}, {displayName}</h2>
+                        <p className="mb-1 text-xs font-bold uppercase tracking-[1.5px] text-[var(--s-muted)]">{todayLabel()}</p>
+                        <h2 className="text-2xl font-black tracking-[0.3px] text-[var(--s-text)]">{timeGreeting()}, {displayName}</h2>
                         {(timerActive || activeTicket) && (
                             <p className="mt-1 text-sm font-semibold text-[var(--s-muted)]">{studentStatusLine({ sessionActive: timerActive, openTicket: activeTicket })}</p>
                         )}
@@ -820,7 +820,7 @@ const DashboardBody = () => {
                     <div className="mb-4 flex gap-3 rounded-[16px] border border-[#a7f3d0] bg-[#ecfdf5] p-4">
                         <CheckCircle2 size={20} className="mt-0.5 shrink-0 text-[#059669]" />
                         <div>
-                            <p className="text-sm font-semibold text-[#065f46]">Go to the OSA office to be cleared</p>
+                            <p className="text-sm font-black text-[#065f46]">Go to the OSA office to be cleared</p>
                             <p className="mt-0.5 text-xs font-semibold leading-5 text-[#047857]">
                                 Your hours for {clearanceTicket.violation_details?.violation_type || 'your violation'} are complete. Bring your signed ISO form and your reflection paper to the OSA office. Your violation is cleared once OSA approves them.
                             </p>
@@ -830,16 +830,16 @@ const DashboardBody = () => {
 
                 {/* Service card while there's community service to do; otherwise just a hello */}
                 {timerActive || activeTicket ? (
-                    <section className={`mb-4 rounded-[20px] bg-[var(--s-card)] p-4 sm:p-5 shadow-[0_1px_3px_rgba(15,23,42,0.06)] ${isOutOfBounds ? 'border-[1.5px] border-[#ef4444]' : ''}`}>
+                    <section className={`mb-4 rounded-[24px] bg-[var(--s-card)] p-4 sm:p-5 shadow-[0_8px_30px_rgba(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.2)] border border-[var(--s-border)] ${isOutOfBounds ? 'border-[1.5px] border-[#ef4444]' : ''}`}>
                         {timerActive ? (
                             <>
                                 <div className="mb-3 flex items-center">
                                     <Play size={16} className={isOutOfBounds ? 'text-[#ef4444]' : 'text-[var(--s-success)]'} />
-                                    <span className={`ml-2 text-xs font-semibold ${isOutOfBounds ? 'text-[#ef4444]' : 'text-[var(--s-success)]'}`}>
+                                    <span className={`ml-2 text-xs font-black uppercase tracking-[2px] ${isOutOfBounds ? 'text-[#ef4444]' : 'text-[var(--s-success)]'}`}>
                                         Live Community Service
                                     </span>
                                 </div>
-                                <div className="my-2 text-[52px] font-semibold leading-tight tabular-nums text-[var(--s-text)] font-mono">
+                                <div className="my-2 text-[52px] font-black leading-tight tabular-nums text-[var(--s-text)]">
                                     {formatRemainingTime()}
                                 </div>
 
@@ -865,11 +865,11 @@ const DashboardBody = () => {
                                         <div className="flex flex-1 items-center">
                                             <AlertTriangle size={24} strokeWidth={2.5} className="text-white" />
                                             <div className="ml-3">
-                                                <p className="text-[13px] font-semibold text-white">Warning: Out of Boundary</p>
+                                                <p className="text-[13px] font-black uppercase tracking-[0.5px] text-white">Warning: Out of Boundary</p>
                                                 <p className="mt-0.5 text-xs font-semibold text-[#fecdd3]">Return to area immediately!</p>
                                             </div>
                                         </div>
-                                        <div className="rounded-xl bg-white px-3 py-1.5 text-xl font-semibold text-[#e11d48]">{warningCountdown}</div>
+                                        <div className="rounded-xl bg-white px-3 py-1.5 text-xl font-black text-[#e11d48]">{warningCountdown}</div>
                                     </div>
                                 )}
 
@@ -882,7 +882,7 @@ const DashboardBody = () => {
                                 <button
                                     onClick={() => setShowStopScanner(true)}
                                     disabled={endCooldown > 0}
-                                    className="mt-4 w-full rounded-2xl bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-700 hover:to-red-700 p-4 text-sm font-bold text-white disabled:opacity-50 shadow-lg shadow-rose-500/20 active:scale-[0.98] transition-all cursor-pointer"
+                                    className="mt-4 w-full rounded-2xl bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-700 hover:to-red-700 p-4 text-sm font-bold uppercase tracking-[1px] text-white disabled:opacity-50 shadow-lg shadow-rose-500/20 active:scale-[0.98] transition-all cursor-pointer"
                                 >
                                     {endCooldown > 0 ? `Scan to End Service (${endCooldown}s)` : 'Scan to End Service'}
                                 </button>
@@ -922,12 +922,12 @@ const DashboardBody = () => {
                         )}
                     </section>
                 ) : !loading && (
-                    <section className="mb-4 flex items-center gap-3 rounded-[20px] bg-[var(--s-card)] shadow-[0_1px_3px_rgba(15,23,42,0.06)] p-4 sm:p-5">
+                    <section className="mb-4 flex items-center gap-3 rounded-[24px] border border-[var(--s-border)] bg-[var(--s-card)] p-4 sm:p-5">
                         <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#dcfce7] text-[#059669] dark:bg-emerald-500/15 dark:text-emerald-300">
                             <CheckCircle2 size={22} />
                         </span>
                         <div className="min-w-0">
-                            <p className="text-base font-semibold text-[var(--s-text)]">Hello, {displayName}!</p>
+                            <p className="text-base font-black text-[var(--s-text)]">Hello, {displayName}!</p>
                             <p className="mt-0.5 text-sm font-medium text-[var(--s-muted)]">You currently don&apos;t have any community service to render.</p>
                         </div>
                     </section>
@@ -935,7 +935,7 @@ const DashboardBody = () => {
 
                 {/* E-Tickets */}
                 <section className="mb-4">
-                    <h2 className="mb-0.5 text-lg font-semibold text-[var(--s-text)]">E-Tickets</h2>
+                    <h2 className="mb-0.5 text-lg font-black text-[var(--s-text)]">E-Tickets</h2>
                     <p className="mb-3 text-sm font-medium text-[var(--s-muted)]">Tap a ticket to see its service log and forms</p>
                     {loading ? (
                         <div className="mt-4 flex justify-center">
@@ -952,7 +952,7 @@ const DashboardBody = () => {
                             <button
                                 key={ticket.id || idx}
                                 onClick={() => setOpenTicket(ticket)}
-                                className="mb-2 flex w-full items-center rounded-[20px] bg-[var(--s-card)] p-4 text-left shadow-[0_1px_3px_rgba(15,23,42,0.06)] hover:bg-[var(--s-bg)]"
+                                className="mb-2 flex w-full items-center rounded-xl border border-[var(--s-border)] bg-[var(--s-card)] p-3.5 text-left shadow-[0_1px_4px_rgba(0,0,0,0.04)] hover:border-[var(--s-primary)]"
                             >
                                 <span className={`mr-3 h-2 w-2 shrink-0 rounded-full ${ticket.status === 'Active' ? 'bg-[#ff6b35]' : 'bg-[var(--s-success)]'}`} />
                                 <div className="min-w-0 flex-1">
