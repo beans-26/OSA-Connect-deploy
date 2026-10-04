@@ -1,5 +1,5 @@
 {
-  "_about": "Help page text shared by the website (frontend/src/pages/Help.jsx) and the mobile app (mobile/app/help.jsx). Answers are arrays of paragraphs; a paragraph starting with '- ' renders as a bullet. An item may have 'a' (both platforms) or 'web'/'mobile' (platform-specific). Values in [square brackets] are placeholders the OSA must fill in. Written against the code on 2026-09-23; update this file when the behavior changes. The penalties table is NOT here: both apps load it from GET /api/violations/punishments/ (backend/core/views.py PUNISHMENT_SYSTEM).",
+  "_about": "Help page text shared by the website (frontend/src/pages/Help.jsx) and the mobile app (mobile/app/help.jsx). Answers are arrays of paragraphs; a paragraph starting with '- ' renders as a bullet. An item may have 'a' (both platforms) or 'web'/'mobile' (platform-specific). Values in [square brackets] are placeholders the OSA must fill in. Written against the code on 2026-10-03; update this file when the behavior changes. The penalties table is NOT here: both apps load it from GET /api/violations/punishments/ (backend/core/views.py PUNISHMENT_SYSTEM).",
   "contact": {
     "office": "[OSA office location]",
     "hours": "[OSA office hours]",
@@ -51,7 +51,7 @@
           {
             "q": "How do I end a session?",
             "a": [
-              "Tap Scan to End Service and scan the OSA stop code. The time since you started is then deducted from your remaining hours.",
+              "Tap Scan to End Service and scan the QR code of your service site again. The time since you started is then deducted from your remaining hours.",
               "The end button unlocks 20 seconds after you start, so you can't end a session immediately.",
               "After you time out, a receipt shows the date, your assigned building, time in and out, time served, and how the session ended (you scanned the QR code, left the area, turned off location, and so on).",
               "To see past sessions, tap an e-ticket on your dashboard. Its service log is grouped by date: tap a date to list that day's sessions (Session 1, Session 2, ...), then tap a session to open its receipt."
@@ -60,7 +60,7 @@
           {
             "q": "What does \"Out of bounds\" mean?",
             "a": [
-              "Your service area is a circle with a 50-meter radius around the spot where your phone was when you started the session. If your phone's GPS puts you outside that circle, the session card turns red and shows how far away you are.",
+              "Your service area is a circle around your assigned service site; OSA sets its size (usually 50 meters). If your phone's GPS puts you outside that circle, the session card turns red and shows how far away you are.",
               "Go back inside the area right away. A 30-second countdown starts when you leave; if you're still outside when it reaches 0, your timer stops and the hours served so far are kept. If that happens, your time-out receipt says you left the area and how far away you were."
             ]
           },
@@ -93,16 +93,17 @@
           {
             "q": "I was reported, but I don't see anything in the app. Why?",
             "a": [
-              "The app only lists e-tickets, and an e-ticket is created only after OSA approves the report. While it's pending review (or if it was dismissed), nothing appears.",
+              "The app only lists e-tickets, and an e-ticket is created only after OSA approves a report that has community service hours. While a report is pending review, or after it's dismissed or approved without service hours (such as no entry into the campus), no e-ticket appears; check your notifications instead.",
               "You should still have received an email notice when the report was filed, if your email is on file."
             ]
           },
           {
             "q": "How were my hours decided?",
             "a": [
-              "When a violation is reported, the system counts your earlier reports of the same violation type to get the offense number, and records the suggested penalty from the table below.",
-              "When OSA approves the report, the reviewer assigns the building and the final number of required hours, which is what appears on your e-ticket.",
-              "Violation types that aren't in the table are recorded as \"To be determined\" with a suggested 4 hours."
+              "Penalties follow the OSA Student Handbook (Section 3, Non-Academic Light Offenses): 3 hours of community service for the first offense of a violation type, 6 hours for the second, and no entry into the campus from the third.",
+              "The offense number counts your earlier reports of the same violation type that weren't dismissed.",
+              "When OSA approves the report, this penalty is applied as is; OSA only chooses the building where you serve. A no-entry sanction has no hours to serve, so it doesn't create an e-ticket.",
+              "Students reported for missing a mandatory campus event get the hours OSA sets for that event."
             ]
           }
         ]
@@ -149,7 +150,7 @@
       "Under the Data Privacy Act of 2012 (Republic Act No. 10173), OSAConnect collects only what it needs to manage violations and community service.",
       "- Account details: your name, student ID, course, department, year level, email, contact number, and password.",
       "- Reports: violation type, description, the reporter's name, and the date.",
-      "- Location: the app reads your phone's GPS while your dashboard is open, to check the service area. Your location is sent to OSA only when you start a session.",
+      "- Location: the app reads your phone's GPS while your dashboard is open, to check the service area. Your location is sent to OSA when you start a session and, while your timer runs, every 10 to 15 seconds to check that you're still inside the service area.",
       "OSA administrators can view reports and time logs in the admin dashboard."
     ],
     "safety": [
@@ -178,12 +179,12 @@
       {
         "title": "If the student has no QR code",
         "web": [
-          "Type the student ID in the Student ID field. After 8 or more digits, the student's details fill in automatically if they're registered.",
-          "Double-check the ID before submitting. An ID that isn't registered creates a new student record with the details you typed. If the name matches an existing student, the report is filed under that student instead."
+          "Type the 10-digit student ID in the Student ID field. Once all 10 digits are in, the student's details fill in automatically if they're registered.",
+          "Double-check the ID before submitting. Reports are matched to students by ID only. An ID that isn't registered yet creates a record with the details you typed, and the report moves to the student's account when they register with that ID."
         ],
         "mobile": [
-          "Type the student ID under \"Or enter manually\". After 5 or more characters, the app looks the student up and fills in their details if they're registered.",
-          "Double-check the ID before submitting. An ID that isn't registered creates a new student record with placeholder details."
+          "Type the 10-digit student ID under \"Or enter manually\". Once all 10 digits are in, the app looks the student up and fills in their details if they're registered.",
+          "Double-check the ID before submitting. Reports are matched to students by ID only. An ID that isn't registered yet creates a record with the details you typed, and the report moves to the student's account when they register with that ID."
         ]
       },
       {
@@ -201,11 +202,11 @@
         "title": "After you submit",
         "web": [
           "The report is saved as Pending OSA Review, and the student gets an email notice if their email is on file. The system also records the student's offense number for that violation type.",
-          "Guards can track it in History, which lists all reports with filters for pending, approved, and dismissed. Staff accounts don't have a History page."
+          "Track your reports on the History page, which lists the reports your account filed with filters for review, approved, and dismissed."
         ],
         "mobile": [
           "The report is saved as Pending OSA Review, and the student gets an email notice if their email is on file. The system also records the student's offense number for that violation type.",
-          "The mobile app has no report history. Guards can track reports on the website's History page."
+          "The mobile app has no report history. Track your reports on the website's History page."
         ]
       }
     ]
@@ -216,32 +217,33 @@
       {
         "title": "Approving or dismissing reports",
         "a": [
-          "Go to Pending Reviews and open a report. To approve, choose the building where the student will serve and the required hours (3, 5, or 6), then tap Approve. This creates the student's e-ticket.",
+          "Go to Pending Reviews and open a report. The penalty comes from the OSA Student Handbook for the student's offense number: 3 hours of community service for the 1st offense, 6 hours for the 2nd, and no entry into the campus from the 3rd. You don't choose the hours.",
+          "To approve a penalty with hours, choose the building where the student will serve, then tap Approve Case. This creates the student's e-ticket. A no-entry sanction needs no building: approving records it and moves the case to Archives.",
           "Tap Dismiss to reject a report. Dismissed reports are not kept in Archives.",
           "Each building takes up to 10 students at once (change this per building in Settings > Service Sites). If a building is full, you can still assign the student after confirming.",
           "To move an approved student to another building, open their violation from the Overview feed and tap Change next to Assigned Building. This can't be done while they are serving.",
-          "Use Pending Reviews for approvals. The quick Approve button in the Overview feed doesn't send a building, so the approval is rejected."
+          "Approvals are done in Pending Reviews; the Overview feed lists cases after they're approved."
         ]
       },
       {
         "title": "Bulk reporting",
         "a": [
-          "In All Students, open Bulk Reporting. Select students from the list or paste student IDs separated by commas or new lines, choose a building (Gymnasium, Library, or Field), and submit.",
-          "Bulk reports use the violation type \"Failure to attend mandatory campus event\". They're approved immediately, each student gets an e-ticket with the default 4 hours, and each student is emailed."
+          "In Students, tap Report Violation. Type or paste the student IDs (new lines, commas or spaces between them), choose the building, enter the hours, check the summary, and tap Confirm & report.",
+          "These reports use the violation type \"Failure to attend mandatory campus event\". They're approved right away: students with hours get an e-ticket (0 hours means no service), and each student with an email on file is emailed."
         ]
       },
       {
         "title": "Archives and PDF export",
         "a": [
-          "Archives lists completed cases. You can search by name or ID and filter by violation type.",
+          "Archives lists cleared cases and cases approved without service hours. You can search by name or ID and filter by violation type.",
           "Tap Download PDF to export the records currently shown as a landscape A4 \"Community Service Log\" with the USTP and OSA headers."
         ]
       },
       {
-        "title": "Service Control QR codes",
+        "title": "Service sites and their QR codes",
         "a": [
-          "In Settings, under Service Control QR, you'll find the Start/Resume Tracking code and the End Session code. Print them and post them where students serve their hours.",
-          "The same section has a registration QR that links to the sign-up page, with a Download Poster button."
+          "In Settings > Service Sites, stand at a place where students serve and tap Register New Site: the phone's GPS is read for 30 seconds and averaged. Set the radius and how many students the site takes at once.",
+          "Print the site's QR code and post it there. Students scan it to start and to end their timer, and only inside the site's radius. The QR code never changes, even after you re-capture the location."
         ]
       }
     ]

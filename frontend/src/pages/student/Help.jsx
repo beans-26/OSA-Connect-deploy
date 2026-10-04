@@ -26,7 +26,7 @@ const Paragraphs = ({ items }) => (
 const CardTitle = ({ icon: Icon, title }) => (
     <span className="flex items-center">
         <Icon size={18} className="shrink-0 text-[var(--s-primary)]" />
-        <span className="ml-3 text-xs font-black uppercase tracking-[2px] text-[var(--s-primary)]">{title}</span>
+        <span className="ml-3 text-xs font-semibold text-[var(--s-primary)]">{title}</span>
     </span>
 );
 
@@ -35,14 +35,14 @@ const Card = ({ icon, title, children, fixed }) => {
     const [open, setOpen] = useState(false);
     if (fixed) {
         return (
-            <section className="mb-4 rounded-2xl border-2 border-[var(--s-border)] bg-[var(--s-card)] p-5">
+            <section className="mb-4 rounded-[20px] bg-[var(--s-card)] shadow-[0_1px_3px_rgba(15,23,42,0.06)] p-5">
                 <h2><CardTitle icon={icon} title={title} /></h2>
                 <div className="mt-4">{children}</div>
             </section>
         );
     }
     return (
-        <section className="mb-4 rounded-2xl border-2 border-[var(--s-border)] bg-[var(--s-card)]">
+        <section className="mb-4 rounded-[20px] bg-[var(--s-card)] shadow-[0_1px_3px_rgba(15,23,42,0.06)]">
             <h2>
                 <button type="button" onClick={() => setOpen(!open)} aria-expanded={open} className="flex w-full items-center justify-between gap-3 p-5 text-left">
                     <CardTitle icon={icon} title={title} />
@@ -80,7 +80,7 @@ const StudentHelp = () => {
                 {flow.map((step, i) => (
                     <div key={step.title} className="flex">
                         <div className="flex w-8 flex-col items-center">
-                            <span className={`flex h-7 w-7 items-center justify-center rounded-full text-[13px] font-black text-white ${i === flow.length - 1 ? 'bg-[var(--s-success)]' : 'bg-[var(--s-primary)]'}`}>
+                            <span className={`flex h-7 w-7 items-center justify-center rounded-full text-[13px] font-semibold text-white ${i === flow.length - 1 ? 'bg-[var(--s-success)]' : 'bg-[var(--s-primary)]'}`}>
                                 {i + 1}
                             </span>
                             {i < flow.length - 1 && <span className="my-1 w-0.5 flex-1 bg-[var(--s-border)]" />}
@@ -123,7 +123,7 @@ const StudentHelp = () => {
                 href={gmailUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="mt-1 flex w-full items-center justify-center gap-2 rounded-[14px] bg-[var(--s-primary)] p-4 text-sm font-bold uppercase tracking-[1px] text-white"
+                className="mt-1 flex w-full items-center justify-center gap-2 rounded-[14px] bg-[var(--s-primary)] p-4 text-sm font-bold text-white"
             >
                 <Mail size={18} /> Report a problem
             </a>

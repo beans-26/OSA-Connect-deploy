@@ -91,7 +91,8 @@ function PenaltiesTable({ styles, colors }) {
                                     <View key={label} style={styles.penaltyCell}>
                                         <Text style={styles.penaltyLabel}>{label}</Text>
                                         <Text style={[styles.penaltyHours, repeated && { color: colors.textMuted }]}>
-                                            {shown ? `${shown.hours} h` : '—'}
+                                            {/* A penalty without hours is a sanction (no entry into the campus) */}
+                                            {shown ? (shown.hours > 0 ? `${shown.hours} h` : 'No entry') : '—'}
                                         </Text>
                                     </View>
                                 );

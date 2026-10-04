@@ -439,7 +439,7 @@ export default function Dashboard() {
     }, [location, targetLocation, timerActive, locationEnabled]);
 
     const handleBarCodeScanned = async ({ data }) => {
-        // The scanner already rejects anything that isn't an OSA code (app/student/scan.jsx); checked again here
+        // The scanner already rejects anything that isn't a service site code (app/student/scan.jsx); checked again here
         const code = parseServiceQr(data);
         const action = serviceQrAction(code, timerActive);
         if (!action) {
@@ -451,7 +451,7 @@ export default function Dashboard() {
             showAlert('Error', "You don't have any active service tickets.");
             return;
         }
-        const scannedData = { eticket_id: activeTicket.id, lat: code.lat, lng: code.lng, radius: code.radius, siteCode: code.siteCode || null };
+        const scannedData = { eticket_id: activeTicket.id, siteCode: code.siteCode };
         if (action === 'in') {
             // Where the student is right now; the server only starts the timer inside the site's radius
             // A fix from the watcher in the last 10 s is used as is; only otherwise wait for GPS
@@ -470,12 +470,10 @@ export default function Dashboard() {
             // Outside the site: say so right away (the server checks this too)
             const assigned = activeTicket.assigned_site;
             const station = activeTicket.station || {};
-            const site = code.siteCode
-                ? (assigned?.site_code === code.siteCode && station.lat != null
-                    ? { latitude: station.lat, longitude: station.lng, radius: station.radius || 50 }
-                    : null)
-                : (code.lat != null ? { latitude: code.lat, longitude: code.lng, radius: code.radius || 5 } : null);
-            const outside = site && outsideSiteMessage(coords, site, code.siteCode ? assigned?.name : 'the service point');
+            const site = assigned?.site_code === code.siteCode && station.lat != null
+                ? { latitude: station.lat, longitude: station.lng, radius: station.radius || 50 }
+                : null;
+            const outside = site && outsideSiteMessage(coords, site, assigned?.name);
             if (outside) {
                 showAlert('Not at your service site', outside);
                 return;
@@ -497,12 +495,7 @@ export default function Dashboard() {
             const { data } = await api.post('/timelogs/log_time/', {
                 eticket_id: scannedData.eticket_id,
                 action: actionType,
-                // The hub from the QR code, as the website sends it. Never the phone's own position:
-                // the backend saves these as the service area, so that would move the geofence to the student.
-                lat: scannedData.lat,
-                lng: scannedData.lng,
-                radius: scannedData.radius,
-                // Registered service site: the server looks up its location and radius from the code
+                // The service site's code: the server looks up its location and radius
                 site_code: scannedData.siteCode,
                 // Where the student is (time-in only); outside the site's radius the server refuses to start
                 student_lat: scannedData.studentLat ?? null,
@@ -860,7 +853,7 @@ export default function Dashboard() {
                         <View style={styles.emptyLogs}>
                             {/* 🫡 in black and white, same image as the website */}
                             <Image source={require('../../assets/images/salute.png')} style={{ width: 44, height: 44 }} accessibilityIgnoresInvertColors />
-                            <Text style={styles.emptyLogsText}>No tickets, keep it up busseng!</Text>
+                            <Text style={styles.emptyLogsText}>No e-tickets. You have no community service to serve.</Text>
                         </View>
                     ) : (
                         tickets.map((ticket, idx) => (

@@ -44,6 +44,9 @@ export function buildNotifications(violations = [], tickets = [], { reminders = 
             list.push({ id: `dismissed-${v.id}`, tone: 'good', title: 'Report dismissed', body: `OSA dismissed the ${v.violation_type} report. Nothing to serve.`, at: v.created_at });
         } else if (!ticketFor.has(v.id) && v.status === 'Cleared') {
             list.push({ id: `cleared-${v.id}`, tone: 'good', title: 'Clearance approved', body: `${v.violation_type} is cleared.`, at: v.cleared_at || v.created_at });
+        } else if (!ticketFor.has(v.id) && v.status === 'Completed') {
+            // Approved with nothing to serve, e.g. "No Entry into the Campus" for a 3rd offense (no e-ticket)
+            list.push({ id: `sanction-${v.id}`, tone: 'bad', title: 'Violation approved', body: `${v.violation_type} (offense #${v.offense_count || 1}): ${v.punishment || 'sanction recorded'}.`, at: v.created_at });
         }
     });
     tickets.forEach((t) => {

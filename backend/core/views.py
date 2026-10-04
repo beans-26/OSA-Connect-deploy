@@ -613,28 +613,22 @@ class StudentViewSet(viewsets.ModelViewSet):
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
+# OSA Student Handbook, Section 3 (Non-Academic Light Offenses): 3 hours of community service for the first
+# offense, 6 hours for the second, and no entry into the campus from the third on. Admins don't choose the hours:
+# approving a report applies this table (a no-entry sanction has no hours to serve).
+NO_ENTRY = {"punishment": "No Entry into the Campus", "hours": 0}
+LIGHT_OFFENSE = {
+    1: {"punishment": "3 hours community service", "hours": 3},
+    2: {"punishment": "6 hours community service", "hours": 6},
+    3: NO_ENTRY,
+}
+
 PUNISHMENT_SYSTEM = {
     # The violations guards and faculty & staff report (their report forms list exactly these)
-    "Curfew Violation": {
-        1: {"punishment": "3 hours community service", "hours": 3},
-        2: {"punishment": "5 hours community service", "hours": 5},
-        3: {"punishment": "10 hours community service", "hours": 10},
-    },
-    "No ID / Improper ID Sling": {
-        1: {"punishment": "3 hours community service", "hours": 3},
-        2: {"punishment": "5 hours community service", "hours": 5},
-        3: {"punishment": "10 hours community service", "hours": 10},
-    },
-    "No School Uniform": {
-        1: {"punishment": "3 hours community service", "hours": 3},
-        2: {"punishment": "5 hours community service", "hours": 5},
-        3: {"punishment": "10 hours community service", "hours": 10},
-    },
-    "Dress Code Violation": {
-        1: {"punishment": "3 hours community service", "hours": 3},
-        2: {"punishment": "5 hours community service", "hours": 5},
-        3: {"punishment": "10 hours community service", "hours": 10},
-    },
+    "Curfew Violation": LIGHT_OFFENSE,
+    "No ID / Improper ID Sling": LIGHT_OFFENSE,
+    "No School Uniform": LIGHT_OFFENSE,
+    "Dress Code Violation": LIGHT_OFFENSE,
 }
 
 # Applied to violation types that aren't in PUNISHMENT_SYSTEM
@@ -857,7 +851,8 @@ class ViolationViewSet(viewsets.ModelViewSet):
                 offense_count = get_offense_count(student, violation_type)
                 if custom_hours is not None:
                     hours = custom_hours
-                    punishment = f"{hours:g} hour{'' if hours == 1 else 's'} community service"
+                    punishment = (f"{hours:g} hour{'' if hours == 1 else 's'} community service" if hours > 0
+                                  else "No community service")
                 else:
                     punishment_info = get_punishment(violation_type, offense_count)
                     hours, punishment = punishment_info["hours"], punishment_info["punishment"]
@@ -992,69 +987,63 @@ class ViolationViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=['post'])
     def approve(self, request, *args, **kwargs):
+        """Approves a pending report with the OSA handbook penalty for its offense number (PUNISHMENT_SYSTEM);
+        the admin only picks the building. Hours to serve: an e-ticket at that building. No hours (no entry into
+        the campus): the sanction is recorded and the case goes straight to the archives, no building needed."""
         try:
             violation_id = kwargs.get('id') or kwargs.get('pk')
             violation = ViolationReport.objects.get(id=violation_id)
-            
-            # REQUIRE BUILDING ASSIGNMENT
-            assigned_building = request.data.get('assigned_building')
-            if not assigned_building:
-                return Response({"error": "Please assign a building before approval"}, status=status.HTTP_400_BAD_REQUEST)
-            # The building dropdown lists service sites (their site code); older clients send a name
-            assigned_site = _resolve_service_site(assigned_building)
-            if assigned_site:
-                assigned_building = assigned_site.name
-            
+
             if violation.status != "Pending OSA Review":
                 return Response({"error": "This violation was already reviewed by someone else."}, status=status.HTTP_409_CONFLICT)
 
-            # Get custom hours if provided
-            custom_hours = request.data.get('custom_hours')
-            if custom_hours is not None and str(custom_hours).strip() != '':
-                hours = float(custom_hours)
-                if not 0 <= hours <= 100:
-                    return Response({"error": "Required hours must be between 0 and 100."}, status=status.HTTP_400_BAD_REQUEST)
-                punishment = f"{hours} hours community service"
-            else:
-                punishment_info = get_punishment(violation.violation_type, violation.offense_count)
-                hours = punishment_info["hours"]
-                punishment = punishment_info["punishment"]
+            punishment_info = get_punishment(violation.violation_type, violation.offense_count)
+            hours, punishment = punishment_info["hours"], punishment_info["punishment"]
 
-            # Only students who get a ticket take a place at the site
-            full = _over_capacity(assigned_site, 1 if hours > 0 else 0, request)
-            if full:
-                return full
+            assigned_building = assigned_site = None
+            if hours > 0:
+                # Community service needs a building: the dropdown lists service sites (their site code);
+                # older clients send a name
+                assigned_building = request.data.get('assigned_building')
+                if not assigned_building:
+                    return Response({"error": "Please assign a building before approval"}, status=status.HTTP_400_BAD_REQUEST)
+                assigned_site = _resolve_service_site(assigned_building)
+                if assigned_site:
+                    assigned_building = assigned_site.name
+                full = _over_capacity(assigned_site, 1, request)
+                if full:
+                    return full
+                claim = dict(set__status="Approved", set__assigned_building=assigned_building, set__punishment=punishment,
+                             push__building_history=_building_entry(assigned_building, request))
+            else:
+                # Nothing to serve: the sanction is recorded and the case is done (it shows in the archives)
+                claim = dict(set__status="Completed", set__punishment=punishment)
 
             # Claim the case in one database step: it only changes if it's still pending. When two admins
             # act at the same moment (approve + approve, or approve + dismiss), exactly one claim succeeds
             # and only an approval that won makes the e-ticket; the other admin is told it was reviewed.
-            claimed = ViolationReport.objects(id=violation.id, status="Pending OSA Review").update_one(
-                set__status="Approved", set__assigned_building=assigned_building, set__punishment=punishment,
-                push__building_history=_building_entry(assigned_building, request))
+            claimed = ViolationReport.objects(id=violation.id, status="Pending OSA Review").update_one(**claim)
             if not claimed:
                 return Response({"error": "This violation was already reviewed by someone else."}, status=status.HTTP_409_CONFLICT)
             violation.reload()
 
-            # Only create E-Ticket if there are hours to serve
-            if hours > 0:
-                try:
-                    ticket = ETicket(
-                        violation=violation,
-                        assigned_location=assigned_building,
-                        total_hours_required=hours,
-                        remaining_hours=hours,
-                        status="Active",
-                        **_site_ticket_fields(assigned_site)
-                    ).save()
-                except NotUniqueError:
-                    # The database allows one e-ticket per violation (the backup for the claim above)
-                    return Response({"error": "This violation already has an e-ticket."}, status=status.HTTP_409_CONFLICT)
-                print(f"Violation {violation_id} APPROVED. Assigned to {assigned_building}. E-Ticket {ticket.id} created.")
-                return Response({"message": f"Violation approved and assigned to {assigned_building}."}, status=status.HTTP_200_OK)
-            
-            violation.status = "Completed"
-            violation.save()
-            return Response({"message": f"Violation approved and assigned to {assigned_building}. No service hours required."}, status=status.HTTP_200_OK)
+            if hours <= 0:
+                return Response({"message": f"Violation approved: {punishment}.", "punishment": punishment}, status=status.HTTP_200_OK)
+
+            try:
+                ticket = ETicket(
+                    violation=violation,
+                    assigned_location=assigned_building,
+                    total_hours_required=hours,
+                    remaining_hours=hours,
+                    status="Active",
+                    **_site_ticket_fields(assigned_site)
+                ).save()
+            except NotUniqueError:
+                # The database allows one e-ticket per violation (the backup for the claim above)
+                return Response({"error": "This violation already has an e-ticket."}, status=status.HTTP_409_CONFLICT)
+            print(f"Violation {violation_id} APPROVED. Assigned to {assigned_building}. E-Ticket {ticket.id} created.")
+            return Response({"message": f"Violation approved and assigned to {assigned_building}.", "punishment": punishment}, status=status.HTTP_200_OK)
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -1689,13 +1678,13 @@ class TimeLogViewSet(viewsets.ModelViewSet):
                 return Response({"error": "This action is no longer available."}, status=status.HTTP_400_BAD_REQUEST)
 
             if action_type == 'in':
-                # Update location if provided (Smart QR)
-                lat = request.data.get('lat')
-                lng = request.data.get('lng')
-                radius = request.data.get('radius')
+                # Only a registered service site's QR (its site code) starts the timer. The old hard-coded
+                # OSA and building codes, and QRs carrying coordinates, are no longer accepted.
                 site_code = str(request.data.get('site_code') or '').strip().upper()
+                if not site_code:
+                    return Response({"error": "Scan the QR code posted at your service site to start your timer."}, status=status.HTTP_400_BAD_REQUEST)
 
-                # Assigned to a site: only that site's QR starts the timer (not other sites or the old OSA codes)
+                # Assigned to a site: only that site's QR starts the timer (not other sites)
                 assigned_code = _assigned_site_code(eticket)
                 if assigned_code and site_code != assigned_code:
                     assigned = ServiceSite.objects.filter(site_code=assigned_code).first()
@@ -1704,29 +1693,19 @@ class TimeLogViewSet(viewsets.ModelViewSet):
 
                 running = TimeLog.objects.filter(eticket=eticket, time_out=None).first()
 
-                if site_code:
-                    # Registered service site: the geofence comes from the saved site, never from the phone
-                    site = ServiceSite.objects.filter(site_code=site_code, is_active=True).first()
-                    if not site:
-                        return Response({"error": f"{site_code} is not an active service site."}, status=status.HTTP_400_BAD_REQUEST)
-                    # The timer only starts when the student is at the site
-                    outside = None if running else _outside_site_error(request, site.latitude, site.longitude, site.radius_m, site.name)
-                    if outside:
-                        return Response({"error": outside, "code": "outside_site"}, status=status.HTTP_400_BAD_REQUEST)
-                    if not running:
-                        eticket.lat = site.latitude
-                        eticket.lng = site.longitude
-                        eticket.radius = float(site.radius_m)
-                        eticket.site_code = site.site_code
-                        eticket.save()
-                elif lat is not None and lng is not None:
-                    outside = None if running else _outside_site_error(request, float(lat), float(lng), float(radius or 5), "the service point")
-                    if outside:
-                        return Response({"error": outside, "code": "outside_site"}, status=status.HTTP_400_BAD_REQUEST)
-                    eticket.lat = float(lat)
-                    eticket.lng = float(lng)
-                    eticket.radius = float(radius or 5)
-                    eticket.site_code = None
+                # The geofence comes from the saved site, never from the phone
+                site = ServiceSite.objects.filter(site_code=site_code, is_active=True).first()
+                if not site:
+                    return Response({"error": f"{site_code} is not an active service site."}, status=status.HTTP_400_BAD_REQUEST)
+                # The timer only starts when the student is at the site
+                outside = None if running else _outside_site_error(request, site.latitude, site.longitude, site.radius_m, site.name)
+                if outside:
+                    return Response({"error": outside, "code": "outside_site"}, status=status.HTTP_400_BAD_REQUEST)
+                if not running:
+                    eticket.lat = site.latitude
+                    eticket.lng = site.longitude
+                    eticket.radius = float(site.radius_m)
+                    eticket.site_code = site.site_code
                     eticket.save()
 
                 # Check if there's already an active session

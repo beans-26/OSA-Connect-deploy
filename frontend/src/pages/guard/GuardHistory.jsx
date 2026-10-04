@@ -14,6 +14,9 @@ const FILTERS = [
     ['dismissed', 'Dismissed', (s) => s === 'Dismissed'],
 ];
 
+// Penalties with no hours to serve (backend PUNISHMENT_SYSTEM's no-entry sanction; a 0-hour event report)
+const NO_SERVICE = ['No Entry into the Campus', 'No community service'];
+
 // What each database status is called here, and its colours
 const STATUS = {
     'Pending OSA Review': ['For review', 'bg-amber-100 text-amber-800 dark:bg-amber-500/15 dark:text-amber-300'],
@@ -117,7 +120,10 @@ const GuardHistory = () => {
                         ) : (
                             <ul className="space-y-2">
                                 {filteredViolations.map((report) => {
-                                    const [statusLabel, statusTone] = STATUS[report.status] || [report.status || 'For review', STATUS['Pending OSA Review'][1]];
+                                    // Approved with nothing to serve (e.g. no entry into the campus) is closed as Completed,
+                                    // but no hours were served: show it as Approved
+                                    const shownStatus = report.status === 'Completed' && NO_SERVICE.includes(report.punishment) ? 'Approved' : report.status;
+                                    const [statusLabel, statusTone] = STATUS[shownStatus] || [shownStatus || 'For review', STATUS['Pending OSA Review'][1]];
                                     const s = report.student_details || {};
                                     return (
                                         <li key={report.id} className="rounded-2xl border border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800 px-3.5 py-3 shadow-sm">

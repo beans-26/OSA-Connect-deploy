@@ -14,9 +14,9 @@ export default function StudentScanScreen() {
     return (
         <QrScannerView
             title={ending ? 'Scan to End Service' : 'Scan the Hub QR Code'}
-            subtitle={ending ? 'Scan your service site QR or the OSA stop code' : 'Scan the QR code posted at your service site'}
+            subtitle={ending ? "Scan your service site's QR code" : 'Scan the QR code posted at your service site'}
             accent={ending ? '#ef4444' : '#60a5fa'}
-            // Only OSA service codes; random QRs are rejected on the spot and scanning continues
+            // Only service site codes; other QRs are rejected on the spot and scanning continues
             validate={(data) => {
                 if (serviceQrAction(parseServiceQr(data), ending)) return null;
                 return ending ? NOT_A_STOP_QR : NOT_A_START_QR;
