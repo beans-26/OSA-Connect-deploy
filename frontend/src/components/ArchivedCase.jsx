@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { X, FileText, ImageOff } from 'lucide-react';
+import { studentName, reportedByLabel } from '../lib/names';
 import TicketDetails from './TicketDetails';
 
 // Opened by clicking a case in the admin Archives: the e-ticket receipt and its service log (the same view
@@ -50,7 +51,7 @@ const ClearanceEvidence = ({ violation }) => {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [violation.id, violation.photos_removed_at, violation.iso_form_uploaded_at, violation.reflection_uploaded_at]);
 
-    const studentName = violation.student_details?.name || 'Student';
+    const studentName = studentName(violation.student_details) || 'Student';
 
     return (
         <div className="mb-5">
@@ -100,16 +101,24 @@ const ClearanceEvidence = ({ violation }) => {
     );
 };
 
-// A case with no e-ticket (approved with no service hours)
+// A case with no e-ticket (approved with no service hours), or one OSA dismissed
 const CaseWithoutTicket = ({ violation, onClose }) => {
+    const dismissed = violation.status === 'Dismissed';
     const lines = [
-        ['Student', `${violation.student_details?.name || '—'} (${violation.student_details?.student_id || '—'})`],
+        ['Student', `${studentName(violation.student_details) || '—'} (${violation.student_details?.student_id || '—'})`],
         ['Violation', violation.violation_type || '—'],
         ['Offense', `#${violation.offense_count || 1}`],
         ['Date caught', fmtDate(violation.created_at)],
-        ['Reported by', violation.reporting_guard || '—'],
-        ['Sanction', violation.punishment || '—'],
-        ['Service hours', 'None required'],
+        [reportedByLabel(violation.reporter_role), violation.reporting_guard || '—'],
+        ...(dismissed ? [
+            ['Status', 'Dismissed'],
+            ['Reason', violation.dismissed_reason || 'Dismissed by OSA after review'],
+            ...(violation.reporting_email ? [['Reporter email', violation.reporting_email]] : []),
+            ['Dismissed on', fmtDate(violation.dismissed_at)],
+        ] : [
+            ['Sanction', violation.punishment || '—'],
+            ['Service hours', 'None required'],
+        ]),
     ];
     return (
         <div className="fixed inset-0 z-[70] flex items-end justify-center bg-black/40 backdrop-blur-sm sm:items-center sm:p-4" role="dialog" aria-modal="true" onClick={onClose}>
@@ -129,7 +138,7 @@ const CaseWithoutTicket = ({ violation, onClose }) => {
                         </div>
                     ))}
                 </div>
-                <ClearanceEvidence violation={violation} />
+                {!dismissed && <ClearanceEvidence violation={violation} />}
             </div>
         </div>
     );
@@ -138,12 +147,12 @@ const CaseWithoutTicket = ({ violation, onClose }) => {
 const ArchivedCase = ({ violation, ticket, onClose }) => (
     // receipt-colors (index.css) gives the receipt its colours on admin pages, in light and dark mode
     <div className="receipt-colors print:hidden">
-        {ticket ? (
+        {ticket && violation.status !== 'Dismissed' ? (
             <TicketDetails ticket={ticket} onClose={onClose} forAdmin>
                 <div className="mb-5 rounded-2xl border border-[var(--s-border)] px-4 py-3">
                     <p className="mb-1 text-[9px] font-black uppercase tracking-[2px] text-[var(--s-muted)]">Student</p>
                     <p className="text-[13px] font-bold text-[var(--s-text)]">
-                        {violation.student_details?.name || '—'} <span className="font-semibold text-[var(--s-muted)]">({violation.student_details?.student_id || '—'})</span>
+                        {studentName(violation.student_details) || '—'} <span className="font-semibold text-[var(--s-muted)]">({violation.student_details?.student_id || '—'})</span>
                     </p>
                     {violation.student_details?.course && (
                         <p className="text-[11px] font-semibold text-[var(--s-muted)]">{violation.student_details.course}</p>

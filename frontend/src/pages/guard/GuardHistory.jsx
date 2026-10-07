@@ -2,6 +2,7 @@ import { useState } from 'react';
 import usePolling from '../../lib/usePolling';
 import { ClipboardList, Search } from 'lucide-react';
 import { departmentShort } from '../../lib/academics';
+import { studentName } from '../../lib/names';
 
 // The reports a guard (or faculty & staff) filed, newest first, with where each one is in OSA's process.
 // Compact cards so a phone shows several at once: name + status, ID · course, then violation · when · who.
@@ -129,7 +130,7 @@ const GuardHistory = () => {
                                         <li key={report.id} className="rounded-2xl border border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800 px-3.5 py-3 shadow-sm">
                                             <div className="flex items-start justify-between gap-3">
                                                 <div className="min-w-0">
-                                                    <p className="truncate text-sm font-bold text-slate-900 dark:text-white">{s.name || 'Unknown student'}</p>
+                                                    <p className="truncate text-sm font-bold text-slate-900 dark:text-white">{studentName(s) || 'Unknown student'}</p>
                                                     <p className="truncate text-xs font-medium text-slate-500 dark:text-slate-400">
                                                         <span className="font-mono">{s.student_id || report.student_id || '—'}</span>
                                                         {/* College first: it's short, so a long course name is what gets cut off */}

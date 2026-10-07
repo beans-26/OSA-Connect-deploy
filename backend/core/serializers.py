@@ -1,6 +1,6 @@
 import datetime
 from rest_framework_mongoengine import serializers
-from .models import Student, ViolationReport, ETicket, TimeLog, SystemUser, utc_now
+from .models import Student, ViolationReport, ETicket, TimeLog, SystemUser, utc_now, display_student_name, student_name_parts, faculty_reporter_status, report_reporter_role
 
 class StudentSerializer(serializers.DocumentSerializer):
     class Meta:
@@ -13,6 +13,10 @@ class StudentSerializer(serializers.DocumentSerializer):
         data['id'] = str(instance.id)
         # False for a record made from a report before the student registered (no password yet)
         data['has_account'] = bool(instance.password)
+        # Shown on the pages: "Juan D. Dela Cruz" (the middle name as an initial), and its parts
+        first, initial, last = student_name_parts(instance)
+        data['display_name'] = display_student_name(instance)
+        data['name_parts'] = {'first': first, 'middle_initial': initial, 'last': last}
         return data
 
 class ViolationReportSerializer(serializers.DocumentSerializer):
@@ -24,6 +28,11 @@ class ViolationReportSerializer(serializers.DocumentSerializer):
     def to_representation(self, instance):
         data = super().to_representation(instance)
         data['id'] = str(instance.id)
+        # Filed by a faculty member OSA hasn't confirmed ('unconfirmed': no Approve/Dismiss until OSA decides)
+        # or rejected; None otherwise
+        data['reporter_status'] = faculty_reporter_status(instance.reporting_email) if instance.reporting_email else None
+        # Who filed it, for "Reported by guard / faculty / OSA"
+        data['reporter_role'] = report_reporter_role(instance)
         return data
 
 class ETicketSerializer(serializers.DocumentSerializer):
@@ -108,6 +117,7 @@ class ETicketSerializer(serializers.DocumentSerializer):
                     # For the e-ticket receipt (student and admin)
                     'offense_count': v_ref.offense_count,
                     'reporting_guard': v_ref.reporting_guard,
+                    'reporter_role': report_reporter_role(v_ref),
                     'created_at': (v_ref.created_at.isoformat() + 'Z') if v_ref.created_at else None,
                     'assigned_building': v_ref.assigned_building,
                     'building_history': v_ref.building_history or [],
@@ -115,6 +125,7 @@ class ETicketSerializer(serializers.DocumentSerializer):
                     'student_details': {
                         'student_id': s_ref.student_id if s_ref else "Unknown",
                         'name': s_ref.name if s_ref else "Unknown",
+                        'display_name': display_student_name(s_ref) if s_ref else "Unknown",
                         'id': str(s_ref.id) if s_ref else "Unknown"
                     }
                 }

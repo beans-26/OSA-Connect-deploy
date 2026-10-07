@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import Sidebar from '../../components/Sidebar';
 import { Bar } from 'react-chartjs-2';
 import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, Tooltip } from 'chart.js';
@@ -6,6 +6,7 @@ import { Calendar, Download, Loader2, FileText } from 'lucide-react';
 import ThemeToggle from '../../components/ThemeToggle';
 import { MONTHS, PERIODS, BREAKDOWNS, STATUS_ORDER, buildReport, downloadReportPdf, statusGroup } from '../../lib/violationReport';
 import { departmentShort } from '../../lib/academics';
+import { studentName } from '../../lib/names';
 import BreakdownBars, { BREAKDOWN_COLORS } from '../../components/BreakdownBars';
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, Tooltip);
@@ -176,7 +177,7 @@ const ReportsPanel = () => {
                         {[...report.violations].filter((v) => statusGroup(v.status) !== 'Dismissed').reverse().map((v) => (
                             <div key={v.id} className="flex items-center justify-between gap-3 p-3 bg-slate-50 dark:bg-slate-900 rounded-xl">
                                 <div className="min-w-0">
-                                    <p className="font-bold text-sm text-slate-800 dark:text-slate-200 truncate">{v.student_details?.name || 'Unknown'}</p>
+                                    <p className="font-bold text-sm text-slate-800 dark:text-slate-200 truncate">{studentName(v.student_details) || 'Unknown'}</p>
                                     <p className="text-xs text-slate-500 dark:text-slate-400 truncate">
                                         {v.violation_type} · {departmentShort(v.student_details?.department) || '—'} · {new Date(v.created_at).toLocaleString('en-PH', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
                                     </p>

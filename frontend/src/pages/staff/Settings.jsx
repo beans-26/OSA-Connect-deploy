@@ -1,15 +1,13 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import Sidebar from '../../components/Sidebar';
-import { Lock, AlertTriangle, Save, LogOut, CheckCircle, MapPin } from 'lucide-react';
+import { Lock, Save, LogOut, MapPin } from 'lucide-react';
 import ThemeToggle from '../../components/ThemeToggle';
 import ServiceSites from './ServiceSites';
 
 const StaffSettings = () => {
     const userRole = JSON.parse(localStorage.getItem('user') || '{}').role || 'staff';
     const [activeSection, setActiveSection] = useState('sites');
-    const [actionMessage, setActionMessage] = useState({ text: '', type: '' });
 
-    const [currentUser] = useState(JSON.parse(localStorage.getItem('user') || '{}'));
 
     // Security State
     const [oldPassword, setOldPassword] = useState('');
@@ -49,7 +47,7 @@ const StaffSettings = () => {
             } else {
                 setSaveStatus({ msg: data.error || 'Update failed', type: 'error' });
             }
-        } catch (error) {
+        } catch {
             setSaveStatus({ msg: 'Network error', type: 'error' });
         }
         setTimeout(() => setSaveStatus({ msg: '', type: '' }), 3000);
@@ -80,12 +78,6 @@ const StaffSettings = () => {
                     </div>
                 )}
 
-                {actionMessage.text && (
-                    <div className={`fixed bottom-10 left-10 z-50 px-6 py-4 rounded-2xl shadow-2xl animate-in slide-in-from-left-10 duration-500 flex items-center gap-3 font-bold border-2 ${actionMessage.type === 'success' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-red-50 text-red-600 border-red-100'}`}>
-                        {actionMessage.type === 'success' ? <CheckCircle size={20} /> : <AlertTriangle size={20} />}
-                        {actionMessage.text}
-                    </div>
-                )}
 
                 <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
                     {/* Navigation Sidebar */}

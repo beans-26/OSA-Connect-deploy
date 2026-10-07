@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useStudentShell } from '../../components/StudentShell';
 import { Mail, Phone, UserRound, IdCard, GraduationCap, Building2, Layers, User } from 'lucide-react';
+import { studentName } from '../../lib/names';
 import { Group, InfoRow } from '../../components/SettingsList';
 
 const postJson = async (url, body) => {
@@ -141,7 +142,7 @@ const PersonalInfoBody = () => {
     return (
         <main className="mx-auto w-full max-w-xl px-4 pb-10 pt-4">
             <Group label="Basic information">
-                <InfoRow icon={UserRound} label="Full name" value={profile.name} />
+                <InfoRow icon={UserRound} label="Name" value={studentName(profile)} />
                 <InfoRow icon={IdCard} label="Student ID" value={profile.student_id} />
                 <InfoRow icon={GraduationCap} label="Course" value={profile.course} />
                 <InfoRow icon={Building2} label="College" value={profile.department} />

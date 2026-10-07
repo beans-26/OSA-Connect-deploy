@@ -104,10 +104,14 @@ from pymongo import ReadPreference
 MONGODB_URI = os.getenv('MONGODB_URI', 'mongodb://localhost:27017/OSAConnect_deploymenttest')
 MONGODB_URI = MONGODB_URI.strip('"').strip("'")
 
+# tlsCAFile turns TLS on, so only pass it for Atlas (mongodb+srv) or URIs that ask for TLS;
+# a local mongod has no TLS and drops the handshake
+_uses_tls = MONGODB_URI.startswith('mongodb+srv://') or 'tls=true' in MONGODB_URI.lower() or 'ssl=true' in MONGODB_URI.lower()
+
 try:
     mongoengine.connect(
         host=MONGODB_URI,
-        tlsCAFile=certifi.where(),
+        **({'tlsCAFile': certifi.where()} if _uses_tls else {}),
         serverSelectionTimeoutMS=5000,
         # Reads fall back to a secondary when the Atlas primary is briefly unreachable,
         # instead of every page waiting out the timeout. Writes still need the primary.
@@ -193,5 +197,9 @@ EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', '').strip().strip('"').strip("'")
 EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', '').strip().strip('"').strip("'").replace(' ', '') or None
 # A display name makes the emails look less like a bot to Gmail's spam filter
 DEFAULT_FROM_EMAIL = f"OSAConnect <{EMAIL_HOST_USER}>" if EMAIL_HOST_USER else None
+
+# Testing only: addresses accepted as if they were @ustp.edu.ph on the faculty pages (comma-separated), so the
+# email codes can be tried with an inbox you have. Leave unset on the live site.
+FACULTY_TEST_EMAILS = {e.strip().lower() for e in os.getenv('FACULTY_TEST_EMAILS', '').split(',') if e.strip()}
 
 print(f"SMTP CONFIG: Host={EMAIL_HOST}, User={EMAIL_HOST_USER}, PW_Len={len(EMAIL_HOST_PASSWORD) if EMAIL_HOST_PASSWORD else 0}")

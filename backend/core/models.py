@@ -1,3 +1,4 @@
+import re
 from mongoengine import Document, StringField, DateTimeField, IntField, ReferenceField, FloatField, BooleanField, ListField, DictField, BinaryField
 import datetime
 from enum import Enum
@@ -62,6 +63,11 @@ def format_person_name(value):
 class Student(Document):
     student_id = StringField(required=True, unique=True)
     name = StringField(required=True)
+    # The name's parts, kept since 2026-10 (registration, and the report form's typed name). Pages show
+    # "First M. Last" (display_student_name); older records only have `name`, which is split instead.
+    first_name = StringField()
+    middle_name = StringField()  # in full from registration; a report form only has the initial
+    last_name = StringField()
     course = StringField()
     department = StringField()
     year_level = StringField()
@@ -75,6 +81,44 @@ class Student(Document):
     def clean(self):
         # Runs on every save (registration, guard reports, admin edits): names are stored capitalized
         self.name = format_person_name(self.name) or self.name
+        self.first_name = format_person_name(self.first_name) or self.first_name
+        self.middle_name = format_person_name(self.middle_name) or self.middle_name
+        self.last_name = format_person_name(self.last_name) or self.last_name
+
+
+# Words that start a last name ("Dela Cruz", "De los Santos", "San Juan"), so they aren't read as a middle name
+LAST_NAME_PARTICLES = {'de', 'del', 'dela', 'delos', 'la', 'las', 'los', 'san', 'santa', 'sta', 'sta.', 'sto', 'sto.',
+                       'santo', 'van', 'von', 'di', 'da', 'dos', 'du', 'mac', 'mc'}
+NAME_SUFFIXES = {'jr', 'jr.', 'sr', 'sr.', 'ii', 'iii', 'iv', 'v'}
+
+
+def student_name_parts(student):
+    """(first, middle initial, last) of a student. From the saved parts when there are any; older records only
+    have the full name "First Middle Last", read as: the last word (with any particles before it, and a suffix
+    after it) is the last name, the word before it the middle name, the rest the first name. A first name of two
+    words with no middle name ("John Paul Reyes") can't be told apart there."""
+    if student.first_name and student.last_name:
+        middle = (student.middle_name or '').strip()
+        return student.first_name, (middle[0].upper() if middle and not re.match(r'^n\s*/?\s*a$', middle, re.I) else ''), student.last_name
+    words = (student.name or '').split()
+    suffix = words.pop() if len(words) > 2 and words[-1].lower().rstrip(',') in NAME_SUFFIXES else ''
+    if len(words) < 3:
+        first, initial, last = ' '.join(words[:1]), '', ' '.join(words[1:])
+    else:
+        i = len(words) - 1
+        while i - 1 >= 1 and words[i - 1].lower() in LAST_NAME_PARTICLES:
+            i -= 1
+        if i >= 2:
+            first, initial, last = ' '.join(words[:i - 1]), words[i - 1][0].upper(), ' '.join(words[i:])
+        else:
+            first, initial, last = ' '.join(words[:i]), '', ' '.join(words[i:])
+    return first, initial, ' '.join(p for p in (last, suffix) if p)
+
+
+def display_student_name(student):
+    """'Juan D. Dela Cruz': the name pages show, with the middle name as an initial."""
+    first, initial, last = student_name_parts(student)
+    return ' '.join(p for p in (first, f'{initial}.' if initial else '', last) if p) or student.name
 
 class ViolationReport(Document):
     student = ReferenceField(Student, required=True)
@@ -84,6 +128,15 @@ class ViolationReport(Document):
     # (the guards share accounts); for faculty & staff and admins, their account's name
     reporting_guard = StringField(required=True)
     reporting_account = StringField()  # the login that filed it (username); a guard's History lists by this
+    # Faculty file without an account (views.faculty_report): the USTP email they confirmed with a code, and
+    # the name read from it, which OSA checks against its faculty records in Pending Reviews
+    reporting_email = StringField()
+    reporter_first_name = StringField()
+    reporter_last_name = StringField()
+    dismissed_at = DateTimeField()
+    # Set when the report was dismissed without an admin opening it: OSA rejected its faculty reporter
+    # (views.faculty_email_decision / faculty_account_decision)
+    dismissed_reason = StringField()
     status = StringField(default=ViolationStatus.PENDING.value)
     offense_count = IntField(default=1)
     punishment = StringField()
@@ -167,7 +220,30 @@ class SystemUser(Document):
     # admin = OSA staff; staff = faculty and other school staff (teachers, instructors); guard = campus guards
     role = StringField(required=True, choices=['admin', 'guard', 'student', 'staff'])
     is_active = BooleanField(default=True)  # disabled accounts can't log in (manage.py create_account --disable)
+    # Faculty who made their own account (views.faculty_signup): their USTP email (also the username) and the
+    # name they typed, put on their reports. faculty_status: 'pending' (can't log in until OSA confirms them),
+    # 'verified', or 'rejected'. Accounts OSA made (create_account) have none.
+    email = StringField()
+    first_name = StringField()
+    last_name = StringField()
+    faculty_status = StringField()
+    registered_at = DateTimeField()
     meta = {'collection': 'system_users', 'auto_create_index': False, 'strict': False}
+
+
+class FacultyInvite(Document):
+    """A USTP email a faculty member reported with, without an account (views.faculty_report). OSA confirms it's
+    real faculty in Admin > Faculty Accounts; the faculty member then gets an email to finish making an account
+    (/faculty/signup?invite=...), which is active at once.
+    status: 'unconfirmed' -> 'invited' (confirmed, email sent) -> 'registered'; or 'rejected'."""
+    email = StringField(required=True, unique=True)
+    first_name = StringField()  # read from the email (views.name_from_ustp_email)
+    last_name = StringField()
+    status = StringField(default='unconfirmed')
+    first_report_at = DateTimeField(default=utc_now)
+    decided_at = DateTimeField()
+    decided_by = StringField()
+    meta = {'collection': 'faculty_invites', 'auto_create_index': False, 'strict': False}
 
 
 class ServiceSite(Document):
@@ -187,3 +263,28 @@ class ServiceSite(Document):
     registered_at = DateTimeField(default=utc_now)
     updated_at = DateTimeField(default=utc_now)
     meta = {'collection': 'service_sites', 'ordering': ['-registered_at'], 'auto_create_index': False, 'strict': False}
+
+
+def faculty_reporter_status(email):
+    """Whether OSA has confirmed the faculty member behind a USTP email: 'unconfirmed' (filed without an account,
+    or a sign-up OSA hasn't confirmed), 'rejected', or None (confirmed, or an account OSA made)."""
+    email = (email or '').lower()
+    if not email:
+        return None
+    invite = FacultyInvite.objects(email=email).only('status').first()
+    if invite and invite.status in ('unconfirmed', 'rejected'):
+        return invite.status
+    account = SystemUser.objects(username=email).only('faculty_status').first() or SystemUser.objects(email=email).only('faculty_status').first()
+    if account:
+        return {'pending': 'unconfirmed', 'rejected': 'rejected'}.get(account.faculty_status)
+    return None if invite else 'unconfirmed'
+
+
+def report_reporter_role(report):
+    """Who filed a report: 'faculty' (a faculty account or a USTP email), 'guard', or 'admin' (OSA). Reports from
+    before reporting_account was kept came from guards."""
+    if getattr(report, 'reporting_email', None):
+        return 'faculty'
+    account = SystemUser.objects(username=report.reporting_account).only('role').first() if report.reporting_account else None
+    role = account.role if account else 'guard'
+    return 'faculty' if role == 'staff' else role

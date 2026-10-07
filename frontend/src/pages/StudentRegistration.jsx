@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Download, ChevronRight, Loader2, Mail, MailWarning, CheckCircle2 } from 'lucide-react';
 import QRCode from 'react-qr-code';
 import { Link } from 'react-router-dom';

@@ -1,7 +1,23 @@
-import { Suspense, useEffect, useState } from 'react';
+import { Suspense, useCallback, useEffect, useState } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { ChartPie, CircleHelp, Gavel, History, LogOut, Menu, X } from 'lucide-react';
+import { ChartPie, CircleHelp, ClipboardList, Gavel, History, LogOut, Menu, X } from 'lucide-react';
 import { loginPathFor } from '../lib/portals';
+import usePolling from '../lib/usePolling';
+
+// Guards: the reports list (guards' and faculty's) is loaded here every 30 s so the menu can show how many
+// came in since the guard last opened Reports (kept on this device)
+const SEEN_KEY = 'osa-guard-reports-seen';
+const FEED_REFRESH_MS = 30000;
+const readSeen = () => {
+    try {
+        const saved = localStorage.getItem(SEEN_KEY);
+        if (saved) return saved;
+        // First time on this device: start counting from now, not the whole month
+        const now = new Date().toISOString();
+        localStorage.setItem(SEEN_KEY, now);
+        return now;
+    } catch { return new Date().toISOString(); }
+};
 
 // The layout route of the guard and faculty & staff pages, built like the student one (StudentShell.jsx):
 // a top bar with the menu button and the page title, and a side menu with the account, the pages and Log out.
@@ -9,17 +25,17 @@ import { loginPathFor } from '../lib/portals';
 
 const PAGES = {
     '/guard/report': 'Report Violation',
-    '/guard/history': 'History',
+    '/guard/reports': 'Reports',
     '/guard/analytics': 'Analytics',
     '/staff/report': 'Report Violation',
     '/staff/history': 'History',
     '/staff/help': 'Help',
 };
-// Guards: report, history, analytics. Faculty & staff: report, history, help.
+// Guards: report, reports (everyone's), analytics. Faculty & staff: report, history (their own), help.
 const NAV = {
     guard: [
         { to: '/guard/report', label: 'Report Violation', icon: Gavel },
-        { to: '/guard/history', label: 'History', icon: History },
+        { to: '/guard/reports', label: 'Reports', icon: ClipboardList, badge: true },
         { to: '/guard/analytics', label: 'Analytics', icon: ChartPie },
     ],
     staff: [
@@ -51,6 +67,27 @@ export default function ReporterShell() {
     const [menuOpen, setMenuOpen] = useState(false);
     const [askLogout, setAskLogout] = useState(false);
 
+    const isGuardArea = area === 'guard';
+    const [feed, setFeed] = useState({ reports: [], days: 30, loaded: false, error: '' });
+    const [seenAt, setSeenAt] = useState(readSeen);
+    usePolling(async () => {
+        if (!isGuardArea) return;
+        try {
+            const r = await fetch('/api/violations/feed/');
+            const data = await r.json().catch(() => ({}));
+            if (r.ok) setFeed({ reports: data.reports || [], days: data.days || 30, loaded: true, error: '' });
+            else setFeed((prev) => ({ ...prev, loaded: true, error: data.error || "Couldn't load the reports." }));
+        } catch {
+            setFeed((prev) => ({ ...prev, loaded: true, error: prev.loaded ? prev.error : "Can't reach the server." }));
+        }
+    }, FEED_REFRESH_MS, [isGuardArea]);
+    const markSeen = useCallback(() => {
+        const now = new Date().toISOString();
+        try { localStorage.setItem(SEEN_KEY, now); } catch { /* private mode */ }
+        setSeenAt(now);
+    }, []);
+    const newReports = isGuardArea ? feed.reports.filter((r) => Date.parse(r.created_at) > Date.parse(seenAt)).length : 0;
+
     useEffect(() => { setMenuOpen(false); }, [pathname]);
     useEffect(() => {
         if (!menuOpen) return undefined;
@@ -69,8 +106,9 @@ export default function ReporterShell() {
             {/* Top bar */}
             <div className="sticky top-0 z-30 border-b border-slate-200 bg-white/95 backdrop-blur dark:border-slate-800 dark:bg-slate-900/95">
                 <div className="mx-auto flex h-14 w-full max-w-5xl items-center gap-2 px-3">
-                    <button onClick={() => setMenuOpen(true)} aria-label="Open menu" aria-expanded={menuOpen} className="flex h-10 w-10 items-center justify-center rounded-full text-slate-800 hover:bg-slate-100 dark:text-slate-100 dark:hover:bg-slate-800">
+                    <button onClick={() => setMenuOpen(true)} aria-label={newReports ? `Open menu, ${newReports} new reports` : 'Open menu'} aria-expanded={menuOpen} className="relative flex h-10 w-10 items-center justify-center rounded-full text-slate-800 hover:bg-slate-100 dark:text-slate-100 dark:hover:bg-slate-800">
                         <Menu size={22} />
+                        {newReports > 0 && <span className="absolute right-1 top-1 h-2.5 w-2.5 rounded-full bg-red-500 ring-2 ring-white dark:ring-slate-900" />}
                     </button>
                     <h1 className="flex-1 truncate text-center text-base font-bold text-slate-900 dark:text-white">{PAGES[pathname] || ''}</h1>
                     <span className="h-10 w-10" aria-hidden="true" />
@@ -79,7 +117,7 @@ export default function ReporterShell() {
 
             {/* Pages load on first visit; the top bar and menu stay on screen meanwhile */}
             <Suspense fallback={<div className="flex justify-center py-20"><span className="h-8 w-8 animate-spin rounded-full border-4 border-ustp-blue border-t-transparent" /></div>}>
-                <div key={pathname} className="page-enter"><Outlet /></div>
+                <div key={pathname} className="page-enter"><Outlet context={{ feed, seenAt, markSeen }} /></div>
             </Suspense>
 
             {/* Side menu */}
@@ -104,7 +142,7 @@ export default function ReporterShell() {
                     </button>
                 </div>
                 <nav className="mt-1 flex flex-col gap-1 px-2">
-                    {nav.map(({ to, label, icon: Icon }) => {
+                    {nav.map(({ to, label, icon: Icon, badge }) => {
                         const active = pathname === to;
                         return (
                             <button
@@ -115,6 +153,11 @@ export default function ReporterShell() {
                             >
                                 <Icon size={19} strokeWidth={active ? 2.3 : 2} />
                                 <span className="flex-1">{label}</span>
+                                {badge && newReports > 0 && !active && (
+                                    <span aria-label={`${newReports} new`} className="flex h-[22px] min-w-[22px] items-center justify-center rounded-full bg-red-100 px-1.5 text-[10px] font-black text-red-600 dark:bg-red-500/20 dark:text-red-400">
+                                        {newReports > 99 ? '99+' : newReports}
+                                    </span>
+                                )}
                             </button>
                         );
                     })}

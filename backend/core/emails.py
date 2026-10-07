@@ -6,6 +6,7 @@ who sent it, and both a plain-text and a simple HTML version. No images, no trac
 site itself.
 """
 import datetime
+import os
 from html import escape
 
 from django.conf import settings
@@ -31,6 +32,16 @@ _CODE_PURPOSES = {
         'why': 'You asked to use this email address for your OSAConnect account. '
                'Enter this code in your Profile Settings to confirm it.',
     },
+    'faculty_signup': {
+        'subject': 'Your OSAConnect faculty sign-up code',
+        'why': 'You are creating an OSAConnect faculty & staff account to file student violation reports. '
+               'Enter this code on the sign-up page to confirm this is your USTP email.',
+    },
+    'faculty': {
+        'subject': 'Your OSAConnect report confirmation code',
+        'why': 'You are filing a student violation report on OSAConnect as USTP faculty or staff. '
+               'Enter this code on the report page to confirm this is your USTP email.',
+    },
 }
 
 
@@ -39,12 +50,23 @@ def _first_name(name):
     return name.split()[0].title() if name else 'there'
 
 
-def _html(title, paragraphs, highlight=None, rows=None, after=()):
-    """A plain, readable HTML body: paragraphs, then a big code (`highlight`) or (label, value) `rows`,
-    then the `after` paragraphs and the office footer."""
+def app_url(path=''):
+    """A link into the website: FRONTEND_URL if set, this computer's dev site while DEBUG, else the live site."""
+    base = os.getenv('FRONTEND_URL') or ('http://localhost:5173' if settings.DEBUG else SITE_URL)
+    return base.rstrip('/') + path
+
+
+def _html(title, paragraphs, highlight=None, rows=None, after=(), button=None):
+    """A plain, readable HTML body: paragraphs, then a big code (`highlight`), (label, value) `rows` or a
+    (label, url) `button`, then the `after` paragraphs and the office footer."""
     parts = [f'<h2 style="margin:0 0 16px;font-size:20px;color:#14213D;">{escape(title)}</h2>']
     for p in paragraphs:
         parts.append(f'<p style="margin:0 0 14px;">{escape(p)}</p>')
+    if button:
+        label, url = button
+        parts.append(f'<p style="margin:8px 0 18px;"><a href="{escape(url)}" style="display:inline-block;background:#1E3A8A;'
+                     f'color:#ffffff;text-decoration:none;font-weight:bold;padding:12px 22px;border-radius:8px;">{escape(label)}</a></p>'
+                     f'<p style="margin:0 0 14px;font-size:13px;color:#586379;">Or open this link: {escape(url)}</p>')
     if highlight:
         parts.append(
             f'<p style="margin:8px 0 18px;font-size:30px;font-weight:bold;letter-spacing:6px;color:#1E3A8A;">{escape(highlight)}</p>')
@@ -107,3 +129,31 @@ def send_violation_notice(report):
             + f"\n{next_step}\n{not_you}\n\n{OFFICE}\n{SITE_URL}\nThis email was sent automatically. Replies to it are not read.\n")
     html = _html('A violation report was filed for you', [greeting, intro], rows=rows, after=[next_step, not_you])
     _send(student.email, subject, text, html)
+
+
+def _footer_text():
+    return f"{OFFICE}\n{SITE_URL}\nThis email was sent automatically. Replies to it are not read.\n"
+
+
+def send_faculty_invite(to, first_name, link):
+    """OSA confirmed a faculty member who reported without an account: the link to finish making one."""
+    subject = 'Finish creating your OSAConnect faculty account'
+    greeting = f'Hi {_first_name(first_name)},'
+    intro = ('The Office of Student Affairs confirmed you as USTP faculty after the violation report you filed. '
+             'You can now finish creating your OSAConnect account: your email is already filled in, you only add '
+             'your details and confirm one last code.')
+    after = ['The link works for 14 days. After that, you can still sign up on the faculty login page.']
+    text = f"{greeting}\n\n{intro}\n\nFinish your account: {link}\n\n{after[0]}\n\n" + _footer_text()
+    html = _html('Finish creating your account', [greeting, intro], button=('Finish my account', link), after=after)
+    _send(to, subject, text, html)
+
+
+def send_faculty_activated(to, first_name, login_link):
+    """OSA confirmed a faculty account made through the sign-up page: it can log in now."""
+    subject = 'Your OSAConnect faculty account is active'
+    greeting = f'Hi {_first_name(first_name)},'
+    intro = ('The Office of Student Affairs confirmed you as USTP faculty. Your OSAConnect account is now active: '
+             'log in with your USTP email and the password you chose.')
+    text = f"{greeting}\n\n{intro}\n\nLog in: {login_link}\n\n" + _footer_text()
+    html = _html('Your account is active', [greeting, intro], button=('Log in', login_link))
+    _send(to, subject, text, html)

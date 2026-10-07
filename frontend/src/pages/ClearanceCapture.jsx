@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { Camera, CheckCircle2, Loader2, FileText } from 'lucide-react';
 import { photoToDataUrl } from '../lib/photo';

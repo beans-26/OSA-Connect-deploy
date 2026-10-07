@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import usePolling from '../../lib/usePolling';
+import { studentName } from '../../lib/names';
 import Sidebar from '../../components/Sidebar';
 import { Archive, CheckCircle, Search, ChevronDown, XCircle, Download} from 'lucide-react';
 import ThemeToggle from '../../components/ThemeToggle';
@@ -14,6 +15,7 @@ const Archives = () => {
     const [logs, setLogs] = useState([]);
     const [searchTerm, setSearchTerm] = useState('');
     const [filterType, setFilterType] = useState('All');
+    const [tab, setTab] = useState('completed'); // 'completed' | 'dismissed'
     // 'loading' until the first response, so an empty list isn't shown as "No Archived Records" too early
     const [loadState, setLoadState] = useState('loading'); // loading | ready | error
     // The case opened by clicking it (its id, so the 30 s refresh shows the latest data)
@@ -45,13 +47,16 @@ const Archives = () => {
 
     // Cleared violations (the admin approved the photo of the signed ISO form), and approved cases with no
     // service hours. Served hours alone aren't enough: those stay on the dashboard until the ISO form is
-    // approved. Dismissed cases aren't archived.
-    const archivedViolations = violations.filter(v => {
+    // approved.
+    const completedViolations = violations.filter(v => {
         const status = (v.status || '').toLowerCase();
         if (status === 'cleared' || status === 'finished') return true;
         const ticket = tickets.find(t => t.violation_details?.id === v.id || t.violation === v.id);
         return status === 'completed' && !ticket;
     });
+    // The Dismissed tab: reports OSA dismissed (for example a faculty reporter not in OSA's faculty records)
+    const dismissedViolations = violations.filter(v => (v.status || '').toLowerCase() === 'dismissed');
+    const archivedViolations = tab === 'dismissed' ? dismissedViolations : completedViolations;
 
     // Opens an uploaded clearance photo (kind 'iso_form' or 'reflection') in a new tab
     const openClearanceFile = async (violation, kind, label) => {
@@ -60,7 +65,7 @@ const Archives = () => {
             const response = await fetch(`/api/violations/${violation.id}/clearance_proof/?kind=${kind}`);
             const data = await response.json().catch(() => ({}));
             if (!response.ok) throw new Error(data.error || `Couldn't load the ${label}.`);
-            win.document.write(`<title>${label} - ${(violation.student_details?.name || '').replace(/</g, '')}</title><body style="margin:0;background:#0f172a;display:flex;justify-content:center"><img src="${data.image}" style="max-width:100%;height:auto"></body>`);
+            win.document.write(`<title>${label} - ${studentName(violation.student_details).replace(/</g, '')}</title><body style="margin:0;background:#0f172a;display:flex;justify-content:center"><img src="${data.image}" style="max-width:100%;height:auto"></body>`);
             win.document.close();
         } catch (e) {
             win?.close();
@@ -110,7 +115,7 @@ const Archives = () => {
             if (osaImg) {
                 doc.addImage(osaImg, 'JPEG', 26, 8, 14, 14);
             }
-        } catch (e) {
+        } catch {
             console.log('Logo loading failed');
         }
 
@@ -138,7 +143,12 @@ const Archives = () => {
             return `${mm}/${dd}/${yyyy}`;
         };
 
-        const tableData = filtered.map((v) => {
+        // The community service log: completed cases only, whichever tab is open
+        const logCases = completedViolations.filter((v) => (!searchTerm
+            || v.student_details?.name?.toLowerCase().includes(searchTerm.toLowerCase())
+            || v.student_details?.student_id?.toLowerCase().includes(searchTerm.toLowerCase()))
+            && (filterType === 'All' || v.violation_type === filterType));
+        const tableData = logCases.map((v) => {
             const student = v.student_details || {};
             const ticket = tickets.find(t => t.violation_details?.id === v.id || t.violation === v.id);
             const isDismissed = v.status?.toLowerCase() === 'dismissed';
@@ -147,8 +157,9 @@ const Archives = () => {
             const servedHours = Math.floor(totalServed / 3600);
 
             const nameParts = (student.name || '').split(' ');
-            const firstName = nameParts[0] || '';
-            const lastName = nameParts.slice(1).join(' ') || '';
+            const parts = student.name_parts;
+            const firstName = parts?.first ? `${parts.first}${parts.middle_initial ? ` ${parts.middle_initial}.` : ''}` : (nameParts[0] || '');
+            const lastName = parts?.last ?? (nameParts.slice(1).join(' ') || '');
 
             return [
                 student.student_id || '—',
@@ -228,17 +239,37 @@ const Archives = () => {
                         </div>
                         <div className="flex shrink-0 items-center gap-3 print:hidden">
                             {/* Icon only on phones, so the button and the theme toggle fit beside the title */}
-                            <button
-                                onClick={generatePDF}
-                                aria-label="Download PDF"
-                                className="flex items-center gap-2 px-3 sm:px-5 py-3 bg-ustp-blue text-white rounded-2xl font-bold text-sm hover:bg-blue-700 transition-all"
-                            >
-                                <Download size={18} /> <span className="hidden sm:inline">Download PDF</span>
-                            </button>
+                            {/* The community service log covers completed cases only */}
+                            {tab === 'completed' && (
+                                <button
+                                    onClick={generatePDF}
+                                    aria-label="Download PDF"
+                                    className="flex items-center gap-2 px-3 sm:px-5 py-3 bg-ustp-blue text-white rounded-2xl font-bold text-sm hover:bg-blue-700 transition-all"
+                                >
+                                    <Download size={18} /> <span className="hidden sm:inline">Download PDF</span>
+                                </button>
+                            )}
                             <ThemeToggle />
                         </div>
                     </div>
                 </header>
+
+                {/* Completed cases, and the ones OSA dismissed */}
+                <div className="mb-4 flex gap-1.5 print:hidden" role="tablist" aria-label="Archive">
+                    {[['completed', 'Completed', CheckCircle, completedViolations.length], ['dismissed', 'Dismissed', XCircle, dismissedViolations.length]].map(([key, label, Icon, count]) => (
+                        <button
+                            key={key}
+                            role="tab"
+                            aria-selected={tab === key}
+                            onClick={() => setTab(key)}
+                            className={`flex items-center gap-1.5 rounded-full px-4 py-2 text-xs font-bold transition-colors ${tab === key
+                                ? (key === 'dismissed' ? 'bg-red-600 text-white' : 'bg-ustp-blue text-white')
+                                : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-100 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700'}`}
+                        >
+                            <Icon size={14} /> {label} <span className={tab === key ? 'text-white/70' : 'text-slate-400'}>{count}</span>
+                        </button>
+                    ))}
+                </div>
 
                 <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 mb-4 print:hidden">
                     <div className="flex-1 relative">
@@ -282,9 +313,11 @@ const Archives = () => {
                 ) : filtered.length === 0 ? (
                     <div className="py-32 text-center print:hidden">
                         <Archive className="mx-auto text-slate-200 mb-6" size={64} />
-                        <h4 className="font-black text-slate-300 dark:text-slate-600 text-xl uppercase tracking-widest">No Archived Records</h4>
+                        <h4 className="font-black text-slate-300 dark:text-slate-600 text-xl uppercase tracking-widest">{tab === 'dismissed' ? 'No Dismissed Cases' : 'No Archived Records'}</h4>
                         <p className="text-slate-400 dark:text-slate-500 mt-3 font-medium max-w-md mx-auto">
-                            Violations appear here once the student has served the hours and you approve their signed ISO form and reflection paper on the dashboard.
+                            {tab === 'dismissed'
+                                ? 'Reports you dismiss, and reports from faculty accounts you reject, appear here.'
+                                : 'Violations appear here once the student has served the hours and you approve their signed ISO form and reflection paper on the dashboard.'}
                         </p>
                     </div>
                 ) : (
@@ -313,11 +346,17 @@ const Archives = () => {
                                         <div className="flex-1 min-w-0">
                                             <div className="flex items-center gap-2 mb-0.5">
                                                 <h3 className="font-bold text-slate-900 dark:text-white text-sm tracking-tight truncate">
-                                                    {violation.student_details?.name || 'Unknown Student'}
+                                                    {studentName(violation.student_details) || 'Unknown Student'}
                                                 </h3>
                                                 <span className={`${isDismissed ? 'bg-red-100 text-red-700' : 'bg-emerald-100 text-emerald-700'} text-[9px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full whitespace-nowrap`}>
                                                     {isDismissed ? 'Dismissed' : violation.status === 'Cleared' ? 'Cleared' : 'Completed'}
                                                 </span>
+                                                {/* Dismissed automatically: OSA rejected the faculty member who filed it */}
+                                                {violation.dismissed_reason && (
+                                                    <span title={violation.dismissed_reason} className="text-[9px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full whitespace-nowrap bg-amber-100 text-amber-800 dark:bg-amber-500/15 dark:text-amber-300">
+                                                        Reporter not faculty
+                                                    </span>
+                                                )}
                                                 {violation.photos_removed_at && (
                                                     <span title="The photos are deleted one year after a case is cleared, to save space. The record is kept." className="text-[9px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full whitespace-nowrap bg-slate-100 text-slate-500 dark:bg-slate-700 dark:text-slate-300">
                                                         Photos removed
@@ -433,8 +472,9 @@ const Archives = () => {
                                 const totalServed = ticketLogs.reduce((sum, l) => sum + (l.duration_seconds || 0), 0);
                                 const servedHours = Math.floor(totalServed / 3600);
                                 const nameParts = (student.name || '').split(' ');
-                                const firstName = nameParts[0] || '';
-                                const lastName = nameParts.slice(1).join(' ') || '';
+            const parts = student.name_parts;
+                                const firstName = parts?.first ? `${parts.first}${parts.middle_initial ? ` ${parts.middle_initial}.` : ''}` : (nameParts[0] || '');
+                                const lastName = parts?.last ?? (nameParts.slice(1).join(' ') || '');
 
                                 const formatDatePrint = (dateStr) => {
                                     if (!dateStr) return '—';

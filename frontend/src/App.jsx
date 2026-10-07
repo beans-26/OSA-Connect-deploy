@@ -1,4 +1,4 @@
-import React, { Suspense, lazy } from 'react';
+import { Suspense, lazy } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import Login from './pages/Login';
@@ -25,7 +25,12 @@ const page = (load) => lazy(() => load().then((module) => {
 const ForgotPassword = page(() => import('./pages/ForgotPassword'));
 const StudentRegistration = page(() => import('./pages/StudentRegistration'));
 const ReportViolation = page(() => import('./pages/guard/ReportViolation'));
+const GuardReports = page(() => import('./pages/guard/GuardReports'));
 const GuardHistory = page(() => import('./pages/guard/GuardHistory'));
+const FacultyReport = page(() => import('./pages/FacultyReport'));
+const FacultySignup = page(() => import('./pages/FacultySignup'));
+const FacultyForgotPassword = page(() => import('./pages/FacultyForgotPassword'));
+const FacultyAccounts = page(() => import('./pages/staff/FacultyAccounts'));
 const GuardAnalytics = page(() => import('./pages/guard/GuardAnalytics'));
 const ClearanceCapture = page(() => import('./pages/ClearanceCapture'));
 const StaffDashboard = page(() => import('./pages/StaffDashboard'));
@@ -79,6 +84,9 @@ const ProtectedRoute = ({ element, allowedRoles }) => {
               {user.role === 'admin' && (
                 <a href="/admin/overview" className="block w-full bg-ustp-blue text-white py-4 rounded-xl font-black uppercase text-xs tracking-widest hover:bg-blue-700 transition shadow-lg shadow-blue-200">Admin Dashboard</a>
               )}
+              {user.role === 'staff' && (
+                <a href="/staff/report" className="block w-full bg-ustp-blue text-white py-4 rounded-xl font-black uppercase text-xs tracking-widest hover:bg-blue-700 transition shadow-lg shadow-blue-200">Faculty Dashboard</a>
+              )}
               <button onClick={async () => { if (user.role === 'student') await stopActiveSession(user.username); localStorage.removeItem('user'); window.location.href = loginPathFor(user.role); }} className="block w-full bg-slate-100 text-slate-500 py-4 rounded-xl font-black uppercase text-xs tracking-widest hover:bg-slate-200 transition">Log Out</button>
             </div>
           </div>
@@ -86,7 +94,7 @@ const ProtectedRoute = ({ element, allowedRoles }) => {
       );
     }
     return element;
-  } catch (error) {
+  } catch {
     return <Navigate to={loginPathForUrl(pathname)} replace />;
   }
 };
@@ -94,12 +102,12 @@ const ProtectedRoute = ({ element, allowedRoles }) => {
 const OldLoginRedirect = ({ to }) => <Navigate to={to} replace state={useLocation().state} />;
 
 // Pages with a sidebar animate only their <main> (the .page-enter class) so the sidebar stays still
-const SIDEBAR_PAGES = /^\/(admin\/|help$|guard\/history$)/;
+const SIDEBAR_PAGES = /^\/(admin\/|help$)/;
 // The student pages share one layout (components/StudentShell.jsx): one key, so it stays mounted and its
 // side menu slides closed over the next page (the layout fades the page content itself)
 const STUDENT_SHELL_PAGES = /^\/student\/(dashboard|personal-info|notifications|help|settings(\/password)?)$/;
 // Same for the guard and faculty & staff pages (components/ReporterShell.jsx)
-const REPORTER_SHELL_PAGES = /^\/(guard\/(report|history|analytics)|staff\/(report|history|help))$/;
+const REPORTER_SHELL_PAGES = /^\/(guard\/(report|reports|analytics)|staff\/(report|history|help))$/;
 
 // Fades each page in when the route changes. Opacity only: a transform here would
 // break the pages' position: fixed modals and menus while the animation runs.
@@ -130,6 +138,11 @@ function App() {
           <Route path={STUDENT_LOGIN} element={<LoginSwitchGuard portal="student"><Login portal="student" /></LoginSwitchGuard>} />
           <Route path={GUARD_STAFF_LOGIN} element={<LoginSwitchGuard portal="faculty"><Login portal="faculty" /></LoginSwitchGuard>} />
           <Route path="/guardnstaff" element={<Navigate to={GUARD_STAFF_LOGIN} replace />} />
+          {/* Faculty without an account (the option on the /faculty login): USTP email confirmed with a code */}
+          <Route path="/faculty/report" element={<FacultyReport />} />
+          {/* Or make a faculty account (USTP email confirmed with a code) */}
+          <Route path="/faculty/signup" element={<FacultySignup />} />
+          <Route path="/faculty/forgot-password" element={<FacultyForgotPassword />} />
           <Route path={ADMIN_LOGIN} element={<LoginSwitchGuard portal="admin"><AdminLogin /></LoginSwitchGuard>} />
           {/* Old login links; state keeps the idle-logout notice */}
           <Route path="/login" element={<OldLoginRedirect to={STUDENT_LOGIN} />} />
@@ -142,11 +155,14 @@ function App() {
           {/* Guard and faculty & staff pages share one layout (top bar and side menu, components/ReporterShell.jsx) */}
           <Route element={<ProtectedRoute element={<ReporterShell />} allowedRoles={['guard', 'admin']} />}>
             <Route path="/guard/report" element={<ReportViolation />} />
-            <Route path="/guard/history" element={<GuardHistory />} />
+            <Route path="/guard/reports" element={<GuardReports />} />
             <Route path="/guard/analytics" element={<GuardAnalytics />} />
           </Route>
+          {/* History became Reports (everyone's reports, not only the guard's own) */}
+          <Route path="/guard/history" element={<Navigate to="/guard/reports" replace />} />
           <Route path="/guard/*" element={<Navigate to="/guard/report" replace />} />
 
+          {/* Faculty with an account (logged in at /faculty); without one they report at /faculty/report */}
           <Route element={<ProtectedRoute element={<ReporterShell />} allowedRoles={['staff']} />}>
             <Route path="/staff/report" element={<ReportViolation />} />
             <Route path="/staff/history" element={<GuardHistory />} />
@@ -157,6 +173,7 @@ function App() {
           <Route path="/admin/overview" element={<ProtectedRoute element={<StaffDashboard />} allowedRoles={['admin']} />} />
           <Route path="/admin/students" element={<ProtectedRoute element={<AllStudents />} allowedRoles={['admin']} />} />
           <Route path="/admin/pending" element={<ProtectedRoute element={<PendingReviews />} allowedRoles={['admin']} />} />
+          <Route path="/admin/faculty" element={<ProtectedRoute element={<FacultyAccounts />} allowedRoles={['admin']} />} />
           <Route path="/admin/archives" element={<ProtectedRoute element={<Archives />} allowedRoles={['admin']} />} />
           <Route path="/admin/settings" element={<ProtectedRoute element={<StaffSettings />} allowedRoles={['admin']} />} />
           <Route path="/admin/analytics" element={<ProtectedRoute element={<Analytics />} allowedRoles={['admin']} />} />

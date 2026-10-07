@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { ACTIVITY_KEY } from '../components/studentSession';
 import { homePathFor } from '../lib/portals';
@@ -21,6 +21,7 @@ const PORTALS = {
         idLabel: 'Student ID',
         wrongPortal: 'This is the student login. Faculty members log in at /faculty.',
     },
+    // Guards and faculty with an account; faculty without one report from here too (/faculty/report)
     faculty: {
         roles: ['guard', 'staff'],
         title: 'Faculty Login',
@@ -92,7 +93,7 @@ const Login = ({ portal = 'student' }) => {
             } else {
                 setError(data.error || 'Invalid credentials');
             }
-        } catch (error) {
+        } catch {
             setError('System connection failure');
         } finally {
             setLoading(false);
@@ -200,6 +201,12 @@ const Login = ({ portal = 'student' }) => {
                                 >
                                     {loading ? <Loader2 className="animate-spin" size={16} /> : <>Login <ChevronRight size={16} /></>}
                                 </button>
+                                {/* Faculty accounts made with a USTP email can reset it themselves (guards ask OSA) */}
+                                {portal === 'faculty' && (
+                                    <Link to="/faculty/forgot-password" className="text-xs sm:text-sm font-bold text-blue-800 dark:text-blue-300 hover:underline underline-offset-2">
+                                        Forgot password?
+                                    </Link>
+                                )}
                             </div>
                         )}
                     </form>
@@ -210,6 +217,17 @@ const Login = ({ portal = 'student' }) => {
                             <p className="mt-1 text-xs sm:text-sm text-slate-800 dark:text-slate-200 leading-relaxed">
                                 If you don&apos;t have an account yet, <Link to="/register" className="font-bold text-blue-800 dark:text-blue-300 underline underline-offset-2">register here</Link> to get your QR ID and follow your service hours.
                             </p>
+                        </div>
+                    )}
+                    {portal === 'faculty' && (
+                        <div className="mt-5 sm:mt-6 pt-4 sm:pt-5 border-t border-dashed border-slate-400/60 dark:border-slate-500/60 text-left">
+                            <h2 className="text-sm sm:text-base font-bold text-slate-900 dark:text-white">No account?</h2>
+                            <p className="mt-1 text-xs sm:text-sm text-slate-800 dark:text-slate-200 leading-relaxed">
+                                Faculty and staff can <Link to="/faculty/signup" className="font-bold text-blue-800 dark:text-blue-300 underline underline-offset-2">create an account</Link> with their @ustp.edu.ph email, or report a violation without one by confirming their email with a code.
+                            </p>
+                            <Link to="/faculty/report" className="mt-3 w-full h-9 sm:h-10 px-4 border-2 border-blue-900 dark:border-blue-300 text-blue-900 dark:text-blue-200 rounded-md font-bold text-sm flex items-center justify-center gap-1.5 hover:bg-white/60 dark:hover:bg-white/10 transition-colors">
+                                Report without an account <ChevronRight size={16} />
+                            </Link>
                         </div>
                     )}
                 </div>
