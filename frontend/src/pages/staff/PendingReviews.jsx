@@ -1,6 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import Sidebar from '../../components/Sidebar';
-import { Search, X, User, AlertCircle, Inbox } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { Search, X, User, AlertCircle, Inbox, ShieldAlert, ChevronRight } from 'lucide-react';
+import { studentName, reportedByLabel } from '../../lib/names';
 import ThemeToggle from '../../components/ThemeToggle';
 import { useServiceSites, ServiceSiteOptions, postAssignment } from '../../components/useServiceSites';
 
@@ -14,6 +16,21 @@ const penaltyFor = (table, report) => {
     const offense = Number(report.offense_count) || 1;
     return rule.offenses.find((o) => o.offense === offense) || rule.offenses[rule.offenses.length - 1];
 };
+
+// Filed by a faculty member (backend reporter_status): 'unconfirmed' = OSA hasn't confirmed them in Faculty
+// Accounts yet, so the case is on hold (no Approve; rejecting them dismisses it automatically)
+const FacultyTag = ({ status }) => (
+    <span className={`text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded ${status === 'unconfirmed' ? 'bg-amber-100 text-amber-800 dark:bg-amber-500/15 dark:text-amber-300' : 'bg-blue-50 text-blue-800 dark:bg-blue-500/15 dark:text-blue-300'}`}>
+        {status === 'unconfirmed' ? 'Unverified faculty' : 'Faculty'}
+    </span>
+);
+
+// Filed by a guard (backend reporter_role), shown like the faculty tag
+const GuardTag = () => (
+    <span className="text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-800 dark:bg-emerald-500/15 dark:text-emerald-300">
+        Guard
+    </span>
+);
 
 const PendingReviews = () => {
     const userRole = JSON.parse(localStorage.getItem('user') || '{}').role || 'staff';
@@ -48,21 +65,21 @@ const PendingReviews = () => {
         }
     };
 
-    const handleAction = async (report, newStatus) => {
+    // Approving is the only action here: a case is dismissed only when OSA rejects its faculty reporter
+    const handleAction = async (report) => {
         const reportId = report.id;
         // Community service needs a building; a sanction with no hours (no entry into the campus) doesn't
         const needsBuilding = (penaltyFor(penalties, report)?.hours || 0) > 0;
         const assigned_building = needsBuilding ? assignedBuildings[reportId] : undefined;
 
-        if (newStatus === 'Approved' && needsBuilding && !assigned_building) {
+        if (needsBuilding && !assigned_building) {
             alert("Please assign a building before approval");
             return;
         }
 
         try {
-            const endpoint = newStatus === 'Approved' ? 'approve' : 'dismiss';
             // Approving into a full building asks "assign anyway?" first
-            const { ok, cancelled, data } = await postAssignment(`/api/violations/${reportId}/${endpoint}/`, { assigned_building });
+            const { ok, cancelled, data } = await postAssignment(`/api/violations/${reportId}/approve/`, { assigned_building });
             if (ok) {
                 setSelectedReport(null);
                 fetchReports();
@@ -135,11 +152,13 @@ const PendingReviews = () => {
                                                 <User size={18} />
                                             </div>
                                             <div className="min-w-0">
-                                                <h5 className="font-bold text-sm text-slate-900 dark:text-white tracking-tight truncate">{report.student_details?.name || 'New Student Record'}</h5>
+                                                <h5 className="font-bold text-sm text-slate-900 dark:text-white tracking-tight truncate">{studentName(report.student_details) || 'New Student Record'}</h5>
                                                 <div className="flex items-center gap-2 mt-0.5">
                                                     <span className="text-[9px] font-bold text-red-500 uppercase tracking-wider">{report.violation_type}</span>
                                                     <span className="w-1 h-1 bg-slate-200 rounded-full"></span>
                                                     <span className="text-[9px] font-semibold text-slate-400 dark:text-slate-500 uppercase">{report.student_details?.student_id}</span>
+                                                    {report.reporter_role === 'faculty' && <FacultyTag status={report.reporter_status} />}
+                                                    {report.reporter_role === 'guard' && <GuardTag />}
                                                 </div>
                                             </div>
                                         </div>
@@ -159,12 +178,49 @@ const PendingReviews = () => {
                                 <div className="flex items-center gap-4">
                                     <div className="w-12 h-12 rounded-xl bg-blue-100 dark:bg-slate-800/10 flex items-center justify-center"><User size={24} className="text-blue-600 dark:text-white" /></div>
                                     <div>
-                                        <h2 className="text-lg font-black text-slate-900 dark:text-white uppercase italic">{selectedReport.student_details?.name}</h2>
+                                        <h2 className="text-lg font-black text-slate-900 dark:text-white uppercase italic">{studentName(selectedReport.student_details)}</h2>
                                         <p className="text-slate-500 dark:text-slate-500 text-[10px] font-black tracking-widest uppercase mt-0.5">{selectedReport.student_details?.student_id}</p>
                                     </div>
                                 </div>
                             </div>
                             <div className="p-6 space-y-3 max-h-[60vh] overflow-y-auto custom-scrollbar">
+                                {/* Who filed it. A faculty member OSA hasn't confirmed holds the case until OSA decides
+                                    in Faculty Accounts: confirming unlocks it, rejecting dismisses it. */}
+                                {selectedReport.reporting_email ? (
+                                    <div className="p-4 rounded-2xl border bg-amber-50 border-amber-200 dark:bg-amber-900/10 dark:border-amber-700/30">
+                                        <p className="flex items-center gap-1.5 text-[9px] font-black uppercase text-amber-700 dark:text-amber-400 mb-2">
+                                            <ShieldAlert size={13} /> {selectedReport.reporter_status === 'unconfirmed' ? 'Unverified faculty: on hold' : 'Reported by faculty'}
+                                        </p>
+                                        <div className="grid grid-cols-2 gap-3">
+                                            <div>
+                                                <p className="text-[9px] font-black uppercase text-slate-500 mb-0.5">First name</p>
+                                                <p className="font-bold text-sm text-slate-900 dark:text-white">{selectedReport.reporter_first_name || '—'}</p>
+                                            </div>
+                                            <div>
+                                                <p className="text-[9px] font-black uppercase text-slate-500 mb-0.5">Last name</p>
+                                                <p className="font-bold text-sm text-slate-900 dark:text-white">{selectedReport.reporter_last_name || '—'}</p>
+                                            </div>
+                                        </div>
+                                        <p className="text-[9px] font-black uppercase text-slate-500 mt-2.5 mb-0.5">Confirmed email</p>
+                                        <p className="font-bold text-sm text-slate-900 dark:text-white break-all">{selectedReport.reporting_email}</p>
+                                        <p className="mt-2 text-[11px] font-medium text-slate-600 dark:text-slate-400">
+                                            {selectedReport.reporter_status === 'unconfirmed'
+                                                ? 'This case is on hold until the reporter is confirmed in Faculty Accounts. If they are rejected, the case is dismissed automatically. Guards are holding the student’s ID meanwhile.'
+                                                : 'OSA confirmed this faculty member.'}
+                                        </p>
+                                        {/* Shortcut to where the reporter is confirmed or rejected */}
+                                        {selectedReport.reporter_status === 'unconfirmed' && (
+                                            <Link to="/admin/faculty" className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-xl bg-amber-500 py-2.5 text-xs font-bold text-white shadow-sm hover:bg-amber-600 transition-colors">
+                                                Go to Faculty Accounts to confirm or reject <ChevronRight size={15} />
+                                            </Link>
+                                        )}
+                                    </div>
+                                ) : (
+                                    <div className="bg-slate-50 dark:bg-slate-900/50 p-4 rounded-2xl border border-slate-200 dark:border-slate-800">
+                                        <p className="text-[9px] font-black uppercase text-slate-500 dark:text-slate-500 mb-0.5">{reportedByLabel(selectedReport.reporter_role)}</p>
+                                        <p className="font-bold text-slate-800 dark:text-slate-200 text-sm">{selectedReport.reporting_guard || '—'}</p>
+                                    </div>
+                                )}
                                 <div className="bg-yellow-50 dark:bg-yellow-900/10 border border-yellow-200 dark:border-yellow-700/30 p-4 rounded-2xl flex items-center justify-between">
                                     <div>
                                         <p className="text-[9px] font-black uppercase text-yellow-600 dark:text-yellow-500 mb-0.5">Offense Count</p>
@@ -214,14 +270,16 @@ const PendingReviews = () => {
                                     );
                                 })()}
                             </div>
+                            {/* Unverified faculty: no Approve until OSA confirms the reporter. There's no Dismiss: a case is
+                                dismissed only when OSA rejects the faculty member who filed it (Faculty Accounts). */}
+                            {selectedReport.reporter_status === 'unconfirmed' ? null : (
                             <div className="p-6 pt-0 flex gap-3">
-                                <button onClick={() => handleAction(selectedReport, 'Dismissed')} className="flex-1 py-3 bg-red-50 text-red-600 dark:bg-red-900/20 dark:text-red-400 rounded-xl font-bold text-[10px] uppercase tracking-widest hover:bg-red-500 hover:text-white transition-all">Dismiss Case</button>
                                 {(() => {
                                     const penalty = penaltyFor(penalties, selectedReport);
                                     const ready = penalty && ((penalty.hours || 0) <= 0 || assignedBuildings[selectedReport.id]);
                                     return (
                                         <button
-                                            onClick={() => handleAction(selectedReport, 'Approved')}
+                                            onClick={() => handleAction(selectedReport)}
                                             disabled={!ready}
                                             className={`flex-1 py-3 rounded-xl font-bold text-[10px] uppercase tracking-widest transition-all ${
                                                 ready
@@ -234,6 +292,7 @@ const PendingReviews = () => {
                                     );
                                 })()}
                             </div>
+                            )}
                         </div>
                     </div>
                 )}

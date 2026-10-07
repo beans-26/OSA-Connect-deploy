@@ -3,11 +3,11 @@ from rest_framework.response import Response
 from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework import status
 from rest_framework.permissions import AllowAny
-from .models import Student, ViolationReport, ETicket, TimeLog, SystemUser, ServiceSite, ClearanceProof, utc_now, format_person_name
+from .models import Student, ViolationReport, ETicket, TimeLog, SystemUser, ServiceSite, ClearanceProof, FacultyInvite, utc_now, format_person_name, display_student_name, faculty_reporter_status
 from mongoengine.queryset.visitor import Q
 from .serializers import StudentSerializer, ViolationReportSerializer, ETicketSerializer, TimeLogSerializer
 from .passwords import hash_password, verify_password, check_and_upgrade
-from .emails import send_code_email, send_violation_notice
+from .emails import send_code_email, send_violation_notice, send_faculty_invite, send_faculty_activated, app_url
 from .deadlines import apply_missed_day_hours
 from .auth import issue_token, forget_account, IsAdmin, IsReporter, IsStudent, IsLoggedIn, owns_ticket, role_of
 from mongoengine.errors import ValidationError as MongoValidationError, NotUniqueError
@@ -16,6 +16,7 @@ import base64
 import binascii
 import datetime
 import re
+import secrets
 import urllib.parse
 from django.core import signing
 from django.conf import settings
@@ -44,6 +45,10 @@ def login_view(request):
                 "full_name": user.full_name,
                 "bio": user.bio
             })
+    # A faculty sign-up OSA hasn't confirmed (or rejected): say so, but only to someone with the right password
+    if user and user.is_active is False and user.faculty_status in ('pending', 'rejected') and verify_password(user.password, password)[0]:
+        message = PENDING_FACULTY_LOGIN if user.faculty_status == 'pending' else REJECTED_FACULTY_LOGIN
+        return Response({"error": message, "faculty_status": user.faculty_status}, status=status.HTTP_403_FORBIDDEN)
 
     # Check Student collection (by ID or Email)
     student = Student.objects.filter(student_id=username).first()
@@ -160,7 +165,8 @@ def _scoped_violations(qs, scope):
         recent = utc_now() - datetime.timedelta(hours=OPEN_RECENT_HOURS)
         return qs.filter(Q(status__nin=['Cleared', 'Dismissed']) | Q(created_at__gte=recent))
     if scope == 'archived':
-        return qs.filter(status__in=['Cleared', 'Completed'])
+        # Dismissed reports too (the Archives' Dismissed tab)
+        return qs.filter(status__in=['Cleared', 'Completed', 'Dismissed'])
     return qs
 
 
@@ -362,6 +368,10 @@ class StudentViewSet(viewsets.ModelViewSet):
             return Response({"error": f"Student ID {sid} is already registered."}, status=status.HTTP_400_BAD_REQUEST)
         student = student or Student(student_id=sid)
         student.name = name
+        # The parts, for "First M. Last" on the pages ("N/A": no middle name)
+        student.first_name = _short(data.get('first_name'), 50) or None
+        student.middle_name = _short(data.get('middle_name'), 50) or None
+        student.last_name = _short(data.get('last_name'), 50) or None
         student.course = data.get('course', '')
         student.department = data.get('department', '')
         student.year_level = data.get('year_level', '')
@@ -587,6 +597,8 @@ class StudentViewSet(viewsets.ModelViewSet):
             # 1. Name (may repeat; the Student ID tells students apart)
             new_name = data.get('name', '').strip()
             if new_name:
+                if new_name != student.name:
+                    student.first_name = student.middle_name = student.last_name = None
                 student.name = new_name
 
             # 2. Validate Student ID Uniqueness if changing
@@ -703,6 +715,544 @@ def _student_filter(request):
     return Student.objects.filter(student_id=student_id.strip()).first()
 
 
+def _report_details_error(data):
+    """(student_id, violation_types, None) from a report form, or (None, None, error Response)."""
+    student_id = str(data.get('student_id') or data.get('studentId') or '').strip()  # studentId: old field name
+    if not student_id:
+        return None, None, Response({"error": "student_id is required"}, status=status.HTTP_400_BAD_REQUEST)
+    id_error = student_id_error(student_id)
+    if id_error:
+        return None, None, Response({"error": id_error}, status=status.HTTP_400_BAD_REQUEST)
+
+    # The violations: several at once (violation_types, the report forms since 2026-09-30) or one
+    # (violation_type / violation, older app versions). Each becomes its own report, with its own
+    # offense count and penalty, the same as reporting them one after the other.
+    raw_types = data.get('violation_types')
+    if not isinstance(raw_types, list):
+        raw_types = [data.get('violation_type') or data.get('violation')]
+    violation_types = []
+    for value in raw_types:
+        value = _short(value, 150)
+        if value and value not in violation_types:
+            violation_types.append(value)
+    if not violation_types:
+        return None, None, Response({"error": "Choose at least one violation."}, status=status.HTTP_400_BAD_REQUEST)
+    if len(violation_types) > 10:
+        return None, None, Response({"error": "Choose at most 10 violations in one report."}, status=status.HTTP_400_BAD_REQUEST)
+    return student_id, violation_types, None
+
+
+def file_violation_reports(data, reporter, reporting_account=None, **reporter_fields):
+    """Files one report per violation from a report form (guards, faculty & staff, admins): (reports, None),
+    or (None, error Response). reporter_fields: the faculty email fields of faculty_report."""
+    student_id, violation_types, error = _report_details_error(data)
+    if error:
+        return None, error
+
+    # 1. The report goes to the student with this ID, and only by ID: names can repeat, and
+    # matching by name used to attach reports to the wrong person
+    student = Student.objects.filter(student_id=student_id).first()
+    if not student:
+        # Not registered yet: keep the report under the ID with the details the reporter entered.
+        # This record can't log in; when the student registers with this ID it becomes their
+        # account and keeps this report (StudentViewSet.register_with_otp).
+        student = Student(
+            student_id=student_id,
+            name=_short(data.get('name'), 100) or UNREGISTERED_NAME,
+            first_name=_short(data.get('first_name'), 50) or None,
+            middle_name=_short(data.get('middle_initial'), 2).rstrip('.') or None,
+            last_name=_short(data.get('last_name'), 50) or None,
+            course=_short(data.get('course'), 100) or 'Unknown',
+            department=_short(data.get('department'), 100) or 'Unknown',
+            contact_number=_short(data.get('contact'), 20),
+            email=_short(data.get('email'), 254).lower(),
+            gender=_gender(data.get('gender')),
+        ).save()
+    elif not student.gender and _gender(data.get('gender')):
+        # The reporter saw the student: fills in the gender for records that don't have it yet
+        student.gender = _gender(data.get('gender'))
+        student.save()
+
+    # 2. One report per violation, each waiting for OSA's review, with its own offense count and penalty
+    description = _short(data.get('description'), MAX_DESCRIPTION_CHARS)
+    reports = []
+    try:
+        for violation_type in violation_types:
+            offense_count = get_offense_count(student, violation_type)
+            punishment_info = get_punishment(violation_type, offense_count)
+            report = ViolationReport(
+                student=student,
+                violation_type=violation_type,
+                description=description,
+                reporting_guard=reporter,
+                reporting_account=reporting_account,
+                status="Pending OSA Review",
+                offense_count=offense_count,
+                punishment=punishment_info["punishment"],
+                created_at=utc_now(),
+                **reporter_fields,
+            ).save()
+            send_violation_email(report)
+            reports.append(report)
+    except Exception as e:
+        print(f"Violation report failed: {e}")
+        return None, Response({"error": str(e), "saved": len(reports)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    return reports, None
+
+
+def _report_summaries(reports):
+    return [{"id": str(r.id), "violation_type": r.violation_type, "offense_count": r.offense_count, "punishment": r.punishment}
+            for r in reports]
+
+
+# Faculty don't have accounts: the report page for faculty (/faculty/report) is open, and a faculty member
+# confirms their USTP email with a code before the report can be sent. The report carries that email and the
+# name read from it (vincent.dagaraga@ustp.edu.ph -> Vincent Dagaraga), and OSA checks it against their own
+# faculty records when reviewing it in Pending Reviews.
+FACULTY_EMAIL_RE = re.compile(r'^[a-z0-9._%+-]+@ustp\.edu\.ph$')
+FACULTY_CODE_KEY = 'faculty:'  # the codes share otp_verifications with the students' (one per email)
+FACULTY_CODE_WAIT_S = 60
+FACULTY_SALT = 'osaconnect-faculty-email'
+FACULTY_VERIFIED_S = 2 * 3600  # long enough to finish the report; the page asks again after that
+
+
+def name_from_ustp_email(email):
+    """(first name, last name) read from a USTP address: 'vincent.dagaraga1@ustp.edu.ph' -> ('Vincent', 'Dagaraga').
+    The first part is the first name and the rest the last name ('juan.dela.cruz' -> 'Juan', 'Dela Cruz')."""
+    local = email.split('@')[0]
+    parts = [re.sub(r'[^a-z]', '', p) for p in re.split(r'[._+-]+', local.lower())]
+    parts = [p for p in parts if p]
+    if not parts:
+        return '', ''
+    return parts[0].title(), ' '.join(parts[1:]).title()
+
+
+def _faculty_email(data):
+    """A USTP address from the form, or one of the test addresses in FACULTY_TEST_EMAILS (backend/.env), else None."""
+    email = _short(data.get('faculty_email'), 254).lower()
+    return email if FACULTY_EMAIL_RE.match(email) or email in settings.FACULTY_TEST_EMAILS else None
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def faculty_verify_request(request):
+    """Faculty report page, "Confirm email address": emails a 6-digit code. POST {faculty_email}"""
+    from .models import OTPVerification
+    email = _faculty_email(request.data)
+    if not email:
+        return Response({"error": "Use your USTP email, ending in @ustp.edu.ph."}, status=status.HTTP_400_BAD_REQUEST)
+    # An email that already has a faculty account reports from the account (log in at /faculty)
+    if _faculty_account(email):
+        return Response({"error": "This email already has a faculty account. Log in to report.", "has_account": True},
+                        status=status.HTTP_400_BAD_REQUEST)
+    key = FACULTY_CODE_KEY + email
+    previous = OTPVerification.objects(email=key).first()
+    if previous and (utc_now() - previous.created_at).total_seconds() < FACULTY_CODE_WAIT_S:
+        return Response({"error": "A code was just sent. Wait a minute before asking for another."}, status=status.HTTP_429_TOO_MANY_REQUESTS)
+    OTPVerification.objects(email=key).delete()
+    code = f'{secrets.randbelow(900000) + 100000}'
+    verification = OTPVerification(email=key, otp=code).save()
+    if settings.DEBUG:
+        # Local testing without a USTP inbox: the code is also shown in the backend's console (never in production)
+        print(f"[DEV] Faculty email code for {email}: {code}", flush=True)
+    try:
+        send_code_email(email, code, 'faculty', name=name_from_ustp_email(email)[0])
+    except Exception as e:
+        verification.delete()
+        error = f"Failed to send email: {e}" if settings.DEBUG else "Couldn't send the email. Check the address and try again."
+        return Response({"error": error}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    return Response({"message": f"Code sent to {email}."})
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def faculty_verify_confirm(request):
+    """Checks the code: answers with a token the report is sent with. POST {faculty_email, otp}"""
+    from .models import OTPVerification
+    email = _faculty_email(request.data)
+    verification = OTPVerification.objects(email=FACULTY_CODE_KEY + email).first() if email else None
+    if not verification:
+        return Response({"error": "No code was sent to this email, or it expired. Ask for a new one."}, status=status.HTTP_400_BAD_REQUEST)
+    if (utc_now() - verification.created_at).total_seconds() > 300:
+        verification.delete()
+        return Response({"error": "The code expired. Ask for a new one."}, status=status.HTTP_400_BAD_REQUEST)
+    if verification.attempts >= 5:
+        verification.delete()
+        return Response({"error": "Too many wrong codes. Ask for a new one."}, status=status.HTTP_400_BAD_REQUEST)
+    if verification.otp != _short(request.data.get('otp'), 10):
+        verification.attempts += 1
+        verification.save()
+        return Response({"error": "That code isn't right."}, status=status.HTTP_400_BAD_REQUEST)
+    verification.delete()
+    first, last = name_from_ustp_email(email)
+    return Response({
+        "token": signing.dumps({'e': email}, salt=FACULTY_SALT, compress=True),
+        "email": email, "first_name": first, "last_name": last, "expires_in": FACULTY_VERIFIED_S,
+    })
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def faculty_report(request):
+    """Files a faculty member's report, with the token from faculty_verify_confirm. POST {token, ...report form}.
+    The email goes on OSA's list to confirm (FacultyInvite) unless it already has an account."""
+    try:
+        email = signing.loads(str(request.data.get('token') or ''), salt=FACULTY_SALT, max_age=FACULTY_VERIFIED_S)['e']
+    except (signing.BadSignature, KeyError, TypeError):
+        return Response({"error": "Confirm your email address again before sending the report.", "needs_verification": True},
+                        status=status.HTTP_403_FORBIDDEN)
+    first, last = name_from_ustp_email(email)
+    reporter = ' '.join(p for p in (first, last) if p) or email
+    reports, error = file_violation_reports(request.data, reporter, reporting_email=email,
+                                            reporter_first_name=first, reporter_last_name=last)
+    if error:
+        return error
+    if not _faculty_account(email):
+        FacultyInvite.objects(email=email).update_one(
+            upsert=True, set_on_insert__first_name=first, set_on_insert__last_name=last,
+            set_on_insert__status='unconfirmed', set_on_insert__first_report_at=utc_now())
+    return Response({"reports": _report_summaries(reports), "reported_by": reporter, "email": email},
+                    status=status.HTTP_201_CREATED)
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def faculty_student_lookup(request, student_id):
+    """The faculty report page (no account) looks up a scanned or typed student, like a guard's form does, and
+    fills in everything the student's record has (OSA's choice: the contact number and email too, before the
+    faculty member's email is confirmed). Anyone with the page's link can use it."""
+    student = Student.objects(student_id=str(student_id).strip()).first()
+    if not student:
+        return Response({"error": "No student with that ID."}, status=status.HTTP_404_NOT_FOUND)
+    data = StudentSerializer(student).data
+    data.pop('qr_data', None)
+    return Response(data)
+
+
+# Faculty accounts. Two ways in:
+#  - "Create an account" (/faculty/signup): all details + a code; the account can't log in until OSA confirms
+#    it in Admin > Faculty Accounts (faculty_status 'pending' -> 'verified'; an email tells them).
+#  - Reported without an account: OSA confirms the email (FacultyInvite), which emails a link to
+#    /faculty/signup?invite=...; the email is filled in, they add their details and one last code, and the
+#    account is active at once.
+# Once active they log in with email and password, no code.
+FACULTY_SIGNUP_KEY = 'faculty-signup:'  # its own codes, apart from the report page's
+MIN_PASSWORD_CHARS = 8
+FACULTY_INVITE_SALT = 'osaconnect-faculty-invite'
+FACULTY_INVITE_MAX_AGE_S = 14 * 24 * 3600
+REJECTED_REPORTER_REASON = 'The reporter was not confirmed as USTP faculty.'
+
+
+def _dismiss_rejected_reporter_reports(email):
+    """OSA rejected this faculty member: their reports still waiting for review are dismissed (to the Archives)."""
+    return ViolationReport.objects(reporting_email=email.lower(), status='Pending OSA Review').update(
+        set__status='Dismissed', set__dismissed_at=utc_now(), set__dismissed_reason=REJECTED_REPORTER_REASON)
+
+
+PENDING_FACULTY_LOGIN = "Your account is waiting for OSA to confirm you're USTP faculty. You'll get an email when it's active."
+REJECTED_FACULTY_LOGIN = "OSA couldn't confirm this account as USTP faculty. Contact the Office of Student Affairs."
+
+
+def _faculty_account(email):
+    return SystemUser.objects(Q(username__iexact=email) | Q(email__iexact=email)).first()
+
+
+def _invite_email(token):
+    """The email of a valid, unused invite link, else None."""
+    try:
+        email = signing.loads(str(token or ''), salt=FACULTY_INVITE_SALT, max_age=FACULTY_INVITE_MAX_AGE_S)['e']
+    except (signing.BadSignature, KeyError, TypeError):
+        return None
+    invite = FacultyInvite.objects(email=email, status='invited').first()
+    return email if invite else None
+
+
+def _faculty_signup_details(data):
+    """(first, last, email, invited, None) from the sign-up form, or (.., error message). With an invite link
+    the email comes from the link."""
+    first = format_person_name(_short(data.get('first_name'), 50))
+    last = format_person_name(_short(data.get('last_name'), 50))
+    invited = bool(data.get('invite'))
+    email = _invite_email(data.get('invite')) if invited else _faculty_email(data)
+    if invited and not email:
+        return first, last, None, True, "This link expired or was already used. Sign up from the faculty login page."
+    if not first or not last:
+        return first, last, email, invited, "Type your first name and last name."
+    if not email:
+        return first, last, email, invited, "Use your USTP email, ending in @ustp.edu.ph."
+    if _faculty_account(email):
+        return first, last, email, invited, "This email already has an account. Log in instead."
+    return first, last, email, invited, None
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def faculty_invite(request):
+    """The sign-up page opened from an invite email: the email it's for. GET ?token="""
+    email = _invite_email(request.query_params.get('token'))
+    if not email:
+        return Response({"error": "This link expired or was already used. You can still sign up below."}, status=status.HTTP_400_BAD_REQUEST)
+    invite = FacultyInvite.objects(email=email).first()
+    return Response({"email": email, "first_name": invite.first_name, "last_name": invite.last_name})
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def faculty_signup_request(request):
+    """Faculty sign-up, step 1: emails a 6-digit code. POST {first_name, last_name, faculty_email | invite}"""
+    from .models import OTPVerification
+    first, last, email, _, error = _faculty_signup_details(request.data)
+    if error:
+        return Response({"error": error}, status=status.HTTP_400_BAD_REQUEST)
+    key = FACULTY_SIGNUP_KEY + email
+    previous = OTPVerification.objects(email=key).first()
+    if previous and (utc_now() - previous.created_at).total_seconds() < FACULTY_CODE_WAIT_S:
+        return Response({"error": "A code was just sent. Wait a minute before asking for another."}, status=status.HTTP_429_TOO_MANY_REQUESTS)
+    OTPVerification.objects(email=key).delete()
+    code = f'{secrets.randbelow(900000) + 100000}'
+    verification = OTPVerification(email=key, otp=code).save()
+    if settings.DEBUG:
+        print(f"[DEV] Faculty sign-up code for {email}: {code}", flush=True)
+    try:
+        send_code_email(email, code, 'faculty_signup', name=first)
+    except Exception as e:
+        verification.delete()
+        error = f"Failed to send email: {e}" if settings.DEBUG else "Couldn't send the email. Check the address and try again."
+        return Response({"error": error}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    return Response({"message": f"Code sent to {email}.", "email": email})
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def faculty_signup(request):
+    """Faculty sign-up, step 2: checks the code and makes the account. POST {first_name, last_name,
+    faculty_email | invite, password, otp}. An email OSA already confirmed (invite link, or one it confirmed
+    from a report) is active and logged in at once; otherwise the account waits for OSA ("pending")."""
+    from .models import OTPVerification
+    first, last, email, _, error = _faculty_signup_details(request.data)
+    password = str(request.data.get('password') or '')
+    if not error and len(password) < MIN_PASSWORD_CHARS:
+        error = f"Your password needs at least {MIN_PASSWORD_CHARS} characters."
+    if error:  # checked before the code, so a fixable mistake doesn't use it up
+        return Response({"error": error}, status=status.HTTP_400_BAD_REQUEST)
+    verification = OTPVerification.objects(email=FACULTY_SIGNUP_KEY + email).first()
+    if not verification:
+        return Response({"error": "No code was sent to this email, or it expired. Ask for a new one."}, status=status.HTTP_400_BAD_REQUEST)
+    if (utc_now() - verification.created_at).total_seconds() > 300:
+        verification.delete()
+        return Response({"error": "The code expired. Ask for a new one."}, status=status.HTTP_400_BAD_REQUEST)
+    if verification.attempts >= 5:
+        verification.delete()
+        return Response({"error": "Too many wrong codes. Ask for a new one."}, status=status.HTTP_400_BAD_REQUEST)
+    if verification.otp != _short(request.data.get('otp'), 10):
+        verification.attempts += 1
+        verification.save()
+        return Response({"error": "That code isn't right."}, status=status.HTTP_400_BAD_REQUEST)
+    verification.delete()
+
+    confirmed = FacultyInvite.objects(email=email, status='invited').first() is not None
+    try:
+        user = SystemUser(
+            username=email, email=email, first_name=first, last_name=last, full_name=f'{first} {last}',
+            role='staff', bio='USTP Faculty & Staff', password=hash_password(password), registered_at=utc_now(),
+            is_active=confirmed, faculty_status='verified' if confirmed else 'pending',
+        ).save()
+    except NotUniqueError:
+        return Response({"error": "This email already has an account. Log in instead."}, status=status.HTTP_400_BAD_REQUEST)
+    # Reports filed with this email before the account existed carry the name read from the email: use the real one
+    ViolationReport.objects(reporting_email=email).update(
+        set__reporting_guard=user.full_name, set__reporter_first_name=first, set__reporter_last_name=last)
+    if not confirmed:
+        return Response({"active": False, "email": email, "message": PENDING_FACULTY_LOGIN}, status=status.HTTP_201_CREATED)
+    FacultyInvite.objects(email=email).update_one(set__status='registered')
+    return Response({
+        "active": True,
+        "success": True,
+        "token": issue_token(user.role, user.username, user.password),
+        "role": user.role,
+        "username": user.username,
+        "full_name": user.full_name,
+        "bio": user.bio,
+    }, status=status.HTTP_201_CREATED)
+
+
+FACULTY_RESET_KEY = 'faculty-reset:'
+
+
+def _faculty_reset_account(email):
+    """The faculty account a USTP email resets (a sign-up that isn't rejected), else None."""
+    user = _faculty_account(email) if email else None
+    return user if user and user.role == 'staff' and user.faculty_status != 'rejected' else None
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def faculty_reset_request(request):
+    """Faculty "Forgot password?", step 1: emails a code to the account's USTP email. POST {faculty_email}
+    (Guard accounts are shared and have no email: OSA resets them with create_account.)"""
+    from .models import OTPVerification
+    email = _faculty_email(request.data)
+    if not email:
+        return Response({"error": "Use your USTP email, ending in @ustp.edu.ph."}, status=status.HTTP_400_BAD_REQUEST)
+    user = _faculty_reset_account(email)
+    if not user:
+        return Response({"error": "No faculty account uses this email. Guards: ask OSA to reset your password."},
+                        status=status.HTTP_404_NOT_FOUND)
+    key = FACULTY_RESET_KEY + email
+    previous = OTPVerification.objects(email=key).first()
+    if previous and (utc_now() - previous.created_at).total_seconds() < FACULTY_CODE_WAIT_S:
+        return Response({"error": "A code was just sent. Wait a minute before asking for another."}, status=status.HTTP_429_TOO_MANY_REQUESTS)
+    OTPVerification.objects(email=key).delete()
+    code = f'{secrets.randbelow(900000) + 100000}'
+    verification = OTPVerification(email=key, otp=code).save()
+    if settings.DEBUG:
+        print(f"[DEV] Faculty password reset code for {email}: {code}", flush=True)
+    try:
+        send_code_email(email, code, 'reset', name=user.first_name or user.full_name)
+    except Exception as e:
+        verification.delete()
+        error = f"Failed to send email: {e}" if settings.DEBUG else "Couldn't send the email. Check the address and try again."
+        return Response({"error": error}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    return Response({"message": f"Code sent to {email}."})
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def faculty_reset_password(request):
+    """Faculty "Forgot password?", step 2: the code and a new password. POST {faculty_email, otp, password}"""
+    from .models import OTPVerification
+    email = _faculty_email(request.data)
+    user = _faculty_reset_account(email)
+    password = str(request.data.get('password') or '')
+    if not user:
+        return Response({"error": "No faculty account uses this email."}, status=status.HTTP_404_NOT_FOUND)
+    if len(password) < MIN_PASSWORD_CHARS:  # before the code, so a fixable mistake doesn't use it up
+        return Response({"error": f"Your new password needs at least {MIN_PASSWORD_CHARS} characters."}, status=status.HTTP_400_BAD_REQUEST)
+    verification = OTPVerification.objects(email=FACULTY_RESET_KEY + email).first()
+    if not verification:
+        return Response({"error": "No code was sent to this email, or it expired. Ask for a new one."}, status=status.HTTP_400_BAD_REQUEST)
+    if (utc_now() - verification.created_at).total_seconds() > 300:
+        verification.delete()
+        return Response({"error": "The code expired. Ask for a new one."}, status=status.HTTP_400_BAD_REQUEST)
+    if verification.attempts >= 5:
+        verification.delete()
+        return Response({"error": "Too many wrong codes. Ask for a new one."}, status=status.HTTP_400_BAD_REQUEST)
+    if verification.otp != _short(request.data.get('otp'), 10):
+        verification.attempts += 1
+        verification.save()
+        return Response({"error": "That code isn't right."}, status=status.HTTP_400_BAD_REQUEST)
+    verification.delete()
+    user.password = hash_password(password)
+    user.save()
+    forget_account(user.username)  # logins made with the old password stop working
+    message = "Password changed. You can log in now." if user.is_active else PENDING_FACULTY_LOGIN
+    return Response({"message": message, "active": bool(user.is_active)})
+
+
+def _report_counts(emails):
+    """Reports filed under each email, as an account or without one."""
+    counts = {}
+    for row in ViolationReport.objects(Q(reporting_email__in=emails) | Q(reporting_account__in=emails)).only('reporting_email', 'reporting_account'):
+        key = (row.reporting_email or row.reporting_account or '').lower()
+        counts[key] = counts.get(key, 0) + 1
+    return counts
+
+
+@api_view(['GET'])
+@permission_classes([IsAdmin])
+def faculty_accounts(request):
+    """Admin > Faculty Accounts: sign-ups waiting for OSA, and emails faculty reported with (no account yet)."""
+    accounts = list(SystemUser.objects(role='staff', faculty_status__ne=None))
+    invites = list(FacultyInvite.objects(status__ne='registered'))
+    counts = _report_counts([u.username for u in accounts] + [i.email for i in invites])
+    order = {'pending': 0, 'unconfirmed': 0, 'invited': 1, 'verified': 1, 'rejected': 2}
+    when = lambda d: -(d or datetime.datetime.min).timestamp()  # noqa: E731
+    accounts.sort(key=lambda u: (order.get(u.faculty_status, 3), when(u.registered_at)))
+    invites.sort(key=lambda i: (order.get(i.status, 3), when(i.first_report_at)))
+    return Response({
+        "accounts": [{
+            "username": u.username, "email": u.email or u.username, "first_name": u.first_name, "last_name": u.last_name,
+            "status": u.faculty_status, "registered_at": _aware_iso(u.registered_at), "reports": counts.get(u.username.lower(), 0),
+        } for u in accounts],
+        "emails": [{
+            "email": i.email, "first_name": i.first_name, "last_name": i.last_name, "status": i.status,
+            "first_report_at": _aware_iso(i.first_report_at), "reports": counts.get(i.email, 0),
+        } for i in invites],
+    })
+
+
+@api_view(['POST'])
+@permission_classes([IsAdmin])
+def faculty_account_decision(request, username):
+    """A sign-up waiting for OSA: 'verify' activates it (and emails them), 'reject' keeps it from logging in."""
+    decision = request.data.get('decision')
+    if decision not in ('verify', 'reject'):
+        return Response({"error": "decision must be 'verify' or 'reject'."}, status=status.HTTP_400_BAD_REQUEST)
+    user = SystemUser.objects(username=username, role='staff', faculty_status__ne=None).first()
+    if not user:
+        return Response({"error": "No faculty account with that email."}, status=status.HTTP_404_NOT_FOUND)
+    user.faculty_status = 'verified' if decision == 'verify' else 'rejected'
+    user.is_active = decision == 'verify'
+    user.save()
+    dismissed = 0
+    if decision == 'reject':
+        forget_account(user.username)
+        dismissed = _dismiss_rejected_reporter_reports(user.email or user.username)
+    emailed = False
+    if decision == 'verify':
+        try:
+            send_faculty_activated(user.email or user.username, user.first_name, app_url('/faculty'))
+            emailed = True
+        except Exception as e:
+            print(f"Activation email failed: {e}")
+    return Response({"status": user.faculty_status, "emailed": emailed, "dismissed": dismissed})
+
+
+@api_view(['POST'])
+@permission_classes([IsAdmin])
+def faculty_email_decision(request):
+    """An email faculty reported with: 'confirm' (real USTP faculty) emails them the link to finish an account;
+    'reject' doesn't. POST {email, decision}"""
+    decision = request.data.get('decision')
+    if decision not in ('confirm', 'reject'):
+        return Response({"error": "decision must be 'confirm' or 'reject'."}, status=status.HTTP_400_BAD_REQUEST)
+    invite = FacultyInvite.objects(email=_short(request.data.get('email'), 254).lower()).first()
+    if not invite or invite.status == 'registered':
+        return Response({"error": "No email waiting with that address."}, status=status.HTTP_404_NOT_FOUND)
+    invite.status = 'invited' if decision == 'confirm' else 'rejected'
+    invite.decided_at = utc_now()
+    invite.decided_by = request.user.name or request.user.username
+    invite.save()
+    dismissed = _dismiss_rejected_reporter_reports(invite.email) if decision == 'reject' else 0
+    emailed = False
+    if decision == 'confirm':
+        token = signing.dumps({'e': invite.email}, salt=FACULTY_INVITE_SALT, compress=True)
+        link = app_url(f'/faculty/signup?invite={urllib.parse.quote(token)}')
+        if settings.DEBUG:
+            print(f"[DEV] Faculty invite link for {invite.email}: {link}", flush=True)
+        try:
+            send_faculty_invite(invite.email, invite.first_name, link)
+            emailed = True
+        except Exception as e:
+            print(f"Invite email failed: {e}")
+    return Response({"status": invite.status, "emailed": emailed, "dismissed": dismissed})
+
+
+@api_view(['GET'])
+@permission_classes([IsAdmin])
+def admin_alerts(request):
+    """Counts for the admin sidebar's badges, on every admin page."""
+    return Response({
+        "pending_reports": ViolationReport.objects(status='Pending OSA Review').count(),
+        "pending_faculty": SystemUser.objects(role='staff', faculty_status='pending').count()
+                           + FacultyInvite.objects(status='unconfirmed').count(),
+    })
+
+# The guards' Reports page: reports from the last FEED_DAYS days
+FEED_DAYS = 30
+FEED_MAX = 1000
+
+
 class ViolationViewSet(viewsets.ModelViewSet):
     queryset = ViolationReport.objects.all()
     serializer_class = ViolationReportSerializer
@@ -714,7 +1264,7 @@ class ViolationViewSet(viewsets.ModelViewSet):
             return [IsReporter()]
         if self.action == 'list':
             return [IsLoggedIn()]
-        if self.action in ('summary', 'monthly_report'):
+        if self.action in ('summary', 'monthly_report', 'feed'):
             return [IsReporter()]  # counts for the guards' analytics; the student rows are admin-only
         return [IsAdmin()]  # approve, dismiss, reassign, clearance, bulk reports, analytics, edits
 
@@ -729,6 +1279,13 @@ class ViolationViewSet(viewsets.ModelViewSet):
             # reports (before it was kept) by the account's name, which they were saved under
             names = [n for n in (self.request.user.name, self.request.user.username) if n]
             mine = Q(reporting_account=self.request.user.username) | Q(reporting_account=None, reporting_guard__in=names)
+            if role == 'staff':
+                # A faculty account made with a USTP email also has the reports filed with that email before it
+                # existed (faculty_report, no account)
+                account = SystemUser.objects(username=self.request.user.username).only('email').first()
+                email = ((account.email if account else None) or (self.request.user.username if '@' in self.request.user.username else '')).lower()
+                if email:
+                    mine = mine | Q(reporting_email=email)
             return ViolationReport.objects(mine).select_related()
         # select_related loads the students in one query instead of one per violation
         student = _student_filter(self.request)
@@ -748,6 +1305,35 @@ class ViolationViewSet(viewsets.ModelViewSet):
         # select_related returns a plain list, which single-record routes (/violations/<id>/) can't use
         return qs.select_related() if self.action == 'list' and student is not None else qs
 
+
+    @action(detail=False, methods=['get'])
+    def feed(self, request):
+        """The guards' Reports page: every report guards and faculty & staff filed in the last FEED_DAYS days,
+        newest first. A caught student claims their ID back from the guard, who checks here that the student
+        was really reported. Only what that check needs: no contact details, emails or descriptions."""
+        if role_of(request) not in ('guard', 'admin'):
+            return Response({"error": "Only guards can see every report."}, status=status.HTTP_403_FORBIDDEN)
+        roles = {u.username: u.role for u in SystemUser.objects.only('username', 'role')}
+        since = utc_now() - datetime.timedelta(days=FEED_DAYS)
+        reports = ViolationReport.objects(created_at__gte=since).order_by('-created_at').limit(FEED_MAX).select_related()
+        rows = []
+        for r in reports:
+            # Faculty file with a confirmed USTP email (faculty_report); older reports with no account came from guards
+            reporter_role = 'staff' if r.reporting_email else roles.get(r.reporting_account, 'guard')
+            if reporter_role == 'admin':
+                continue  # OSA's own reports (event no-shows) don't involve a confiscated ID
+            student = r.student if isinstance(r.student, Student) else None
+            rows.append({
+                "id": str(r.id),
+                "student_name": display_student_name(student) if student else 'Unknown student',
+                "student_id": student.student_id if student else '',
+                "violation_type": r.violation_type,
+                "status": r.status,
+                "created_at": _aware_iso(r.created_at),
+                "reported_by": r.reporting_guard or 'Campus personnel',
+                "reporter_role": 'staff' if reporter_role == 'staff' else 'guard',
+            })
+        return Response({"days": FEED_DAYS, "reports": rows})
 
     @action(detail=False, methods=['get'])
     def analytics(self, request):
@@ -892,60 +1478,11 @@ class ViolationViewSet(viewsets.ModelViewSet):
         }, status=status.HTTP_201_CREATED)
 
     def create(self, request, *args, **kwargs):
-        data = request.data
-        student_id = data.get('student_id')
-        if not student_id:
-            # Fallback for old field name just in case
-            student_id = data.get('studentId')
-            
-        if not student_id:
-            return Response({"error": "student_id is required"}, status=status.HTTP_400_BAD_REQUEST)
-        student_id = str(student_id).strip()
-        id_error = student_id_error(student_id)
-        if id_error:
-            return Response({"error": id_error}, status=status.HTTP_400_BAD_REQUEST)
-
-        # The violations: several at once (violation_types, the report forms since 2026-09-30) or one
-        # (violation_type / violation, older app versions). Each becomes its own report, with its own
-        # offense count and penalty, the same as reporting them one after the other.
-        raw_types = data.get('violation_types')
-        if not isinstance(raw_types, list):
-            raw_types = [data.get('violation_type') or data.get('violation')]
-        violation_types = []
-        for value in raw_types:
-            value = _short(value, 150)
-            if value and value not in violation_types:
-                violation_types.append(value)
-        if not violation_types:
-            return Response({"error": "Choose at least one violation."}, status=status.HTTP_400_BAD_REQUEST)
-        if len(violation_types) > 10:
-            return Response({"error": "Choose at most 10 violations in one report."}, status=status.HTTP_400_BAD_REQUEST)
-
-        # 1. The report goes to the student with this ID, and only by ID: names can repeat, and
-        # matching by name used to attach reports to the wrong person
-        student = Student.objects.filter(student_id=student_id).first()
-        if not student:
-            # Not registered yet: keep the report under the ID with the details the guard entered.
-            # This record can't log in; when the student registers with this ID it becomes their
-            # account and keeps this report (StudentViewSet.register_with_otp).
-            student = Student(
-                student_id=student_id,
-                name=_short(data.get('name'), 100) or UNREGISTERED_NAME,
-                course=_short(data.get('course'), 100) or 'Unknown',
-                department=_short(data.get('department'), 100) or 'Unknown',
-                contact_number=_short(data.get('contact'), 20),
-                email=_short(data.get('email'), 254).lower(),
-                gender=_gender(data.get('gender')),
-            ).save()
-        elif not student.gender and _gender(data.get('gender')):
-            # The guard saw the student: fills in the gender for records that don't have it yet
-            student.gender = _gender(data.get('gender'))
-            student.save()
-            
-        # 2. One report per violation, each waiting for OSA's review, with its own offense count and penalty.
         # Reported by: guards share accounts, so a guard account names the guard on duty (on_duty_name, typed on
-        # the report form; older app versions don't send it and keep the account's name). Faculty & staff are
-        # their own account; only admins may name someone else.
+        # the report form; older app versions don't send it and keep the account's name). Faculty & staff
+        # accounts report as themselves; only admins may name someone else. (Faculty without an account file
+        # through faculty_report, with a confirmed USTP email.)
+        data = request.data
         role = role_of(request)
         if role == 'admin':
             reporter = data.get('reporting_guard') or 'OSA Administrator'
@@ -953,36 +1490,21 @@ class ViolationViewSet(viewsets.ModelViewSet):
             reporter = format_person_name(_short(data.get('on_duty_name'), 100)) or request.user.name or request.user.username
         else:
             reporter = request.user.name or request.user.username
-        description = _short(data.get('description'), MAX_DESCRIPTION_CHARS)
-        reports = []
-        try:
-            for violation_type in violation_types:
-                offense_count = get_offense_count(student, violation_type)
-                punishment_info = get_punishment(violation_type, offense_count)
-                report = ViolationReport(
-                    student=student,
-                    violation_type=violation_type,
-                    description=description,
-                    reporting_guard=reporter,
-                    reporting_account=request.user.username,
-                    status="Pending OSA Review",
-                    offense_count=offense_count,
-                    punishment=punishment_info["punishment"],
-                    created_at=utc_now()
-                ).save()
-                send_violation_email(report)
-                reports.append(report)
-        except Exception as e:
-            print(f"Violation report failed: {e}")
-            return Response({"error": str(e), "saved": len(reports)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
+        # A faculty account made through faculty_signup: its email and name go on the report, for OSA to check
+        # against its faculty records (the same as a report filed without an account)
+        reporter_fields = {}
+        if role == 'staff':
+            account = SystemUser.objects(username=request.user.username).only('email', 'first_name', 'last_name').first()
+            if account and account.email:
+                reporter_fields = {'reporting_email': account.email, 'reporter_first_name': account.first_name,
+                                   'reporter_last_name': account.last_name}
+        reports, error = file_violation_reports(data, reporter, reporting_account=request.user.username, **reporter_fields)
+        if error:
+            return error
         # The first report as before (older app versions read it), plus all of them
         response_data = self.get_serializer(reports[0]).data
         response_data["notification_type"] = "action_required"
-        response_data["reports"] = [
-            {"id": str(r.id), "violation_type": r.violation_type, "offense_count": r.offense_count, "punishment": r.punishment}
-            for r in reports
-        ]
+        response_data["reports"] = _report_summaries(reports)
         return Response(response_data, status=status.HTTP_201_CREATED)
 
     @action(detail=True, methods=['post'])
@@ -996,6 +1518,11 @@ class ViolationViewSet(viewsets.ModelViewSet):
 
             if violation.status != "Pending OSA Review":
                 return Response({"error": "This violation was already reviewed by someone else."}, status=status.HTTP_409_CONFLICT)
+            # Filed by a faculty member OSA hasn't confirmed: confirm them in Faculty Accounts first (rejecting
+            # them dismisses the report)
+            if faculty_reporter_status(violation.reporting_email):
+                return Response({"error": "The faculty member who filed this isn't confirmed yet. Confirm them in Faculty Accounts first.",
+                                 "reporter_status": faculty_reporter_status(violation.reporting_email)}, status=status.HTTP_409_CONFLICT)
 
             punishment_info = get_punishment(violation.violation_type, violation.offense_count)
             hours, punishment = punishment_info["hours"], punishment_info["punishment"]
@@ -1083,17 +1610,10 @@ class ViolationViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=['post'])
     def dismiss(self, request, *args, **kwargs):
-        try:
-            violation_id = kwargs.get('id') or kwargs.get('pk')
-            # Same one-step claim as approve: only a still-pending case can be dismissed, so an approve
-            # and a dismiss at the same moment can't both happen
-            dismissed = ViolationReport.objects(id=violation_id, status="Pending OSA Review").update_one(set__status="Dismissed")
-            if not dismissed:
-                return Response({"error": "This violation was already reviewed by someone else."}, status=status.HTTP_409_CONFLICT)
-            print(f"Violation {violation_id} DISMISSED.")
-            return Response({"message": "Violation Dismissed."}, status=status.HTTP_200_OK)
-        except Exception as e:
-            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        """Cases aren't dismissed by hand (older app versions still call this): a case is dismissed only when OSA
+        rejects the faculty member who filed it (_dismiss_rejected_reporter_reports)."""
+        return Response({"error": "Cases can't be dismissed by hand. A case is dismissed only when OSA rejects the faculty member who filed it."},
+                        status=status.HTTP_403_FORBIDDEN)
 
     @action(detail=False, methods=['get'])
     def summary(self, request):
@@ -1400,7 +1920,7 @@ def clearance_capture(request, token):
     if request.method == 'GET':
         student = violation.student
         return Response({
-            "student_name": student.name if student else None,
+            "student_name": display_student_name(student) if student else None,
             "student_id": student.student_id if student else None,
             "violation_type": violation.violation_type,
             "uploaded": {kind: bool(getattr(violation, f'{kind}_uploaded_at')) for kind in CLEARANCE_FILES},
@@ -1569,7 +2089,7 @@ def timelog_receipt(log, eticket=None):
         'id': str(log.id),
         'eticket_id': str(eticket.id) if eticket else None,
         'student_id': student.student_id if student else None,
-        'student_name': student.name if student else None,
+        'student_name': display_student_name(student) if student else None,
         'violation_type': violation.violation_type if violation else None,
         'site_code': code,
         'building': name,

@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { NavLink, Link, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, User, LogOut, Menu, X, Users, Settings, HelpCircle, ChevronDown, ChevronRight, ChevronsLeft, ChevronsRight, FileSearch, Archive, TrendingUp, Gavel, History, ChartPie } from 'lucide-react';
+import { LayoutDashboard, User, LogOut, Menu, X, Users, Settings, HelpCircle, ChevronDown, ChevronRight, ChevronsLeft, ChevronsRight, FileSearch, Archive, TrendingUp, Gavel, History, ChartPie, ClipboardList, GraduationCap } from 'lucide-react';
+import usePolling from '../lib/usePolling';
 import { motion, AnimatePresence } from 'framer-motion';
 import logo from '../assets/osaconnect-logo.png';
 import logoDark from '../assets/osaconnect-logo-dark.png';
@@ -12,8 +13,24 @@ import { logoutStudent } from './studentSession';
 // Only slide it in the first time; after that it should stay put while the content animates.
 let hasSlidIn = false;
 
-const Sidebar = ({ role }) => {
+// Admin badges on every admin page: reports waiting for review, faculty waiting to be confirmed
+const ALERTS_REFRESH_MS = 30000;
+
+// badges: optional { path: count } that overrides the fetched ones (the dashboard's own, fresher pending count)
+const Sidebar = ({ role, badges = {} }) => {
     const navigate = useNavigate();
+    const [alerts, setAlerts] = useState({});
+    usePolling(async () => {
+        if (role !== 'admin') return;
+        try {
+            const r = await fetch('/api/admin/alerts/');
+            if (r.ok) {
+                const data = await r.json();
+                setAlerts({ '/admin/pending': data.pending_reports, '/admin/faculty': data.pending_faculty });
+            }
+        } catch { /* keeps the last counts */ }
+    }, ALERTS_REFRESH_MS, [role]);
+    const counts = { ...alerts, ...badges };
     const [showConfirmModal, setShowConfirmModal] = useState(false);
 
     // Clears the saved login (a student's running session is stopped too) and goes to that role's login page
@@ -64,6 +81,7 @@ const Sidebar = ({ role }) => {
                 links: [
                     { name: 'Students', path: '/admin/students', icon: Users },
                     { name: 'Pending Reviews', path: '/admin/pending', icon: FileSearch },
+                    { name: 'Faculty Accounts', path: '/admin/faculty', icon: GraduationCap },
                     { name: 'Archives', path: '/admin/archives', icon: Archive },
                 ]
             },
@@ -79,7 +97,7 @@ const Sidebar = ({ role }) => {
         // and the counts (column chart). The report page's header shortcuts use the same icons.
         guard: [
             { name: 'Report Violation', path: '/guard/report', icon: Gavel },
-            { name: 'History', path: '/guard/history', icon: History },
+            { name: 'Reports', path: '/guard/reports', icon: ClipboardList },
             { name: 'Analytics', path: '/guard/analytics', icon: ChartPie },
         ],
         staff: [
@@ -94,23 +112,34 @@ const Sidebar = ({ role }) => {
 
     const items = menuItems[role] || [];
 
-    const renderLink = (item) => (
-        <NavLink
-            key={item.path}
-            to={item.path}
-            onClick={() => setMobileOpen(false)}
-            title={collapsed ? item.name : undefined}
-            className={({ isActive }) => `
-                flex items-center gap-3 ${collapsed ? 'justify-center px-2 py-3 mx-2' : 'px-4 py-3 mx-3'} rounded-full transition-all duration-300 font-bold text-sm
-                ${isActive
-                    ? 'bg-ustp-blue text-white shadow-md'
-                    : 'text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-ustp-blue dark:hover:text-ustp-blue'}
-            `}
-        >
-            <item.icon size={20} className="shrink-0" />
-            {!collapsed && <span>{item.name}</span>}
-        </NavLink>
-    );
+    const renderLink = (item, isCollapsed = collapsed) => {
+        const badge = counts[item.path] || 0;
+        return (
+            <NavLink
+                key={item.path}
+                to={item.path}
+                onClick={() => setMobileOpen(false)}
+                title={isCollapsed ? item.name : undefined}
+                className={({ isActive }) => `
+                    relative flex items-center gap-3 ${isCollapsed ? 'justify-center px-2 py-3 mx-2' : 'px-4 py-3 mx-3'} rounded-full transition-all duration-300 font-bold text-sm
+                    ${isActive
+                        ? 'bg-ustp-blue text-white shadow-md'
+                        : 'text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-ustp-blue dark:hover:text-ustp-blue'}
+                `}
+            >
+                <item.icon size={20} className="shrink-0" />
+                {!isCollapsed && <span className="flex-1">{item.name}</span>}
+                {badge > 0 && (
+                    <span
+                        aria-label={`${badge} waiting`}
+                        className={`${isCollapsed ? 'absolute top-0.5 right-1.5' : ''} min-w-[22px] h-[22px] px-1.5 rounded-full bg-red-100 dark:bg-red-500/20 text-red-600 dark:text-red-400 text-[10px] font-black flex items-center justify-center`}
+                    >
+                        {badge > 99 ? '99+' : badge}
+                    </span>
+                )}
+            </NavLink>
+        );
+    };
 
     const sidebarContent = (isCollapsed = false) => (
         <>
@@ -152,14 +181,14 @@ const Sidebar = ({ role }) => {
                                             transition={{ duration: 0.2 }}
                                             className="space-y-1 overflow-hidden"
                                         >
-                                            {item.links.map(link => renderLink(link))}
+                                            {item.links.map(link => renderLink(link, isCollapsed))}
                                         </motion.div>
                                     )}
                                 </AnimatePresence>
                             </div>
                         );
                     }
-                    return renderLink(item);
+                    return renderLink(item, isCollapsed);
                 })}
             </nav>
 

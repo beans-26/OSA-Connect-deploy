@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Moon, Sun } from 'lucide-react';
 
 // Light / dark switch for the admin pages (the `dark` class on <html>). Sits at the right end of each page's

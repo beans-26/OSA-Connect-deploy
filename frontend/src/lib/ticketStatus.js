@@ -1,6 +1,8 @@
 // What the e-ticket statuses are called on screen (the database keeps Active / Ongoing / Completed / Cleared):
 // Not started / In progress, Serving now, For clearance, Cleared.
 // Same wording as mobile/components/ticketStatus.js.
+import { reportedByLabel } from './names';
+
 export const ticketStatusLabel = (ticket) => {
     if (!ticket) return '';
     if (ticket.status === 'Ongoing') return 'Serving now';
@@ -93,7 +95,7 @@ export const ticketReceipt = (ticket, sessions, { forAdmin = false } = {}) => {
     return {
         header,
         sections: [
-            { title: 'Violation', lines: [['Violation', v.violation_type || '—', 'red'], ['Offense', `#${v.offense_count || 1}`], ['Date caught', fmtDate(v.created_at, true)], ['Reported by', v.reporting_guard || '—']] },
+            { title: 'Violation', lines: [['Violation', v.violation_type || '—', 'red'], ['Offense', `#${v.offense_count || 1}`], ['Date caught', fmtDate(v.created_at, true)], [reportedByLabel(v.reporter_role), v.reporting_guard || '—']] },
             { title: 'Required Action', lines },
         ],
         buildings,

@@ -1,5 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
-import {  } from 'react-router-dom';
+import { useState, useEffect, useRef } from 'react';
 import Sidebar from '../components/Sidebar';
 import QRCode from 'react-qr-code';
 import {
@@ -8,7 +7,6 @@ import {
     FileText,
     User,
     Check,
-    X,
     Search,
     Eye,
     Calendar,
@@ -21,13 +19,13 @@ import {
     Mail,
     Phone,
     Award,
-    Bell,
     UserCheck,
     ClipboardList,
     QrCode,
     CheckCircle,
     Loader2,
-    Archive
+    Archive,
+    Sparkles
 } from 'lucide-react';
 import { timeGreeting, todayLabel, adminStatusLine } from '../lib/greeting';
 import { useServiceSites, ServiceSiteOptions, postAssignment } from '../components/useServiceSites';
@@ -35,6 +33,7 @@ import { DEPARTMENTS, GENDERS, departmentShort } from '../lib/academics';
 import { ticketStatusLabel } from '../lib/ticketStatus';
 import ThemeToggle from '../components/ThemeToggle';
 import usePolling from '../lib/usePolling';
+import { studentName, reportedByLabel } from '../lib/names';
 
 
 // The two documents the student brings to OSA to be cleared (ClearanceProof kinds on the server)
@@ -101,7 +100,7 @@ const CompletionReceipt = ({ report, ticket }) => {
             </div>
             <div className="px-5 pb-2">
                 <Section title="Student">
-                    <Line label="Name" value={student.name} />
+                    <Line label="Name" value={studentName(student)} />
                     <Line label="Student ID" value={student.student_id} />
                     <Line label="Course" value={[student.course, year].filter(Boolean).join(' · ')} />
                     <Line label="Department" value={departmentShort(student.department)} />
@@ -110,7 +109,7 @@ const CompletionReceipt = ({ report, ticket }) => {
                     <Line label="Violation" value={report.violation_type} accent="text-red-600 dark:text-red-400" />
                     <Line label="Offense" value={`#${report.offense_count || 1}`} />
                     <Line label="Date caught" value={fmtDate(report.created_at, true)} />
-                    <Line label="Reported by" value={report.reporting_guard} />
+                    <Line label={reportedByLabel(report.reporter_role)} value={report.reporting_guard} />
                 </Section>
                 <Section title="Required Action">
                     <Line label="Sanction" value={report.punishment} />
@@ -307,11 +306,11 @@ const ViolationModal = ({ report, ticket, onClose, onAction, onReassigned, onCle
                     <div className="flex items-center gap-4">
                         {/* The student's initials, like the other receipts */}
                         <div className="w-12 h-12 shrink-0 rounded-full bg-white dark:bg-slate-800 flex items-center justify-center shadow-sm border border-blue-100 dark:border-slate-700 text-sm font-black text-ustp-blue dark:text-blue-300">
-                            {(student.name || '?').trim().split(/\s+/).map((w) => w[0]).join('').slice(0, 2).toUpperCase()}
+                            {(studentName(student) || '?').trim().split(/\s+/).map((w) => w[0]).join('').slice(0, 2).toUpperCase()}
                         </div>
                         <div className="min-w-0">
                             <h2 className="truncate text-lg font-black text-slate-900 dark:text-white leading-tight tracking-tight">
-                                {student.name || 'Unknown Student'}
+                                {studentName(student) || 'Unknown Student'}
                             </h2>
                             <div className="flex items-center gap-2.5 mt-1">
                                 <p className="font-mono text-xs font-bold text-slate-500 dark:text-slate-400">
@@ -372,7 +371,7 @@ const ViolationModal = ({ report, ticket, onClose, onAction, onReassigned, onCle
                             </div>
                             <div className="px-4 py-1.5">
                                 <Line label="Caught" value={caughtAt} />
-                                <Line label="Reported by" value={report.reporting_guard} />
+                                <Line label={reportedByLabel(report.reporter_role)} value={report.reporting_guard} />
                             </div>
                         </div>
                     </div>
@@ -556,25 +555,17 @@ const ViolationModal = ({ report, ticket, onClose, onAction, onReassigned, onCle
 
                 {/* Footer Actions */}
                 <div className="shrink-0 px-6 pb-6 pt-2 flex flex-col gap-2">
+                    {/* No Dismiss: a case is dismissed only when OSA rejects the faculty member who filed it */}
                     {isPending && (
-                        <div className="grid grid-cols-2 gap-3 mb-2">
+                        <div className="mb-2">
                             <button
                                 onClick={() => {
-                                    onAction(report.id, 'Approved');
+                                    onAction(report.id);
                                     onClose();
                                 }}
-                                className="flex items-center justify-center gap-2 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all shadow-lg shadow-emerald-100"
+                                className="w-full flex items-center justify-center gap-2 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all shadow-lg shadow-emerald-100"
                             >
                                 <Check size={16} /> Approve
-                            </button>
-                            <button
-                                onClick={() => {
-                                    onAction(report.id, 'Dismissed');
-                                    onClose();
-                                }}
-                                className="flex items-center justify-center gap-2 py-3 bg-red-500 hover:bg-red-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all shadow-lg shadow-red-100"
-                            >
-                                <X size={16} /> Dismiss
                             </button>
                         </div>
                     )}
@@ -584,7 +575,7 @@ const ViolationModal = ({ report, ticket, onClose, onAction, onReassigned, onCle
                     {!isPending && report.status === 'Approved' && !ticket && (
                         <button
                             onClick={() => {
-                                onAction(report.id, 'Approved'); // 'approve' endpoint also marks as Completed if hours=0
+                                onAction(report.id); // 'approve' endpoint also marks as Completed if hours=0
                                 onClose();
                             }}
                             className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all mb-2"
@@ -617,12 +608,116 @@ const ViolationModal = ({ report, ticket, onClose, onAction, onReassigned, onCle
     );
 };
 
+/* ─── Insights card: today's reports by time and the top violation types ── */
+// Start hour of each 2-hour block on the Today chart (6 AM to 8 PM)
+const TODAY_BLOCKS = [6, 8, 10, 12, 14, 16, 18];
+
+const InsightSection = ({ title, aside, children }) => (
+    <div className="px-5 py-4">
+        <div className="flex items-center justify-between mb-3">
+            <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">{title}</h4>
+            {aside}
+        </div>
+        {children}
+    </div>
+);
+
+const InsightsCard = ({ violators }) => {
+    // Today: reports filed so far (dismissed ones weren't violations), in 2-hour blocks over the school day;
+    // anything earlier or later counts in the first or last block
+    const startOfToday = new Date(); startOfToday.setHours(0, 0, 0, 0);
+    const today = violators.filter((v) => v.status !== 'Dismissed' && v.created_at && Date.parse(v.created_at) >= startOfToday);
+    const hourOf = (v) => new Date(v.created_at).getHours();
+    const currentHour = new Date().getHours();
+    const blocks = TODAY_BLOCKS.map((from, i) => {
+        const isFirst = i === 0;
+        const isLast = i === TODAY_BLOCKS.length - 1;
+        const count = today.filter((v) => {
+            const h = hourOf(v);
+            return (isFirst || h >= from) && (isLast || h < from + 2);
+        }).length;
+        const label = `${from % 12 || 12}${from < 12 ? 'a' : 'p'}`;
+        const now = (currentHour >= from && (isLast || currentHour < from + 2)) || (isFirst && currentHour < from);
+        return { label, count, now };
+    });
+    const maxBlock = Math.max(1, ...blocks.map((b) => b.count));
+
+    // Top violation types today
+    const typeCounts = {};
+    today.forEach((v) => {
+        const type = v.violation_type || 'Other';
+        typeCounts[type] = (typeCounts[type] || 0) + 1;
+    });
+    const topTypes = Object.entries(typeCounts).sort((a, b) => b[1] - a[1]).slice(0, 4);
+    const maxType = topTypes[0]?.[1] || 1;
+
+    return (
+        <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-md border border-slate-100 dark:border-slate-700 overflow-hidden">
+            <div className="bg-gradient-to-r from-ustp-blue to-blue-600 px-6 py-5">
+                <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center">
+                        <Sparkles size={20} className="text-white" />
+                    </div>
+                    <div>
+                        <h3 className="font-bold text-white text-sm uppercase tracking-wider">Insights</h3>
+                        <p className="text-xs text-blue-100 font-medium">Today at a glance</p>
+                    </div>
+                </div>
+            </div>
+
+            <div className="divide-y divide-slate-100 dark:divide-slate-800">
+                <InsightSection title="Today by time">
+                    <div className="flex items-baseline gap-1.5 mb-3">
+                        <span className="text-2xl font-black text-slate-800 dark:text-white">{today.length}</span>
+                        <span className="text-xs font-semibold text-slate-400 dark:text-slate-500">violation{today.length === 1 ? '' : 's'} filed today</span>
+                    </div>
+                    <div className="flex items-end gap-2 h-20">
+                        {blocks.map((b) => (
+                            <div key={b.label} className="flex-1 flex flex-col items-center gap-1.5 h-full" title={`${b.label}: ${b.count}`}>
+                                <div className="flex-1 w-full flex items-end">
+                                    <div
+                                        className={`w-full rounded-md transition-all duration-500 ${b.now ? 'bg-ustp-blue' : 'bg-blue-200 dark:bg-blue-500/30'}`}
+                                        style={{ height: `${b.count ? Math.max(8, (b.count / maxBlock) * 100) : 4}%` }}
+                                    />
+                                </div>
+                                <span className={`text-[10px] font-bold ${b.now ? 'text-ustp-blue' : 'text-slate-400 dark:text-slate-500'}`}>{b.label}</span>
+                            </div>
+                        ))}
+                    </div>
+                </InsightSection>
+
+                <InsightSection title="Top violations today">
+                    {topTypes.length === 0 ? (
+                        <p className="text-xs font-medium text-slate-400 dark:text-slate-500">No violations filed today yet.</p>
+                    ) : (
+                        <div className="space-y-2.5">
+                            {topTypes.map(([type, count], i) => (
+                                <div key={type}>
+                                    <div className="flex items-center justify-between gap-3 mb-1">
+                                        <span className="text-xs font-semibold text-slate-600 dark:text-slate-300 truncate">{type}</span>
+                                        <span className="text-xs font-black text-slate-700 dark:text-slate-200">{count}</span>
+                                    </div>
+                                    <div className="h-2 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
+                                        <div
+                                            className={`h-full rounded-full transition-all duration-500 ${i === 0 ? 'bg-red-500' : 'bg-red-300 dark:bg-red-500/50'}`}
+                                            style={{ width: `${(count / maxType) * 100}%` }}
+                                        />
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </InsightSection>
+            </div>
+        </div>
+    );
+};
+
 /* ─── Staff Dashboard ─────────────────────────────────────────────── */
 const StaffDashboard = () => {
     const [stats, setStats] = useState({ pending: 0, active: 0, completed: 0, warnings: 0 });
     const [violators, setViolators] = useState([]);
     const [allTickets, setAllTickets] = useState([]);
-    const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
     // Violators Feed filters ('' = all): offense number, gender, department, violation type
     const [offenseFilter, setOffenseFilter] = useState('');
@@ -631,16 +726,15 @@ const StaffDashboard = () => {
     const [typeFilter, setTypeFilter] = useState('');
     const [selectedViolation, setSelectedViolation] = useState(null);
     const [todayStats, setTodayStats] = useState({ violations: 0, assigned: 0, completed: 0 });
-    const [notifications, setNotifications] = useState([]);
 
     // Every 5 s while the tab is open and visible
     usePolling(() => fetchDashboardData(), 10000);
-
-    const handleAction = async (reportId, newStatus) => {
+    const handleAction = async (reportId) => {
         try {
-            const endpoint = newStatus === 'Approved' ? 'approve' : 'dismiss';
-            const response = await fetch(`/api/violations/${reportId}/${endpoint}/`, { method: 'POST' });
+            const response = await fetch(`/api/violations/${reportId}/approve/`, { method: 'POST' });
             if (response.ok) fetchDashboardData();
+            // e.g. an unconfirmed faculty reporter blocks approval
+            else alert((await response.json().catch(() => ({}))).error || 'Something went wrong. Please try again.');
         } catch (error) {
             console.error('Error executing action:', error);
         }
@@ -674,56 +768,6 @@ const StaffDashboard = () => {
                 completed: ticketsCompletedToday.length,
             });
 
-            const newNotifications = [];
-
-            // 1. All Pending Reviews (Show all, regardless of date, sorted by newest)
-            violations.filter(v => v.status.toLowerCase().includes('pending'))
-                .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
-                .forEach(v => {
-                    const name = v.student_details?.name || 'A student';
-                    newNotifications.push({
-                        id: `pending-${v.id}`,
-                        type: 'warning',
-                        message: `Pending Review: ${name} (Action Required)`,
-                        time: formatTimeAgo(v.created_at),
-                        created_at: v.created_at
-                    });
-                });
-
-            // 2. Completed Services (Today only)
-            ticketsCompletedToday.forEach(t => {
-                const name = t.student_details?.name || 'A student';
-                newNotifications.push({
-                    id: `completed-${t.id}`,
-                    type: 'success',
-                    message: `${name} completed their assigned community service`,
-                    time: formatTimeAgo(t.updated_at),
-                    created_at: t.updated_at
-                });
-            });
-
-            // 3. Overdue Pending (Legacy warning)
-            const threeDaysAgo = new Date();
-            threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
-            violations.filter(v =>
-                v.status.toLowerCase().includes('pending') &&
-                new Date(v.created_at) < threeDaysAgo
-            ).forEach(v => {
-                const name = v.student_details?.name || 'A student';
-                const days = Math.floor((new Date() - new Date(v.created_at)) / (1000 * 60 * 60 * 24));
-                newNotifications.push({
-                    id: `overdue-${v.id}`,
-                    type: 'error',
-                    message: `${name} has not completed their pending review for ${days} days`,
-                    time: formatTimeAgo(v.created_at),
-                    created_at: v.created_at
-                });
-            });
-
-            // Sort all by date descending and take top 10
-            const sortedNotifs = newNotifications.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-            setNotifications(sortedNotifs.slice(0, 10));
-
             const pending = violations.filter(v => v.status.toLowerCase().includes('pending'));
             const activeTickets = tickets.filter(t => t.status === 'Ongoing');
             const completedTickets = tickets.filter(t => t.status === 'Completed');
@@ -739,21 +783,7 @@ const StaffDashboard = () => {
             setAllTickets(tickets);
         } catch (error) {
             console.error('Error fetching dashboard stats:', error);
-        } finally {
-            setLoading(false);
         }
-    };
-
-    const formatTimeAgo = (isoDate) => {
-        if (!isoDate) return '';
-        const diff = Date.now() - new Date(isoDate).getTime();
-        const mins = Math.floor(diff / 60000);
-        const hours = Math.floor(mins / 60);
-        const days = Math.floor(hours / 24);
-        if (days > 0) return `${days}d ago`;
-        if (hours > 0) return `${hours}h ago`;
-        if (mins > 0) return `${mins}m ago`;
-        return 'Just now';
     };
 
 const userRole = JSON.parse(localStorage.getItem('user') || '{}').role || 'staff';
@@ -790,35 +820,36 @@ const userRole = JSON.parse(localStorage.getItem('user') || '{}').role || 'staff
         // Students who finished their hours come first: they're at OSA to be cleared
         .sort((a, b) => Number(awaitsClearance(b, ticketFor(b))) - Number(awaitsClearance(a, ticketFor(a))));
     const filtersOn = Boolean(search || offenseFilter || genderFilter || departmentFilter || typeFilter);
-    const filterSelect = 'min-w-0 w-full sm:w-auto bg-white dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 rounded-xl px-2.5 py-2.5 text-xs font-bold text-slate-600 dark:text-slate-300 focus:border-ustp-blue outline-none cursor-pointer';
+    const filterSelect = 'min-w-0 w-full sm:w-auto bg-white dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 rounded-xl px-3.5 py-3 text-sm font-bold text-slate-600 dark:text-slate-300 focus:border-ustp-blue outline-none cursor-pointer';
 
     return (
         <div className="flex bg-slate-50 dark:bg-slate-900 min-h-screen relative font-sans">
-            <Sidebar role={userRole} />
+            <Sidebar role={userRole} badges={{ '/admin/pending': stats.pending }} />
             <div className="flex-1 h-screen overflow-y-auto custom-scrollbar w-full">
                 <div className="flex flex-col xl:flex-row w-full min-h-full">
                     {/* Main Content Area */}
-                    <main className="page-enter flex-1 px-4 pt-[76px] pb-10 md:p-10 lg:pt-10">
+                    {/* On wide screens the page fits the window and the Violators Feed stretches to the bottom */}
+                    <main className="page-enter flex-1 min-w-0 flex flex-col xl:h-screen px-4 pt-[76px] pb-10 md:p-10 lg:pt-10">
                         <header className="mb-5 shrink-0 flex items-center justify-between gap-4">
                             <div className="min-w-0">
-                                <p className="text-[11px] font-bold uppercase tracking-[0.15em] text-slate-400 dark:text-slate-500 mb-1">{todayLabel()}</p>
-                                <h1 className="text-2xl md:text-4xl font-extrabold text-slate-900 dark:text-white tracking-tight">{timeGreeting()}, {adminName}</h1>
-                                <p className="text-slate-500 dark:text-slate-400 mt-1 font-medium text-sm">{adminStatusLine(stats.pending)}</p>
+                                <p className="text-xs md:text-sm font-bold uppercase tracking-[0.15em] text-slate-400 dark:text-slate-500 mb-1.5">{todayLabel()}</p>
+                                <h1 className="text-3xl md:text-5xl font-extrabold text-slate-900 dark:text-white tracking-tight leading-tight">{timeGreeting()}, {adminName}</h1>
+                                <p className="text-slate-500 dark:text-slate-400 mt-2 font-medium text-base md:text-lg">{adminStatusLine(stats.pending)}</p>
                             </div>
                             {/* Light / dark, at the end of the greeting line (above the filters) */}
                             <ThemeToggle />
                         </header>
 
                         {/* Search + filters for the Violators Feed */}
-                        <div className="mb-6 flex flex-wrap gap-2.5">
+                        <div className="shrink-0 mb-6 flex flex-wrap gap-2.5">
                             <div className="relative flex-1 min-w-full sm:min-w-[200px]">
-                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500" size={18} />
+                                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500" size={20} />
                                 <input
                                     type="text"
                                     placeholder="Search name or student ID"
                                     value={searchTerm}
                                     onChange={(e) => setSearchTerm(e.target.value)}
-                                    className="w-full pl-10 pr-4 py-2.5 bg-white dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 rounded-xl focus:border-ustp-blue focus:outline-none text-sm font-semibold text-slate-600 dark:text-slate-300 placeholder:text-slate-400 dark:placeholder:text-slate-500"
+                                    className="w-full pl-11 pr-4 py-3 bg-white dark:bg-slate-800 border-2 border-black/35 dark:border-slate-300/35 rounded-xl focus:border-ustp-blue focus:outline-none text-base font-semibold text-slate-600 dark:text-slate-300 placeholder:text-slate-400 dark:placeholder:text-slate-500"
                                 />
                             </div>
                             <div className="grid grid-cols-2 gap-2.5 w-full sm:flex sm:w-auto">
@@ -843,17 +874,17 @@ const userRole = JSON.parse(localStorage.getItem('user') || '{}').role || 'staff
                             </div>
                         </div>
 
-                        <div className="space-y-6">
+                        <div className="flex-1 min-h-0 flex flex-col">
                             {/* ── Violators Feed ── */}
-                            <div className="card-premium p-4 md:p-6">
-                                <div className="flex justify-between items-center mb-4 pb-4 border-b border-slate-50 dark:border-slate-800">
+                            <div className="card-premium p-4 md:p-6 flex-1 min-h-0 flex flex-col">
+                                <div className="shrink-0 flex justify-between items-center mb-4 pb-4 border-b border-slate-50 dark:border-slate-800">
                                     <h4 className="font-bold text-slate-800 dark:text-slate-200 uppercase tracking-widest text-[10px] text-blue-900">Violators Feed</h4>
                                     <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">
                                         {filtersOn ? `${activeViolators.length} of ${feedViolations.length}` : feedViolations.length} violator{feedViolations.length === 1 ? '' : 's'}
                                     </span>
                                 </div>
 
-                            <div className="space-y-3 max-h-[600px] overflow-y-auto pr-2 custom-scrollbar">
+                            <div className="flex-1 min-h-0 space-y-3 max-h-[600px] xl:max-h-none overflow-y-auto pr-2 custom-scrollbar">
                                 {(() => {
                                     if (activeViolators.length === 0) {
                                         return (
@@ -893,7 +924,7 @@ const userRole = JSON.parse(localStorage.getItem('user') || '{}').role || 'staff
                                                     </div>
 
                                                     <div className="flex-1 overflow-hidden">
-                                                        <p className="font-bold text-slate-800 dark:text-slate-200 text-sm truncate">{report.student_details?.name || 'New Student Report'}</p>
+                                                        <p className="font-bold text-slate-800 dark:text-slate-200 text-sm truncate">{studentName(report.student_details) || 'New Student Report'}</p>
                                                         <p className="text-[10px] font-bold uppercase tracking-widest mt-0.5">
                                                             <span className="text-red-600 dark:text-red-400">{report.violation_type}</span>
                                                             {report.offense_count > 1 && <span className="text-slate-500 dark:text-slate-400"> · offense #{report.offense_count}</span>}
@@ -915,18 +946,11 @@ const userRole = JSON.parse(localStorage.getItem('user') || '{}').role || 'staff
                                                         {isPending && (
                                                             <>
                                                                 <button
-                                                                    onClick={() => handleAction(report.id, 'Approved')}
+                                                                    onClick={() => handleAction(report.id)}
                                                                     title="Approve"
                                                                     className="flex items-center justify-center text-emerald-500 hover:text-emerald-600 transition-colors"
                                                                 >
                                                                     <Check size={18} />
-                                                                </button>
-                                                                <button
-                                                                    onClick={() => handleAction(report.id, 'Dismissed')}
-                                                                    title="Dismiss"
-                                                                    className="flex items-center justify-center text-red-500 hover:text-red-600 transition-colors"
-                                                                >
-                                                                    <X size={18} />
                                                                 </button>
                                                             </>
                                                         )}
@@ -995,49 +1019,8 @@ const userRole = JSON.parse(localStorage.getItem('user') || '{}').role || 'staff
                             </div>
                         </div>
 
-                        {/* System Notifications Card */}
-                        <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-md border border-slate-100 dark:border-slate-700 p-5">
-                            <div className="flex items-center justify-between mb-5">
-                                <div className="flex items-center gap-3">
-                                    <div className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
-                                        <Bell size={20} className="text-slate-500 dark:text-slate-400" />
-                                    </div>
-                                    <h3 className="font-bold text-slate-800 dark:text-slate-200 text-sm uppercase tracking-wider">Notifications</h3>
-                                </div>
-                                {notifications.length > 0 && (
-                                    <span className="px-2.5 py-1 rounded-full bg-red-100 dark:bg-red-500/20 text-red-600 dark:text-red-400 text-[10px] font-black">{notifications.length}</span>
-                                )}
-                            </div>
-                            <div className="space-y-3 max-h-[350px] overflow-y-auto pr-1 custom-scrollbar">
-                                {notifications.length === 0 ? (
-                                    <div className="text-center py-10">
-                                        <div className="w-14 h-14 mx-auto mb-3 rounded-full bg-slate-50 dark:bg-slate-800 flex items-center justify-center">
-                                            <Bell size={24} className="text-slate-200 dark:text-slate-700" />
-                                        </div>
-                                        <p className="text-sm font-semibold text-slate-400 dark:text-slate-500">All caught up</p>
-                                        <p className="text-xs text-slate-400/60 dark:text-slate-600 mt-1">No new notifications</p>
-                                    </div>
-                                ) : (
-                                    notifications.map((notif) => (
-                                        <div
-                                            key={notif.id}
-                                            className={`p-4 rounded-xl border transition-all hover:shadow-md ${notif.type === 'warning' ? 'bg-orange-50 dark:bg-orange-500/10 border-orange-100 dark:border-orange-500/20' :
-                                                notif.type === 'error' ? 'bg-red-50 dark:bg-red-500/10 border-red-100 dark:border-red-500/20' :
-                                                    'bg-green-50 dark:bg-green-500/10 border-green-100 dark:border-green-500/20'
-                                                }`}
-                                        >
-                                            <p className={`text-sm font-semibold ${notif.type === 'warning' ? 'text-orange-800 dark:text-orange-400' :
-                                                notif.type === 'error' ? 'text-red-800 dark:text-red-400' :
-                                                    'text-green-800 dark:text-green-400'
-                                                }`}>
-                                                {notif.message}
-                                            </p>
-                                            <p className="text-xs text-slate-400 dark:text-slate-500 mt-2">{notif.time}</p>
-                                        </div>
-                                    ))
-                                )}
-                            </div>
-                        </div>
+                        <InsightsCard violators={violators} />
+
                     </div>
                 </aside>
             </div>

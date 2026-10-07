@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import { useEffect, useRef } from 'react';
 
 // Small Leaflet + OpenStreetMap preview of a service site: marker at the point and a circle
 // for its radius. Leaflet is loaded globally from index.html (window.L).

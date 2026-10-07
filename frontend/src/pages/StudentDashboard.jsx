@@ -203,7 +203,6 @@ const ServiceRemaining = ({ ticket, remainingHours }) => {
 const DashboardBody = () => {
     // Theme, and the side menu's copy of the records (its badge and "hours remaining" stay current)
     const { isDarkMode, setRecords, dataSaver } = useStudentShell();
-    const [violations, setViolations] = useState([]);
     const [tickets, setTickets] = useState([]);
 
     const [loading, setLoading] = useState(true);
@@ -301,10 +300,10 @@ const DashboardBody = () => {
                 try {
                     const errorData = await response.json();
                     if (errorData.error) errorMsg = errorData.error;
-                } catch(e) {}
+                } catch {}
                 alert(errorMsg);
             }
-        } catch (err) {
+        } catch {
             alert("Network failure processing action.");
         }
     };
@@ -557,7 +556,7 @@ const DashboardBody = () => {
             fetchStudentData();
             if (data.receipt) setReceipt(data.receipt);
             else alert(reason);
-        } catch (e) {
+        } catch {
             // No internet: the server still thinks the session is running. Save the stop with the moment it
             // really ended (when the student left the area, lost location, or finished) and send it once
             // the connection is back, so the time in between isn't counted.
@@ -599,7 +598,6 @@ const DashboardBody = () => {
             );
             const openTickets = studentTickets.filter(t => t.status === 'Ongoing' || t.status === 'Active');
 
-            setViolations(studentViolations);
             setTickets(studentTickets);
             setRecords({ violations: studentViolations, tickets: studentTickets });
 
@@ -723,7 +721,7 @@ const DashboardBody = () => {
                 actionType: 'out',
                 siteCode: payloadCode
             });
-        } catch (err) {
+        } catch {
             alert("Network failure processing action code.");
         }
     };

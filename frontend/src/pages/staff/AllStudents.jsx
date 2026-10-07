@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import usePolling from '../../lib/usePolling';
 import Sidebar from '../../components/Sidebar';
 import { Users, Search, Download, X } from 'lucide-react';
@@ -7,6 +7,7 @@ import ThemeToggle from '../../components/ThemeToggle';
 import { useServiceSites } from '../../components/useServiceSites';
 import ReportViolationModal from '../../components/ReportViolationModal';
 import { DEPARTMENTS, DEPARTMENT_COURSES, yearLevelsFor, GENDERS } from '../../lib/academics';
+import { studentName } from '../../lib/names';
 
 // Course <option>s grouped under their department
 const CourseOptions = () => DEPARTMENTS.map((dept) => (
@@ -125,8 +126,6 @@ const AllStudents = () => {
         const canvas = document.createElement('canvas');
         const ctx = canvas.getContext('2d');
         const img = new Image();
-
-        const qrData = formatQRData(student);
 
         img.onload = () => {
             canvas.width = 256;
@@ -284,10 +283,10 @@ const AllStudents = () => {
                                         <td className="py-3 pl-5 pr-3">
                                             <div className="flex items-center gap-3 min-w-[200px]">
                                                 <div className="w-10 h-10 rounded-full bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-400 flex items-center justify-center font-bold text-sm flex-shrink-0">
-                                                    {student.name ? student.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() : '??'}
+                                                    {student.name ? studentName(student).split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() : '??'}
                                                 </div>
                                                 <div className="min-w-0">
-                                                    <span className="font-bold text-slate-800 dark:text-slate-200 text-sm block">{student.name}</span>
+                                                    <span className="font-bold text-slate-800 dark:text-slate-200 text-sm block">{studentName(student)}</span>
                                                     <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">{student.student_id}</span>
                                                 </div>
                                             </div>

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ChevronDown, Mail, Phone, MapPin, Clock, Scale, LifeBuoy, ShieldCheck, ClipboardList } from 'lucide-react';
 import Sidebar from '../components/Sidebar';
 // Shared with the mobile app (mobile/app/help.jsx); see the _about note in the file
