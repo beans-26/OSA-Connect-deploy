@@ -8,8 +8,8 @@ import api from '../services/api';
 
 // Keeps checking the student's location (every 10 s) while a service session runs, also when the app is in the
 // background (Android foreground service, "Allow all the time" location). Every fix goes to
-// POST /timelogs/location_ping/, and the server decides: 30 s outside the site or location turned
-// off ends the session. When that happens the student gets a notification.
+// POST /timelogs/location_ping/, and the server decides: outside the site pauses the timer, and 30 minutes
+// away in one go or location turned off ends the session. When that happens the student gets a notification.
 // Needs a development/standalone build: Expo Go can't run background location, so there the pings
 // only go out while the app is open.
 
@@ -25,7 +25,7 @@ Notifications.setNotificationHandler({
 });
 
 const STOPPED_TEXT = {
-    left_area: 'You left your service area, so your service timer stopped. Open OSAConnect to see your receipt.',
+    left_area: 'You were away from your service area for 30 minutes, so your service timer stopped. Open OSAConnect to see your receipt.',
     location_off: 'Your location was turned off, so your service timer stopped. Open OSAConnect to see your receipt.',
 };
 

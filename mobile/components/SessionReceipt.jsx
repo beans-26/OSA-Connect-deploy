@@ -44,6 +44,13 @@ export function SessionReceiptBody({ receipt, hideDate = false }) {
             <Line styles={styles} label="TIME IN" value={receiptTime(receipt.time_in)} />
             <Line styles={styles} label="TIME OUT" value={receipt.time_out ? receiptTime(receipt.time_out) : 'Still running'} />
             <Line styles={styles} label="TIME SERVED" value={formatDuration(receipt.duration_seconds)} />
+            {/* Time outside the service area: the timer was paused, so it isn't part of Time Served */}
+            <Line
+                styles={styles}
+                label="OUT OF AREA"
+                value={receipt.paused_seconds > 0 ? formatDuration(receipt.paused_seconds) : 'None'}
+                color={receipt.paused_seconds > 0 ? '#b45309' : undefined}
+            />
             <Line
                 styles={styles}
                 label="ENDED BY"
