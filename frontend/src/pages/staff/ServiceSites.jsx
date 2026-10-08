@@ -11,7 +11,7 @@ import { captureLocation, getLocationPermission, GEO_MESSAGES } from '../../lib/
 // Admin Settings > Service Sites: register community service locations from the admin's phone GPS.
 // Each site's QR encodes only its site code (e.g. "LIB-01"), so re-capturing keeps printed codes valid.
 
-const RADIUS_MIN = 10;
+const RADIUS_MIN = 3;
 const RADIUS_MAX = 300;
 // Students with an unfinished ticket at a site at once; the backend asks before going over
 const CAPACITY_MIN = 1;
