@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { AlertTriangle, Play, QrCode, Clock, Info, ChevronRight, CheckCircle2 } from 'lucide-react';
+import { AlertTriangle, Play, QrCode, Clock, Info, ChevronRight, CheckCircle2, WifiOff } from 'lucide-react';
 import saluteFace from '../assets/salute.png';
 import { ticketStatusLabel, deadlineNotice } from '../lib/ticketStatus';
 import usePolling from '../lib/usePolling';
@@ -119,6 +119,9 @@ const COMPLETED_SEEN_KEY = 'osa-completed-notice-seen';
 // distance }. Sent as soon as the connection is back, with the time it really ended (e.g. when the student
 // left the area), so time away while offline isn't counted. Until then the timer isn't restarted.
 const PENDING_STOP_KEY = 'osa-pending-stop';
+// Shown when the student tries to end a session with no internet (the time-out has to reach the server)
+const OFFLINE_END_MESSAGE = "No internet connection.\n\nTurn on your Wi-Fi or mobile data, then scan your service site's QR code again to end your session.";
+
 const readPendingStop = () => {
     try { return JSON.parse(localStorage.getItem(PENDING_STOP_KEY) || 'null'); } catch { return null; }
 };
@@ -208,6 +211,17 @@ const DashboardBody = () => {
     const [loading, setLoading] = useState(true);
     const [isScanning, setIsScanning] = useState(false);
     const [showStopScanner, setShowStopScanner] = useState(false);
+    // Ending a session needs the server: while the phone is offline the student is told to turn on Wi-Fi or data
+    const [isOnline, setIsOnline] = useState(() => navigator.onLine);
+    useEffect(() => {
+        const update = () => setIsOnline(navigator.onLine);
+        window.addEventListener('online', update);
+        window.addEventListener('offline', update);
+        return () => {
+            window.removeEventListener('online', update);
+            window.removeEventListener('offline', update);
+        };
+    }, []);
     const [timerActive, setTimerActive] = useState(false);
     const [startTime, setStartTime] = useState(null);
     const [elapsed, setElapsed] = useState(0);
@@ -304,7 +318,9 @@ const DashboardBody = () => {
                 alert(errorMsg);
             }
         } catch {
-            alert("Network failure processing action.");
+            alert(pendingActionData.actionType === 'out'
+                ? OFFLINE_END_MESSAGE
+                : "Can't reach the server. Turn on your Wi-Fi or mobile data and try again.");
         }
     };
 
@@ -715,6 +731,10 @@ const DashboardBody = () => {
             return;
         }
 
+        if (!navigator.onLine) {
+            alert(OFFLINE_END_MESSAGE);
+            return;
+        }
         try {
             await submitAction({
                 ticketId: activeTicket.id,
@@ -879,8 +899,17 @@ const DashboardBody = () => {
                                 )}
                                 {/* Greyed out while the student is outside the site's area: the time-out QR is at the
                                     site, and it turns red again as soon as they're back inside */}
+                                {!isOnline && (
+                                    <div className="mt-4 flex items-start gap-3 rounded-[18px] border border-[#fde68a] bg-[#fffbeb] px-4 py-3">
+                                        <WifiOff size={20} className="mt-0.5 shrink-0 text-[#b45309]" />
+                                        <div>
+                                            <p className="text-[13px] font-black text-[#92400e]">No internet connection</p>
+                                            <p className="mt-0.5 text-xs font-semibold text-[#b45309]">Turn on your Wi-Fi or mobile data to end your session.</p>
+                                        </div>
+                                    </div>
+                                )}
                                 <button
-                                    onClick={() => setShowStopScanner(true)}
+                                    onClick={() => (navigator.onLine ? setShowStopScanner(true) : alert(OFFLINE_END_MESSAGE))}
                                     disabled={endCooldown > 0 || isOutOfBounds}
                                     title={isOutOfBounds ? 'Go back inside the service area to end your session' : undefined}
                                     className={`mt-4 w-full rounded-2xl p-4 text-sm font-bold uppercase tracking-[1px] text-white transition-all ${isOutOfBounds

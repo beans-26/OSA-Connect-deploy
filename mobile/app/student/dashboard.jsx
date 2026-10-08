@@ -536,6 +536,11 @@ export default function Dashboard() {
                 fetchData();
             }
         } catch (error) {
+            // Ending a session with no internet: the time-out has to reach the server, so say how to fix it
+            if (!error.response && actionType === 'out') {
+                showAlert('No Internet Connection', "Turn on your Wi-Fi or mobile data, then scan your service site's QR code again to end your session.");
+                return;
+            }
             // Say whether the server refused (its message), crashed, or couldn't be reached at all
             showAlert('Error', error.response
                 ? (error.response.data?.error || `Server error (${error.response.status}). Please try again.`)
