@@ -12,7 +12,7 @@ from rest_framework.response import Response
 
 from .models import ServiceSite, SystemUser, utc_now
 
-RADIUS_MIN, RADIUS_MAX, RADIUS_DEFAULT = 10, 300, 50
+RADIUS_MIN, RADIUS_MAX, RADIUS_DEFAULT = 3, 300, 50
 CAPACITY_MIN, CAPACITY_MAX, CAPACITY_DEFAULT = 1, 500, 10
 SITE_CODE_PATTERN = re.compile(r'^[A-Z0-9]{2,10}-[A-Z0-9]{1,6}$')
 

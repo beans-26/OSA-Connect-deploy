@@ -254,7 +254,7 @@ class ServiceSite(Document):
     description = StringField(default='')
     latitude = FloatField(required=True, min_value=-90, max_value=90)  # stored rounded to 7 decimals
     longitude = FloatField(required=True, min_value=-180, max_value=180)
-    radius_m = IntField(default=50, min_value=10, max_value=300)
+    radius_m = IntField(default=50, min_value=3, max_value=300)
     capacity = IntField(default=10, min_value=1, max_value=500)  # students with an unfinished ticket here at once
     accuracy_m = IntField()  # averaged GPS accuracy at capture time
     sample_count = IntField()  # number of GPS readings averaged
