@@ -181,7 +181,9 @@ def ticket_list_extras(tickets):
     unfinished_at = [t.id for t in tickets if t.status == 'Completed' and not t.completed_at]
     today_start = _utc_midnight(utc_now().replace(tzinfo=datetime.timezone.utc).astimezone(PH).date())
     served_today = set(logs.distinct('eticket', {'eticket': {'$in': active}, 'time_in': {'$gte': today_start}})) if active else set()
-    open_since = {d['eticket']: d['time_in'] for d in logs.find({'eticket': {'$in': ongoing}, 'time_out': None}, {'eticket': 1, 'time_in': 1})} if ongoing else {}
+    # The running session: when it started, and its time outside the site so far (not counted as served)
+    open_since = {d['eticket']: d for d in logs.find({'eticket': {'$in': ongoing}, 'time_out': None},
+                                                    {'eticket': 1, 'time_in': 1, 'paused_seconds': 1, 'outside_since': 1})} if ongoing else {}
     last_out = {d['_id']: d['t'] for d in logs.aggregate([
         {'$match': {'eticket': {'$in': unfinished_at}, 'time_out': {'$ne': None}}},
         {'$group': {'_id': '$eticket', 't': {'$max': '$time_out'}}},
@@ -2042,7 +2044,7 @@ def _outside_site_error(request, lat, lng, radius, place):
 # How a session ended, shown on the time-out receipt
 TIMELOG_END_REASONS = {
     'scanned_out': 'Scanned the time-out QR',
-    'left_area': 'Left the service area',
+    'left_area': 'Away from the service area too long',
     'location_off': 'Location turned off or lost',
     'app_closed': 'Left the app',
     'logout': 'Logged out',
@@ -2096,6 +2098,8 @@ def timelog_receipt(log, eticket=None):
         'time_in': _aware_iso(log.time_in),
         'time_out': _aware_iso(log.time_out),
         'duration_seconds': round(log.duration_seconds or 0),
+        # Time outside the service area (the timer was paused; not counted as served)
+        'paused_seconds': round(session_paused_seconds(log, log.time_out or utc_now())),
         'end_reason': reason,
         'end_reason_label': TIMELOG_END_REASONS.get(reason, 'Still running' if not log.time_out else reason),
         'out_lat': log.out_lat,
@@ -2108,20 +2112,31 @@ def timelog_receipt(log, eticket=None):
     }
 
 
-# Tracked sessions: outside the site this long ends the session (same as the dashboards' countdown).
-# Turning location off is reported by the app within seconds and ends the session right away.
+# Tracked sessions: leaving the site pauses the timer (the time outside isn't counted) and coming back
+# resumes it, so a student sent on an errand doesn't lose the session. Away for PAUSE_LIMIT_S in one go
+# ends it. Turning location off is reported by the app within seconds and ends the session right away.
 # Hearing nothing at all is different: Android delays background location to save battery, so a
 # silent phone gets NO_LOCATION_LIMIT_S before the session ends as "location lost".
-OUT_OF_AREA_LIMIT_S = 30
+PAUSE_LIMIT_S = 30 * 60
 NO_LOCATION_LIMIT_S = 120
 SILENT_CHECK_EVERY_S = 15  # the check below runs at most this often per server process
 _last_silent_check = [0.0]
 
 
+def session_paused_seconds(log, until):
+    """Seconds this session spent outside the site up to `until`: earlier trips plus the current one."""
+    paused = log.paused_seconds or 0
+    if log.outside_since and until and until > log.outside_since:
+        paused += (until - log.outside_since).total_seconds()
+    return paused
+
+
 def end_session(log, eticket, reason, time_out=None, lat=None, lng=None, distance=None):
-    """Closes a running session, deducts the time served, and returns its receipt."""
+    """Closes a running session, deducts the time served (minus the time spent outside the site), and
+    returns its receipt."""
     log.time_out = max(time_out or utc_now(), log.time_in)
-    duration = (log.time_out - log.time_in).total_seconds()
+    log.paused_seconds = min(session_paused_seconds(log, log.time_out), (log.time_out - log.time_in).total_seconds())
+    duration = max(0, (log.time_out - log.time_in).total_seconds() - log.paused_seconds)
     log.duration_seconds = duration
     log.end_reason = reason if reason in TIMELOG_END_REASONS else 'scanned_out'
     log.out_lat, log.out_lng, log.out_distance_m = lat, lng, distance
@@ -2285,9 +2300,10 @@ class TimeLogViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=['post'])
     def location_ping(self, request):
         """The student's position during a tracked session, sent every ~15 s by the Android background
-        task and the open website. The server decides: outside the site for OUT_OF_AREA_LIMIT_S ends the
-        session ("Left the service area"); location_off ends it at the last confirmed position.
-        Returns {state: 'running' | 'stopped' | 'none', ...}; 'stopped' includes the receipt."""
+        task and the open website. The server decides: outside the site pauses the timer (that time isn't
+        counted) until the student is back, and PAUSE_LIMIT_S away in one go ends the session; location_off
+        ends it at the last confirmed position.
+        Returns {state: 'running' | 'paused' | 'stopped' | 'none', ...}; 'stopped' includes the receipt."""
         try:
             eticket = ETicket.objects.get(id=request.data.get('eticket_id'))
         except Exception:
@@ -2319,22 +2335,26 @@ class TimeLogViewSet(viewsets.ModelViewSet):
         log.last_ping_at, log.last_lat, log.last_lng = now, lat, lng
         if distance <= allowed:
             if log.outside_since:
+                # Back at the site: the trip is added to the paused time and the timer runs again
+                log.paused_seconds = session_paused_seconds(log, now)
                 log.events = (log.events or []) + [{'type': 'returned', 'at': now, 'lat': lat, 'lng': lng, 'distance_m': distance}]
                 log.outside_since = None
             log.save()
-            return Response({"state": "running", "inside": True, "distance_m": distance})
+            return Response({"state": "running", "inside": True, "distance_m": distance,
+                             "paused_seconds": round(log.paused_seconds or 0)})
 
+        # Outside the site: the timer is paused from now until the student is back
         if not log.outside_since:
             log.outside_since = now
             log.events = (log.events or []) + [{'type': 'left_area', 'at': now, 'lat': lat, 'lng': lng, 'distance_m': distance}]
-            log.save()
         outside_s = (now - log.outside_since).total_seconds()
-        if outside_s >= OUT_OF_AREA_LIMIT_S:
+        if outside_s >= PAUSE_LIMIT_S:
             receipt = end_session(log, eticket, 'left_area', lat=lat, lng=lng, distance=distance)
             return Response({"state": "stopped", "reason": "left_area", "receipt": receipt})
         log.save()
-        return Response({"state": "running", "inside": False, "distance_m": distance,
-                         "seconds_left": max(0, round(OUT_OF_AREA_LIMIT_S - outside_s))})
+        return Response({"state": "paused", "inside": False, "distance_m": distance,
+                         "paused_seconds": round(session_paused_seconds(log, now)),
+                         "seconds_left": max(0, round(PAUSE_LIMIT_S - outside_s))})
 
     @action(detail=False, methods=['post'])
     def log_event(self, request):

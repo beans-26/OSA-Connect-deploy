@@ -209,7 +209,9 @@ class TimeLog(Document):
     last_ping_at = DateTimeField()  # last time the student's position was confirmed
     last_lat = FloatField()
     last_lng = FloatField()
-    outside_since = DateTimeField()  # set while the student is outside the site
+    outside_since = DateTimeField()  # set while the student is outside the site (the timer is paused)
+    # Time spent outside the site in earlier trips this session; not counted as served (the receipt's "Out of area")
+    paused_seconds = FloatField(default=0)
     meta = {'collection': 'timelogs', 'auto_create_index': False, 'strict': False}
 
 class SystemUser(Document):

@@ -229,7 +229,8 @@ const DashboardBody = () => {
     const [isOutOfBounds, setIsOutOfBounds] = useState(false);
     const [monitoringLocation, setMonitoringLocation] = useState(false);
     const [currentDistance, setCurrentDistance] = useState(0);
-    const [warningCountdown, setWarningCountdown] = useState(null);
+    // Seconds the student has been outside the service area (the timer is paused), or null when inside
+    const [awaySeconds, setAwaySeconds] = useState(null);
     // Time-out receipt shown after a session ends (scanned out or stopped automatically)
     const [receipt, setReceipt] = useState(null);
     // E-ticket opened from the list (its details and service log)
@@ -351,7 +352,8 @@ const DashboardBody = () => {
     // Live countdown timer logic
     useEffect(() => {
         let interval;
-        if (timerActive && startTime) {
+        // Paused while the student is outside the service area: the shown time stays where it was
+        if (timerActive && startTime && !isOutOfBounds) {
             interval = setInterval(() => {
                 const secondsSinceStart = Math.floor((Date.now() - startTime) / 1000);
                 setElapsed(secondsSinceStart);
@@ -364,7 +366,7 @@ const DashboardBody = () => {
             }, 1000);
         }
         return () => clearInterval(interval);
-    }, [timerActive, startTime, displayHours]);
+    }, [timerActive, startTime, displayHours, isOutOfBounds]);
 
     // Before a session: show where the student is relative to their site (no geofence yet)
     const approachWatchRef = useRef(null);
@@ -389,8 +391,8 @@ const DashboardBody = () => {
     }, [timerActive, activeTicket?.id, activeTicket?.lat, activeTicket?.lng]);
 
     // Sends the student's position to the server (every 15 s while the page is open, and right away on
-    // return). The server ends the session after 30 s outside the site or when location is off; then
-    // the receipt shows here. Browsers pause the page in the background, so nothing is sent then.
+    // return). The server pauses the timer while the student is outside the site, and ends the session
+    // after 30 minutes away or when location is off; then the receipt shows here. Browsers pause the page in the background, so nothing is sent then.
     const lastPingRef = useRef(0);
     const sendLocationPing = async (body, force = false) => {
         if (!activeTicket || (!force && Date.now() - lastPingRef.current < 14000)) return;
@@ -406,7 +408,7 @@ const DashboardBody = () => {
                 setTimerActive(false);
                 setStartTime(null);
                 setElapsed(0);
-                setWarningCountdown(null);
+                setAwaySeconds(null);
                 if (data.state === 'stopped' && data.receipt) setReceipt(data.receipt);
                 fetchStudentData();
             }
@@ -502,39 +504,37 @@ const DashboardBody = () => {
         // Keyed on the ticket's fields so the 5s poll (new objects each time) doesn't restart GPS tracking
     }, [timerActive, activeTicket?.id, activeTicket?.lat, activeTicket?.lng, activeTicket?.radius]);
 
-    // Out of bounds: count down from OUT_OF_BOUNDS_S, stop the session at 0, reset when back inside.
-    // Also records leaving and coming back for the time-out receipt.
-    const OUT_OF_BOUNDS_S = 30;
+    // Out of the area: the timer pauses (the server doesn't count the time outside) and resumes when the
+    // student is back, so being sent on an errand doesn't end the session. The server ends it after
+    // PAUSE_LIMIT_MIN minutes away. Leaving and coming back are sent right away, so the server's record
+    // matches what the student sees.
+    const PAUSE_LIMIT_MIN = 30;
     const wasOutRef = useRef(false);
-    const leftAtRef = useRef(null); // when the student last left the area (for a stop saved offline)
+    const leftAtRef = useRef(null); // when the student last left the area
     useEffect(() => {
         if (!timerActive) {
             wasOutRef.current = false;
-            setWarningCountdown(null);
+            setAwaySeconds(null);
             return;
         }
+        const { lat, lng, accuracy } = lastFixRef.current;
         if (!isOutOfBounds) {
-            if (wasOutRef.current) logSessionEvent('returned');
-            wasOutRef.current = false;
-            setWarningCountdown(null);
+            if (wasOutRef.current) {
+                wasOutRef.current = false;
+                setAwaySeconds(null);
+                // Back inside: tell the server now, then take the timer from it (the time away left out)
+                if (lat != null) sendLocationPing({ lat, lng, accuracy_m: accuracy }, true).then(() => fetchStudentData());
+            }
             return;
         }
         wasOutRef.current = true;
-        logSessionEvent('left_area');
         const leftAt = Date.now();
         leftAtRef.current = leftAt;
-        setWarningCountdown(OUT_OF_BOUNDS_S);
-        const timer = setInterval(() => {
-            setWarningCountdown(Math.max(0, OUT_OF_BOUNDS_S - Math.floor((Date.now() - leftAt) / 1000)));
-        }, 250);
+        if (lat != null) sendLocationPing({ lat, lng, accuracy_m: accuracy }, true);
+        setAwaySeconds(0);
+        const timer = setInterval(() => setAwaySeconds(Math.floor((Date.now() - leftAt) / 1000)), 1000);
         return () => clearInterval(timer);
     }, [isOutOfBounds, timerActive]);
-
-    useEffect(() => {
-        if (warningCountdown === 0) {
-            autoStopTimer(`Geofencing restriction: You were out of bounds for more than ${OUT_OF_BOUNDS_S} seconds.`, 'left_area');
-        }
-    }, [warningCountdown]);
 
     const calculateDistance = (lat1, lon1, lat2, lon2) => {
         const R = 6371e3; // Earth radius in meters
@@ -568,7 +568,7 @@ const DashboardBody = () => {
             setTimerActive(false);
             setStartTime(null);
             setElapsed(0);
-            setWarningCountdown(null);
+            setAwaySeconds(null);
             fetchStudentData();
             if (data.receipt) setReceipt(data.receipt);
             else alert(reason);
@@ -584,7 +584,7 @@ const DashboardBody = () => {
             setTimerActive(false);
             setStartTime(null);
             setElapsed(0);
-            setWarningCountdown(null);
+            setAwaySeconds(null);
             alert(`${reason}\n\nYou're offline, so your session was stopped at ${clockTime(endedAt)}. It will be recorded as soon as you're connected again; the time after that isn't counted.`);
         } finally {
             autoStoppingRef.current = false;
@@ -868,7 +868,7 @@ const DashboardBody = () => {
                                         {!monitoringLocation || !location
                                             ? 'Fetching location...'
                                             : isOutOfBounds
-                                                ? `Out of bounds — ${Math.round(currentDistance)}m away`
+                                                ? `Out of area, timer paused — ${Math.round(currentDistance)}m away`
                                                 : `Within service area — ${Math.round(currentDistance)}m from hub`}
                                     </span>
                                 </div>
@@ -878,16 +878,19 @@ const DashboardBody = () => {
                                     <MapGate><GeofenceMap hub={hub} location={location} isOutOfBounds={isOutOfBounds} isDarkMode={isDarkMode} /></MapGate>
                                 )}
 
-                                {warningCountdown !== null && (
-                                    <div className="mt-4 flex items-center justify-between rounded-[18px] bg-[#e11d48] px-[18px] py-3.5 shadow-[0_4px_6px_rgba(225,29,72,0.2)]">
+                                {/* Outside the area: the timer is paused until the student is back */}
+                                {awaySeconds !== null && (
+                                    <div className="mt-4 flex items-center justify-between rounded-[18px] bg-[#d97706] px-[18px] py-3.5 shadow-[0_4px_6px_rgba(217,119,6,0.2)]">
                                         <div className="flex flex-1 items-center">
                                             <AlertTriangle size={24} strokeWidth={2.5} className="text-white" />
                                             <div className="ml-3">
-                                                <p className="text-[13px] font-black uppercase tracking-[0.5px] text-white">Warning: Out of Boundary</p>
-                                                <p className="mt-0.5 text-xs font-semibold text-[#fecdd3]">Return to area immediately!</p>
+                                                <p className="text-[13px] font-black uppercase tracking-[0.5px] text-white">Timer paused: out of area</p>
+                                                <p className="mt-0.5 text-xs font-semibold text-[#fef3c7]">Go back to your service site to continue. Your session ends after {PAUSE_LIMIT_MIN} minutes away.</p>
                                             </div>
                                         </div>
-                                        <div className="rounded-xl bg-white px-3 py-1.5 text-xl font-black text-[#e11d48]">{warningCountdown}</div>
+                                        <div className="ml-3 rounded-xl bg-white px-3 py-1.5 text-lg font-black tabular-nums text-[#d97706]">
+                                            {Math.floor(awaySeconds / 60)}:{String(awaySeconds % 60).padStart(2, '0')}
+                                        </div>
                                     </div>
                                 )}
 

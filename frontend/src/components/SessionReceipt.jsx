@@ -1,4 +1,4 @@
-import { MapPin, LogIn, LogOut, Timer, AlertTriangle, CheckCircle2, CalendarDays } from 'lucide-react';
+import { MapPin, MapPinOff, LogIn, LogOut, Timer, AlertTriangle, CheckCircle2, CalendarDays } from 'lucide-react';
 
 // Time-out receipt for one service session (timelog_receipt in backend/core/views.py), in the student
 // theme (the --s-* colors of .student-ui). Shown after time out and in the e-ticket's service log.
@@ -40,6 +40,13 @@ export const SessionReceiptBody = ({ receipt, hideDate = false }) => {
             <Line icon={LogIn} label="Time In" value={receiptTime(receipt.time_in)} />
             <Line icon={LogOut} label="Time Out" value={receipt.time_out ? receiptTime(receipt.time_out) : 'Still running'} />
             <Line icon={Timer} label="Time Served" value={formatDuration(receipt.duration_seconds)} />
+            {/* Time outside the service area: the timer was paused, so it isn't part of Time Served */}
+            <Line
+                icon={MapPinOff}
+                label="Out of Area"
+                value={receipt.paused_seconds > 0 ? formatDuration(receipt.paused_seconds) : 'None'}
+                color={receipt.paused_seconds > 0 ? '#b45309' : undefined}
+            />
             <Line
                 icon={flagged ? AlertTriangle : CheckCircle2}
                 label="Ended By"

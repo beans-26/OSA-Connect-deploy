@@ -25,8 +25,10 @@ import { StudentTopBar, useStudentShell } from '../../components/StudentShell';
 import MapGate from '../../components/MapGate';
 import { IDLE_REFRESH_MS, SAVER_REFRESH_MS } from '../../components/studentNotifications';
 
-// Out of the area (or location off) this long stops the session; same as the website
+// Location off this long stops the session; same as the website
 const OUT_OF_BOUNDS_S = 30;
+// Outside the service area the timer pauses; this long away in one go ends the session (the server decides)
+const PAUSE_LIMIT_MIN = 30;
 
 // Haversine formula
 const getDistance = (lat1, lon1, lat2, lon2) => {
@@ -125,8 +127,10 @@ export default function Dashboard() {
     const [isOutOfBounds, setIsOutOfBounds] = useState(false);
     const [currentDistance, setCurrentDistance] = useState(0);
     const [scanCooldown, setScanCooldown] = useState(0);
-    // Seconds left before an out-of-area / location-off session is stopped (null when fine)
+    // Seconds left before a location-off session is stopped (null when fine)
     const [warningCountdown, setWarningCountdown] = useState(null);
+    // Seconds the student has been outside the service area (the timer is paused), or null when inside
+    const [awaySeconds, setAwaySeconds] = useState(null);
     // Time-out receipt shown after a session ends
     const [receipt, setReceipt] = useState(null);
     // E-ticket opened from the list (its details and service log)
@@ -297,7 +301,7 @@ export default function Dashboard() {
             if (data?.receipt) setReceipt(data.receipt);
             else showAlert('Session stopped', endReason === 'location_off'
                 ? 'Your location was off for too long, so your timer was stopped.'
-                : `You were outside your service area for more than ${OUT_OF_BOUNDS_S} seconds, so your timer was stopped.`);
+                : `You were away from your service area for more than ${PAUSE_LIMIT_MIN} minutes, so your timer was stopped.`);
             fetchData();
         } catch (e) {
             showAlert('Error', e.response?.data?.error || 'Could not stop the session. Check your connection.');
@@ -306,18 +310,18 @@ export default function Dashboard() {
         }
     };
 
-    // Out of the area or location off: count down from OUT_OF_BOUNDS_S and stop the session at 0.
-    // Leaving, coming back, and location off/on are recorded for the receipt.
+    // Location off: count down from OUT_OF_BOUNDS_S and stop the session at 0 (recorded for the receipt).
+    // Out of the area: the timer pauses until the student is back (the server leaves that time out, and
+    // records leaving and coming back); see the effect below.
     const problem = !timerActive ? null : !locationEnabled ? 'location_off' : isOutOfBounds ? 'left_area' : null;
     useEffect(() => {
         const previous = problemRef.current;
         problemRef.current = problem;
         if (timerActive && previous !== problem) {
-            if (previous === 'left_area') logSessionEvent('returned');
             if (previous === 'location_off') logSessionEvent('location_on');
-            if (problem) logSessionEvent(problem);
+            if (problem === 'location_off') logSessionEvent(problem);
         }
-        if (!problem) {
+        if (problem !== 'location_off') {
             setWarningCountdown(null);
             return;
         }
@@ -330,8 +334,32 @@ export default function Dashboard() {
     }, [problem]);
 
     useEffect(() => {
-        if (warningCountdown === 0 && problem) autoStopSession(problem);
+        if (warningCountdown === 0 && problem === 'location_off') autoStopSession(problem);
     }, [warningCountdown]);
+
+    // Out of the area: the timer pauses and resumes when the student is back, so being sent on an errand
+    // doesn't end the session. Leaving and coming back are sent to the server right away, so its record
+    // matches what the student sees; back inside, the timer is taken from the server (time away left out).
+    const away = timerActive && locationEnabled && isOutOfBounds;
+    const wasAwayRef = useRef(false);
+    useEffect(() => {
+        const { lat, lng, accuracy } = lastFixRef.current;
+        const ping = () => (lat != null
+            ? sendLocationPing({ lat, lng, accuracy_m: accuracy }, { force: true }).catch(() => null)
+            : Promise.resolve(null));
+        if (!away) {
+            setAwaySeconds(null);
+            if (wasAwayRef.current && timerActive) ping().then(() => fetchData());
+            wasAwayRef.current = false;
+            return;
+        }
+        wasAwayRef.current = true;
+        ping();
+        const leftAt = Date.now();
+        setAwaySeconds(0);
+        const timer = setInterval(() => setAwaySeconds(Math.floor((Date.now() - leftAt) / 1000)), 1000);
+        return () => clearInterval(timer);
+    }, [away]);
 
 
     useEffect(() => {
@@ -353,16 +381,17 @@ export default function Dashboard() {
         return () => clearInterval(interval);
     }, []);
 
-    // Wall-clock elapsed since time-in, matching how the backend deducts hours
+    // Wall-clock elapsed since time-in, matching how the backend deducts hours. Paused while the student is
+    // outside the service area: the shown time stays where it was.
     useEffect(() => {
-        if (!timerActive || !startTime) return;
+        if (!timerActive || !startTime || away) return;
 
         const tickInterval = setInterval(() => {
             setElapsedSeconds(Math.max(0, Math.floor((Date.now() - startTime) / 1000)));
         }, 1000);
 
         return () => clearInterval(tickInterval);
-    }, [timerActive, startTime]);
+    }, [timerActive, startTime, away]);
 
     const setupLocationTracking = async () => {
         try {
@@ -421,7 +450,7 @@ export default function Dashboard() {
         if (!location || !targetLocation || !timerActive || !locationEnabled) return;
         const dist = getDistance(location.latitude, location.longitude, targetLocation.lat, targetLocation.lng);
         setCurrentDistance(dist);
-        lastFixRef.current = { lat: location.latitude, lng: location.longitude, distance: Math.round(dist) };
+        lastFixRef.current = { lat: location.latitude, lng: location.longitude, accuracy: location.accuracy, distance: Math.round(dist) };
         // Radius plus a GPS accuracy buffer, the same rule as the website
         setIsOutOfBounds(dist > targetLocation.radius + (location.accuracy || 0) * 0.7);
         // The server keeps the session only while it keeps hearing where the student is
@@ -738,17 +767,22 @@ export default function Dashboard() {
                                     </View>
                                 </View>
                                 </MapGate>
-                                {isOutOfBounds && locationEnabled && (
-                                    <View style={styles.redWarningBanner}>
+                                {/* Outside the area: the timer is paused until the student is back */}
+                                {away && (
+                                    <View style={[styles.redWarningBanner, { backgroundColor: '#d97706', shadowColor: '#d97706' }]}>
                                         <View style={styles.redWarningLeft}>
                                             <AlertTriangle size={24} color="#ffffff" strokeWidth={2.5} />
                                             <View style={styles.redWarningTextContainer}>
-                                                <Text style={styles.redWarningTitle}>WARNING: OUT OF BOUNDARY</Text>
-                                                <Text style={styles.redWarningSubtitle}>Return to area immediately!</Text>
+                                                <Text style={styles.redWarningTitle}>TIMER PAUSED: OUT OF AREA</Text>
+                                                <Text style={[styles.redWarningSubtitle, { color: '#fef3c7' }]}>
+                                                    Go back to your service site to continue. Your session ends after {PAUSE_LIMIT_MIN} minutes away.
+                                                </Text>
                                             </View>
                                         </View>
                                         <View style={styles.redWarningTimerBox}>
-                                            <Text style={styles.redWarningTimerText}>{warningCountdown ?? OUT_OF_BOUNDS_S}</Text>
+                                            <Text style={[styles.redWarningTimerText, { color: '#d97706' }]}>
+                                                {Math.floor((awaySeconds || 0) / 60)}:{String((awaySeconds || 0) % 60).padStart(2, '0')}
+                                            </Text>
                                         </View>
                                     </View>
                                 )}

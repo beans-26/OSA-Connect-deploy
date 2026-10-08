@@ -87,13 +87,21 @@ class ETicketSerializer(serializers.DocumentSerializer):
         if instance.status == 'Ongoing':
             try:
                 if extras is not None:
-                    time_in = extras['open_since'].get(instance.id)
+                    open_log = extras['open_since'].get(instance.id) or {}
                 else:
-                    open_log = TimeLog.objects.filter(eticket=instance, time_out=None).first()
-                    time_in = open_log.time_in if open_log else None
+                    log = TimeLog.objects.filter(eticket=instance, time_out=None).only('time_in', 'paused_seconds', 'outside_since').first()
+                    open_log = {'time_in': log.time_in, 'paused_seconds': log.paused_seconds, 'outside_since': log.outside_since} if log else {}
+                time_in = open_log.get('time_in')
                 if time_in:
+                    now = utc_now()
+                    # Time outside the site pauses the timer: earlier trips plus the one going on now
+                    outside_since = open_log.get('outside_since')
+                    paused = (open_log.get('paused_seconds') or 0) + (
+                        (now - outside_since).total_seconds() if outside_since and now > outside_since else 0)
                     data['active_time_in'] = time_in.isoformat()
-                    elapsed = (utc_now() - time_in).total_seconds() / 3600
+                    data['active_paused_seconds'] = round(paused)
+                    data['active_outside'] = bool(outside_since)
+                    elapsed = max(0, (now - time_in).total_seconds() - paused) / 3600
                     data['remaining_hours'] = max(0, instance.remaining_hours - elapsed)
             except: pass
 
