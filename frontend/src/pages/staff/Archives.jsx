@@ -5,6 +5,7 @@ import Sidebar from '../../components/Sidebar';
 import { Archive, CheckCircle, Search, ChevronDown, XCircle, Download} from 'lucide-react';
 import ThemeToggle from '../../components/ThemeToggle';
 import ArchivedCase from '../../components/ArchivedCase';
+import PhotoViewer from '../../components/PhotoViewer';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
@@ -20,6 +21,8 @@ const Archives = () => {
     const [loadState, setLoadState] = useState('loading'); // loading | ready | error
     // The case opened by clicking it (its id, so the 30 s refresh shows the latest data)
     const [openCaseId, setOpenCaseId] = useState(null);
+    // A clearance photo opened from a case's ISO form / reflection paper button: { image, title }
+    const [viewing, setViewing] = useState(null);
 
     // Archives change rarely: every minute, only while the tab is visible
     usePolling(() => fetchData(), 60000);
@@ -58,17 +61,14 @@ const Archives = () => {
     const dismissedViolations = violations.filter(v => (v.status || '').toLowerCase() === 'dismissed');
     const archivedViolations = tab === 'dismissed' ? dismissedViolations : completedViolations;
 
-    // Opens an uploaded clearance photo (kind 'iso_form' or 'reflection') in a new tab
+    // Opens an uploaded clearance photo (kind 'iso_form' or 'reflection') full screen over the page
     const openClearanceFile = async (violation, kind, label) => {
-        const win = window.open('', '_blank');
         try {
             const response = await fetch(`/api/violations/${violation.id}/clearance_proof/?kind=${kind}`);
             const data = await response.json().catch(() => ({}));
             if (!response.ok) throw new Error(data.error || `Couldn't load the ${label}.`);
-            win.document.write(`<title>${label} - ${studentName(violation.student_details).replace(/</g, '')}</title><body style="margin:0;background:#0f172a;display:flex;justify-content:center"><img src="${data.image}" style="max-width:100%;height:auto"></body>`);
-            win.document.close();
+            setViewing({ image: data.image, title: `${label} - ${studentName(violation.student_details)}` });
         } catch (e) {
-            win?.close();
             alert(e.message === 'Failed to fetch' ? "Can't reach the server." : e.message);
         }
     };
@@ -408,6 +408,8 @@ const Archives = () => {
                     const openTicket = tickets.find(t => t.violation_details?.id === openCase.id || t.violation === openCase.id);
                     return <ArchivedCase violation={openCase} ticket={openTicket} onClose={() => setOpenCaseId(null)} />;
                 })()}
+
+                {viewing && <PhotoViewer image={viewing.image} title={viewing.title} onClose={() => setViewing(null)} />}
 
                 <div className="hidden print:block" style={{ padding: '2mm', width: '100%', maxWidth: '100%', margin: '0 auto', boxSizing: 'border-box' }}>
                     <div className="flex items-center gap-3 mb-2">

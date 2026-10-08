@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { X, FileText, ImageOff } from 'lucide-react';
 import { studentName, reportedByLabel } from '../lib/names';
 import TicketDetails from './TicketDetails';
+import PhotoViewer from './PhotoViewer';
 
 // Opened by clicking a case in the admin Archives: the e-ticket receipt and its service log (the same view
 // the student has, components/TicketDetails.jsx), plus the evidence OSA approved, the photos of the signed
@@ -17,17 +18,11 @@ const fmtDate = (iso) => (iso
     ? new Date(iso).toLocaleString('en-PH', { timeZone: 'Asia/Manila', month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })
     : '—');
 
-// Full-size photo in a new tab
-const openPhoto = (image, title) => {
-    const win = window.open('', '_blank');
-    if (!win) return;
-    win.document.write(`<title>${title.replace(/</g, '')}</title><body style="margin:0;background:#0f172a;display:flex;justify-content:center"><img src="${image}" style="max-width:100%;height:auto"></body>`);
-    win.document.close();
-};
-
 const ClearanceEvidence = ({ violation }) => {
     // kind -> { state: 'loading' | 'ready' | 'removed' | 'missing' | 'error', image, uploaded_at, uploaded_by, message }
     const [photos, setPhotos] = useState({});
+    // The photo opened full size: { image, title }
+    const [viewing, setViewing] = useState(null);
 
     useEffect(() => {
         DOCUMENTS.forEach(({ kind }) => {
@@ -71,7 +66,7 @@ const ClearanceEvidence = ({ violation }) => {
                         return (
                             <div key={kind} className="overflow-hidden rounded-xl border border-[var(--s-border)]">
                                 {photo.state === 'ready' ? (
-                                    <button onClick={() => openPhoto(photo.image, `${label} - ${name}`)} className="block w-full" title="Open full size">
+                                    <button onClick={() => setViewing({ image: photo.image, title: `${label} - ${name}` })} className="block w-full" title="Open full size">
                                         <img src={photo.image} alt={`${label} of ${name}`} className="h-32 w-full bg-white object-cover" />
                                     </button>
                                 ) : (
@@ -97,6 +92,7 @@ const ClearanceEvidence = ({ violation }) => {
                     Approved {fmtDate(violation.cleared_at)}{violation.cleared_by ? ` by ${violation.cleared_by}` : ''}
                 </p>
             )}
+            {viewing && <PhotoViewer image={viewing.image} title={viewing.title} onClose={() => setViewing(null)} />}
         </div>
     );
 };
