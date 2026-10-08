@@ -10,7 +10,7 @@ import { useTheme } from './ThemeContext';
 
 const PH = { timeZone: 'Asia/Manila' };
 export const receiptDate = (iso) => iso ? new Date(iso).toLocaleDateString('en-PH', { ...PH, weekday: 'short', year: 'numeric', month: 'long', day: 'numeric' }) : '—';
-export const receiptTime = (iso) => iso ? new Date(iso).toLocaleTimeString('en-PH', { ...PH, hour: 'numeric', minute: '2-digit', second: '2-digit' }) : '—';
+export const receiptTime = (iso) => iso ? new Date(iso).toLocaleTimeString('en-PH', { ...PH, hour: 'numeric', minute: '2-digit' }) : '—';
 
 export const formatDuration = (seconds) => {
     const s = Math.max(0, Math.round(seconds || 0));
@@ -24,9 +24,10 @@ export const formatDuration = (seconds) => {
 export const FLAGGED_ENDS = ['left_area', 'location_off', 'app_closed', 'idle'];
 
 
-const Line = ({ styles, label, value, color }) => (
+// highlight: the label is coloured too (Time In green, Time Out red)
+const Line = ({ styles, label, value, color, highlight = false }) => (
     <View style={styles.line}>
-        <Text style={styles.lineLabel}>{label}</Text>
+        <Text style={[styles.lineLabel, highlight && color && { color }]}>{label}</Text>
         <Text style={[styles.lineValue, color && { color }]}>{value}</Text>
     </View>
 );
@@ -41,8 +42,8 @@ export function SessionReceiptBody({ receipt, hideDate = false }) {
         <View>
             {!hideDate && <Line styles={styles} label="DATE" value={receiptDate(receipt.time_in)} />}
             <Line styles={styles} label="ASSIGNED BUILDING" value={receipt.building ? `${receipt.building}${receipt.site_code ? ` (${receipt.site_code})` : ''}` : '—'} />
-            <Line styles={styles} label="TIME IN" value={receiptTime(receipt.time_in)} />
-            <Line styles={styles} label="TIME OUT" value={receipt.time_out ? receiptTime(receipt.time_out) : 'Still running'} />
+            <Line styles={styles} label="TIME IN" value={receiptTime(receipt.time_in)} color="#059669" highlight />
+            <Line styles={styles} label="TIME OUT" value={receipt.time_out ? receiptTime(receipt.time_out) : 'Still running'} color="#dc2626" highlight />
             <Line styles={styles} label="TIME SERVED" value={formatDuration(receipt.duration_seconds)} />
             {/* Time outside the service area: the timer was paused, so it isn't part of Time Served */}
             <Line

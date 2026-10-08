@@ -8,7 +8,7 @@ import { MapPin, MapPinOff, LogIn, LogOut, Timer, AlertTriangle, CheckCircle2, C
 
 const PH = { timeZone: 'Asia/Manila' };
 export const receiptDate = (iso) => iso ? new Date(iso).toLocaleDateString('en-PH', { ...PH, weekday: 'short', year: 'numeric', month: 'long', day: 'numeric' }) : '—';
-export const receiptTime = (iso) => iso ? new Date(iso).toLocaleTimeString('en-PH', { ...PH, hour: 'numeric', minute: '2-digit', second: '2-digit' }) : '—';
+export const receiptTime = (iso) => iso ? new Date(iso).toLocaleTimeString('en-PH', { ...PH, hour: 'numeric', minute: '2-digit' }) : '—';
 
 export const formatDuration = (seconds) => {
     const s = Math.max(0, Math.round(seconds || 0));
@@ -22,9 +22,10 @@ export const formatDuration = (seconds) => {
 export const FLAGGED_ENDS = ['left_area', 'location_off', 'app_closed', 'idle'];
 
 
-const Line = ({ icon: Icon, label, value, color }) => (
+// highlight: the label is coloured too (Time In green, Time Out red)
+const Line = ({ icon: Icon, label, value, color, highlight = false }) => (
     <div className="flex items-start justify-between gap-4 border-b border-dashed border-[var(--s-border)] py-2.5 last:border-0">
-        <span className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-wider text-[var(--s-muted)]">
+        <span className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-wider text-[var(--s-muted)]" style={highlight ? { color } : undefined}>
             <Icon size={14} className="shrink-0" /> {label}
         </span>
         <span className="text-right text-sm font-bold" style={{ color: color || 'var(--s-text)' }}>{value}</span>
@@ -37,8 +38,8 @@ export const SessionReceiptBody = ({ receipt, hideDate = false }) => {
         <div>
             {!hideDate && <Line icon={CalendarDays} label="Date" value={receiptDate(receipt.time_in)} />}
             <Line icon={MapPin} label="Assigned Building" value={receipt.building ? `${receipt.building}${receipt.site_code ? ` (${receipt.site_code})` : ''}` : '—'} />
-            <Line icon={LogIn} label="Time In" value={receiptTime(receipt.time_in)} />
-            <Line icon={LogOut} label="Time Out" value={receipt.time_out ? receiptTime(receipt.time_out) : 'Still running'} />
+            <Line icon={LogIn} label="Time In" value={receiptTime(receipt.time_in)} color="#059669" highlight />
+            <Line icon={LogOut} label="Time Out" value={receipt.time_out ? receiptTime(receipt.time_out) : 'Still running'} color="#dc2626" highlight />
             <Line icon={Timer} label="Time Served" value={formatDuration(receipt.duration_seconds)} />
             {/* Time outside the service area: the timer was paused, so it isn't part of Time Served */}
             <Line
