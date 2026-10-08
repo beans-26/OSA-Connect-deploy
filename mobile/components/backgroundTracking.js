@@ -25,7 +25,7 @@ Notifications.setNotificationHandler({
 });
 
 const STOPPED_TEXT = {
-    left_area: 'You were away from your service area for 30 minutes, so your service timer stopped. Open OSAConnect to see your receipt.',
+    left_area: 'You were away from your service area too long, so your service timer stopped. Open OSAConnect to see your receipt.',
     location_off: 'Your location was turned off, so your service timer stopped. Open OSAConnect to see your receipt.',
 };
 

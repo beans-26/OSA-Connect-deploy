@@ -332,7 +332,7 @@ const DashboardBody = () => {
     const displayHours = activeTicket ? (activeTicket.base_remaining_hours ?? activeTicket.remaining_hours) : 0;
     // Same as the mobile app: a session can't be ended in its first 20 seconds.
     // Re-rendered every second by the countdown's elapsed tick.
-    const END_COOLDOWN_S = 20;
+    const END_COOLDOWN_S = 10; // DEMO (normally 20)
     const endCooldown = timerActive && startTime
         ? Math.max(0, END_COOLDOWN_S - Math.floor((Date.now() - startTime) / 1000))
         : 0;
@@ -508,7 +508,7 @@ const DashboardBody = () => {
     // student is back, so being sent on an errand doesn't end the session. The server ends it after
     // PAUSE_LIMIT_MIN minutes away. Leaving and coming back are sent right away, so the server's record
     // matches what the student sees.
-    const PAUSE_LIMIT_MIN = 30;
+    const PAUSE_LIMIT_TEXT = '10 seconds'; // DEMO (normally '30 minutes'; PAUSE_LIMIT_S in backend/core/views.py)
     const wasOutRef = useRef(false);
     const leftAtRef = useRef(null); // when the student last left the area
     useEffect(() => {
@@ -885,7 +885,7 @@ const DashboardBody = () => {
                                             <AlertTriangle size={24} strokeWidth={2.5} className="text-white" />
                                             <div className="ml-3">
                                                 <p className="text-[13px] font-black uppercase tracking-[0.5px] text-white">Timer paused: out of area</p>
-                                                <p className="mt-0.5 text-xs font-semibold text-[#fef3c7]">Go back to your service site to continue. Your session ends after {PAUSE_LIMIT_MIN} minutes away.</p>
+                                                <p className="mt-0.5 text-xs font-semibold text-[#fef3c7]">Go back to your service site to continue. Your session ends after {PAUSE_LIMIT_TEXT} away.</p>
                                             </div>
                                         </div>
                                         <div className="ml-3 rounded-xl bg-white px-3 py-1.5 text-lg font-black tabular-nums text-[#d97706]">

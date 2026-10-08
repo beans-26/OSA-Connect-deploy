@@ -637,10 +637,17 @@ LIGHT_OFFENSE = {
     3: NO_ENTRY,
 }
 
+# DEMO: No ID is 1 minute on a first offense for the demo (normally LIGHT_OFFENSE: 3 hours)
+DEMO_NO_ID_OFFENSE = {
+    1: {"punishment": "1 minute community service", "hours": 1 / 60},
+    2: LIGHT_OFFENSE[2],
+    3: LIGHT_OFFENSE[3],
+}
+
 PUNISHMENT_SYSTEM = {
     # The violations guards and faculty & staff report (their report forms list exactly these)
     "Curfew Violation": LIGHT_OFFENSE,
-    "No ID / Improper ID Sling": LIGHT_OFFENSE,
+    "No ID / Improper ID Sling": DEMO_NO_ID_OFFENSE,  # DEMO (normally LIGHT_OFFENSE)
     "No School Uniform": LIGHT_OFFENSE,
     "Dress Code Violation": LIGHT_OFFENSE,
 }
@@ -2117,7 +2124,7 @@ def timelog_receipt(log, eticket=None):
 # ends it. Turning location off is reported by the app within seconds and ends the session right away.
 # Hearing nothing at all is different: Android delays background location to save battery, so a
 # silent phone gets NO_LOCATION_LIMIT_S before the session ends as "location lost".
-PAUSE_LIMIT_S = 30 * 60
+PAUSE_LIMIT_S = 10  # DEMO (normally 30 * 60)
 NO_LOCATION_LIMIT_S = 120
 SILENT_CHECK_EVERY_S = 15  # the check below runs at most this often per server process
 _last_silent_check = [0.0]
@@ -2146,7 +2153,7 @@ def end_session(log, eticket, reason, time_out=None, lat=None, lng=None, distanc
     log.save()
 
     eticket.remaining_hours = max(0, eticket.remaining_hours - duration / 3600)
-    if eticket.remaining_hours <= 0.01:
+    if eticket.remaining_hours <= 1 / 3600:  # DEMO (normally 0.01): a 1-minute penalty would finish after 24 s
         eticket.remaining_hours = 0
         eticket.status = "Completed"
         eticket.completed_at = utc_now()
