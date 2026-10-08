@@ -28,7 +28,7 @@ import { IDLE_REFRESH_MS, SAVER_REFRESH_MS } from '../../components/studentNotif
 // Location off this long stops the session; same as the website
 const OUT_OF_BOUNDS_S = 30;
 // Outside the service area the timer pauses; this long away in one go ends the session (the server decides)
-const PAUSE_LIMIT_MIN = 30;
+const PAUSE_LIMIT_TEXT = '10 seconds'; // DEMO (normally '30 minutes')
 
 // Haversine formula
 const getDistance = (lat1, lon1, lat2, lon2) => {
@@ -238,8 +238,8 @@ export default function Dashboard() {
                     setStartTime(Date.now() - elapsedSinceIn * 1000);
                     setElapsedSeconds(elapsedSinceIn);
 
-                    if (elapsedSinceIn < 20 && elapsedSinceIn >= 0) {
-                        const remainingCooldown = 20 - elapsedSinceIn;
+                    if (elapsedSinceIn < 10 && elapsedSinceIn >= 0) { // DEMO (normally 20)
+                        const remainingCooldown = 10 - elapsedSinceIn;
                         setScanCooldown(remainingCooldown);
                         if (cooldownRef.current) clearInterval(cooldownRef.current);
                         cooldownRef.current = setInterval(() => {
@@ -301,7 +301,7 @@ export default function Dashboard() {
             if (data?.receipt) setReceipt(data.receipt);
             else showAlert('Session stopped', endReason === 'location_off'
                 ? 'Your location was off for too long, so your timer was stopped.'
-                : `You were away from your service area for more than ${PAUSE_LIMIT_MIN} minutes, so your timer was stopped.`);
+                : `You were away from your service area for more than ${PAUSE_LIMIT_TEXT}, so your timer was stopped.`);
             fetchData();
         } catch (e) {
             showAlert('Error', e.response?.data?.error || 'Could not stop the session. Check your connection.');
@@ -537,7 +537,7 @@ export default function Dashboard() {
                 setTimerActive(true);
                 setStartTime(Date.now());
                 setElapsedSeconds(0);
-                setScanCooldown(20);
+                setScanCooldown(10); // DEMO (normally 20)
                 if (cooldownRef.current) clearInterval(cooldownRef.current);
                 cooldownRef.current = setInterval(() => {
                     setScanCooldown(prev => {
@@ -775,7 +775,7 @@ export default function Dashboard() {
                                             <View style={styles.redWarningTextContainer}>
                                                 <Text style={styles.redWarningTitle}>TIMER PAUSED: OUT OF AREA</Text>
                                                 <Text style={[styles.redWarningSubtitle, { color: '#fef3c7' }]}>
-                                                    Go back to your service site to continue. Your session ends after {PAUSE_LIMIT_MIN} minutes away.
+                                                    Go back to your service site to continue. Your session ends after {PAUSE_LIMIT_TEXT} away.
                                                 </Text>
                                             </View>
                                         </View>
