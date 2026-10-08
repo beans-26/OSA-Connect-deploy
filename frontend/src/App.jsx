@@ -6,7 +6,7 @@ import AdminLogin from './pages/AdminLogin';
 import StudentIdleGuard from './components/StudentIdleGuard';
 import LoginSwitchGuard from './components/LoginSwitchGuard';
 import { stopActiveSession } from './components/studentSession';
-import { STUDENT_LOGIN, GUARD_STAFF_LOGIN, ADMIN_LOGIN, loginPathFor, loginPathForUrl } from './lib/portals';
+import { STUDENT_LOGIN, GUARD_LOGIN, FACULTY_LOGIN, ADMIN_LOGIN, loginPathFor, loginPathForUrl } from './lib/portals';
 
 // Pages load when first opened, so a student's phone doesn't download the admin pages, charts and PDF
 // tools. After a new deploy an open tab may ask for a page file that no longer exists: reload once to get
@@ -136,8 +136,10 @@ function App() {
           {/* One login URL per group */}
           {/* Logged in and opening another group's login: asks before logging out */}
           <Route path={STUDENT_LOGIN} element={<LoginSwitchGuard portal="student"><Login portal="student" /></LoginSwitchGuard>} />
-          <Route path={GUARD_STAFF_LOGIN} element={<LoginSwitchGuard portal="faculty"><Login portal="faculty" /></LoginSwitchGuard>} />
-          <Route path="/guardnstaff" element={<Navigate to={GUARD_STAFF_LOGIN} replace />} />
+          <Route path={GUARD_LOGIN} element={<LoginSwitchGuard portal="guard"><Login portal="guard" /></LoginSwitchGuard>} />
+          <Route path={FACULTY_LOGIN} element={<LoginSwitchGuard portal="faculty"><Login portal="faculty" /></LoginSwitchGuard>} />
+          {/* Old shared guard and faculty login */}
+          <Route path="/guardnstaff" element={<Navigate to={FACULTY_LOGIN} replace />} />
           {/* Faculty without an account (the option on the /faculty login): USTP email confirmed with a code */}
           <Route path="/faculty/report" element={<FacultyReport />} />
           {/* Or make a faculty account (USTP email confirmed with a code) */}

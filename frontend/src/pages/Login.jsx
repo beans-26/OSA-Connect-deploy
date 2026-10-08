@@ -19,20 +19,21 @@ const PORTALS = {
         roles: ['student'],
         title: 'Student Login',
         idLabel: 'Student ID',
-        wrongPortal: 'This is the student login. Faculty members log in at /faculty.',
+        wrongPortal: 'This is the student login. Guards log in at /guard, and faculty members at /faculty.',
     },
-    // Guards and faculty with an account; faculty without one report from here too (/faculty/report)
+    // Security guards (accounts made by OSA)
+    guard: {
+        roles: ['guard'],
+        title: 'Guard Login',
+        idLabel: 'Username',
+        wrongPortal: 'This login is for security guards. Faculty members log in at /faculty, and students at /student.',
+    },
+    // Faculty with an account; faculty without one report from here too (/faculty/report)
     faculty: {
-        roles: ['guard', 'staff'],
+        roles: ['staff'],
         title: 'Faculty Login',
         idLabel: 'Username',
-        wrongPortal: 'This login is for faculty members. Students log in at /student.',
-    },
-    guardnstaff: {
-        roles: ['guard', 'staff'],
-        title: 'Faculty Login',
-        idLabel: 'Username',
-        wrongPortal: 'This login is for faculty members. Students log in at /student.',
+        wrongPortal: 'This login is for faculty members. Guards log in at /guard, and students at /student.',
     },
     admin: {
         roles: ['admin'],
