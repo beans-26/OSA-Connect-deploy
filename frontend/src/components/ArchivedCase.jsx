@@ -51,7 +51,7 @@ const ClearanceEvidence = ({ violation }) => {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [violation.id, violation.photos_removed_at, violation.iso_form_uploaded_at, violation.reflection_uploaded_at]);
 
-    const studentName = studentName(violation.student_details) || 'Student';
+    const name = studentName(violation.student_details) || 'Student';
 
     return (
         <div className="mb-5">
@@ -71,8 +71,8 @@ const ClearanceEvidence = ({ violation }) => {
                         return (
                             <div key={kind} className="overflow-hidden rounded-xl border border-[var(--s-border)]">
                                 {photo.state === 'ready' ? (
-                                    <button onClick={() => openPhoto(photo.image, `${label} - ${studentName}`)} className="block w-full" title="Open full size">
-                                        <img src={photo.image} alt={`${label} of ${studentName}`} className="h-32 w-full bg-white object-cover" />
+                                    <button onClick={() => openPhoto(photo.image, `${label} - ${name}`)} className="block w-full" title="Open full size">
+                                        <img src={photo.image} alt={`${label} of ${name}`} className="h-32 w-full bg-white object-cover" />
                                     </button>
                                 ) : (
                                     <div className="flex h-32 items-center justify-center bg-[var(--s-bg)] px-3 text-center">
