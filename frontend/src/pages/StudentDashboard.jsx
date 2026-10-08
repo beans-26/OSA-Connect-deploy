@@ -877,10 +877,15 @@ const DashboardBody = () => {
                                         Please wait {endCooldown}s before ending session
                                     </div>
                                 )}
+                                {/* Greyed out while the student is outside the site's area: the time-out QR is at the
+                                    site, and it turns red again as soon as they're back inside */}
                                 <button
                                     onClick={() => setShowStopScanner(true)}
-                                    disabled={endCooldown > 0}
-                                    className="mt-4 w-full rounded-2xl bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-700 hover:to-red-700 p-4 text-sm font-bold uppercase tracking-[1px] text-white disabled:opacity-50 shadow-lg shadow-rose-500/20 active:scale-[0.98] transition-all cursor-pointer"
+                                    disabled={endCooldown > 0 || isOutOfBounds}
+                                    title={isOutOfBounds ? 'Go back inside the service area to end your session' : undefined}
+                                    className={`mt-4 w-full rounded-2xl p-4 text-sm font-bold uppercase tracking-[1px] text-white transition-all ${isOutOfBounds
+                                        ? 'cursor-not-allowed bg-slate-400 dark:bg-slate-600'
+                                        : 'cursor-pointer bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-700 hover:to-red-700 disabled:opacity-50 shadow-lg shadow-rose-500/20 active:scale-[0.98]'}`}
                                 >
                                     {endCooldown > 0 ? `Scan to End Service (${endCooldown}s)` : 'Scan to End Service'}
                                 </button>

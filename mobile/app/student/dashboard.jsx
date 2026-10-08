@@ -765,10 +765,13 @@ export default function Dashboard() {
                                         )}
                                     </View>
                                 )}
+                                {/* Greyed out while the student is outside the site's area (the time-out QR is at the
+                                    site); it comes back as soon as they're inside again */}
                                 <TouchableOpacity
-                                    style={[styles.endButtonBlue, scanCooldown > 0 && styles.endButtonDisabled]}
-                                    onPress={scanCooldown === 0 ? startScan : null}
-                                    activeOpacity={scanCooldown > 0 ? 1 : 0.7}
+                                    style={[styles.endButtonBlue, (scanCooldown > 0 || isOutOfBounds) && styles.endButtonDisabled]}
+                                    onPress={scanCooldown === 0 && !isOutOfBounds ? startScan : null}
+                                    activeOpacity={scanCooldown > 0 || isOutOfBounds ? 1 : 0.7}
+                                    accessibilityState={{ disabled: scanCooldown > 0 || isOutOfBounds }}
                                 >
                                     <Text style={styles.endButtonBlueText}>
                                         {scanCooldown > 0 ? `Scan to End (${scanCooldown}s)` : 'Scan to End Service'}
