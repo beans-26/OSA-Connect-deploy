@@ -10,17 +10,17 @@ export default function StudentLayout() {
                 <Stack
                     screenOptions={{
                         headerShown: false,
-                        animation: 'slide_from_right',
+                        animation: 'none',
                     }}
                 >
                     <Stack.Screen name="dashboard" />
                     {/* Switching between the side menu's screens: a quick fade instead of a full slide */}
-                    <Stack.Screen name="settings" options={{ animation: 'fade_from_bottom' }} />
-                    <Stack.Screen name="personal-info" options={{ animation: 'fade_from_bottom' }} />
-                    <Stack.Screen name="notifications" options={{ animation: 'fade_from_bottom' }} />
+                    <Stack.Screen name="settings" options={{ animation: 'none' }} />
+                    <Stack.Screen name="personal-info" options={{ animation: 'none' }} />
+                    <Stack.Screen name="notifications" options={{ animation: 'none' }} />
                     <Stack.Screen name="change-password" />
                     {/* The scanner gets its own native full-screen screen; the dashboard stays mounted underneath */}
-                    <Stack.Screen name="scan" options={{ presentation: 'fullScreenModal', animation: 'slide_from_bottom' }} />
+                    <Stack.Screen name="scan" options={{ presentation: 'fullScreenModal', animation: 'none' }} />
                 </Stack>
             </StudentShellProvider>
         </RequireRole>

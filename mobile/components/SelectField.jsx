@@ -49,7 +49,7 @@ export default function SelectField({ value, options, placeholder, placeholderCo
                 <ChevronDown size={18} color={iconColor || colors.textMuted} />
             </TouchableOpacity>
 
-            <Modal visible={open} transparent animationType="slide" onRequestClose={close}>
+            <Modal visible={open} transparent animationType="none" onRequestClose={close}>
                 <Pressable style={styles.backdrop} onPress={close} />
                 <View style={[styles.sheet, { paddingBottom: insets.bottom + 12 }]}>
                     <View style={styles.sheetHeader}>

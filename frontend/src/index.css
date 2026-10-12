@@ -257,3 +257,65 @@ body {
   to { opacity: 1; transform: translateY(0); }
 }
 .carousel-caption { animation: carousel-caption-in 600ms cubic-bezier(0.16, 1, 0.3, 1) both; }
+
+/* Landing page: iOS-style frosted glass cards. See-through, blurring the soft glows behind them, with a bright
+   edge and a highlight along the top */
+.glass-card {
+  position: relative;
+  background: linear-gradient(135deg, rgb(255 255 255 / 0.72), rgb(255 255 255 / 0.45));
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid rgb(255 255 255 / 0.75);
+  box-shadow: 0 10px 40px -12px rgb(16 26 75 / 0.18), inset 0 1px 0 rgb(255 255 255 / 0.9), inset 0 -1px 0 rgb(255 255 255 / 0.25);
+}
+.dark .glass-card {
+  background: linear-gradient(135deg, rgb(30 41 59 / 0.7), rgb(30 41 59 / 0.4));
+  border-color: rgb(255 255 255 / 0.12);
+  box-shadow: 0 10px 40px -12px rgb(0 0 0 / 0.5), inset 0 1px 0 rgb(255 255 255 / 0.12);
+}
+.glass-card-dark {
+  position: relative;
+  background: linear-gradient(135deg, rgb(255 255 255 / 0.14), rgb(255 255 255 / 0.04));
+  -webkit-backdrop-filter: blur(20px) saturate(160%);
+  backdrop-filter: blur(20px) saturate(160%);
+  border: 1px solid rgb(255 255 255 / 0.2);
+  box-shadow: 0 10px 40px -12px rgb(0 0 0 / 0.45), inset 0 1px 0 rgb(255 255 255 / 0.3);
+}
+
+/* The light reflection: a soft diagonal shine that sweeps across a glass card once, when it comes into view */
+.glass-sheen { overflow: hidden; isolation: isolate; }
+.glass-sheen::after {
+  content: '';
+  position: absolute;
+  inset: -20% -60%;
+  background: linear-gradient(105deg, transparent 38%, rgb(255 255 255 / 0.55) 48%, rgb(255 255 255 / 0.15) 54%, transparent 62%);
+  transform: translateX(-70%);
+  pointer-events: none;
+  z-index: 1;
+  opacity: 0;
+}
+.glass-sheen.is-shown::after { animation: glass-sheen 1.3s cubic-bezier(0.4, 0, 0.2, 1) 0.25s both; }
+@keyframes glass-sheen {
+  0% { transform: translateX(-70%); opacity: 0; }
+  15% { opacity: 1; }
+  100% { transform: translateX(70%); opacity: 0; }
+}
+
+/* Soft colour glows behind the glass cards (glass only looks like glass over something) */
+.glass-glows::before, .glass-glows::after, .glass-glows-navy::before, .glass-glows-navy::after {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  width: 520px;
+  height: 520px;
+  border-radius: 9999px;
+  filter: blur(90px);
+  pointer-events: none;
+}
+.glass-glows::before { top: -120px; left: -140px; background: rgb(16 26 75 / 0.16); }
+.glass-glows::after { bottom: -160px; right: -120px; background: rgb(255 172 23 / 0.22); }
+.glass-glows-alt::before { left: auto; right: -160px; }
+.glass-glows-alt::after { right: auto; left: -120px; }
+.glass-glows-navy::before { top: -140px; right: -100px; background: rgb(255 172 23 / 0.2); }
+.glass-glows-navy::after { bottom: -180px; left: -140px; background: rgb(59 130 246 / 0.28); }
+@media (prefers-reduced-motion: reduce) { .glass-sheen.is-shown::after { animation: none; } }

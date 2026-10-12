@@ -88,7 +88,7 @@ export function StudentShellProvider({ children }) {
     useEffect(() => {
         if (menuOpen) setMenuShown(true);
         // Eases out when opening (fast start, soft landing) and slightly quicker on the way back
-        Animated.timing(slide, { toValue: menuOpen ? 1 : 0, duration: menuOpen ? 300 : 230, easing: menuOpen ? Easing.out(Easing.cubic) : Easing.in(Easing.cubic), useNativeDriver: true }).start(() => {
+        Animated.timing(slide, { toValue: menuOpen ? 1 : 0, duration: 0, easing: menuOpen ? Easing.out(Easing.cubic) : Easing.in(Easing.cubic), useNativeDriver: true }).start(() => {
             if (!menuOpen) setMenuShown(false);
         });
     }, [menuOpen, slide]);
@@ -176,7 +176,7 @@ export function StudentShellProvider({ children }) {
                 )}
             </View>
 
-            <Modal visible={!!logoutAsk} transparent animationType="fade" onRequestClose={() => setLogoutAsk(null)}>
+            <Modal visible={!!logoutAsk} transparent animationType="none" onRequestClose={() => setLogoutAsk(null)}>
                 <View style={styles.modalOverlay}>
                     <View style={styles.modalContent}>
                         <View style={styles.modalHeader}>
@@ -215,10 +215,10 @@ export function StudentTopBar({ title, back }) {
         setBellNew(new Set(notifications.filter((n) => !seen.has(n.id)).map((n) => n.id)));
         markAllRead();
         bellAnim.setValue(0);
-        Animated.timing(bellAnim, { toValue: 1, duration: 220, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start();
+        Animated.timing(bellAnim, { toValue: 1, duration: 0, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start();
     };
     const closeBell = (then) => {
-        Animated.timing(bellAnim, { toValue: 0, duration: 160, easing: Easing.in(Easing.cubic), useNativeDriver: true }).start(() => {
+        Animated.timing(bellAnim, { toValue: 0, duration: 0, easing: Easing.in(Easing.cubic), useNativeDriver: true }).start(() => {
             setBellNew(null);
             then?.();
         });

@@ -60,7 +60,7 @@ export default function TicketDetails({ ticket, onClose }) {
     const TONE = { red: '#dc2626', good: '#059669', bad: '#dc2626' };
 
     return (
-        <Modal visible transparent animationType="fade" statusBarTranslucent onRequestClose={onClose}>
+        <Modal visible transparent animationType="none" statusBarTranslucent onRequestClose={onClose}>
             {/* The sheet sits inside a full-screen dimmed, blurred layer so only the ticket is in focus */}
             <View style={styles.overlay}>
             <BlurView intensity={40} tint="dark" style={StyleSheet.absoluteFill} />
