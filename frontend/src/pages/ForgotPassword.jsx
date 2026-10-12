@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ChevronRight, Loader2, Mail, MailWarning, CheckCircle2, ArrowLeft, Eye, EyeOff } from 'lucide-react';
 import campusPhoto from '../assets/ustp-campus-blur.jpg';
-import osaLogo from '../assets/osaconnect-logo.png';
+import osaLogo from '../assets/osaconnect-logo.webp';
 import { STUDENT_LOGIN } from '../lib/portals';
 
 // Forgot password, in the same look as registration: 1) the account's email, 2) the emailed code (checked

@@ -54,7 +54,7 @@ const StaffSettings = () => {
     };
 
     return (
-        <div className="flex bg-slate-50 dark:bg-slate-900 min-h-screen relative font-sans">
+        <div className="isolate flex bg-slate-50 dark:bg-slate-900 min-h-screen relative font-sans">
             <Sidebar role={userRole} />
             <div className="flex-1 h-screen overflow-y-auto custom-scrollbar w-full">
                 <main className="page-enter flex-1 px-4 pt-[76px] pb-8 md:p-10 lg:pt-10 w-full max-w-full">

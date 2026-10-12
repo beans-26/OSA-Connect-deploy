@@ -4,8 +4,8 @@ import QRCode from 'react-qr-code';
 import { Link } from 'react-router-dom';
 import { DEPARTMENTS, DEPARTMENT_COURSES, GENDERS, yearLevelsFor } from '../lib/academics';
 import { middleNameError, middleNameText, MIDDLE_NAME_HINT } from '../lib/names';
-import campusPhoto from '../assets/ustp-campus.jpg';
-import osaLogo from '../assets/osaconnect-logo.png';
+import campusPhoto from '../assets/ustp-campus.webp';
+import osaLogo from '../assets/osaconnect-logo.webp';
 
 const OFFLINE_MESSAGE = "Can't reach the server. Check your internet connection and try again.";
 const STEP_COUNT = 3;

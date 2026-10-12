@@ -2,7 +2,7 @@ import { useState } from 'react';
 import Sidebar from '../../components/Sidebar';
 import ThemeToggle from '../../components/ThemeToggle';
 import usePolling from '../../lib/usePolling';
-import { Check, GraduationCap, Loader2, Mail, MailPlus, Search, UserPlus, UserX } from 'lucide-react';
+import { Check, GraduationCap, Loader2, Mail, MailPlus, Search, UserPlus } from 'lucide-react';
 
 // Admin > Faculty Accounts: OSA confirms who is really USTP faculty (backend faculty_accounts).
 //  - Reported without an account: confirming the email sends them a link to finish an account (active at once).
@@ -78,12 +78,8 @@ export default function FacultyAccounts() {
     };
     const confirmEmail = (row) => decide(row.email, '/api/admin/faculty/email/', { email: row.email, decision: 'confirm' },
         (res) => !res.emailed && alert(`Confirmed, but the email to ${row.email} couldn't be sent. Check the email settings.`));
-    // Rejecting is how cases get dismissed: that person's reports still waiting for review go to Archives > Dismissed
-    const dismissedNote = (res) => res.dismissed && alert(`${res.dismissed} pending report${res.dismissed === 1 ? ' was' : 's were'} dismissed and moved to Archives → Dismissed.`);
-    const rejectEmail = (row) => window.confirm(`Reject ${row.email}? They won't get a link to make an account, and their pending reports are dismissed.`)
-        && decide(row.email, '/api/admin/faculty/email/', { email: row.email, decision: 'reject' }, dismissedNote);
-    const decideAccount = (row, decision) => (decision === 'verify' || window.confirm(`Reject ${fullName(row)}? They won't be able to log in, and their pending reports are dismissed.`))
-        && decide(row.username, `/api/admin/faculty/${encodeURIComponent(row.username)}/decision/`, { decision }, dismissedNote);
+    // Confirm only: there's no Reject on this page
+    const decideAccount = (row, decision) => decide(row.username, `/api/admin/faculty/${encodeURIComponent(row.username)}/decision/`, { decision });
 
     const q = search.trim().toLowerCase();
     const match = (r) => !q || fullName(r).toLowerCase().includes(q) || r.email.toLowerCase().includes(q);
@@ -92,14 +88,14 @@ export default function FacultyAccounts() {
     const button = 'flex items-center gap-1.5 rounded-xl px-4 py-2 text-xs font-bold disabled:opacity-60';
 
     return (
-        <div className="flex bg-slate-50 dark:bg-slate-900 min-h-screen relative font-sans">
+        <div className="isolate flex bg-slate-50 dark:bg-slate-900 min-h-screen relative font-sans">
             <Sidebar role="admin" />
             <div className="flex-1 h-screen overflow-y-auto custom-scrollbar w-full">
                 <main className="page-enter flex-1 px-4 pt-[76px] pb-8 md:p-10 lg:pt-10 w-full max-w-full space-y-6">
                     <header className="flex items-center justify-between gap-4">
                         <div className="min-w-0">
                             <h1 className="text-2xl md:text-4xl font-extrabold text-slate-900 dark:text-white tracking-tight">Faculty Accounts</h1>
-                            <p className="text-slate-500 dark:text-slate-400 mt-2 font-medium text-sm">Check each person against your faculty records, then confirm or reject them.</p>
+                            <p className="text-slate-500 dark:text-slate-400 mt-2 font-medium text-sm">Check each person against your faculty records, then confirm them.</p>
                         </div>
                         <ThemeToggle />
                     </header>
@@ -115,7 +111,7 @@ export default function FacultyAccounts() {
                     ) : (
                         <>
                             <Section icon={MailPlus} title="Reported without an account"
-                                hint="The name is read from the email. Their reports are on hold until you decide: Confirm sends them a link to finish an account; Reject dismisses their pending reports."
+                                hint="The name is read from the email. Their reports are on hold until you confirm them: Confirm sends them a link to finish an account."
                                 empty={emails.length ? null : (q ? 'No emails match' : 'No emails to confirm')}>
                                 {emails.map((row) => (
                                     <Row key={row.email} row={row} sub={`First report ${when(row.first_report_at)}`} actions={(
@@ -130,18 +126,13 @@ export default function FacultyAccounts() {
                                                     <MailPlus size={14} /> Send link again
                                                 </button>
                                             )}
-                                            {row.status !== 'rejected' && (
-                                                <button onClick={() => rejectEmail(row)} disabled={busy === row.email} className={`${button} bg-red-50 text-red-600 hover:bg-red-100 dark:bg-red-500/10 dark:text-red-400`}>
-                                                    <UserX size={14} /> Reject
-                                                </button>
-                                            )}
                                         </>
                                     )} />
                                 ))}
                             </Section>
 
                             <Section icon={UserPlus} title="Created an account"
-                                hint="These accounts can't log in until you confirm them. Confirm emails them that their account is active; Reject dismisses their pending reports."
+                                hint="These accounts can't log in until you confirm them. Confirm emails them that their account is active."
                                 empty={accounts.length ? null : (q ? 'No accounts match' : 'No faculty accounts yet')}>
                                 {accounts.map((row) => (
                                     <Row key={row.username} row={row} sub={`Signed up ${when(row.registered_at)}`} actions={(
@@ -149,11 +140,6 @@ export default function FacultyAccounts() {
                                             {row.status !== 'verified' && (
                                                 <button onClick={() => decideAccount(row, 'verify')} disabled={busy === row.username} className={`${button} bg-emerald-500 text-white hover:bg-emerald-600`}>
                                                     {busy === row.username ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />} Confirm
-                                                </button>
-                                            )}
-                                            {row.status !== 'rejected' && (
-                                                <button onClick={() => decideAccount(row, 'reject')} disabled={busy === row.username} className={`${button} bg-red-50 text-red-600 hover:bg-red-100 dark:bg-red-500/10 dark:text-red-400`}>
-                                                    <UserX size={14} /> Reject
                                                 </button>
                                             )}
                                         </>

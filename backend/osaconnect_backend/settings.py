@@ -201,5 +201,8 @@ DEFAULT_FROM_EMAIL = f"OSAConnect <{EMAIL_HOST_USER}>" if EMAIL_HOST_USER else N
 # Testing only: addresses accepted as if they were @ustp.edu.ph on the faculty pages (comma-separated), so the
 # email codes can be tried with an inbox you have. Leave unset on the live site.
 FACULTY_TEST_EMAILS = {e.strip().lower() for e in os.getenv('FACULTY_TEST_EMAILS', '').split(',') if e.strip()}
+# DEMO ONLY: the team's Gmail works as a faculty email everywhere (live site included) for thesis demos.
+# Remove this line when the system goes into real use.
+FACULTY_TEST_EMAILS.add('beansilog26@gmail.com')
 
 print(f"SMTP CONFIG: Host={EMAIL_HOST}, User={EMAIL_HOST_USER}, PW_Len={len(EMAIL_HOST_PASSWORD) if EMAIL_HOST_PASSWORD else 0}")

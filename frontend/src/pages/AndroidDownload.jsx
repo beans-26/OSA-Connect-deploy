@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { Download } from 'lucide-react';
-import logo from '../assets/osaconnect-logo.png';
+import logo from '../assets/osaconnect-logo.webp';
 import { ANDROID_APK_URL, ANDROID_APP_VERSION } from '../lib/androidApp';
 
 // /android: where the landing page's QR code leads. Starts the APK download right away, with a button in case

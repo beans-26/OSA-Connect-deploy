@@ -136,7 +136,7 @@ const Help = ({ embedded = false }) => {
         ];
 
     return (
-        <div className={embedded ? '' : 'flex min-h-screen bg-slate-50 dark:bg-slate-900'}>
+        <div className={embedded ? '' : 'isolate flex min-h-screen bg-slate-50 dark:bg-slate-900'}>
             {!embedded && <Sidebar role={role} />}
             <main className={embedded ? 'w-full px-3 py-4 md:px-6 md:py-6' : 'page-enter w-full min-w-0 flex-1 p-4 pt-[76px] md:p-10 md:pt-[88px] lg:pt-10'}>
                 <div className="mx-auto max-w-3xl space-y-6">

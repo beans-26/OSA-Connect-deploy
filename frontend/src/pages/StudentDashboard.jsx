@@ -1,14 +1,16 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { AlertTriangle, Play, QrCode, Clock, Info, ChevronRight, CheckCircle2, WifiOff } from 'lucide-react';
+import { AlertTriangle, BookOpen, Play, QrCode, Clock, Info, ChevronRight, CheckCircle2, WifiOff } from 'lucide-react';
 import saluteFace from '../assets/salute.png';
 import { ticketStatusLabel, deadlineNotice } from '../lib/ticketStatus';
 import usePolling from '../lib/usePolling';
 import QrScannerModal from '../components/QrScannerModal';
 import SessionReceipt from '../components/SessionReceipt';
 import TicketDetails from '../components/TicketDetails';
+import StudentGuide from '../components/StudentGuide';
+import useLeaflet from '../lib/useLeaflet';
 import { useStudentShell } from '../components/StudentShell';
 import MapGate from '../components/MapGate';
-import { IDLE_REFRESH_MS, SAVER_REFRESH_MS } from '../lib/studentNotifications';
+import { IDLE_REFRESH_MS, RUNNING_REFRESH_MS, SAVER_REFRESH_MS } from '../lib/studentNotifications';
 import { timeGreeting, todayLabel, studentStatusLine } from '../lib/greeting';
 import { outsideSiteMessage, GEO_MESSAGES } from '../lib/geo';
 
@@ -24,10 +26,11 @@ const GeofenceMap = ({ hub, location, isOutOfBounds, isDarkMode, approach = fals
     const mapRef = useRef(null);
     const layersRef = useRef({});
     const fittedRef = useRef(false);
+    // The map library loads only when a map is shown (it's behind "Show map" with data saver on)
+    const L = useLeaflet();
 
     useEffect(() => {
-        if (!containerRef.current || !window.L || !hub) return;
-        const L = window.L;
+        if (!containerRef.current || !L || !hub) return;
         const map = L.map(containerRef.current, { zoomControl: false, attributionControl: false })
             .setView([hub.lat, hub.lng], 18);
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
@@ -48,10 +51,9 @@ const GeofenceMap = ({ hub, location, isOutOfBounds, isDarkMode, approach = fals
             mapRef.current = null;
             layersRef.current = {};
         };
-    }, [hub?.lat, hub?.lng]);
+    }, [L, hub?.lat, hub?.lng]);
 
     useEffect(() => {
-        const L = window.L;
         const map = mapRef.current;
         if (!map || !L) return;
         const layers = layersRef.current;
@@ -85,7 +87,7 @@ const GeofenceMap = ({ hub, location, isOutOfBounds, isDarkMode, approach = fals
             layers.route.remove();
             layers.route = null;
         }
-    }, [location, isOutOfBounds, hub?.radius, approach]);
+    }, [L, location, isOutOfBounds, hub?.radius, approach]);
 
     return (
         // isolate: Leaflet's panes use z-index 400+, which otherwise drew the map over the QR scanner (z-70)
@@ -114,6 +116,8 @@ const GeofenceMap = ({ hub, location, isOutOfBounds, isDarkMode, approach = fals
 };
 
 const COMPLETED_SEEN_KEY = 'osa-completed-notice-seen';
+// Tickets whose "What to do now" guide was already shown on this device
+const GUIDE_SEEN_KEY = 'osa-ticket-guide-seen';
 
 // A session stop the page couldn't send (no internet): { username, eticketId, endReason, endedAt, lat, lng,
 // distance }. Sent as soon as the connection is back, with the time it really ended (e.g. when the student
@@ -239,6 +243,11 @@ const DashboardBody = () => {
     const [seenCompleted, setSeenCompleted] = useState(() => {
         try { return JSON.parse(localStorage.getItem(COMPLETED_SEEN_KEY) || '[]'); } catch { return []; }
     });
+    // Tickets whose "What to do now" guide this device already showed (once per new ticket); guideTicket: open now
+    const [seenGuide, setSeenGuide] = useState(() => {
+        try { return JSON.parse(localStorage.getItem(GUIDE_SEEN_KEY) || '[]'); } catch { return []; }
+    });
+    const [guideTicket, setGuideTicket] = useState(null);
     const watchIdRef = React.useRef(null);
 
     // Sends a stop saved while offline (PENDING_STOP_KEY). Returns true while it still couldn't be sent.
@@ -340,7 +349,7 @@ const DashboardBody = () => {
     // Every 5 s while the tab is visible (the session state from the other device, the timer's base)
     // Every 5 s while a session runs (the server may stop it); otherwise every 30 s, or every 3 min with
     // data saver on (coming back to the tab always refreshes right away)
-    usePolling(() => fetchStudentData(), timerActive ? 5000 : (dataSaver ? SAVER_REFRESH_MS : IDLE_REFRESH_MS), [user.username]);
+    usePolling(() => fetchStudentData(), timerActive ? RUNNING_REFRESH_MS : (dataSaver ? SAVER_REFRESH_MS : IDLE_REFRESH_MS), [user.username]);
 
     // Back online: record a stop saved while offline right away (fetchStudentData sends it first)
     useEffect(() => {
@@ -774,6 +783,20 @@ const DashboardBody = () => {
         try { localStorage.setItem(COMPLETED_SEEN_KEY, JSON.stringify(next)); } catch { /* shown again next time */ }
     };
 
+    // The step-by-step guide: on its own the first time a new open ticket appears (not over another pop-up),
+    // and any time from "How to serve your hours"
+    const newGuideTicket = !receipt && !completedTicket && !openTicket && tickets.find((t) => (t.status === 'Active' || t.status === 'Ongoing') && !seenGuide.includes(t.id));
+    const shownGuide = guideTicket || newGuideTicket;
+    const closeGuide = () => {
+        if (shownGuide && !seenGuide.includes(shownGuide.id)) {
+            const next = [...seenGuide, shownGuide.id];
+            setSeenGuide(next);
+            try { localStorage.setItem(GUIDE_SEEN_KEY, JSON.stringify(next)); } catch { /* shown again next time */ }
+        }
+        setGuideTicket(null);
+    };
+    const guideFor = tickets.find((t) => t.status === 'Ongoing') || tickets.find((t) => t.status === 'Active');
+
     const ticketBadge = (status) =>
         status === 'Active' ? 'bg-[#dcfce7] text-[#10b981]' :
         status === 'Completed' ? 'bg-[#fef3c7] text-[#b45309]' :
@@ -812,6 +835,7 @@ const DashboardBody = () => {
                 </div>
             )}
             <TicketDetails ticket={openTicket} onClose={() => setOpenTicket(null)} />
+            <StudentGuide ticket={shownGuide} onClose={closeGuide} onOpenTicket={(t) => { closeGuide(); setOpenTicket(t); }} />
 
             {/* QR Scanner (end) */}
             {showStopScanner && (
@@ -975,6 +999,16 @@ const DashboardBody = () => {
                 <section className="mb-4">
                     <h2 className="mb-0.5 text-lg font-black text-[var(--s-text)]">E-Tickets</h2>
                     <p className="mb-3 text-sm font-medium text-[var(--s-muted)]">Tap a ticket to see its service log and forms</p>
+                    {guideFor && (
+                        <button onClick={() => setGuideTicket(guideFor)} className="mb-3 flex w-full items-center gap-3 rounded-2xl border border-[#fcd34d] bg-[#fffbeb] p-3 text-left dark:border-amber-500/40 dark:bg-amber-500/10">
+                            <BookOpen size={20} className="shrink-0 text-[#d97706]" />
+                            <span className="min-w-0 flex-1">
+                                <span className="block text-sm font-bold text-[var(--s-text)]">How to serve your hours</span>
+                                <span className="block text-xs font-medium text-[var(--s-muted)]">Step by step, including the ISO Form and Reflection Form</span>
+                            </span>
+                            <ChevronRight size={18} className="shrink-0 text-[var(--s-muted)]" />
+                        </button>
+                    )}
                     {loading ? (
                         <div className="mt-4 flex justify-center">
                             <span className="h-5 w-5 animate-spin rounded-full border-2 border-[var(--s-primary)] border-t-transparent" />

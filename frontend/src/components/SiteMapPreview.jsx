@@ -1,14 +1,15 @@
 import { useEffect, useRef } from 'react';
+import useLeaflet from '../lib/useLeaflet';
 
 // Small Leaflet + OpenStreetMap preview of a service site: marker at the point and a circle
-// for its radius. Leaflet is loaded globally from index.html (window.L).
+// for its radius. Leaflet is loaded when the map is shown (useLeaflet).
 const SiteMapPreview = ({ latitude, longitude, radius, className = '' }) => {
     const containerRef = useRef(null);
     const mapRef = useRef(null);
     const layersRef = useRef({});
+    const L = useLeaflet();
 
     useEffect(() => {
-        const L = window.L;
         if (!L || !containerRef.current || mapRef.current) return;
         const map = L.map(containerRef.current, { zoomControl: true, attributionControl: true, scrollWheelZoom: false });
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -21,10 +22,9 @@ const SiteMapPreview = ({ latitude, longitude, radius, className = '' }) => {
             mapRef.current = null;
             layersRef.current = {};
         };
-    }, []);
+    }, [L]);
 
     useEffect(() => {
-        const L = window.L;
         const map = mapRef.current;
         if (!L || !map || latitude == null || longitude == null) return;
         const point = [latitude, longitude];
@@ -39,12 +39,12 @@ const SiteMapPreview = ({ latitude, longitude, radius, className = '' }) => {
             layers.circle.setLatLng(point).setRadius(radius);
         }
         map.fitBounds(layers.circle.getBounds(), { padding: [16, 16] });
-    }, [latitude, longitude, radius]);
+    }, [L, latitude, longitude, radius]);
 
-    if (typeof window !== 'undefined' && !window.L) {
+    if (!L) {
         return (
             <div className={`flex items-center justify-center rounded-xl bg-slate-100 dark:bg-slate-900 text-xs font-semibold text-slate-400 ${className}`}>
-                Map unavailable
+                Loading map…
             </div>
         );
     }

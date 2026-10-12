@@ -6,8 +6,6 @@ import { Archive, CheckCircle, Search, ChevronDown, XCircle, Download} from 'luc
 import ThemeToggle from '../../components/ThemeToggle';
 import ArchivedCase from '../../components/ArchivedCase';
 import PhotoViewer from '../../components/PhotoViewer';
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
 
 const Archives = () => {
     const userRole = JSON.parse(localStorage.getItem('user') || '{}').role || 'staff';
@@ -85,6 +83,8 @@ const Archives = () => {
     const violationTypes = [...new Set(violations.map(v => v.violation_type))];
 
     const generatePDF = async () => {
+        // The PDF library (~100 KB) loads only when a PDF is made, not every time Archives opens
+        const [{ default: jsPDF }, { default: autoTable }] = await Promise.all([import('jspdf'), import('jspdf-autotable')]);
         const doc = new jsPDF({
             orientation: 'landscape',
             unit: 'mm',
@@ -225,7 +225,7 @@ const Archives = () => {
     };
 
     return (
-        <div className="flex bg-slate-50 dark:bg-slate-900 min-h-screen">
+        <div className="isolate flex bg-slate-50 dark:bg-slate-900 min-h-screen">
             <Sidebar role={userRole} />
             <div className="flex-1 h-screen overflow-y-auto custom-scrollbar w-full">
                 <main className="page-enter flex-1 px-4 pt-[76px] pb-8 md:p-10 lg:pt-10 w-full max-w-full">

@@ -2,8 +2,8 @@ import { Link } from 'react-router-dom';
 import { ChevronLeft } from 'lucide-react';
 import ReportViolation from './guard/ReportViolation';
 import ThemeToggle from '../components/ThemeToggle';
-import logo from '../assets/osaconnect-logo.png';
-import logoDark from '../assets/osaconnect-logo-dark.png';
+import logo from '../assets/osaconnect-logo.webp';
+import logoDark from '../assets/osaconnect-logo-dark.webp';
 
 // Faculty without an account (/faculty/report, the "Report without an account" option on the /faculty login):
 // the faculty member fills in the report and confirms their @ustp.edu.ph email with a code before it's sent;
