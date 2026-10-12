@@ -319,3 +319,7 @@ body {
 .glass-glows-navy::before { top: -140px; right: -100px; background: rgb(255 172 23 / 0.2); }
 .glass-glows-navy::after { bottom: -180px; left: -140px; background: rgb(59 130 246 / 0.28); }
 @media (prefers-reduced-motion: reduce) { .glass-sheen.is-shown::after { animation: none; } }
+
+/* Landing page on big screens: everything sized in rem (text, spacing, widths) grows with the root size */
+@media (min-width: 1280px) { html.landing-zoom { font-size: 17.5px; } }
+@media (min-width: 1600px) { html.landing-zoom { font-size: 19px; } }
