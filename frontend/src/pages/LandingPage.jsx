@@ -314,12 +314,13 @@ const LandingPage = () => {
             </nav>
 
             {/* Hero */}
-            <section id="home" className="relative overflow-hidden px-4 pb-20 pt-32 sm:px-6 md:pb-28 md:pt-40 lg:min-h-[760px]" style={{ backgroundColor: NAVY }}>
+            {/* Exactly one screen tall (content centred), so the next section never peeks in as a blank strip */}
+            <section id="home" className="relative flex min-h-[100svh] items-center overflow-hidden px-4 pb-16 pt-28 sm:px-6 md:pb-20 md:pt-32" style={{ backgroundColor: NAVY }}>
                 {/* The USTP campus, darkened with the brand navy so the text stays readable */}
                 <div className="pointer-events-none absolute inset-0 bg-cover bg-center" aria-hidden="true" style={{ backgroundImage: `url(${campusPhoto})` }} />
                 <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-[#101A4B] via-[#101A4B]/85 to-[#101A4B]/40" aria-hidden="true" />
                 <div className="pointer-events-none absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-[#101A4B]/70 to-transparent" aria-hidden="true" />
-                <div className="relative mx-auto grid max-w-7xl items-center gap-16 lg:grid-cols-2">
+                <div className="relative mx-auto grid w-full max-w-7xl items-center gap-16 lg:grid-cols-2">
                     <Reveal className="text-center lg:text-left">
                         <p className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-3 py-1 text-xs font-semibold text-white/80">
                             <span className="h-2 w-2 rounded-full" style={{ backgroundColor: ORANGE }} />
