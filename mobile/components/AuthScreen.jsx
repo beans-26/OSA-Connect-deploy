@@ -1,5 +1,5 @@
 import React, { useRef, useSyncExternalStore } from 'react';
-import { View, Image, ScrollView, KeyboardAvoidingView, Platform, StyleSheet } from 'react-native';
+import { View, Image, ScrollView, StyleSheet } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { introStore } from './introStore';
@@ -76,10 +76,14 @@ export default function AuthScreen({ maxWidth = 400, logoWidth = 220, children }
         <View style={styles.background}>
             {/* Dark icons on the white page; the app's own setting comes back when this screen closes */}
             <StatusBar style="dark" />
-            <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.fill}>
+            {/* No KeyboardAvoidingView: it slid the whole page up when the keyboard opened. The page stays still and
+                only scrolls as much as needed to keep the field being typed in visible (iOS: keyboard insets) */}
+            <View style={styles.fill}>
                 <ScrollView
                     contentContainerStyle={[styles.scroll, { paddingTop: insets.top + 20, paddingBottom: insets.bottom + 20 }]}
                     keyboardShouldPersistTaps="handled"
+                    automaticallyAdjustKeyboardInsets
+                    keyboardDismissMode="on-drag"
                 >
                     <View style={[styles.column, { maxWidth }]}>
                         {/* The logo image (1032 x 392) includes the "One scan at a time" tagline */}
@@ -94,7 +98,7 @@ export default function AuthScreen({ maxWidth = 400, logoWidth = 220, children }
                         <View style={styles.card}>{children}</View>
                     </View>
                 </ScrollView>
-            </KeyboardAvoidingView>
+            </View>
         </View>
     );
 }

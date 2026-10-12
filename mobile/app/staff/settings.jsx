@@ -58,7 +58,7 @@ export default function StaffSettings() {
                 </ScrollView>
             </View>
             
-            <Modal visible={showLogoutModal} transparent={true} animationType="fade">
+            <Modal visible={showLogoutModal} transparent={true} animationType="none">
                 <View style={styles.modalOverlay}>
                     <View style={styles.modalContent}>
                         <View style={styles.modalHeader}>

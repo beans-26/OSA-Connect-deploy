@@ -438,7 +438,7 @@ export default function PersonnelDashboard() {
 
 
             {/* Confirm before submitting, like the website */}
-            <Modal visible={showConfirmModal} transparent animationType="fade">
+            <Modal visible={showConfirmModal} transparent animationType="none">
                 <View style={styles.modalOverlay}>
                     <ScrollView style={styles.slipModal} contentContainerStyle={styles.slipModalContent}>
                         <View style={styles.slipModalHeader}>
@@ -468,7 +468,7 @@ export default function PersonnelDashboard() {
             </Modal>
 
             {/* Errors */}
-            <Modal visible={alertMessage.visible} transparent animationType="fade">
+            <Modal visible={alertMessage.visible} transparent animationType="none">
                 <View style={styles.modalOverlay}>
                     <View style={styles.modalContent}>
                         <View style={styles.alertHeader}>

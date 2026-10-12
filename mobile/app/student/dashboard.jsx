@@ -633,7 +633,7 @@ export default function Dashboard() {
 
         {/* Hours served: the student still has to bring the signed ISO form to OSA to be cleared.
             Shown after the time-out receipt, once per ticket. Same as the website. */}
-        <Modal visible={!!completedTicket} transparent animationType="fade" onRequestClose={dismissCompleted}>
+        <Modal visible={!!completedTicket} transparent animationType="none" onRequestClose={dismissCompleted}>
             <View style={styles.completedOverlay}>
                 <View style={styles.completedCard}>
                     <View style={styles.completedIcon}>

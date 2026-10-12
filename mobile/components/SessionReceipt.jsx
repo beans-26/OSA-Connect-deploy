@@ -72,7 +72,7 @@ export default function SessionReceipt({ receipt, onClose }) {
     const accent = flagged ? '#dc2626' : '#059669';
 
     return (
-        <Modal visible transparent animationType="fade" statusBarTranslucent onRequestClose={onClose}>
+        <Modal visible transparent animationType="none" statusBarTranslucent onRequestClose={onClose}>
             {/* The card sits inside a full-screen dimmed, blurred layer so only the receipt is in focus */}
             <View style={styles.overlay}>
                 <BlurView intensity={40} tint="dark" style={StyleSheet.absoluteFill} />

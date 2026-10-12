@@ -80,9 +80,10 @@ const roles = [
     },
 ];
 
-// Fades, slides up and grows an element in each time it scrolls into view. `delay` (ms) staggers items in a row.
+// Rises into place each time it scrolls into view. `glass` cards (frosted, see index.css .glass-card) also get a
+// light reflection sweeping across them once they're in, like light catching glass. `delay` staggers a row.
 // People who turned on "reduce motion" see everything at once.
-const Reveal = ({ as: Tag = 'div', delay = 0, className = '', children }) => {
+const Reveal = ({ as: Tag = 'div', delay = 0, className = '', glass = false, children }) => {
     const ref = useRef(null);
     const [shown, setShown] = useState(false);
 
@@ -106,7 +107,7 @@ const Reveal = ({ as: Tag = 'div', delay = 0, className = '', children }) => {
         <Tag
             ref={ref}
             style={{ transitionDelay: `${delay}ms` }}
-            className={`transition-[opacity,transform] duration-1000 ease-[cubic-bezier(0.16,1,0.3,1)] ${shown ? 'translate-y-0 scale-100 opacity-100' : 'translate-y-16 scale-[0.96] opacity-0'} ${className}`}
+            className={`transition-[opacity,transform] duration-[1000ms] ease-[cubic-bezier(0.16,1,0.3,1)] ${shown ? 'translate-y-0 scale-100 opacity-100' : 'translate-y-6 scale-[0.97] opacity-0'} ${glass ? `glass-sheen ${shown ? 'is-shown' : ''}` : ''} ${className}`}
         >
             {children}
         </Tag>
@@ -278,7 +279,7 @@ const LandingPage = () => {
     return (
         <div className="min-h-screen bg-white font-sans text-slate-700 dark:bg-slate-900 dark:text-slate-300">
             {/* Navigation */}
-            <nav className={`fixed inset-x-0 top-0 z-[100] transition-all duration-200 ${onDark ? 'bg-transparent py-5' : 'border-b border-slate-100 bg-white/90 py-3 shadow-sm backdrop-blur dark:border-slate-700 dark:bg-slate-900/90'}`}>
+            <nav className={`fixed inset-x-0 top-0 z-[100] transition-all duration-300 ${onDark ? 'bg-transparent py-5' : 'border-b border-white/50 bg-white/55 py-3 shadow-[0_8px_32px_rgba(15,23,42,0.08)] backdrop-blur-2xl backdrop-saturate-[1.8] dark:border-white/10 dark:bg-slate-900/55'}`}>
                 <div className="mx-auto flex max-w-7xl items-center justify-between px-4 sm:px-6">
                     <a href="#home" className="flex items-center">
                         <img src={onDark ? logoDark : logo} alt="OSAConnect" className={`h-9 w-auto select-none md:h-10 ${onDark ? '' : 'dark:hidden'}`} draggable="false" />
@@ -352,12 +353,12 @@ const LandingPage = () => {
             </section>
 
             {/* How it works */}
-            <section id="how" className="scroll-mt-20 bg-slate-50 px-4 py-20 sm:px-6 md:py-28 dark:bg-slate-900">
+            <section id="how" className="glass-glows relative isolate overflow-hidden scroll-mt-20 bg-slate-50 px-4 py-20 sm:px-6 md:py-28 dark:bg-slate-900">
                 <div className="mx-auto max-w-7xl">
                     <SectionTitle eyebrow="How it works" title="From report to clearance" text="Every case follows the same four steps, and everyone involved can see where it is." />
                     <ol className="mt-14 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
                         {steps.map((s, i) => (
-                            <Reveal as="li" key={s.title} delay={i * 120} className="relative rounded-2xl border border-slate-200 bg-white p-6 dark:border-slate-700 dark:bg-slate-800">
+                            <Reveal as="li" key={s.title} delay={i * 120} glass className="glass-card rounded-2xl p-6">
                                 <div className="flex items-center justify-between">
                                     <span className="flex h-11 w-11 items-center justify-center rounded-xl text-white" style={{ backgroundColor: NAVY }}>
                                         <s.icon size={20} />
@@ -373,12 +374,12 @@ const LandingPage = () => {
             </section>
 
             {/* Features */}
-            <section id="features" className="scroll-mt-20 bg-white px-4 py-20 sm:px-6 md:py-28 dark:bg-slate-800">
+            <section id="features" className="glass-glows glass-glows-alt relative isolate overflow-hidden scroll-mt-20 bg-white px-4 py-20 sm:px-6 md:py-28 dark:bg-slate-800">
                 <div className="mx-auto max-w-7xl">
                     <SectionTitle eyebrow="Features" title="Built for the way OSA works" />
                     <div className="mt-14 grid gap-x-10 gap-y-12 sm:grid-cols-2 lg:grid-cols-3">
                         {features.map((f, i) => (
-                            <Reveal key={f.title} delay={(i % 3) * 120} className="flex gap-4">
+                            <Reveal key={f.title} delay={(i % 3) * 120} glass className="glass-card flex gap-4 rounded-2xl p-6">
                                 <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-amber-50 text-amber-600 dark:bg-amber-500/10 dark:text-amber-400">
                                     <f.icon size={20} />
                                 </span>
@@ -393,12 +394,12 @@ const LandingPage = () => {
             </section>
 
             {/* Roles */}
-            <section id="roles" className="scroll-mt-20 px-4 py-20 sm:px-6 md:py-28" style={{ backgroundColor: NAVY }}>
+            <section id="roles" className="glass-glows-navy relative isolate overflow-hidden scroll-mt-20 px-4 py-20 sm:px-6 md:py-28" style={{ backgroundColor: NAVY }}>
                 <div className="mx-auto max-w-7xl">
                     <SectionTitle light eyebrow="Who uses it" title="One system, three sides of every case" />
                     <div className="mt-14 grid gap-6 lg:grid-cols-3">
                         {roles.map((r, i) => (
-                            <Reveal key={r.title} delay={i * 120} className="flex flex-col rounded-2xl border border-white/10 bg-white/5 p-7">
+                            <Reveal key={r.title} delay={i * 120} glass className="glass-card-dark flex flex-col rounded-2xl p-7">
                                 <span className="flex h-11 w-11 items-center justify-center rounded-xl text-slate-900" style={{ backgroundColor: ORANGE }}>
                                     <r.icon size={20} />
                                 </span>
@@ -422,9 +423,9 @@ const LandingPage = () => {
             </section>
 
             {/* Platforms, with the Android download */}
-            <section id="download" className="scroll-mt-20 bg-slate-50 px-4 py-20 sm:px-6 dark:bg-slate-900">
+            <section id="download" className="glass-glows relative isolate overflow-hidden scroll-mt-20 bg-slate-50 px-4 py-20 sm:px-6 dark:bg-slate-900">
                 <div className="mx-auto grid max-w-5xl gap-6 md:grid-cols-[3fr_2fr]">
-                    <Reveal className="flex flex-col gap-6 rounded-2xl border border-slate-200 bg-white p-7 sm:flex-row sm:items-center dark:border-slate-700 dark:bg-slate-800">
+                    <Reveal glass className="glass-card flex flex-col gap-6 rounded-2xl p-7 sm:flex-row sm:items-center">
                         <div className="flex-1">
                             <Smartphone size={24} className="text-slate-700 dark:text-slate-300" />
                             <h3 className="mt-4 text-lg font-bold text-slate-900 dark:text-white">Android app</h3>
@@ -442,7 +443,7 @@ const LandingPage = () => {
                             <p className="text-[11px] text-slate-400">Version {ANDROID_APP_VERSION}</p>
                         </div>
                     </Reveal>
-                    <Reveal delay={120} className="rounded-2xl border border-slate-200 bg-white p-7 dark:border-slate-700 dark:bg-slate-800">
+                    <Reveal delay={120} glass className="glass-card rounded-2xl p-7">
                         <ScanLine size={24} className="text-slate-700 dark:text-slate-300" />
                         <h3 className="mt-4 text-lg font-bold text-slate-900 dark:text-white">Website</h3>
                         <p className="mt-2 text-sm leading-relaxed text-slate-500 dark:text-slate-400">For everyone, on any device. Students with an iPhone use the website in their browser.</p>

@@ -17,7 +17,7 @@ export default function StaffLayout() {
                     },
                     headerTintColor: colors.text,
                     contentStyle: { backgroundColor: colors.background },
-                    animation: 'slide_from_right',
+                    animation: 'none',
                     headerTitleStyle: {
                         fontWeight: 'bold',
                     },
@@ -46,13 +46,13 @@ export default function StaffLayout() {
                     options={{
                         headerShown: false,
                         // Same "tab" switch feel as the student Dashboard ↔ Settings
-                        animation: 'fade_from_bottom',
+                        animation: 'none',
                     }}
                 />
                 {/* Camera gets its own native full-screen screen; the report form stays mounted underneath */}
                 <Stack.Screen
                     name="scan"
-                    options={{ headerShown: false, presentation: 'fullScreenModal', animation: 'slide_from_bottom' }}
+                    options={{ headerShown: false, presentation: 'fullScreenModal', animation: 'none' }}
                 />
             </Stack>
         </RequireRole>

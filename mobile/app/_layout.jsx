@@ -24,15 +24,15 @@ function RootContent() {
             <Stack
                 screenOptions={{
                     headerShown: false,
-                    animation: 'slide_from_right',
+                    // No screen transitions in the app: only the opening logo animates
+                    animation: 'none',
                     contentStyle: { backgroundColor: colors.background },
                 }}
             >
-                {/* Logging in/out swaps the whole app, so a soft fade reads better than a slide */}
-                <Stack.Screen name="index" options={{ animation: 'fade' }} />
-                <Stack.Screen name="login" options={{ animation: 'fade' }} />
-                <Stack.Screen name="student" options={{ animation: 'fade' }} />
-                <Stack.Screen name="staff" options={{ animation: 'fade' }} />
+                <Stack.Screen name="index" />
+                <Stack.Screen name="login" />
+                <Stack.Screen name="student" />
+                <Stack.Screen name="staff" />
             </Stack>
             {introShown && <LogoIntro onDone={() => setIntroShown(false)} />}
         </View>

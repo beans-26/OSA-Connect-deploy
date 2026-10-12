@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Animated, Easing, Platform, Vibration, useWindowDimensions, BackHandler } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Animated, Platform, Vibration, useWindowDimensions, BackHandler } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { X } from 'lucide-react-native';
@@ -35,16 +35,8 @@ export default function QrScannerView({ title, subtitle, accent = '#60a5fa', onS
 
     useEffect(() => () => clearTimeout(errorTimerRef.current), []);
 
-    useEffect(() => {
-        const loop = Animated.loop(
-            Animated.sequence([
-                Animated.timing(laser, { toValue: 1, duration: 1200, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
-                Animated.timing(laser, { toValue: 0, duration: 1200, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
-            ])
-        );
-        loop.start();
-        return () => loop.stop();
-    }, [laser]);
+    // No moving laser (the app has no animations apart from the opening logo): the line rests across the middle
+    useEffect(() => { laser.setValue(0.5); }, [laser]);
 
     // CameraView reports the same code many times per second; only hand off the first one
     const handleScan = (result) => {
