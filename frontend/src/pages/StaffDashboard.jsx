@@ -652,7 +652,7 @@ const InsightsCard = ({ violators }) => {
     const maxType = topTypes[0]?.[1] || 1;
 
     return (
-        <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-md border border-slate-100 dark:border-slate-700 overflow-hidden">
+        <div className="glass-card rounded-2xl overflow-hidden">
             <div className="bg-gradient-to-r from-ustp-blue to-blue-600 px-6 py-5">
                 <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center">
@@ -728,7 +728,8 @@ const StaffDashboard = () => {
     const [todayStats, setTodayStats] = useState({ violations: 0, assigned: 0, completed: 0 });
 
     // Every 5 s while the tab is open and visible
-    usePolling(() => fetchDashboardData(), 10000);
+    // Every 30 s (was 10 s): each refresh downloads every open case and ticket, which adds up on slow data
+    usePolling(() => fetchDashboardData(), 30000);
     const handleAction = async (reportId) => {
         try {
             const response = await fetch(`/api/violations/${reportId}/approve/`, { method: 'POST' });
@@ -823,7 +824,9 @@ const userRole = JSON.parse(localStorage.getItem('user') || '{}').role || 'staff
     const filterSelect = 'min-w-0 w-full sm:w-auto bg-white dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 rounded-xl px-3.5 py-3 text-sm font-bold text-slate-600 dark:text-slate-300 focus:border-ustp-blue outline-none cursor-pointer';
 
     return (
-        <div className="flex bg-slate-50 dark:bg-slate-900 min-h-screen relative font-sans">
+        <div className="isolate flex bg-slate-50 dark:bg-slate-900 min-h-screen relative font-sans">
+            {/* Soft colour glows behind the glass Today's Activity / Insights panels (the side menu brings its own) */}
+            <div aria-hidden="true" className="admin-glows-right pointer-events-none fixed inset-0 -z-10" />
             <Sidebar role={userRole} badges={{ '/admin/pending': stats.pending }} />
             <div className="flex-1 h-screen overflow-y-auto custom-scrollbar w-full">
                 <div className="flex flex-col xl:flex-row w-full min-h-full">
@@ -976,7 +979,7 @@ const userRole = JSON.parse(localStorage.getItem('user') || '{}').role || 'staff
                 <aside className="w-96 p-6 pt-10 border-l border-transparent dark:border-transparent bg-transparent hidden xl:block">
                     <div className="sticky top-6 space-y-6">
                         {/* Today's Activity Card */}
-                        <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-md border border-slate-100 dark:border-slate-700 overflow-hidden">
+                        <div className="glass-card rounded-2xl overflow-hidden">
                             <div className="bg-gradient-to-r from-ustp-blue to-blue-600 px-6 py-5">
                                 <div className="flex items-center gap-3">
                                     <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center">

@@ -23,7 +23,7 @@ import TicketDetails from '../../components/TicketDetails';
 import { ticketStatusLabel, deadlineNotice } from '../../components/ticketStatus';
 import { StudentTopBar, useStudentShell } from '../../components/StudentShell';
 import MapGate from '../../components/MapGate';
-import { IDLE_REFRESH_MS, SAVER_REFRESH_MS } from '../../components/studentNotifications';
+import { IDLE_REFRESH_MS, RUNNING_REFRESH_MS, SAVER_REFRESH_MS } from '../../components/studentNotifications';
 
 // Location off this long stops the session; same as the website
 const OUT_OF_BOUNDS_S = 30;
@@ -157,7 +157,7 @@ export default function Dashboard() {
     useEffect(() => {
         if (!user?.username) return;
         fetchData();
-        const poll = setInterval(() => AppState.currentState === 'active' && fetchData(), timerActive ? 5000 : (dataSaver ? SAVER_REFRESH_MS : IDLE_REFRESH_MS));
+        const poll = setInterval(() => AppState.currentState === 'active' && fetchData(), timerActive ? RUNNING_REFRESH_MS : (dataSaver ? SAVER_REFRESH_MS : IDLE_REFRESH_MS));
         const sub = AppState.addEventListener('change', (state) => state === 'active' && fetchData());
         return () => { clearInterval(poll); sub.remove(); };
     }, [user?.username, timerActive, dataSaver]);

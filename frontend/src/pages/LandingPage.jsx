@@ -22,12 +22,14 @@ import {
     UserCheck,
     X,
 } from 'lucide-react';
-import laptopMockup from '../assets/mockup_laptop.jpg';
-import tabletMockup from '../assets/mockup_tablet.jpg';
-import phoneMockup from '../assets/mockup_phone.jpg';
-import logo from '../assets/osaconnect-logo.png';
-import logoDark from '../assets/osaconnect-logo-dark.png';
-import campusPhoto from '../assets/ustp-campus.jpg';
+import laptopMockup from '../assets/mockup_laptop.webp';
+import tabletMockup from '../assets/mockup_tablet.webp';
+import phoneMockup from '../assets/mockup_phone.webp';
+import logo from '../assets/osaconnect-logo.webp';
+import logoDark from '../assets/osaconnect-logo-dark.webp';
+import campusPhoto from '../assets/ustp-campus.webp';
+// Phones get a much smaller copy: it sits under a dark overlay anyway (slow mobile data)
+import campusPhotoSmall from '../assets/ustp-campus-small.webp';
 import QRCode from 'react-qr-code';
 import { FACULTY_LOGIN } from '../lib/portals';
 import { ANDROID_APP_VERSION, ANDROID_DOWNLOAD_PATH, ANDROID_DOWNLOAD_URL } from '../lib/androidApp';
@@ -324,7 +326,8 @@ const LandingPage = () => {
             {/* Exactly one screen tall (content centred), so the next section never peeks in as a blank strip */}
             <section id="home" className="relative flex min-h-[100svh] items-center overflow-hidden px-4 pb-16 pt-28 sm:px-6 md:pb-20 md:pt-32" style={{ backgroundColor: NAVY }}>
                 {/* The USTP campus, darkened with the brand navy so the text stays readable */}
-                <div className="pointer-events-none absolute inset-0 bg-cover bg-center" aria-hidden="true" style={{ backgroundImage: `url(${campusPhoto})` }} />
+                <div className="pointer-events-none absolute inset-0 hidden bg-cover bg-center md:block" aria-hidden="true" style={{ backgroundImage: `url(${campusPhoto})` }} />
+                <div className="pointer-events-none absolute inset-0 bg-cover bg-center md:hidden" aria-hidden="true" style={{ backgroundImage: `url(${campusPhotoSmall})` }} />
                 <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-[#101A4B] via-[#101A4B]/85 to-[#101A4B]/40" aria-hidden="true" />
                 <div className="pointer-events-none absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-[#101A4B]/70 to-transparent" aria-hidden="true" />
                 <div className="relative mx-auto grid w-full max-w-7xl items-center gap-16 lg:grid-cols-2">

@@ -3,7 +3,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { ChevronLeft, Clock, Eye, EyeOff, Loader2, Lock, Mail, MailCheck, User } from 'lucide-react';
 import { homePathFor } from '../lib/portals';
 import campusPhoto from '../assets/ustp-campus-blur.jpg';
-import osaLogo from '../assets/osaconnect-logo.png';
+import osaLogo from '../assets/osaconnect-logo.webp';
 
 // Faculty make their own account (/faculty/signup, from the /faculty login): first and last name, @ustp.edu.ph
 // email and password, then the 6-digit code from the email. The account waits for OSA to confirm them before it

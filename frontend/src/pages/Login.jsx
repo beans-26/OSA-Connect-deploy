@@ -2,8 +2,8 @@ import { useState } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { ACTIVITY_KEY } from '../components/studentSession';
 import { homePathFor } from '../lib/portals';
-import campusPhoto from '../assets/ustp-campus.jpg';
-import osaLogo from '../assets/osaconnect-logo.png';
+import campusPhoto from '../assets/ustp-campus.webp';
+import osaLogo from '../assets/osaconnect-logo.webp';
 import { 
     User, 
     Eye, 
@@ -44,9 +44,17 @@ const PORTALS = {
     },
 };
 
+// Faculty "Remember me": the email (never the password) kept on this device and filled in next time
+const REMEMBER_KEY = 'osa-faculty-remembered-email';
+const readRemembered = () => {
+    try { return localStorage.getItem(REMEMBER_KEY) || ''; } catch { return ''; }
+};
+
 const Login = ({ portal = 'student' }) => {
     const config = PORTALS[portal];
-    const [username, setUsername] = useState('');
+    const canRemember = portal === 'faculty';
+    const [username, setUsername] = useState(() => (canRemember ? readRemembered() : ''));
+    const [remember, setRemember] = useState(() => canRemember && !!readRemembered());
     const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
     const [loading, setLoading] = useState(false);
@@ -87,6 +95,12 @@ const Login = ({ portal = 'student' }) => {
                     name: data.name
                 };
                 localStorage.setItem('user', JSON.stringify(userData));
+                if (canRemember) {
+                    try {
+                        if (remember) localStorage.setItem(REMEMBER_KEY, username.trim());
+                        else localStorage.removeItem(REMEMBER_KEY);
+                    } catch { /* not kept: typed again next time */ }
+                }
                 // StudentIdleGuard counts inactivity from a student's login
                 if (data.role === 'student') localStorage.setItem(ACTIVITY_KEY, String(Date.now()));
                 
@@ -199,6 +213,17 @@ const Login = ({ portal = 'student' }) => {
                             </div>
                         ) : (
                             <div className="flex flex-col items-center gap-3 pt-2">
+                                {canRemember && (
+                                    <label className="flex w-full cursor-pointer select-none items-center gap-2 text-xs sm:text-sm font-semibold text-slate-700 dark:text-slate-300">
+                                        <input
+                                            type="checkbox"
+                                            checked={remember}
+                                            onChange={(e) => setRemember(e.target.checked)}
+                                            className="h-4 w-4 rounded border-slate-300 accent-blue-900"
+                                        />
+                                        Remember me
+                                    </label>
+                                )}
                                 <button
                                     type="submit"
                                     disabled={loading}

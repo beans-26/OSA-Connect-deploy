@@ -122,17 +122,20 @@ const TicketDetails = ({ ticket, onClose, children, forAdmin = false }) => {
                         </div>
                     </div>
 
-                    {/* The blank forms to fill in by hand and bring to OSA */}
+                    {/* The blank forms to fill in by hand and bring to OSA: highlighted, they're easy to miss */}
                     {!forAdmin && ['Active', 'Ongoing', 'Completed'].includes(ticket.status) && (
-                        <div className="mb-5">
-                            <p className="mb-2 text-[10px] font-black uppercase tracking-[2px] text-[var(--s-muted)]">Forms to bring to OSA</p>
+                        <div className="mb-5 rounded-2xl border-2 border-[#f59e0b] bg-[#fffbeb] p-3.5 dark:bg-amber-500/10">
+                            <p className="text-sm font-black text-[#92400e] dark:text-amber-200">Download your forms</p>
+                            <p className="mb-3 mt-0.5 text-xs font-medium leading-4 text-[#b45309] dark:text-amber-300">
+                                Fill them in and bring both to the OSA office. You can't be cleared without them.
+                            </p>
                             <div className="grid grid-cols-2 gap-2">
                                 {[['iso', 'ISO Form'], ['reflection', 'Reflection Form']].map(([kind, label]) => (
                                     <button
                                         key={kind}
                                         onClick={() => downloadForm(kind)}
                                         disabled={!!formBusy}
-                                        className="flex items-center justify-center gap-1.5 rounded-xl border border-[var(--s-border)] bg-[var(--s-card)] px-3 py-2.5 text-xs font-bold text-[var(--s-text)] hover:border-[var(--s-primary)] disabled:opacity-60"
+                                        className="flex items-center justify-center gap-1.5 rounded-xl bg-[#f59e0b] px-3 py-3 text-xs font-black text-white shadow-sm hover:brightness-105 disabled:opacity-60"
                                     >
                                         {formBusy === kind ? <Loader2 size={15} className="animate-spin" /> : <Download size={15} />} {label}
                                     </button>

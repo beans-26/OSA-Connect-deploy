@@ -9,6 +9,9 @@ export const REMINDERS_KEY = 'osa-deadline-reminders';
 // Data saver (Settings, on unless turned off): the map loads on tap and idle refreshes are every few minutes
 export const DATA_SAVER_KEY = 'osa-data-saver';
 export const IDLE_REFRESH_MS = 30000;
+// While a session runs (was 5 s): the timer counts on the phone, and the location pings (every 15 s) already
+// catch a session the server stopped, so a fresh copy every 15 s is enough on slow data
+export const RUNNING_REFRESH_MS = 15000;
 export const SAVER_REFRESH_MS = 180000;
 export const readDataSaver = async () => {
     try { return (await AsyncStorage.getItem(DATA_SAVER_KEY)) !== 'off'; } catch { return true; }

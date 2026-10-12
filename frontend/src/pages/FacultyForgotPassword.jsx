@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { CheckCircle2, ChevronLeft, Eye, EyeOff, Loader2, Lock, Mail, MailCheck } from 'lucide-react';
 import campusPhoto from '../assets/ustp-campus-blur.jpg';
-import osaLogo from '../assets/osaconnect-logo.png';
+import osaLogo from '../assets/osaconnect-logo.webp';
 
 // Faculty "Forgot password?" (/faculty/forgot-password, from the /faculty login): the account's USTP email,
 // the 6-digit code sent to it, and a new password (backend faculty_reset_request / faculty_reset_password).

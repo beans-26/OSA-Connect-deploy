@@ -3,8 +3,8 @@ import { NavLink, Link, useNavigate } from 'react-router-dom';
 import { LayoutDashboard, User, LogOut, Menu, X, Users, Settings, HelpCircle, ChevronDown, ChevronRight, ChevronsLeft, ChevronsRight, FileSearch, Archive, TrendingUp, Gavel, History, ChartPie, ClipboardList, GraduationCap } from 'lucide-react';
 import usePolling from '../lib/usePolling';
 import { motion, AnimatePresence } from 'framer-motion';
-import logo from '../assets/osaconnect-logo.png';
-import logoDark from '../assets/osaconnect-logo-dark.png';
+import logo from '../assets/osaconnect-logo.webp';
+import logoDark from '../assets/osaconnect-logo-dark.webp';
 import logoIcon from '../assets/osaconnect-icon.png';
 import logoIconDark from '../assets/osaconnect-icon-dark.png';
 import { loginPathFor } from '../lib/portals';
@@ -214,7 +214,7 @@ const Sidebar = ({ role, badges = {} }) => {
     return (
         <>
             {/* Mobile Top Bar: above the pages' sticky search headers (z-40), below modals (z-50) */}
-            <div className="lg:hidden fixed top-0 left-0 right-0 z-[45] bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 px-4 py-3 flex items-center justify-between shadow-sm">
+            <div className="lg:hidden fixed top-0 left-0 right-0 z-[45] bg-white/60 backdrop-blur-2xl backdrop-saturate-150 dark:bg-slate-900/60 border-b border-white/70 dark:border-white/10 px-4 py-3 flex items-center justify-between shadow-sm">
                 <div className="flex items-center gap-2">
                     <img src={logo} alt="OSAConnect" className="h-10 w-auto object-contain select-none dark:hidden" draggable="false" />
                     <img src={logoDark} alt="OSAConnect" className="hidden h-10 w-auto object-contain select-none dark:block" draggable="false" />
@@ -251,12 +251,15 @@ const Sidebar = ({ role, badges = {} }) => {
                 )}
             </AnimatePresence>
 
+            {/* Soft colour glows behind the glass menu (the page's root is `isolate`, so they show over its background) */}
+            <div aria-hidden="true" className="admin-glows-left pointer-events-none fixed inset-0 -z-10" />
+
             {/* Desktop Sidebar */}
             <motion.aside
                 initial={slideIn ? { x: -100, opacity: 0 } : false}
                 animate={{ x: 0, opacity: 1, width: collapsed ? 72 : 288 }}
                 transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-                className="hidden lg:flex h-screen bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 sticky top-0 py-8 flex-col shrink-0 relative overflow-hidden"
+                className="hidden lg:flex h-screen bg-white/55 backdrop-blur-2xl backdrop-saturate-150 dark:bg-slate-900/60 border-r border-white/70 dark:border-white/10 shadow-[1px_0_0_rgba(15,23,42,0.04)] sticky top-0 py-8 flex-col shrink-0 relative overflow-hidden"
             >
                 {sidebarContent(collapsed)}
                 {/* Collapse toggle button — sits at the bottom of the sidebar, clearly visible */}
