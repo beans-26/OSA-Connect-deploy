@@ -195,7 +195,7 @@ const ForgotPassword = () => {
             <div aria-hidden="true" className="fixed inset-0 bg-white/40 dark:bg-slate-950/60" />
 
             <div className="relative z-10 w-full max-w-md flex flex-col items-center gap-4 sm:gap-5">
-                <img src={osaLogo} alt="OSAConnect: Smart student violation management"
+                <img src={osaLogo} alt="OSAConnect: One scan at a time"
                     className="w-full max-w-[270px] sm:max-w-[340px] h-auto select-none dark:drop-shadow-[0_0_8px_rgba(255,255,255,0.55)]" draggable="false" />
 
                 <div className={`w-full rounded-md p-4 sm:p-7 ${cardClass}`}>

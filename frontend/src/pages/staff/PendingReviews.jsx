@@ -99,7 +99,8 @@ const PendingReviews = () => {
 
     return (
         <div className="flex bg-slate-50 dark:bg-slate-900 min-h-screen relative font-sans">
-            <Sidebar role={userRole} />
+            {/* This page's own count, so the menu badge drops as soon as a case is approved (not on the next 30 s poll) */}
+            <Sidebar role={userRole} badges={loading ? {} : { '/admin/pending': reports.length }} />
             <div className="flex-1 h-screen overflow-y-auto custom-scrollbar w-full">
                 <main className="page-enter flex-1 px-4 pt-[76px] pb-8 md:p-10 lg:pt-10 w-full max-w-full">
                 <header className="mb-6 md:mb-8 flex items-center justify-between gap-4">

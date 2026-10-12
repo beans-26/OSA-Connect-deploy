@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { ACTIVITY_KEY } from '../components/studentSession';
 import { homePathFor } from '../lib/portals';
-import campusPhoto from '../assets/ustp-campus-blur.jpg';
+import campusPhoto from '../assets/ustp-campus.jpg';
 import osaLogo from '../assets/osaconnect-logo.png';
 import { 
     User, 
@@ -103,29 +103,33 @@ const Login = ({ portal = 'student' }) => {
 
     // Registering and resetting a password are for students only
     const isStudent = portal === 'student';
-    // Same look on every login: blue glass box over the campus photo
-    const cardClass = 'bg-sky-100/55 dark:bg-blue-950/55 backdrop-blur-md border-white/70 dark:border-sky-300/25 shadow-[0_0_0_1px_rgba(255,255,255,0.35),0_0_24px_rgba(56,189,248,0.35),0_18px_40px_-8px_rgba(30,58,138,0.55)]';
-    const fieldClass = 'bg-white/75 dark:bg-slate-900/60 border-white/80 dark:border-white/15 focus-within:bg-white dark:focus-within:bg-slate-900';
+    // Same layout on every login: the logo and form on the left, the campus photo on the right. On wide screens
+    // the form side is a soft white wash that fades into the photo (no hard edge). Fields are underlined.
+    const fieldClass = 'border-b-2 border-slate-300 dark:border-slate-600 focus-within:border-blue-700 dark:focus-within:border-blue-400';
     const inputClass = 'w-full bg-transparent py-2 sm:py-2.5 pl-10 outline-none font-semibold text-slate-800 dark:text-slate-100 placeholder:text-slate-500 dark:placeholder:text-slate-400 text-sm';
 
     return (
-        <div className="relative min-h-screen bg-slate-50 dark:bg-slate-900 flex items-center justify-center p-4">
-            {/* The USTP campus behind the form (pre-blurred image), with a light wash */}
-            <div aria-hidden="true" className="fixed inset-0 scale-105 bg-cover bg-center" style={{ backgroundImage: `url(${campusPhoto})` }} />
-            <div aria-hidden="true" className="fixed inset-0 bg-white/40 dark:bg-slate-950/60" />
+        <div className="relative min-h-screen flex overflow-hidden bg-white dark:bg-slate-900">
+            {/* Wide screens: the USTP campus photo behind the page, washed out on the left (hidden on phones) */}
+            <div aria-hidden="true" className="pointer-events-none absolute inset-0 hidden lg:block">
+                {/* The photo across the whole page, its right side (the building) beside the form */}
+                <div className="absolute inset-0 bg-cover bg-right" style={{ backgroundImage: `url(${campusPhoto})` }} />
+                {/* A soft white fade from the form into the photo */}
+                <div className="login-wash absolute inset-0" />
+            </div>
 
-            {/* Layout: logo above a narrow box; heading inside the box; fields; a row with the small
-                link on the left and the Login button on the right; a divided section for registering */}
-            <div className="relative z-10 w-full max-w-sm flex flex-col items-center gap-4 sm:gap-5">
-                {/* The logo image includes the "Smart student violation management" tagline */}
+            {/* Left: a large logo above the form (full width on phones) */}
+            <div className="relative z-10 flex w-full flex-col items-center justify-center bg-white px-6 py-10 dark:bg-slate-900 lg:w-[38%] lg:max-w-[560px] lg:shrink-0 lg:bg-transparent lg:dark:bg-transparent">
+            <div className="w-full max-w-sm flex flex-col items-center gap-6 sm:gap-8">
+                {/* The logo image includes the "One scan at a time" tagline */}
                 <img
                     src={osaLogo}
-                    alt="OSAConnect: Smart student violation management"
-                    className="w-full max-w-[220px] sm:max-w-full h-auto select-none dark:drop-shadow-[0_0_8px_rgba(255,255,255,0.55)]"
+                    alt="OSAConnect: One scan at a time"
+                    className="w-full max-w-[190px] sm:max-w-[225px] h-auto select-none dark:drop-shadow-[0_0_8px_rgba(255,255,255,0.55)]"
                     draggable="false"
                 />
 
-                <div className={`w-full p-5 sm:p-7 rounded-md border ${cardClass}`}>
+                <div className="w-full">
                     <h1 className={isStudent ? "text-xl sm:text-2xl font-bold text-slate-900 dark:text-white mb-4 sm:mb-5 text-left" : "text-lg sm:text-xl font-bold text-slate-900 dark:text-white mb-4 sm:mb-5 text-center"}>
                         {isStudent ? 'Login' : config.title}
                     </h1>
@@ -142,7 +146,7 @@ const Login = ({ portal = 'student' }) => {
                     )}
 
                     <form onSubmit={handleLogin} className="space-y-3">
-                        <div className={`relative border rounded-md focus-within:border-blue-600 transition-none ${fieldClass}`}>
+                        <div className={`relative transition-colors ${fieldClass}`}>
                             <label htmlFor="login-id" className="sr-only">{config.idLabel}</label>
                             <User size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500 dark:text-slate-400" aria-hidden="true" />
                             <input
@@ -157,7 +161,7 @@ const Login = ({ portal = 'student' }) => {
                             />
                         </div>
 
-                        <div className={`relative border rounded-md focus-within:border-blue-600 transition-none ${fieldClass}`}>
+                        <div className={`relative transition-colors ${fieldClass}`}>
                             <label htmlFor="login-password" className="sr-only">Password</label>
                             <Lock size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500 dark:text-slate-400" aria-hidden="true" />
                             <input
@@ -234,6 +238,8 @@ const Login = ({ portal = 'student' }) => {
                 </div>
 
             </div>
+            </div>
+
         </div>
     );
 };

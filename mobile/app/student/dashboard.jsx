@@ -667,7 +667,7 @@ export default function Dashboard() {
                         <Text style={styles.greeting}>{todayLabel()}</Text>
                         <Text style={styles.userName}>{timeGreeting()}, {displayName}</Text>
                         {(timerActive || openTicket) && (
-                            <Text style={styles.subGreeting}>{studentStatusLine({ sessionActive: timerActive, openTicket })}</Text>
+                            <Text style={styles.subGreeting}>{studentStatusLine({ sessionActive: timerActive, openTicket, tickets })}</Text>
                         )}
                     </View>
                 </View>

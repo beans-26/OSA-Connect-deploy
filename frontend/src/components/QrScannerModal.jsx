@@ -53,40 +53,51 @@ const QrScannerModal = ({ title, subtitle, accent = '#1e3a8a', allowUpload = fal
         if (!video) return;
         doneRef.current = false;
         setStatus('starting');
+        // Set when this start is cleaned up (closing, Try again, or React's development double-run): its late
+        // success or failure (e.g. "play() interrupted") must not change what the scanner shows
+        let cancelled = false;
+        let scanner = null;
 
-        const scanner = new QrScanner(video, (result) => finish(result.data), {
-            returnDetailedScanResult: true,
-            preferredCamera: 'environment',
-            maxScansPerSecond: 12,
-            // Only decode the square inside the viewfinder
-            calculateScanRegion: (v) => {
-                const size = Math.round(Math.min(v.videoWidth, v.videoHeight) * 0.7);
-                return {
-                    x: Math.round((v.videoWidth - size) / 2),
-                    y: Math.round((v.videoHeight - size) / 2),
-                    width: size,
-                    height: size,
-                };
-            },
-        });
-        scannerRef.current = scanner;
-
-        scanner.start()
-            .then(() => setStatus('scanning'))
-            .catch((err) => {
-                const msg = String(err?.name || err || '');
-                setErrorMsg(
-                    /NotAllowed|Permission/i.test(msg)
-                        ? 'Camera access is blocked. On iPhone (Safari): tap the page menu button on the left of the address bar (it shows aA or a page icon) > Website Settings > Camera > Allow, and check Settings > Apps > Safari > Camera. On other browsers: tap the lock icon next to the address bar and allow Camera. Then try again.'
-                        : /NotFound|no camera/i.test(msg)
-                            ? `No camera was found on this device.${allowUpload ? ' You can upload a photo of the QR code instead.' : ''}`
-                            : 'The camera could not be started. Close other apps using it and try again.'
-                );
-                setStatus('error');
+        // Started a moment later, so a start that is cleaned up right away (React runs effects twice in
+        // development) never opens the camera: two scanners on one video interrupt each other
+        const startTimer = setTimeout(() => {
+            scanner = new QrScanner(video, (result) => finish(result.data), {
+                returnDetailedScanResult: true,
+                preferredCamera: 'environment',
+                maxScansPerSecond: 12,
+                // Only decode the square inside the viewfinder
+                calculateScanRegion: (v) => {
+                    const size = Math.round(Math.min(v.videoWidth, v.videoHeight) * 0.7);
+                    return {
+                        x: Math.round((v.videoWidth - size) / 2),
+                        y: Math.round((v.videoHeight - size) / 2),
+                        width: size,
+                        height: size,
+                    };
+                },
             });
+            scannerRef.current = scanner;
+
+            scanner.start()
+                .then(() => { if (!cancelled) setStatus('scanning'); })
+                .catch((err) => {
+                    if (cancelled) return;
+                    const msg = String(err?.name || err || '');
+                    setErrorMsg(
+                        /NotAllowed|Permission/i.test(msg)
+                            ? 'Camera access is blocked. On iPhone (Safari): tap the page menu button on the left of the address bar (it shows aA or a page icon) > Website Settings > Camera > Allow, and check Settings > Apps > Safari > Camera. On other browsers: tap the lock icon next to the address bar and allow Camera. Then try again.'
+                            : /NotFound|not found|no camera/i.test(msg)
+                                ? `No camera was found on this device.${allowUpload ? ' You can upload a photo of the QR code instead.' : ''}`
+                                : 'The camera could not be started. Close other apps using it and try again.'
+                    );
+                    setStatus('error');
+                });
+        }, 50);
 
         return () => {
-            scanner.destroy();
+            cancelled = true;
+            clearTimeout(startTimer);
+            scanner?.destroy();
             scannerRef.current = null;
         };
     }, [attempt]);

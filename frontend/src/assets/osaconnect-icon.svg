@@ -1,6 +1,8 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
-  <!-- Navy blue background -->
-  <rect width="64" height="64" rx="14" fill="#1B3A5C"/>
-  <!-- Gold C letter - the OSAConnect brand mark -->
-  <path d="M43 20.5C40.3 17.8 36.3 16 32 16C23.2 16 16 23.2 16 32C16 40.8 23.2 48 32 48C36.3 48 40.3 46.2 43 43.5L38.5 39C37 40.8 34.7 42 32 42C26.5 42 22 37.5 22 32C22 26.5 26.5 22 32 22C34.7 22 37 23.2 38.5 25L43 20.5Z" fill="#D4A843"/>
+  <!-- The OSAConnect brand mark: viewfinder brackets, ring and orange dot (no background) -->
+  <g stroke="#101A4B" stroke-width="3.6">
+    <path d="M5 21V5H21"/><path d="M43 5H59V21"/><path d="M59 43V59H43"/><path d="M21 59H5V43"/>
+    <circle cx="32" cy="32" r="11.5" stroke-width="5"/>
+  </g>
+  <circle cx="32" cy="32" r="4.6" fill="#FFAC17"/>
 </svg>

@@ -17,8 +17,8 @@ export default function FacultyReport() {
                     <Link to="/faculty" aria-label="Back to login" className="flex h-10 shrink-0 items-center gap-1 rounded-full pl-1.5 pr-3 text-sm font-bold text-slate-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800">
                         <ChevronLeft size={20} /> <span className="hidden sm:inline">Back</span>
                     </Link>
-                    <img src={logo} alt="OSAConnect" className="hidden h-8 w-auto select-none sm:block dark:hidden" draggable="false" />
-                    <img src={logoDark} alt="OSAConnect" className="hidden h-8 w-auto select-none dark:sm:block" draggable="false" />
+                    <img src={logo} alt="OSAConnect" className="hidden h-10 w-auto select-none sm:block dark:hidden" draggable="false" />
+                    <img src={logoDark} alt="OSAConnect" className="hidden h-10 w-auto select-none dark:sm:block" draggable="false" />
                     <h1 className="flex-1 truncate text-center text-base font-bold text-slate-900 dark:text-white">Report a Violation</h1>
                     <ThemeToggle />
                 </div>

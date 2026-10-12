@@ -3,7 +3,9 @@ import { AuthProvider } from '../components/AuthContext';
 import { ThemeProvider, useTheme } from '../components/ThemeContext';
 import { StatusBar } from 'expo-status-bar';
 import { useAutoUpdate } from '../components/useAutoUpdate';
+import { useState } from 'react';
 import { View } from 'react-native';
+import LogoIntro from '../components/LogoIntro';
 import { useStudentActivityGuard, markActivity } from '../components/useStudentActivityGuard';
 // Registers the background location task at startup (Android can wake it without the UI)
 import '../components/backgroundTracking';
@@ -12,6 +14,8 @@ function RootContent() {
     const { isDarkMode, colors } = useTheme();
     useAutoUpdate();
     useStudentActivityGuard();
+    // The opening logo animation, over the app while the first screen (usually the login) loads under it
+    const [introShown, setIntroShown] = useState(true);
     return (
         // Sees every touch (without taking it) so the student inactivity timeout knows the app is in use
         <View style={{ flex: 1 }} onStartShouldSetResponderCapture={() => { markActivity(); return false; }}>
@@ -30,6 +34,7 @@ function RootContent() {
                 <Stack.Screen name="student" options={{ animation: 'fade' }} />
                 <Stack.Screen name="staff" options={{ animation: 'fade' }} />
             </Stack>
+            {introShown && <LogoIntro onDone={() => setIntroShown(false)} />}
         </View>
     );
 }
