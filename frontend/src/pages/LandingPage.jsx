@@ -180,12 +180,12 @@ const RotatingDeviceStack = ({ laptop, tablet, phone }) => {
     const placement = (i) => {
         const diff = (i - index + 3) % 3;
         if (diff === 0) {
-            return { transform: 'translate(-50%, -50%) translateX(0) translateZ(0) rotateY(0deg) scale(1)', filter: 'brightness(1)', zIndex: 30 };
+            return { transform: 'translate(-50%, -50%) translateX(0) translateZ(0) rotateY(0deg) scale(var(--device-scale))', filter: 'brightness(1)', zIndex: 30 };
         }
         // Behind (pushed back in 3D, so it never draws over the front one) and dimmed, not see-through
         const side = diff === 1 ? 1 : -1;
         return {
-            transform: `translate(-50%, -50%) translateX(calc(var(--carousel-offset) * ${side})) translateZ(-260px) rotateY(${side * -30}deg) scale(0.8)`,
+            transform: `translate(-50%, -50%) translateX(calc(var(--carousel-offset) * ${side})) translateZ(-260px) rotateY(${side * -30}deg) scale(calc(var(--device-scale) * 0.8))`,
             filter: 'brightness(0.45) saturate(0.75)',
             zIndex: 10,
         };
@@ -193,11 +193,11 @@ const RotatingDeviceStack = ({ laptop, tablet, phone }) => {
 
     return (
         <div
-            className="relative flex w-full flex-col items-center [--carousel-offset:110px] md:[--carousel-offset:190px]"
+            className="relative flex w-full flex-col items-center [--device-scale:1] [--carousel-offset:110px] md:[--carousel-offset:190px] xl:[--device-scale:1.05] xl:[--carousel-offset:190px] min-[1600px]:[--device-scale:1.25] min-[1600px]:[--carousel-offset:240px]"
             onMouseEnter={() => setPaused(true)}
             onMouseLeave={() => setPaused(false)}
         >
-            <div className="relative h-[300px] w-full md:h-[440px] [perspective:1400px] [transform-style:preserve-3d]">
+            <div className="relative h-[300px] w-full md:h-[440px] xl:h-[470px] min-[1600px]:h-[550px] [perspective:1400px] [transform-style:preserve-3d]">
                 {devices.map(({ id, Frame, img, title }, i) => (
                     <div
                         key={id}
@@ -264,6 +264,13 @@ const LandingPage = () => {
         const before = html.style.scrollBehavior;
         html.style.scrollBehavior = 'smooth';
         return () => { html.style.scrollBehavior = before; };
+    }, []);
+
+    // Big screens: the whole page a little larger (html font size, see .landing-zoom in index.css), so it doesn't
+    // look zoomed out with empty space around it; only while this page is open
+    useEffect(() => {
+        document.documentElement.classList.add('landing-zoom');
+        return () => document.documentElement.classList.remove('landing-zoom');
     }, []);
 
     useEffect(() => {
