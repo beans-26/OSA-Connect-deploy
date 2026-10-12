@@ -2220,6 +2220,12 @@ class TimeLogViewSet(viewsets.ModelViewSet):
                 return Response({"error": "This action is no longer available."}, status=status.HTTP_400_BAD_REQUEST)
 
             if action_type == 'in':
+                # A finished ticket can't be served again: starting a session would turn it back to Ongoing and
+                # block its clearance
+                if eticket.status in ('Completed', 'Cleared', 'Finished') or (eticket.remaining_hours or 0) <= 0:
+                    return Response({"error": "You've already finished the service hours for this ticket. Bring your forms to the OSA office for clearance.", "code": "ticket_done"},
+                                    status=status.HTTP_400_BAD_REQUEST)
+
                 # Only a registered service site's QR (its site code) starts the timer. The old hard-coded
                 # OSA and building codes, and QRs carrying coordinates, are no longer accepted.
                 site_code = str(request.data.get('site_code') or '').strip().upper()

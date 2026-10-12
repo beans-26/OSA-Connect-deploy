@@ -2,7 +2,7 @@ import React, { createContext, useCallback, useContext, useEffect, useRef, useSt
 import { Animated, AppState, BackHandler, Easing, Modal, Pressable, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { usePathname, useRouter } from 'expo-router';
-import { AlertTriangle, ArrowLeft, Bell, BellOff, House, LogOut, Menu, SlidersHorizontal, User, X } from 'lucide-react-native';
+import { AlertTriangle, ArrowLeft, Bell, BellOff, House, Menu, SlidersHorizontal, User, X } from 'lucide-react-native';
 import NotificationItem from './NotificationItem';
 import { useAuth } from './AuthContext';
 import { useTheme } from './ThemeContext';
@@ -10,7 +10,7 @@ import api from '../services/api';
 import { buildNotifications, hoursLabel, readReminders, readSeen, remainingHours, saveReminders, saveSeen, syncDeadlineReminder, readDataSaver, saveDataSaver, IDLE_REFRESH_MS, SAVER_REFRESH_MS } from './studentNotifications';
 
 // The frame of the student screens (mirrors frontend/src/components/StudentShell.jsx): StudentTopBar (menu,
-// title, notification bell) and the side menu (Home, Personal Info, Notifications, Settings, Log out).
+// title, notification bell) and the side menu (Home, Personal Info, Notifications, Settings; Log out is in Settings).
 // The provider sits in app/student/_layout.jsx, so the profile, tickets and notifications are shared.
 const ShellContext = createContext(null);
 export const useStudentShell = () => useContext(ShellContext);
@@ -171,10 +171,6 @@ export function StudentShellProvider({ children }) {
                                     );
                                 })}
                             </View>
-                            <TouchableOpacity onPress={openLogout} style={styles.logoutRow} accessibilityRole="button">
-                                <LogOut size={18} color={colors.danger} />
-                                <Text style={styles.logoutText}>Log out</Text>
-                            </TouchableOpacity>
                         </Animated.View>
                     </View>
                 )}
@@ -293,8 +289,6 @@ const getStyles = (colors, sc) => StyleSheet.create({
     navTextActive: { color: sc.accent, fontWeight: '700' },
     badge: { backgroundColor: colors.danger, borderRadius: 10, paddingHorizontal: 8, paddingVertical: 2 },
     badgeText: { color: '#fff', fontWeight: '700', fontSize: 11 },
-    logoutRow: { marginTop: 'auto', flexDirection: 'row', alignItems: 'center', gap: 14, paddingHorizontal: 20, paddingVertical: 16 },
-    logoutText: { color: colors.danger, fontSize: 15, fontWeight: '500' },
     topBar: {
         height: 56, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 8,
         backgroundColor: colors.card, borderBottomWidth: 1, borderBottomColor: colors.border,

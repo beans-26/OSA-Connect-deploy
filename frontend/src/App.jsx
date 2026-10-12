@@ -24,6 +24,7 @@ const page = (load) => lazy(() => load().then((module) => {
 }));
 const ForgotPassword = page(() => import('./pages/ForgotPassword'));
 const StudentRegistration = page(() => import('./pages/StudentRegistration'));
+const AndroidDownload = page(() => import('./pages/AndroidDownload'));
 const ReportViolation = page(() => import('./pages/guard/ReportViolation'));
 const GuardReports = page(() => import('./pages/guard/GuardReports'));
 const GuardHistory = page(() => import('./pages/guard/GuardHistory'));
@@ -151,6 +152,8 @@ function App() {
           <Route path="/login/admin" element={<Navigate to={ADMIN_LOGIN} replace />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/register" element={<StudentRegistration />} />
+          {/* The Android app download (the landing page's QR code) */}
+          <Route path="/android" element={<AndroidDownload />} />
           {/* Opened on the admin's phone from the QR in a violation's details; the link itself is the permission */}
           <Route path="/capture/:token" element={<ClearanceCapture />} />
 

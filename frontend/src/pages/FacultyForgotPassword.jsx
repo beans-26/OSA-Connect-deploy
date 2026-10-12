@@ -75,7 +75,7 @@ export default function FacultyForgotPassword() {
             <div aria-hidden="true" className="fixed inset-0 bg-white/40 dark:bg-slate-950/60" />
 
             <div className="relative z-10 w-full max-w-sm flex flex-col items-center gap-4 sm:gap-5">
-                <img src={osaLogo} alt="OSAConnect: Smart student violation management" className="w-full max-w-[220px] sm:max-w-full h-auto select-none" draggable="false" />
+                <img src={osaLogo} alt="OSAConnect: One scan at a time" className="w-full max-w-[220px] sm:max-w-full h-auto select-none" draggable="false" />
 
                 <div className={`w-full p-5 sm:p-7 rounded-md border ${cardClass}`}>
                     <h1 className="text-lg sm:text-xl font-bold text-slate-900 dark:text-white text-center">Forgot Password</h1>

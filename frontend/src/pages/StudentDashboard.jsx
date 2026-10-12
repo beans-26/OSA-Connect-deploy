@@ -354,7 +354,7 @@ const DashboardBody = () => {
         let interval;
         // Paused while the student is outside the service area: the shown time stays where it was
         if (timerActive && startTime && !isOutOfBounds) {
-            interval = setInterval(() => {
+            const tick = () => {
                 const secondsSinceStart = Math.floor((Date.now() - startTime) / 1000);
                 setElapsed(secondsSinceStart);
 
@@ -363,7 +363,10 @@ const DashboardBody = () => {
                 if (currentRemaining <= 0) {
                     autoStopTimer("Service obligation completed! The system has automatically recorded your completion.", 'completed');
                 }
-            }, 1000);
+            };
+            // Right away too: waiting for the first tick showed the full balance for a moment after loading
+            tick();
+            interval = setInterval(tick, 1000);
         }
         return () => clearInterval(interval);
     }, [timerActive, startTime, displayHours, isOutOfBounds]);
@@ -828,7 +831,7 @@ const DashboardBody = () => {
                         <p className="mb-1 text-xs font-bold uppercase tracking-[1.5px] text-[var(--s-muted)]">{todayLabel()}</p>
                         <h2 className="text-2xl font-black tracking-[0.3px] text-[var(--s-text)]">{timeGreeting()}, {displayName}</h2>
                         {(timerActive || activeTicket) && (
-                            <p className="mt-1 text-sm font-semibold text-[var(--s-muted)]">{studentStatusLine({ sessionActive: timerActive, openTicket: activeTicket })}</p>
+                            <p className="mt-1 text-sm font-semibold text-[var(--s-muted)]">{studentStatusLine({ sessionActive: timerActive, openTicket: activeTicket, tickets })}</p>
                         )}
                     </div>
                 </header>

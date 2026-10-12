@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import logo from '../assets/osaconnect-logo.png';
 import logoDark from '../assets/osaconnect-logo-dark.png';
 import logoIcon from '../assets/osaconnect-icon.png';
+import logoIconDark from '../assets/osaconnect-icon-dark.png';
 import { loginPathFor } from '../lib/portals';
 import { logoutStudent } from './studentSession';
 
@@ -145,13 +146,16 @@ const Sidebar = ({ role, badges = {} }) => {
         <>
             <div className={`mb-8 flex flex-col items-center justify-center pt-2 pb-6 border-b border-slate-100 dark:border-slate-800 ${isCollapsed ? 'mx-2' : 'mx-6'}`}>
                 {isCollapsed ? (
-                    /* Show the OC brand icon when collapsed */
-                    <img src={logoIcon} alt="OSAConnect" className="w-10 h-10 object-contain select-none rounded-xl shadow-sm" draggable="false" />
+                    /* The brand mark when collapsed (navy, or white in dark mode) */
+                    <>
+                        <img src={logoIcon} alt="OSAConnect" className="w-10 h-10 object-contain select-none dark:hidden" draggable="false" />
+                        <img src={logoIconDark} alt="OSAConnect" className="hidden w-10 h-10 object-contain select-none dark:block" draggable="false" />
+                    </>
                 ) : (
                     <>
                         {/* The OSAConnect wordmark (same as the login pages); dark mode uses a copy with the navy parts made light */}
-                        <img src={logo} alt="OSAConnect: Smart student violation management" className="h-11 w-auto max-w-full object-contain select-none dark:hidden" draggable="false" />
-                        <img src={logoDark} alt="OSAConnect: Smart student violation management" className="hidden h-11 w-auto max-w-full object-contain select-none dark:block" draggable="false" />
+                        <img src={logo} alt="OSAConnect: One scan at a time" className="h-14 w-auto max-w-full object-contain select-none dark:hidden" draggable="false" />
+                        <img src={logoDark} alt="OSAConnect: One scan at a time" className="hidden h-14 w-auto max-w-full object-contain select-none dark:block" draggable="false" />
                     </>
                 )}
             </div>
@@ -212,8 +216,8 @@ const Sidebar = ({ role, badges = {} }) => {
             {/* Mobile Top Bar: above the pages' sticky search headers (z-40), below modals (z-50) */}
             <div className="lg:hidden fixed top-0 left-0 right-0 z-[45] bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 px-4 py-3 flex items-center justify-between shadow-sm">
                 <div className="flex items-center gap-2">
-                    <img src={logo} alt="OSAConnect" className="h-8 w-auto object-contain select-none dark:hidden" draggable="false" />
-                    <img src={logoDark} alt="OSAConnect" className="hidden h-8 w-auto object-contain select-none dark:block" draggable="false" />
+                    <img src={logo} alt="OSAConnect" className="h-10 w-auto object-contain select-none dark:hidden" draggable="false" />
+                    <img src={logoDark} alt="OSAConnect" className="hidden h-10 w-auto object-contain select-none dark:block" draggable="false" />
                 </div>
                 <button
                     onClick={() => setMobileOpen(!mobileOpen)}
