@@ -247,5 +247,14 @@
         ]
       }
     ]
+  },
+  "privacy": {
+    "title": "Data Privacy Notice",
+    "body": [
+      "In line with the Data Privacy Act of 2012 (Republic Act No. 10173), the Office of Student Affairs (OSA) of USTP collects your name, student ID, college, program, year level, gender, contact number and email when you register.",
+      "While you serve community service hours, OSAConnect also records your location at your service site and the times you start and stop, and OSA keeps photos of your signed ISO Form and Reflection Form.",
+      "This information is used only to keep your violation and community service records, send you notices, and confirm your identity. Only OSA and authorized USTP personnel can see it. It is kept secure and is not shared outside the university unless the law requires it.",
+      "You may ask the OSA office to see or correct your information at any time."
+    ]
   }
 }

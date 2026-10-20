@@ -273,7 +273,7 @@ const getStyles = (colors) => StyleSheet.create({
     },
     cardTitle: {
         fontSize: 12,
-        fontWeight: '900',
+        fontWeight: '800',
         color: colors.primary,
         textTransform: 'uppercase',
         letterSpacing: 2,
@@ -329,7 +329,7 @@ const getStyles = (colors) => StyleSheet.create({
     },
     stepNumber: {
         color: '#fff',
-        fontWeight: '900',
+        fontWeight: '800',
         fontSize: 13,
     },
     stepLine: {
@@ -376,14 +376,14 @@ const getStyles = (colors) => StyleSheet.create({
     },
     penaltyLabel: {
         fontSize: 10,
-        fontWeight: '900',
+        fontWeight: '800',
         letterSpacing: 1,
         textTransform: 'uppercase',
         color: colors.textMuted,
     },
     penaltyHours: {
         fontSize: 16,
-        fontWeight: '900',
+        fontWeight: '800',
         color: colors.text,
     },
     penaltyNote: {

@@ -81,7 +81,7 @@ function ServiceRemaining({ ticket, colors, isDarkMode }) {
             </View>
             {/* The (i) sits beside the countdown, under the pill, so it adds no height */}
             <View style={{ marginTop: 4, flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 }}>
-                <Text style={{ fontSize: 44, fontWeight: '900', color: colors.text, fontVariant: ['tabular-nums'], letterSpacing: -0.5 }}>{hms(remainingHours)}</Text>
+                <Text style={{ fontSize: 44, fontWeight: '800', color: colors.text, fontVariant: ['tabular-nums'], letterSpacing: -0.5 }}>{hms(remainingHours)}</Text>
                 {notice && (
                     <TouchableOpacity onPress={() => setShowDeadline((v) => !v)} hitSlop={10} style={{ paddingTop: 6, paddingRight: 4 }} accessibilityRole="button" accessibilityLabel={notice.title} accessibilityState={{ expanded: showDeadline }}>
                         <Info size={18} color={notice.overdue ? '#dc2626' : colors.textMuted} />
@@ -90,7 +90,7 @@ function ServiceRemaining({ ticket, colors, isDarkMode }) {
             </View>
             {notice && showDeadline && (
                 <View style={{ marginBottom: 8, borderWidth: 1, borderRadius: 12, padding: 12, borderColor: notice.overdue ? '#fca5a5' : '#fde68a', backgroundColor: notice.overdue ? '#fee2e2' : '#fffbeb' }}>
-                    <Text style={{ fontSize: 14, fontWeight: '900', color: notice.overdue ? '#b91c1c' : '#92400e' }}>{notice.title}</Text>
+                    <Text style={{ fontSize: 14, fontWeight: '800', color: notice.overdue ? '#b91c1c' : '#92400e' }}>{notice.title}</Text>
                     <Text style={{ marginTop: 2, fontSize: 12, lineHeight: 18, fontWeight: '600', color: notice.overdue ? '#991b1b' : '#92400e' }}>{notice.message}</Text>
                 </View>
             )}
@@ -864,7 +864,7 @@ export default function Dashboard() {
                                 {/* 3. Where to go */}
                                 {openTicket && (
                                     <Text style={styles.reportText}>
-                                        Go to <Text style={{ fontWeight: '800', color: colors.text }}>{assignedSite?.name || openTicket.assigned_location || 'your service site'}</Text> and scan the QR code to start your timer.
+                                        Go to <Text style={{ fontWeight: '700', color: colors.text }}>{assignedSite?.name || openTicket.assigned_location || 'your service site'}</Text> and scan the QR code to start your timer.
                                     </Text>
                                 )}
                                 {/* 4. Time in */}
@@ -969,7 +969,7 @@ const getStyles = (colors) => StyleSheet.create({
     },
     greeting: {
         fontSize: 12,
-        fontWeight: '900',
+        fontWeight: '800',
         color: colors.textMuted,
         letterSpacing: 2,
         marginBottom: 4,
@@ -978,7 +978,7 @@ const getStyles = (colors) => StyleSheet.create({
     },
     userName: {
         fontSize: 24,
-        fontWeight: '900',
+        fontWeight: '800',
         color: colors.text,
         letterSpacing: 0.5,
         lineHeight: 32,
@@ -1014,7 +1014,7 @@ const getStyles = (colors) => StyleSheet.create({
     },
     sessionCardTitle: {
         fontSize: 12,
-        fontWeight: '900',
+        fontWeight: '800',
         color: colors.success,
         marginLeft: 8,
         textTransform: 'uppercase',
@@ -1026,14 +1026,14 @@ const getStyles = (colors) => StyleSheet.create({
     },
     timerText: {
         fontSize: 52,
-        fontWeight: '900',
+        fontWeight: '800',
         color: colors.text,
         fontVariant: ['tabular-nums'],
         lineHeight: 65,
     },
     helloCard: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: colors.card, borderRadius: 20, borderWidth: 1, borderColor: colors.border, padding: 16, marginBottom: 16 },
     helloIcon: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#dcfce7', alignItems: 'center', justifyContent: 'center' },
-    helloTitle: { fontSize: 16, fontWeight: '900', color: colors.text },
+    helloTitle: { fontSize: 16, fontWeight: '800', color: colors.text },
     helloText: { marginTop: 2, fontSize: 14, fontWeight: '500', color: colors.textMuted },
     reportText: { fontSize: 13, lineHeight: 19, color: colors.textMuted, textAlign: 'center', marginTop: 0, marginBottom: 12, paddingHorizontal: 4 },
     approachBox: {
@@ -1154,7 +1154,7 @@ const getStyles = (colors) => StyleSheet.create({
     },
     liveGpsText: {
         fontSize: 9,
-        fontWeight: '900',
+        fontWeight: '800',
         color: colors.text,
         letterSpacing: 1,
     },
@@ -1244,7 +1244,7 @@ const getStyles = (colors) => StyleSheet.create({
     },
     redWarningTitle: {
         color: '#ffffff',
-        fontWeight: '900',
+        fontWeight: '800',
         fontSize: 13,
         letterSpacing: 0.5,
         textTransform: 'uppercase',
@@ -1265,14 +1265,14 @@ const getStyles = (colors) => StyleSheet.create({
     redWarningTimerText: {
         color: '#e11d48',
         fontSize: 20,
-        fontWeight: '900',
+        fontWeight: '800',
     },
     section: {
         marginBottom: 16,
     },
     sectionTitle: {
         fontSize: 18,
-        fontWeight: '900',
+        fontWeight: '800',
         color: colors.text,
         marginBottom: 4,
         lineHeight: 28,
@@ -1356,12 +1356,12 @@ const getStyles = (colors) => StyleSheet.create({
     logStatusTextAwaiting: { color: '#b45309' },
     deadlineBox: { flexDirection: 'row', gap: 12, borderWidth: 1, borderColor: '#fde68a', backgroundColor: '#fffbeb', borderRadius: 16, padding: 16, marginBottom: 16 },
     clearanceBox: { borderColor: '#a7f3d0', backgroundColor: '#ecfdf5' },
-    deadlineTitle: { fontSize: 14, fontWeight: '900', color: '#92400e' },
+    deadlineTitle: { fontSize: 14, fontWeight: '800', color: '#92400e' },
     deadlineText: { marginTop: 2, fontSize: 12, lineHeight: 18, fontWeight: '600', color: '#92400e' },
     completedOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', alignItems: 'center', justifyContent: 'center', padding: 20 },
     completedCard: { width: '100%', maxWidth: 380, backgroundColor: colors.card, borderRadius: 24, padding: 24, alignItems: 'center' },
     completedIcon: { width: 56, height: 56, borderRadius: 28, backgroundColor: '#dcfce7', alignItems: 'center', justifyContent: 'center', marginBottom: 16 },
-    completedTitle: { fontSize: 18, fontWeight: '900', color: colors.text, textAlign: 'center' },
+    completedTitle: { fontSize: 18, fontWeight: '800', color: colors.text, textAlign: 'center' },
     completedText: { marginTop: 8, fontSize: 14, lineHeight: 20, fontWeight: '500', color: colors.textMuted, textAlign: 'center' },
     completedBold: { fontWeight: '700', color: colors.text },
     completedButton: { marginTop: 20, alignSelf: 'stretch', backgroundColor: colors.primary, borderRadius: 14, padding: 14, alignItems: 'center' },

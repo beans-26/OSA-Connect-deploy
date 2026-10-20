@@ -6,6 +6,9 @@
   --color-ustp-gold: #facc15;
   --color-ustp-navy: #172554;
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  /* One step lighter than Tailwind's defaults: the heaviest text looked too thick */
+  --font-weight-black: 800;
+  --font-weight-extrabold: 700;
 }
 
 body {

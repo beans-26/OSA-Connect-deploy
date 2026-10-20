@@ -128,7 +128,7 @@ const styles = StyleSheet.create({
     },
     cardTitle: {
         fontSize: 12,
-        fontWeight: '900',
+        fontWeight: '800',
         color: Colors.primary,
         textTransform: 'uppercase',
         letterSpacing: 2,
@@ -147,7 +147,7 @@ const styles = StyleSheet.create({
     },
     infoLabel: {
         fontSize: 10,
-        fontWeight: '900',
+        fontWeight: '800',
         color: Colors.textMuted,
         textTransform: 'uppercase',
         letterSpacing: 1,
