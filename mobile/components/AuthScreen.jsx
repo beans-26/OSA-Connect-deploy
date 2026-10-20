@@ -57,7 +57,7 @@ export const authStyles = StyleSheet.create({
     },
     primaryButtonText: { color: '#ffffff', fontSize: 14, fontWeight: '700' },
     disabled: { opacity: 0.6 },
-    title: { fontSize: 22, fontWeight: '800', color: C.text, letterSpacing: -0.3 },
+    title: { fontSize: 22, fontWeight: '700', color: C.text, letterSpacing: -0.3 },
     subtitle: { fontSize: 13, color: C.textSoft, marginTop: 4, lineHeight: 18 },
     linkText: { fontSize: 12, fontWeight: '700', color: C.text, textDecorationLine: 'underline' },
 });

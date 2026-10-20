@@ -71,7 +71,7 @@ export default function ServiceForms() {
 }
 
 const getStyles = (colors) => StyleSheet.create({
-    heading: { fontSize: 10, fontWeight: '900', letterSpacing: 2, color: colors.textMuted, marginBottom: 8 },
+    heading: { fontSize: 10, fontWeight: '800', letterSpacing: 2, color: colors.textMuted, marginBottom: 8 },
     row: { flexDirection: 'row', gap: 8 },
     button: {
         flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, borderWidth: 1,

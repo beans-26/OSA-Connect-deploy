@@ -185,14 +185,14 @@ const styles = StyleSheet.create({
     brand: {
         color: 'rgba(255,255,255,0.6)',
         fontSize: 11,
-        fontWeight: '900',
+        fontWeight: '800',
         letterSpacing: 2,
         lineHeight: 16,
     },
     title: {
         color: '#fff',
         fontSize: 20,
-        fontWeight: '900',
+        fontWeight: '800',
         marginTop: 4,
         lineHeight: 26,
     },
@@ -226,7 +226,7 @@ const styles = StyleSheet.create({
     errorTitle: {
         color: '#fff',
         fontSize: 14,
-        fontWeight: '900',
+        fontWeight: '800',
         textAlign: 'center',
     },
     errorText: {

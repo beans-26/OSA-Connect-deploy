@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, TextInput, TouchableOpacity, Pressable, StyleSheet, ActivityIndicator, Platform, useWindowDimensions } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, Pressable, StyleSheet, ActivityIndicator, Platform, useWindowDimensions, Modal, ScrollView } from 'react-native';
 import { Link } from 'expo-router';
 import { Mail, MailWarning, ChevronRight, CheckCircle2, Download } from 'lucide-react-native';
 import QRCode from 'react-native-qrcode-svg';
@@ -13,6 +13,8 @@ import { DEPARTMENTS, DEPARTMENT_COURSES, GENDERS, yearLevelsFor } from '../cons
 import SelectField from '../components/SelectField';
 import AuthScreen, { authColors as C, authStyles as A } from '../components/AuthScreen';
 import api from '../services/api';
+// The Data Privacy Notice (same text as the website's registration)
+import help from '../../shared/help-content.json';
 
 const OFFLINE_MESSAGE = "Can't reach the server. Check your internet connection and try again.";
 const STEP_COUNT = 3;
@@ -72,6 +74,8 @@ export default function Register() {
     });
     // Kept outside studentData so it isn't sent to the API
     const [confirmPassword, setConfirmPassword] = useState('');
+    // The Data Privacy Notice pop-up (from "By continuing, you agree to ... Privacy Notice")
+    const [showPrivacy, setShowPrivacy] = useState(false);
     const passwordMismatch = confirmPassword.length > 0 && confirmPassword !== studentData.password;
     const courseOptions = DEPARTMENT_COURSES[studentData.department] || [];
     const yearOptions = yearLevelsFor(studentData.department);
@@ -383,6 +387,23 @@ export default function Register() {
                             <Link href="/login" style={A.linkText}>Log in</Link>
                         </Text>
                     </View>
+                    <Text style={styles.privacyLine}>
+                        By continuing, you agree to OSAConnect&apos;s{' '}
+                        <Text style={A.linkText} onPress={() => setShowPrivacy(true)} accessibilityRole="link">Privacy Notice</Text>.
+                    </Text>
+                    <Modal visible={showPrivacy} transparent animationType="none" onRequestClose={() => setShowPrivacy(false)}>
+                        <Pressable style={styles.privacyBackdrop} onPress={() => setShowPrivacy(false)}>
+                            <Pressable style={styles.privacyCard} onPress={() => {}}>
+                                <Text style={styles.privacyTitle}>{help.privacy.title}</Text>
+                                <ScrollView style={{ maxHeight: 360 }}>
+                                    {help.privacy.body.map((p) => <Text key={p} style={styles.privacyText}>{p}</Text>)}
+                                </ScrollView>
+                                <TouchableOpacity style={[A.primaryButton, { marginTop: 14 }]} onPress={() => setShowPrivacy(false)}>
+                                    <Text style={A.primaryButtonText}>Close</Text>
+                                </TouchableOpacity>
+                            </Pressable>
+                        </Pressable>
+                    </Modal>
                 </View>
             )}
 
@@ -506,10 +527,15 @@ export default function Register() {
 }
 
 const styles = StyleSheet.create({
-    stepLabel: { fontSize: 11, fontWeight: '900', letterSpacing: 1.6, color: C.goldText },
+    stepLabel: { fontSize: 11, fontWeight: '800', letterSpacing: 1.6, color: C.goldText },
     stepLogin: { fontSize: 12, color: C.textSoft, flexShrink: 1 },
     // One row like the website: "Log in" on the left, the button on the right (row-reverse: the button comes
     // first in the code). "Already registered?" wraps to two short lines on narrow phones.
+    privacyLine: { marginTop: 12, fontSize: 12, lineHeight: 17, color: C.textSoft },
+    privacyBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', alignItems: 'center', justifyContent: 'center', padding: 20 },
+    privacyCard: { width: '100%', maxWidth: 420, backgroundColor: '#ffffff', borderRadius: 16, padding: 20 },
+    privacyTitle: { fontSize: 16, fontWeight: '700', color: C.text, marginBottom: 10 },
+    privacyText: { fontSize: 13, lineHeight: 19, color: C.textSoft, marginBottom: 10 },
     submitRow: { flexDirection: 'row-reverse', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginTop: 2 },
     submitLogin: { flexShrink: 1 },
     submitButton: { flexShrink: 0 },
@@ -531,7 +557,7 @@ const styles = StyleSheet.create({
         paddingVertical: 11,
         marginBottom: 14,
     },
-    spamTitle: { fontSize: 14, fontWeight: '900', color: '#78350f' },
+    spamTitle: { fontSize: 14, fontWeight: '800', color: '#78350f' },
     spamText: { fontSize: 12, fontWeight: '600', color: '#92400e', marginTop: 2, lineHeight: 17 },
     // The label and its info icon on one line; the row keeps the label's usual space below
     labelRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 5 },
@@ -595,8 +621,8 @@ const styles = StyleSheet.create({
     qrBox: { backgroundColor: '#ffffff', padding: 10, borderRadius: 6 },
     details: { flex: 1, minWidth: 0 },
     detailsStacked: { flex: 0, width: '100%' },
-    detailLabel: { fontSize: 10, fontWeight: '900', letterSpacing: 1.5, color: C.textMuted, marginTop: 6 },
-    detailId: { fontSize: 20, fontWeight: '800', color: C.text, fontVariant: ['tabular-nums'] },
+    detailLabel: { fontSize: 10, fontWeight: '800', letterSpacing: 1.5, color: C.textMuted, marginTop: 6 },
+    detailId: { fontSize: 20, fontWeight: '700', color: C.text, fontVariant: ['tabular-nums'] },
     detailValue: { fontSize: 14, fontWeight: '700', color: C.text },
     saveNote: { marginTop: 10 },
     goldButton: {

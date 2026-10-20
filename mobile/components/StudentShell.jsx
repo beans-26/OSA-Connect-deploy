@@ -313,7 +313,7 @@ const getStyles = (colors, sc) => StyleSheet.create({
     modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', padding: 20 },
     modalContent: { backgroundColor: colors.card, borderRadius: 20, padding: 22, width: '100%', maxWidth: 360 },
     modalHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 },
-    modalTitle: { fontSize: 17, fontWeight: '800', color: colors.text },
+    modalTitle: { fontSize: 17, fontWeight: '700', color: colors.text },
     modalMessage: { fontSize: 14, color: colors.textMuted, marginBottom: 20, lineHeight: 20 },
     modalActions: { flexDirection: 'row', gap: 10 },
     modalCancel: { flex: 1, padding: 13, borderRadius: 12, borderWidth: 1, borderColor: colors.border, alignItems: 'center' },

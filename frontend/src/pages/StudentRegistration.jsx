@@ -6,6 +6,8 @@ import { DEPARTMENTS, DEPARTMENT_COURSES, GENDERS, yearLevelsFor } from '../lib/
 import { middleNameError, middleNameText, MIDDLE_NAME_HINT } from '../lib/names';
 import campusPhoto from '../assets/ustp-campus.webp';
 import osaLogo from '../assets/osaconnect-logo.webp';
+// The Data Privacy Notice (shared with the mobile app's registration)
+import help from '../../../shared/help-content.json';
 
 const OFFLINE_MESSAGE = "Can't reach the server. Check your internet connection and try again.";
 const STEP_COUNT = 3;
@@ -90,6 +92,8 @@ const StudentRegistration = () => {
     });
     // Kept outside studentData so it isn't sent to the API
     const [confirmPassword, setConfirmPassword] = useState('');
+    // The Data Privacy Notice pop-up (from "By continuing, you agree to ... Privacy Notice")
+    const [showPrivacy, setShowPrivacy] = useState(false);
     const passwordMismatch = confirmPassword.length > 0 && confirmPassword !== studentData.password;
     const courseOptions = DEPARTMENT_COURSES[studentData.department] || [];
     const yearOptions = yearLevelsFor(studentData.department);
@@ -277,6 +281,17 @@ const StudentRegistration = () => {
 
     return (
         <div className="relative min-h-screen flex bg-white dark:bg-slate-900">
+            {showPrivacy && (
+                <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/50 p-4" role="dialog" aria-modal="true" aria-labelledby="privacy-title" onClick={() => setShowPrivacy(false)}>
+                    <div className="flex max-h-[85vh] w-full max-w-md flex-col rounded-2xl bg-white p-5 shadow-2xl dark:bg-slate-800" onClick={(e) => e.stopPropagation()}>
+                        <h2 id="privacy-title" className="text-base font-bold text-slate-900 dark:text-white">{help.privacy.title}</h2>
+                        <div className="mt-3 space-y-2.5 overflow-y-auto text-sm leading-relaxed text-slate-600 dark:text-slate-300">
+                            {help.privacy.body.map((p) => <p key={p}>{p}</p>)}
+                        </div>
+                        <button type="button" onClick={() => setShowPrivacy(false)} className={`${primaryButton} mt-4 w-full`}>Close</button>
+                    </div>
+                </div>
+            )}
             {/* Wide screens: the USTP campus photo, with the form side washed out so it fades in (like the logins).
                 Fixed, so the photo stays put while the long form scrolls. Phones: plain white. */}
             <div aria-hidden="true" className="pointer-events-none fixed inset-0 hidden lg:block">
@@ -388,6 +403,10 @@ const StudentRegistration = () => {
                                     {saving ? <Loader2 className="animate-spin" size={18} /> : <>Send verification code <ChevronRight size={16} /></>}
                                 </button>
                             </div>
+                            <p className="text-[11px] sm:text-xs text-slate-600 dark:text-slate-400">
+                                By continuing, you agree to OSAConnect&apos;s{' '}
+                                <button type="button" onClick={() => setShowPrivacy(true)} className="font-semibold text-blue-800 dark:text-blue-300 underline underline-offset-2">Privacy Notice</button>.
+                            </p>
                         </form>
                     )}
 

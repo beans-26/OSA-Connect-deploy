@@ -529,7 +529,7 @@ const getStyles = (colors, isDarkMode, wide) => StyleSheet.create({
     },
     pageTitle: {
         fontSize: wide ? 30 : 20,
-        fontWeight: '900',
+        fontWeight: '800',
         fontStyle: 'italic',
         textTransform: 'uppercase',
         letterSpacing: -0.5,
@@ -563,7 +563,7 @@ const getStyles = (colors, isDarkMode, wide) => StyleSheet.create({
     },
     cardTitle: {
         fontSize: 14,
-        fontWeight: '900',
+        fontWeight: '800',
         color: colors.text,
     },
     columns: {
@@ -583,7 +583,7 @@ const getStyles = (colors, isDarkMode, wide) => StyleSheet.create({
     },
     tinyLabel: {
         fontSize: 9,
-        fontWeight: '900',
+        fontWeight: '800',
         textTransform: 'uppercase',
         letterSpacing: 2,
         color: colors.border,
@@ -606,7 +606,7 @@ const getStyles = (colors, isDarkMode, wide) => StyleSheet.create({
     },
     idField: {
         paddingRight: wide ? 56 : 50,
-        fontWeight: '900',
+        fontWeight: '800',
         textTransform: 'uppercase',
     },
     scanButton: {
@@ -631,7 +631,7 @@ const getStyles = (colors, isDarkMode, wide) => StyleSheet.create({
         gap: 6,
     },
     onDutyLabelRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-    onDutyLabel: { fontSize: 12, fontWeight: '900', color: colors.primary },
+    onDutyLabel: { fontSize: 12, fontWeight: '800', color: colors.primary },
     onDutyField: { backgroundColor: colors.card },
     // The violation tick boxes; a ticked one turns red like the old dropdown
     // Two per row, also on phones, so the four fit in two lines
@@ -666,7 +666,7 @@ const getStyles = (colors, isDarkMode, wide) => StyleSheet.create({
     checkBoxOn: { backgroundColor: '#dc2626', borderColor: '#dc2626' },
     violationCount: { fontSize: 12, fontWeight: '700', color: isDarkMode ? '#fca5a5' : '#dc2626', marginTop: -2 },
     violationText: {
-        fontWeight: '900',
+        fontWeight: '800',
         color: isDarkMode ? '#fca5a5' : '#7f1d1d',
     },
     smallField: {
@@ -690,7 +690,7 @@ const getStyles = (colors, isDarkMode, wide) => StyleSheet.create({
     submitText: {
         color: '#fff',
         fontSize: 16,
-        fontWeight: '900',
+        fontWeight: '800',
     },
     successCard: {
         alignItems: 'center',
@@ -709,7 +709,7 @@ const getStyles = (colors, isDarkMode, wide) => StyleSheet.create({
         justifyContent: 'center',
         marginBottom: 12,
     },
-    successTitle: { fontSize: 22, fontWeight: '900', color: colors.text },
+    successTitle: { fontSize: 22, fontWeight: '800', color: colors.text },
     successText: {
         marginTop: 4,
         marginBottom: 16,
@@ -727,7 +727,7 @@ const getStyles = (colors, isDarkMode, wide) => StyleSheet.create({
         backgroundColor: colors.primary,
         alignItems: 'center',
     },
-    newEntryText: { color: '#fff', fontSize: 14, fontWeight: '800' },
+    newEntryText: { color: '#fff', fontSize: 14, fontWeight: '700' },
     // The report slip (confirmation and "Report sent"), same design as the website
     slip: { width: '100%', borderWidth: 1, borderColor: colors.border, borderRadius: 16, overflow: 'hidden' },
     slipStudent: {
@@ -746,13 +746,13 @@ const getStyles = (colors, isDarkMode, wide) => StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center',
     },
-    slipAvatarText: { fontSize: 14, fontWeight: '900', color: isDarkMode ? '#93c5fd' : '#1e3a8a' },
-    slipName: { fontSize: 15, fontWeight: '900', color: colors.text },
+    slipAvatarText: { fontSize: 14, fontWeight: '800', color: isDarkMode ? '#93c5fd' : '#1e3a8a' },
+    slipName: { fontSize: 15, fontWeight: '800', color: colors.text },
     slipId: { fontSize: 12, fontWeight: '700', color: colors.textMuted, fontVariant: ['tabular-nums'] },
     slipMeta: { fontSize: 12, fontWeight: '600', color: colors.textMuted },
     slipTag: {
         fontSize: 10,
-        fontWeight: '900',
+        fontWeight: '800',
         letterSpacing: 0.8,
         color: isDarkMode ? '#fcd34d' : '#b45309',
         backgroundColor: isDarkMode ? 'rgba(245, 158, 11, 0.15)' : '#fef3c7',
@@ -770,10 +770,10 @@ const getStyles = (colors, isDarkMode, wide) => StyleSheet.create({
         borderStyle: 'dashed',
     },
     slipSectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-    slipKicker: { fontSize: 10, fontWeight: '900', letterSpacing: 1.8, color: colors.textMuted },
+    slipKicker: { fontSize: 10, fontWeight: '800', letterSpacing: 1.8, color: colors.textMuted },
     slipCount: {
         fontSize: 10,
-        fontWeight: '900',
+        fontWeight: '800',
         color: isDarkMode ? '#fca5a5' : '#b91c1c',
         backgroundColor: isDarkMode ? 'rgba(248, 113, 113, 0.15)' : '#fee2e2',
         paddingHorizontal: 8,
@@ -790,14 +790,14 @@ const getStyles = (colors, isDarkMode, wide) => StyleSheet.create({
         borderRadius: 10,
         backgroundColor: isDarkMode ? 'rgba(248, 113, 113, 0.12)' : '#fef2f2',
     },
-    slipViolationText: { flex: 1, fontSize: 14, fontWeight: '800', color: isDarkMode ? '#fca5a5' : '#b91c1c' },
+    slipViolationText: { flex: 1, fontSize: 14, fontWeight: '700', color: isDarkMode ? '#fca5a5' : '#b91c1c' },
     slipLine: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: 12 },
     slipLineLabel: { fontSize: 12, fontWeight: '600', color: colors.textMuted },
-    slipLineValue: { flexShrink: 1, textAlign: 'right', fontSize: 13, fontWeight: '800', color: colors.text },
+    slipLineValue: { flexShrink: 1, textAlign: 'right', fontSize: 13, fontWeight: '700', color: colors.text },
     slipModal: { width: '100%', maxWidth: 440, maxHeight: '90%', flexGrow: 0, backgroundColor: colors.card, borderRadius: 24 },
     slipModalContent: { padding: 18, gap: 12 },
     slipModalHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
-    slipModalTitle: { fontSize: 18, fontWeight: '900', color: colors.text },
+    slipModalTitle: { fontSize: 18, fontWeight: '800', color: colors.text },
     slipClose: {
         width: 36,
         height: 36,
@@ -809,7 +809,7 @@ const getStyles = (colors, isDarkMode, wide) => StyleSheet.create({
     slipNote: { fontSize: 12, lineHeight: 18, fontWeight: '500', color: colors.textMuted },
     slipActions: { flexDirection: 'row', gap: 10 },
     slipEdit: { flex: 1, paddingVertical: 12, borderRadius: 12, borderWidth: 2, borderColor: colors.border, alignItems: 'center' },
-    slipEditText: { fontSize: 14, fontWeight: '800', color: colors.text },
+    slipEditText: { fontSize: 14, fontWeight: '700', color: colors.text },
     slipSend: {
         flex: 1,
         flexDirection: 'row',
@@ -820,7 +820,7 @@ const getStyles = (colors, isDarkMode, wide) => StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center',
     },
-    slipSendText: { fontSize: 14, fontWeight: '800', color: '#fff' },
+    slipSendText: { fontSize: 14, fontWeight: '700', color: '#fff' },
     modalOverlay: {
         flex: 1,
         backgroundColor: 'rgba(15, 23, 42, 0.8)',
@@ -837,7 +837,7 @@ const getStyles = (colors, isDarkMode, wide) => StyleSheet.create({
     },
     modalTitle: {
         fontSize: 20,
-        fontWeight: '900',
+        fontWeight: '800',
         textTransform: 'uppercase',
         color: colors.text,
         marginBottom: 16,

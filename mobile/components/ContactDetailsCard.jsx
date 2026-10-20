@@ -110,7 +110,7 @@ export default function ContactDetailsCard({ studentInfo, onUpdated }) {
                 ) : (
                     <View style={styles.form}>
                         <Text style={styles.hint}>
-                            Enter the 6-digit code sent to <Text style={{ fontWeight: '800', color: colors.text }}>{codeSentTo}</Text>. It expires in 5 minutes. Check Spam / Junk too.
+                            Enter the 6-digit code sent to <Text style={{ fontWeight: '700', color: colors.text }}>{codeSentTo}</Text>. It expires in 5 minutes. Check Spam / Junk too.
                         </Text>
                         {input({ placeholder: '6-digit code', keyboardType: 'number-pad', maxLength: 6, value: form.code, onChangeText: (t) => setForm({ ...form, code: t.replace(/\D/g, '') }), style: [styles.input, styles.code] })}
                         {buttons({ onCancel: () => setCodeSentTo(''), cancelLabel: 'Back', onSubmit: confirmEmail, label: 'Verify & save', disabled: form.code.length < 6 })}

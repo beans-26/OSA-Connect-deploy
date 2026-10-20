@@ -137,7 +137,7 @@ const getStyles = (colors) => StyleSheet.create({
     },
     sheetTitle: {
         fontSize: 16,
-        fontWeight: '900',
+        fontWeight: '800',
         color: colors.text,
     },
     closeButton: {

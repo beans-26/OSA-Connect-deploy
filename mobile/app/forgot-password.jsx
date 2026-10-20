@@ -336,7 +336,7 @@ export default function ForgotPassword() {
 }
 
 const styles = StyleSheet.create({
-    stepLabel: { fontSize: 11, fontWeight: '900', letterSpacing: 1.6, color: C.goldText },
+    stepLabel: { fontSize: 11, fontWeight: '800', letterSpacing: 1.6, color: C.goldText },
     progress: { flexDirection: 'row', gap: 6, marginTop: 8 },
     progressPart: { flex: 1, height: 6, borderRadius: 3 },
     heading: { marginTop: 12 },
@@ -366,7 +366,7 @@ const styles = StyleSheet.create({
         paddingVertical: 11,
         marginBottom: 14,
     },
-    spamTitle: { fontSize: 14, fontWeight: '900', color: '#78350f' },
+    spamTitle: { fontSize: 14, fontWeight: '800', color: '#78350f' },
     spamText: { fontSize: 12, fontWeight: '600', color: '#92400e', marginTop: 2, lineHeight: 17 },
     panel: {
         flexDirection: 'row',
