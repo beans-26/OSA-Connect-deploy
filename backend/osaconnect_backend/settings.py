@@ -136,6 +136,8 @@ REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': (
         'core.auth.IsAdmin',
     ),
+    # Oversized requests answer 413 instead of crashing (core/exceptions.py)
+    'EXCEPTION_HANDLER': 'core.exceptions.exception_handler',
 }
 
 
