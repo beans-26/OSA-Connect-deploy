@@ -9,6 +9,8 @@ from .serializers import StudentSerializer, ViolationReportSerializer, ETicketSe
 from .passwords import hash_password, verify_password, check_and_upgrade
 from .emails import send_code_email, send_violation_notice, send_faculty_invite, send_faculty_activated, app_url
 from .deadlines import apply_missed_day_hours
+from .ratelimit import rate_limited, field
+M5, M10, M15 = 5 * 60, 10 * 60, 15 * 60  # rate limit windows (seconds)
 from .auth import issue_token, forget_account, IsAdmin, IsReporter, IsStudent, IsLoggedIn, owns_ticket, role_of
 from mongoengine.errors import ValidationError as MongoValidationError, NotUniqueError
 from bson.errors import InvalidId
@@ -23,13 +25,30 @@ from django.conf import settings
 
 
 
+def _text(data, key):
+    """A text field from the request, stripped; anything that isn't text (an object, a list, a number) counts as
+    empty. Reading it with .strip() crashed on crafted requests like {"email": {"$ne": ""}} (HTTP 500)."""
+    value = data.get(key) if hasattr(data, 'get') else None
+    return value.strip() if isinstance(value, str) else ''
+
+
+EMAIL_RE = re.compile(r'^[^@\s]{1,64}@[^@\s]+\.[^@\s]{2,}$')
+
+
+
 @api_view(['POST'])
 @permission_classes([AllowAny])
+@rate_limited('login', per_ip=(60, M5), per_target=(10, M5), target=field('username'))
 def login_view(request):
     """Authenticate user against SystemUser or Student collection"""
-    username = request.data.get('username', '').strip()
+    username = _text(request.data, 'username')
     password = request.data.get('password')
-    
+    if not isinstance(password, str):
+        password = ''  # an object or list is never a password
+    if len(username) > 254 or len(password) > 256:
+        # Longer than any real username or password; a huge one also broke the database search (HTTP 500)
+        return Response({"error": "Invalid credentials"}, status=status.HTTP_401_UNAUTHORIZED)
+
     if not username or not password:
         return Response({"error": "Username and password required"}, status=status.HTTP_400_BAD_REQUEST)
     
@@ -280,14 +299,17 @@ class StudentViewSet(viewsets.ModelViewSet):
         return super().retrieve(request, *args, **kwargs)
 
     @action(detail=False, methods=['post'])
+    @rate_limited('register-code', per_ip=(30, M10), per_target=(4, M10), target=field('email'))
     def request_otp(self, request):
         import random
         from django.conf import settings
         from .models import OTPVerification
         
-        email = request.data.get('email', '').strip().lower()
+        email = _text(request.data, 'email').lower()
         if not email:
             return Response({"error": "Email is required"}, status=status.HTTP_400_BAD_REQUEST)
+        if len(email) > 254 or not EMAIL_RE.match(email):
+            return Response({"error": "Enter a valid email address, like juan.delacruz@gmail.com."}, status=status.HTTP_400_BAD_REQUEST)
             
         # (A guard's report may already hold this email on the student's own unregistered record)
         sid = str(request.data.get('student_id') or '').strip()
@@ -316,15 +338,18 @@ class StudentViewSet(viewsets.ModelViewSet):
             return Response({"error": error_msg}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     @action(detail=False, methods=['post'])
+    @rate_limited('register', per_ip=(40, M10), per_target=(10, M10), target=field('email'))
     def register_with_otp(self, request):
         from .models import OTPVerification
         data = request.data
         # Lowercased to match how the code was saved when it was requested
-        email = data.get('email', '').strip().lower()
-        otp_input = data.get('otp', '').strip()
+        email = _text(data, 'email').lower()
+        otp_input = _text(data, 'otp')
         
         if not email or not otp_input:
             return Response({"error": "Email and OTP are required"}, status=status.HTTP_400_BAD_REQUEST)
+        if len(email) > 254 or not EMAIL_RE.match(email):
+            return Response({"error": "Enter a valid email address, like juan.delacruz@gmail.com."}, status=status.HTTP_400_BAD_REQUEST)
 
         # Checked before the OTP so a missing password doesn't burn the code
         if not str(data.get('password', '')).strip():
@@ -359,7 +384,7 @@ class StudentViewSet(viewsets.ModelViewSet):
         
         # Proceed with registration
         sid = str(data.get('student_id', '')).strip()
-        name = data.get('name', '').strip()
+        name = _text(data, 'name')
         if Student.objects.filter(email__iexact=email, student_id__ne=sid).first():
             return Response({"error": "This email is already registered to another student."}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -386,12 +411,13 @@ class StudentViewSet(viewsets.ModelViewSet):
         return Response(StudentSerializer(student).data, status=status.HTTP_201_CREATED)
 
     @action(detail=False, methods=['post'])
+    @rate_limited('reset-code', per_ip=(20, M10), per_target=(3, M15), target=field('email'))
     def request_password_reset(self, request):
         import random
         from django.conf import settings
         from .models import OTPVerification
         
-        email = request.data.get('email', '').strip().lower()
+        email = _text(request.data, 'email').lower()
         if not email:
             return Response({"error": "Email is required"}, status=status.HTTP_400_BAD_REQUEST)
             
@@ -411,6 +437,7 @@ class StudentViewSet(viewsets.ModelViewSet):
             return Response({"error": error_msg}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     @action(detail=False, methods=['post'])
+    @rate_limited('reset-check', per_ip=(40, M10), per_target=(10, M10), target=field('email'))
     def verify_reset_code(self, request):
         """Checks a password-reset code before the student types a new password (the code stays valid for
         reset_password). A wrong code counts toward the same 5-try limit."""
@@ -435,13 +462,14 @@ class StudentViewSet(viewsets.ModelViewSet):
         return Response({"valid": True})
 
     @action(detail=False, methods=['post'])
+    @rate_limited('reset', per_ip=(40, M10), per_target=(10, M10), target=field('email'))
     def reset_password(self, request):
         from .models import OTPVerification
         data = request.data
         # Lowercased to match how the code was saved when it was requested
-        email = data.get('email', '').strip().lower()
-        otp_input = data.get('otp', '').strip()
-        new_password = data.get('password', '').strip()
+        email = _text(data, 'email').lower()
+        otp_input = _text(data, 'otp')
+        new_password = _text(data, 'password')
         
         if not email or not otp_input or not new_password:
             return Response({"error": "All fields are required"}, status=status.HTTP_400_BAD_REQUEST)
@@ -477,6 +505,7 @@ class StudentViewSet(viewsets.ModelViewSet):
         return Response({"message": "Password reset successful. You can now log in."})
 
     @action(detail=False, methods=['post'])
+    @rate_limited('change-password', per_ip=(40, M10), per_target=(10, M10), target=lambda r: r.user.username)
     def change_password(self, request):
         data = request.data
         student_id = request.user.username  # the logged-in student, never one named in the request
@@ -510,6 +539,7 @@ class StudentViewSet(viewsets.ModelViewSet):
         return student, None
 
     @action(detail=False, methods=['post'])
+    @rate_limited('email-change-code', per_ip=(20, M10), per_target=(4, M10), target=lambda r: r.user.username)
     def request_email_change(self, request):
         """Emails a 6-digit code to the new address; confirm_email_change saves it."""
         import random
@@ -537,6 +567,7 @@ class StudentViewSet(viewsets.ModelViewSet):
         return Response({"message": f"We sent a 6-digit code to {new_email}."})
 
     @action(detail=False, methods=['post'])
+    @rate_limited('email-change', per_ip=(40, M10), per_target=(10, M10), target=lambda r: r.user.username)
     def confirm_email_change(self, request):
         from .models import OTPVerification
 
@@ -570,6 +601,7 @@ class StudentViewSet(viewsets.ModelViewSet):
         return Response({"message": "Email updated.", "email": new_email})
 
     @action(detail=False, methods=['post'])
+    @rate_limited('update-contact', per_ip=(40, M10), per_target=(10, M10), target=lambda r: r.user.username)
     def update_contact(self, request):
         student, error = self._student_with_password(request.data)
         if error:
@@ -583,7 +615,7 @@ class StudentViewSet(viewsets.ModelViewSet):
 
     def create(self, request, *args, **kwargs):
         data = request.data
-        sid = data.get('student_id', '').strip()
+        sid = _text(data, 'student_id')
 
         if sid and Student.objects.filter(student_id=sid).first():
             return Response({"error": f"Student ID '{sid}' is already in use."}, status=status.HTTP_400_BAD_REQUEST)
@@ -597,14 +629,14 @@ class StudentViewSet(viewsets.ModelViewSet):
             data = request.data
             
             # 1. Name (may repeat; the Student ID tells students apart)
-            new_name = data.get('name', '').strip()
+            new_name = _text(data, 'name')
             if new_name:
                 if new_name != student.name:
                     student.first_name = student.middle_name = student.last_name = None
                 student.name = new_name
 
             # 2. Validate Student ID Uniqueness if changing
-            new_student_id = data.get('student_id', '').strip()
+            new_student_id = _text(data, 'student_id')
             if new_student_id and new_student_id != student.student_id:
                 id_error = student_id_error(new_student_id)
                 if id_error:
@@ -746,6 +778,11 @@ def _report_details_error(data):
             violation_types.append(value)
     if not violation_types:
         return None, None, Response({"error": "Choose at least one violation."}, status=status.HTTP_400_BAD_REQUEST)
+    unknown = [v for v in violation_types if v not in PUNISHMENT_SYSTEM]
+    if unknown:
+        # Only the handbook's violations can be reported (the forms list exactly these); anything else came from
+        # an edited request
+        return None, None, Response({"error": f"Unknown violation: {unknown[0]}. Choose from the list."}, status=status.HTTP_400_BAD_REQUEST)
     if len(violation_types) > 10:
         return None, None, Response({"error": "Choose at most 10 violations in one report."}, status=status.HTTP_400_BAD_REQUEST)
     return student_id, violation_types, None
@@ -844,6 +881,7 @@ def _faculty_email(data):
 
 @api_view(['POST'])
 @permission_classes([AllowAny])
+@rate_limited('faculty-code', per_ip=(20, M10), per_target=(4, M10), target=field('faculty_email', 'email'))
 def faculty_verify_request(request):
     """Faculty report page, "Confirm email address": emails a 6-digit code. POST {faculty_email}"""
     from .models import OTPVerification
@@ -875,6 +913,7 @@ def faculty_verify_request(request):
 
 @api_view(['POST'])
 @permission_classes([AllowAny])
+@rate_limited('faculty-code-check', per_ip=(40, M10), per_target=(10, M10), target=field('faculty_email', 'email'))
 def faculty_verify_confirm(request):
     """Checks the code: answers with a token the report is sent with. POST {faculty_email, otp}"""
     from .models import OTPVerification
@@ -902,6 +941,7 @@ def faculty_verify_confirm(request):
 
 @api_view(['POST'])
 @permission_classes([AllowAny])
+@rate_limited('faculty-report', per_ip=(60, M10))
 def faculty_report(request):
     """Files a faculty member's report, with the token from faculty_verify_confirm. POST {token, ...report form}.
     The email goes on OSA's list to confirm (FacultyInvite) unless it already has an account."""
@@ -926,6 +966,7 @@ def faculty_report(request):
 
 @api_view(['GET'])
 @permission_classes([AllowAny])
+@rate_limited('faculty-lookup', per_ip=(60, M10))
 def faculty_student_lookup(request, student_id):
     """The faculty report page (no account) looks up a scanned or typed student, like a guard's form does, and
     fills in everything the student's record has (OSA's choice: the contact number and email too, before the
@@ -1007,6 +1048,7 @@ def faculty_invite(request):
 
 @api_view(['POST'])
 @permission_classes([AllowAny])
+@rate_limited('faculty-signup-code', per_ip=(20, M10), per_target=(4, M10), target=field('email', 'faculty_email'))
 def faculty_signup_request(request):
     """Faculty sign-up, step 1: emails a 6-digit code. POST {first_name, last_name, faculty_email | invite}"""
     from .models import OTPVerification
@@ -1033,6 +1075,7 @@ def faculty_signup_request(request):
 
 @api_view(['POST'])
 @permission_classes([AllowAny])
+@rate_limited('faculty-signup', per_ip=(40, M10), per_target=(10, M10), target=field('email', 'faculty_email'))
 def faculty_signup(request):
     """Faculty sign-up, step 2: checks the code and makes the account. POST {first_name, last_name,
     faculty_email | invite, password, otp}. An email OSA already confirmed (invite link, or one it confirmed
@@ -1096,6 +1139,7 @@ def _faculty_reset_account(email):
 
 @api_view(['POST'])
 @permission_classes([AllowAny])
+@rate_limited('faculty-reset-code', per_ip=(20, M10), per_target=(3, M15), target=field('faculty_email', 'email'))
 def faculty_reset_request(request):
     """Faculty "Forgot password?", step 1: emails a code to the account's USTP email. POST {faculty_email}
     (Guard accounts are shared and have no email: OSA resets them with create_account.)"""
@@ -1127,6 +1171,7 @@ def faculty_reset_request(request):
 
 @api_view(['POST'])
 @permission_classes([AllowAny])
+@rate_limited('faculty-reset', per_ip=(40, M10), per_target=(10, M10), target=field('faculty_email', 'email'))
 def faculty_reset_password(request):
     """Faculty "Forgot password?", step 2: the code and a new password. POST {faculty_email, otp, password}"""
     from .models import OTPVerification
@@ -1911,6 +1956,7 @@ def _save_clearance_file(violation, kind, image, uploader):
 
 @api_view(['GET', 'POST'])
 @permission_classes([AllowAny])
+@rate_limited('capture', per_ip=(120, M10))
 def clearance_capture(request, token):
     """The phone page opened from the capture QR code. GET: whose violation it is and what's uploaded.
     POST {kind, image}: saves a photo. The signed token is the permission (see capture_link)."""
@@ -2461,6 +2507,7 @@ class SystemUserViewSet(viewsets.ModelViewSet):
             return Response({"error": "User not found"}, status=404)
 
     @action(detail=False, methods=['post'])
+    @rate_limited('change-password', per_ip=(40, M10), per_target=(10, M10), target=lambda r: r.user.username)
     def change_password(self, request):
         username = request.user.username  # always the logged-in account
         old_password = request.data.get('old_password')

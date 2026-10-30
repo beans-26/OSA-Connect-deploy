@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, TextInput, TouchableOpacity, Pressable, StyleSheet, ActivityIndicator, Platform, useWindowDimensions, Modal, ScrollView } from 'react-native';
 import { Link } from 'expo-router';
-import { Mail, MailWarning, ChevronRight, CheckCircle2, Download } from 'lucide-react-native';
+import { Mail, MailWarning, ChevronRight, CheckCircle2, Download, Check } from 'lucide-react-native';
 import QRCode from 'react-native-qrcode-svg';
 import { captureRef } from 'react-native-view-shot';
 // The legacy entry still has saveToLibraryAsync (the new API throws on it)
@@ -76,6 +76,8 @@ export default function Register() {
     const [confirmPassword, setConfirmPassword] = useState('');
     // The Data Privacy Notice pop-up (from "By continuing, you agree to ... Privacy Notice")
     const [showPrivacy, setShowPrivacy] = useState(false);
+    // Ticked "I agree to OSAConnect's Privacy Notice" (required to register)
+    const [privacyAgreed, setPrivacyAgreed] = useState(false);
     const passwordMismatch = confirmPassword.length > 0 && confirmPassword !== studentData.password;
     const courseOptions = DEPARTMENT_COURSES[studentData.department] || [];
     const yearOptions = yearLevelsFor(studentData.department);
@@ -142,6 +144,10 @@ export default function Register() {
     const requestOTP = async () => {
         // Enter can fire this while a request is still running
         if (saving) return;
+        if (!privacyAgreed) {
+            showAlert('Privacy Notice', "Please tick \"I agree to OSAConnect's Privacy Notice\" to continue.");
+            return;
+        }
         if (!studentData.student_id || !studentData.first_name || !studentData.last_name || !studentData.gender || !studentData.course || !studentData.department || !studentData.year_level || !studentData.email || !studentData.password.trim()) {
             showAlert('Missing Fields', 'Please fill in all required fields.');
             return;
@@ -373,8 +379,21 @@ export default function Register() {
                         </Field>
                     </View>
 
+                    {/* Required: the student agrees to the Data Privacy Notice before any details are sent */}
+                    <View style={styles.privacyRow}>
+                        <Pressable onPress={() => setPrivacyAgreed(!privacyAgreed)} hitSlop={10} accessibilityRole="checkbox" accessibilityState={{ checked: privacyAgreed }}
+                            accessibilityLabel="I agree to OSAConnect's Privacy Notice">
+                            <View style={[styles.checkbox, privacyAgreed && styles.checkboxOn]}>
+                                {privacyAgreed && <Check size={13} color="#ffffff" strokeWidth={3} />}
+                            </View>
+                        </Pressable>
+                        <Text style={styles.privacyLine} onPress={() => setPrivacyAgreed(!privacyAgreed)}>
+                            I agree to OSAConnect&apos;s{' '}
+                            <Text style={A.linkText} onPress={() => setShowPrivacy(true)} accessibilityRole="link">Privacy Notice</Text>.
+                        </Text>
+                    </View>
                     <View style={styles.submitRow}>
-                        <TouchableOpacity style={[A.primaryButton, styles.submitButton, saving && A.disabled]} onPress={requestOTP} disabled={saving}>
+                        <TouchableOpacity style={[A.primaryButton, styles.submitButton, (saving || !privacyAgreed) && A.disabled]} onPress={requestOTP} disabled={saving || !privacyAgreed}>
                             {saving ? <ActivityIndicator color="#ffffff" /> : (
                                 <>
                                     <Text style={A.primaryButtonText} numberOfLines={1}>Send verification code</Text>
@@ -387,10 +406,6 @@ export default function Register() {
                             <Link href="/login" style={A.linkText}>Log in</Link>
                         </Text>
                     </View>
-                    <Text style={styles.privacyLine}>
-                        By continuing, you agree to OSAConnect&apos;s{' '}
-                        <Text style={A.linkText} onPress={() => setShowPrivacy(true)} accessibilityRole="link">Privacy Notice</Text>.
-                    </Text>
                     <Modal visible={showPrivacy} transparent animationType="none" onRequestClose={() => setShowPrivacy(false)}>
                         <Pressable style={styles.privacyBackdrop} onPress={() => setShowPrivacy(false)}>
                             <Pressable style={styles.privacyCard} onPress={() => {}}>
@@ -531,7 +546,10 @@ const styles = StyleSheet.create({
     stepLogin: { fontSize: 12, color: C.textSoft, flexShrink: 1 },
     // One row like the website: "Log in" on the left, the button on the right (row-reverse: the button comes
     // first in the code). "Already registered?" wraps to two short lines on narrow phones.
-    privacyLine: { marginTop: 12, fontSize: 12, lineHeight: 17, color: C.textSoft },
+    privacyRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, marginTop: 4, marginBottom: 14 },
+    privacyLine: { flex: 1, fontSize: 13, lineHeight: 19, color: C.textSoft },
+    checkbox: { width: 20, height: 20, borderRadius: 4, borderWidth: 2, borderColor: C.textMuted, alignItems: 'center', justifyContent: 'center', marginTop: 0 },
+    checkboxOn: { backgroundColor: C.navy, borderColor: C.navy },
     privacyBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', alignItems: 'center', justifyContent: 'center', padding: 20 },
     privacyCard: { width: '100%', maxWidth: 420, backgroundColor: '#ffffff', borderRadius: 16, padding: 20 },
     privacyTitle: { fontSize: 16, fontWeight: '700', color: C.text, marginBottom: 10 },

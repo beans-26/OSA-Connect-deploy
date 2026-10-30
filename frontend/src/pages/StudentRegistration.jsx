@@ -94,6 +94,8 @@ const StudentRegistration = () => {
     const [confirmPassword, setConfirmPassword] = useState('');
     // The Data Privacy Notice pop-up (from "By continuing, you agree to ... Privacy Notice")
     const [showPrivacy, setShowPrivacy] = useState(false);
+    // Ticked "I agree to OSAConnect's Privacy Notice" (required to register)
+    const [privacyAgreed, setPrivacyAgreed] = useState(false);
     const passwordMismatch = confirmPassword.length > 0 && confirmPassword !== studentData.password;
     const courseOptions = DEPARTMENT_COURSES[studentData.department] || [];
     const yearOptions = yearLevelsFor(studentData.department);
@@ -165,6 +167,11 @@ const StudentRegistration = () => {
 
     const requestOTP = async (e) => {
         if (e) e.preventDefault();
+        if (!privacyAgreed) {
+            alert("Please tick \"I agree to OSAConnect's Privacy Notice\" to continue.");
+            document.getElementById('reg-privacy')?.focus();
+            return;
+        }
         if (studentData.student_id.length !== 10) {
             alert('Student ID must be exactly 10 numbers, like 2023303188.');
             document.getElementById('reg-id')?.focus();
@@ -394,19 +401,25 @@ const StudentRegistration = () => {
                                 </Field>
                             </div>
 
+                            {/* Required: the student agrees to the Data Privacy Notice before any details are sent */}
+                            <div className="flex items-start gap-2.5 text-xs sm:text-sm text-slate-700 dark:text-slate-300">
+                                <input id="reg-privacy" type="checkbox" checked={privacyAgreed} onChange={(e) => setPrivacyAgreed(e.target.checked)}
+                                    className="mt-0.5 h-4 w-4 shrink-0 cursor-pointer accent-blue-900" />
+                                <label htmlFor="reg-privacy" className="cursor-pointer">
+                                    I agree to OSAConnect&apos;s{' '}
+                                    <button type="button" onClick={() => setShowPrivacy(true)} className="font-semibold text-blue-800 dark:text-blue-300 underline underline-offset-2">Privacy Notice</button>.
+                                </label>
+                            </div>
+
                             {/* One row on every screen: "Log in" beside the button (it wraps to two short lines on narrow phones) */}
                             <div className="flex items-center justify-between gap-3">
                                 <span className="min-w-0 text-xs sm:text-sm leading-snug text-slate-700 dark:text-slate-300">
                                     Already registered? <Link to="/student" className="font-bold whitespace-nowrap text-slate-900 dark:text-white underline underline-offset-2">Log in</Link>
                                 </span>
-                                <button type="submit" disabled={saving} className={`${primaryButton} shrink-0 whitespace-nowrap`}>
+                                <button type="submit" disabled={saving || !privacyAgreed} title={privacyAgreed ? undefined : "Tick \"I agree to OSAConnect's Privacy Notice\" first"} className={`${primaryButton} shrink-0 whitespace-nowrap`}>
                                     {saving ? <Loader2 className="animate-spin" size={18} /> : <>Send verification code <ChevronRight size={16} /></>}
                                 </button>
                             </div>
-                            <p className="text-[11px] sm:text-xs text-slate-600 dark:text-slate-400">
-                                By continuing, you agree to OSAConnect&apos;s{' '}
-                                <button type="button" onClick={() => setShowPrivacy(true)} className="font-semibold text-blue-800 dark:text-blue-300 underline underline-offset-2">Privacy Notice</button>.
-                            </p>
                         </form>
                     )}
 
