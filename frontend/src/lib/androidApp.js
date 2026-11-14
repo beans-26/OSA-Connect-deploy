@@ -1,8 +1,9 @@
 // The Android app download. The QR code on the landing page points at ANDROID_DOWNLOAD_URL (/android on the
 // live site), which forwards to the APK, so the printed or shared QR code never has to change.
-// After a new EAS build (`eas build -p android --profile preview` in mobile/), paste its APK link here:
-// `npx eas-cli build:list --platform android --limit 1` shows it under "Application Archive URL".
-export const ANDROID_APK_URL = 'https://expo.dev/artifacts/eas/EfsiOxIgwwCSqkOIQyClqBw0xiy5kghM8m9XvV8lmUQ.apk';
+// The APK is kept on the GitHub repo's Releases page (Expo deletes its build downloads after a while).
+// This link always gives the newest release's OSAConnect.apk, so it never needs changing: after a new
+// EAS build, download the APK and attach it to a new GitHub release as "OSAConnect.apk".
+export const ANDROID_APK_URL = 'https://github.com/beans-26/OSA-Connect-deploy/releases/latest/download/OSAConnect.apk';
 export const ANDROID_APP_VERSION = '1.2.0';
 
 export const ANDROID_DOWNLOAD_PATH = '/android';
