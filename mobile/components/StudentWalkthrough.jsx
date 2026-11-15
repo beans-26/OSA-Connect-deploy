@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Modal, View, Text, TouchableOpacity, ScrollView, Animated, Easing, AccessibilityInfo } from 'react-native';
+import { Modal, View, Text, TouchableOpacity, ScrollView, Animated, Easing } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { SvgXml } from 'react-native-svg';
 import { BadgeCheck, ChevronLeft, ChevronRight, FileDown, LocateFixed, Mail, MapPin, QrCode, Repeat, Scale, ScanLine, Ticket, X } from 'lucide-react-native';
@@ -58,7 +58,7 @@ export const layerMotion = (anim, progress, scale, still) => {
 
 // "How OSAConnect works": what happens if the student gets a violation, one step per screen, each with a
 // picture of a student doing it. Each step slides in from the side it comes from, the people act the step out and
-// the icon bubble pops in (all off when the phone's Reduce motion is on). firstTime (right after the first
+// the icon bubble pops in (always, whatever the phone's motion setting). firstTime (right after the first
 // login): it can't be closed until the last step. Reopened from Help: closes any time.
 // The e-ticket's "How to serve your hours" (StudentGuide) uses it too, with its own title, intro, steps (the
 // serving ones), last button and an action on one step (open the e-ticket on the forms step).
@@ -67,18 +67,13 @@ export default function StudentWalkthrough({ visible, paused = false, firstTime 
     const { colors, isDarkMode } = useTheme();
     const [step, setStep] = useState(0);
     const [artWidth, setArtWidth] = useState(ART_MAX_WIDTH);
-    const [reduceMotion, setReduceMotion] = useState(false);
+    // Always animated, whatever the phone's motion setting ("Remove animations", battery saver): asked for 2026-11
+    const reduceMotion = false;
     const [textHeights, setTextHeights] = useState({}); // each step's words, measured: the box fits the tallest
     const slide = useRef(new Animated.Value(1)).current; // 0 -> 1 as a step comes in
     const dir = useRef(1); // 1 = came from Next, -1 = from Back
     const pop = useRef(new Animated.Value(1)).current;
     const last = step === steps.length - 1;
-
-    useEffect(() => {
-        AccessibilityInfo.isReduceMotionEnabled().then(setReduceMotion).catch(() => {});
-        const sub = AccessibilityInfo.addEventListener('reduceMotionChanged', setReduceMotion);
-        return () => sub?.remove?.();
-    }, []);
 
     useEffect(() => { if (visible) { dir.current = 1; setStep(0); } }, [visible]);
 

@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Animated, Easing, AccessibilityInfo, BackHandler } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Animated, Easing, BackHandler } from 'react-native';
 import { SvgXml } from 'react-native-svg';
 import { ChevronRight } from 'lucide-react-native';
 import AuthScreen, { authColors as C } from '../components/AuthScreen';
@@ -49,11 +49,11 @@ function Figure({ scene, bg, still }) {
 
 export default function Welcome() {
     const [chosen, setChosen] = useState(null); // 'student' | 'faculty' once a card is tapped
-    const [still, setStill] = useState(false);
+    // Always animated, whatever the phone's motion setting ("Remove animations", battery saver): asked for 2026-11
+    const still = false;
     // The two cards rise in one after the other
     const [rise] = useState(() => CHOICES.map(() => new Animated.Value(0)));
     useEffect(() => {
-        AccessibilityInfo.isReduceMotionEnabled().then(setStill).catch(() => {});
         Animated.stagger(120, rise.map((v) => Animated.timing(v, { toValue: 1, duration: 420, delay: 250, easing: Easing.out(Easing.cubic), useNativeDriver: true }))).start();
     }, [rise]);
     // Android's back button on the login: back to the choice
