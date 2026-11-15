@@ -7,7 +7,7 @@ from .models import Student, ViolationReport, ETicket, TimeLog, SystemUser, Serv
 from mongoengine.queryset.visitor import Q
 from .serializers import StudentSerializer, ViolationReportSerializer, ETicketSerializer, TimeLogSerializer
 from .passwords import hash_password, verify_password, check_and_upgrade
-from .emails import send_code_email, send_violation_notice, send_faculty_invite, send_faculty_activated, app_url
+from .emails import send_code_email, send_violation_notice, send_violation_notices, send_faculty_invite, send_faculty_activated, app_url
 from .deadlines import apply_missed_day_hours
 from .ratelimit import rate_limited, field
 M5, M10, M15 = 5 * 60, 10 * 60, 15 * 60  # rate limit windows (seconds)
@@ -1541,27 +1541,52 @@ class ViolationViewSet(viewsets.ModelViewSet):
         if full:
             return full
 
-        results = []
+        # The whole list in a few database trips (each one costs about 55 ms on the live site; one per student and
+        # violation made a class-sized report take a minute): the students in one query, the new placeholders in
+        # one insert, every offense number in one count, then the reports and e-tickets each in one insert
+        ids = [sid for sid, _ in students_in]
+        by_id = {s.student_id: s for s in Student.objects(student_id__in=ids)}
+        placeholders = []
         for sid, name in students_in:
-            try:
-                student = Student.objects(student_id=sid).first()
-                if not student:
-                    # No account yet: a placeholder under the ID (no password, so nobody can log in with it).
-                    # The name is optional; registering replaces it with the student's own.
-                    student = Student(student_id=sid, name=name or UNREGISTERED_NAME, course='Unknown', department='Unknown').save()
-                elif name and not student.password and name != student.name:
-                    # Still a placeholder (e.g. from a guard's report): the admin's spelling of the name wins
-                    student.name = name
-                    student.save()
+            student = by_id.get(sid)
+            if not student:
+                # No account yet: a placeholder under the ID (no password, so nobody can log in with it).
+                # The name is optional; registering replaces it with the student's own.
+                student = Student(student_id=sid, name=name or UNREGISTERED_NAME, course='Unknown', department='Unknown')
+                student.clean()  # names capitalized, as a save would
+                placeholders.append(student)
+                by_id[sid] = student
+            elif name and not student.password and name != student.name:
+                # Still a placeholder (e.g. from a guard's report): the admin's spelling of the name wins
+                student.name = name
+                student.save()
+        if placeholders:
+            for student, new_id in zip(placeholders, Student.objects.insert(placeholders, load_bulk=False)):
+                student.id = new_id
 
+        # Earlier reports of the same kinds (not dismissed), per student and violation: the offense numbers
+        earlier = {}
+        for row in ViolationReport._get_collection().aggregate([
+            {'$match': {'student': {'$in': [s.id for s in by_id.values()]}, 'violation_type': {'$in': violation_types},
+                        'status': {'$ne': 'Dismissed'}}},
+            {'$group': {'_id': {'s': '$student', 't': '$violation_type'}, 'n': {'$sum': 1}}},
+        ]):
+            earlier[(row['_id']['s'], row['_id']['t'])] = row['n']
+
+        results, reports, hours_of = [], [], []
+        now = utc_now()
+        history = [_building_entry(assigned_building, request)]
+        for sid, _ in students_in:
+            student = by_id[sid]
+            try:
+                mine = []
                 for violation_type in violation_types:
-                    offense_count = get_offense_count(student, violation_type)
+                    offense_count = earlier.get((student.id, violation_type), 0) + 1
                     if violation_type == EVENT_VIOLATION:
                         hours, punishment = EVENT_HOURS, f"{EVENT_HOURS} hours community service"
                     else:
                         punishment_info = get_punishment(violation_type, offense_count)
                         hours, punishment = punishment_info["hours"], punishment_info["punishment"]
-
                     report = ViolationReport(
                         student=student,
                         violation_type=violation_type,
@@ -1571,24 +1596,38 @@ class ViolationViewSet(viewsets.ModelViewSet):
                         # No hours to serve (no entry): nothing to do, so it goes straight to the archives (same as approve)
                         status="Approved" if hours > 0 else "Completed",
                         assigned_building=assigned_building,
-                        building_history=[_building_entry(assigned_building, request)],
+                        building_history=history,
                         offense_count=offense_count,
                         punishment=punishment,
-                        created_at=utc_now()
-                    ).save()
-                    if hours > 0:
-                        ETicket(
-                            violation=report,
-                            assigned_location=assigned_building,
-                            total_hours_required=hours,
-                            remaining_hours=hours,
-                            status="Active",
-                            **_site_ticket_fields(assigned_site)
-                        ).save()
-                    send_violation_email(report)  # skipped when the student has no email yet
+                        created_at=now
+                    )
+                    report.validate()
+                    mine.append((report, hours))
+                for report, hours in mine:
+                    reports.append(report)
+                    hours_of.append(hours)
                 results.append({"student_id": sid, "name": student.name, "status": "success", "has_account": bool(student.password)})
             except Exception as e:
                 results.append({"student_id": sid, "status": "failed", "error": str(e)})
+
+        if reports:
+            for report, new_id in zip(reports, ViolationReport.objects.insert(reports, load_bulk=False)):
+                report.id = new_id
+            tickets = [ETicket(
+                violation=report,
+                assigned_location=assigned_building,
+                total_hours_required=hours,
+                remaining_hours=hours,
+                status="Active",
+                **_site_ticket_fields(assigned_site)
+            ) for report, hours in zip(reports, hours_of) if hours > 0]
+            if tickets:
+                ETicket.objects.insert(tickets, load_bulk=False)
+            # The students' emails, all over one connection (skipped for students with no email yet)
+            try:
+                send_violation_notices(reports)
+            except Exception as e:
+                print(f"EMAIL ERROR: bulk report notices: {e}")
 
         done = sum(1 for r in results if r['status'] == 'success')
         return Response({

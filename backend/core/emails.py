@@ -88,10 +88,14 @@ def _html(title, paragraphs, highlight=None, rows=None, after=(), button=None):
     )
 
 
-def _send(to, subject, text, html):
+def _message(to, subject, text, html):
     message = EmailMultiAlternatives(subject=subject, body=text, from_email=settings.DEFAULT_FROM_EMAIL, to=[to])
     message.attach_alternative(html, 'text/html')
-    message.send(fail_silently=False)
+    return message
+
+
+def _send(to, subject, text, html):
+    _message(to, subject, text, html).send(fail_silently=False)
 
 
 def send_code_email(to, code, purpose, name=None):
@@ -108,6 +112,23 @@ def send_code_email(to, code, purpose, name=None):
 
 def send_violation_notice(report):
     """Tells a student that a violation report was filed for them and that OSA will review it."""
+    violation_notice_message(report).send(fail_silently=False)
+
+
+def send_violation_notices(reports):
+    """The same notices for many reports (the admin's bulk report), over ONE connection to the mail server: opening
+    one (the secure handshake and login) takes Gmail 1 to 3 seconds, so a connection per email made a class-sized
+    report take a minute. Reports whose student has no email are skipped. Returns how many were sent."""
+    from django.core.mail import get_connection
+    messages = [violation_notice_message(r) for r in reports if getattr(r.student, 'email', None)]
+    if not messages:
+        return 0
+    with get_connection(fail_silently=False) as connection:
+        return connection.send_messages(messages) or 0
+
+
+def violation_notice_message(report):
+    """The violation notice as an email, not sent yet."""
     student = report.student
     when = report.created_at.replace(tzinfo=datetime.timezone.utc).astimezone(PH_TZ) if report.created_at else None
     when_str = when.strftime('%B %d, %Y, %I:%M %p').replace(' 0', ' ') if when else 'Not recorded'
@@ -128,7 +149,7 @@ def send_violation_notice(report):
     text = (f"{greeting}\n\n{intro}\n\n" + ''.join(f"{k}: {v}\n" for k, v in rows)
             + f"\n{next_step}\n{not_you}\n\n{OFFICE}\n{SITE_URL}\nThis email was sent automatically. Replies to it are not read.\n")
     html = _html('A violation report was filed for you', [greeting, intro], rows=rows, after=[next_step, not_you])
-    _send(student.email, subject, text, html)
+    return _message(student.email, subject, text, html)
 
 
 def _footer_text():
