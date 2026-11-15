@@ -2,13 +2,11 @@ import React, { createContext, useCallback, useContext, useEffect, useRef, useSt
 import { Animated, AppState, Easing, Image, Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { usePathname, useRouter } from 'expo-router';
-import { AlertTriangle, ArrowLeft, Bell, BookOpen, House, Settings as SettingsIcon, Ticket, User } from 'lucide-react-native';
+import { AlertTriangle, ArrowLeft, Bell, BookOpen, CircleQuestionMark, House, Settings as SettingsIcon, Ticket, User } from 'lucide-react-native';
 import { useAuth } from './AuthContext';
 import { useTheme } from './ThemeContext';
 import api from '../services/api';
 import { HomeHeader } from './StudentLook';
-import StudentGuide from './StudentGuide';
-import TicketDetails from './TicketDetails';
 import { timeGreeting } from './greeting';
 import { buildNotifications, readReminders, readSeen, saveReminders, saveSeen, syncDeadlineReminder, readDataSaver, saveDataSaver, IDLE_REFRESH_MS, SAVER_REFRESH_MS } from './studentNotifications';
 
@@ -52,6 +50,8 @@ export function StudentShellProvider({ children }) {
     const [seen, setSeen] = useState(new Set());
     const [logoutAsk, setLogoutAsk] = useState(null); // null | { timerRunning }
     const [guideAsk, setGuideAsk] = useState(0);
+    // "How OSAConnect works" again, from Home's header button (the Home screen opens it). Same as the website.
+    const [walkthroughAsk, setWalkthroughAsk] = useState(0);
     // The tab bar's sliding circle: which slot it's on (animated), and how wide a slot is
     const tabPos = useRef(new Animated.Value(0)).current;
     const [slotWidth, setSlotWidth] = useState(0);
@@ -138,6 +138,7 @@ export function StudentShellProvider({ children }) {
     }, [tabIndex, tabPos]);
     const value = {
         guideAsk, askGuide: () => setGuideAsk((n) => n + 1),
+        walkthroughAsk, askWalkthrough: () => setWalkthroughAsk((n) => n + 1),
         profile, setProfile, records, recordsLoaded, setRecords: takeRecords, reload: load, notifications, unread, seen, markAllRead,
         reminders, setReminders, dataSaver, setDataSaver, openLogout, go,
     };
@@ -201,11 +202,8 @@ export function StudentTopBar({ title, back }) {
     const { colors, isDarkMode } = useTheme();
     const router = useRouter();
     const pathname = usePathname();
-    const { unread, go, profile, records, askGuide } = useStudentShell();
-    // Home's step-by-step button (left of the bell, when there's a ticket to serve): "How to serve your hours" for
-    // the open ticket; its forms step opens the e-ticket. Same as the website.
-    const [stepsOpen, setStepsOpen] = useState(false);
-    const [stepsTicket, setStepsTicket] = useState(null);
+    const { unread, go, profile, records, askGuide, askWalkthrough } = useStudentShell();
+    // "How to serve your hours" is only on the E-Tickets screen (its book icon, top right), not on Home. Same as the website.
     const { user } = useAuth();
     const styles = getStyles(colors, shellColors(isDarkMode));
     // The three tabs (Home, E-Tickets, Profile): a blue gradient header instead of the top bar. Home: "Good evening,
@@ -224,16 +222,6 @@ export function StudentTopBar({ title, back }) {
     if (tabHeader) {
         return (
             <>
-            {stepsOpen && (
-                <StudentGuide
-                    ticket={records.tickets.find((t) => t.status === 'Ongoing') || records.tickets.find((t) => t.status === 'Active')}
-                    paused={!!stepsTicket}
-                    onClose={() => setStepsOpen(false)}
-                    // The guide waits behind the e-ticket and comes back on the same step when it's closed
-                    onOpenTicket={(t) => setStepsTicket(t)}
-                />
-            )}
-            <TicketDetails ticket={stepsTicket} onClose={() => setStepsTicket(null)} />
             <HomeHeader isDarkMode={isDarkMode} greeting={tabHeader.title} name={tabHeader.line} left={tabHeader.back ? (
                 <TouchableOpacity onPress={() => (router.canGoBack() ? router.back() : go(tabHeader.back))} style={{ marginLeft: -8, width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' }} accessibilityLabel="Back">
                     <ArrowLeft size={22} color="#ffffff" />
@@ -248,11 +236,9 @@ export function StudentTopBar({ title, back }) {
                 </TouchableOpacity>
             ) : tabHeader.action === 'bell' ? (
                 <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                {hasService && (
-                    <TouchableOpacity onPress={() => setStepsOpen(true)} style={{ width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' }} accessibilityLabel="How to serve your hours">
-                        <BookOpen size={21} color="#ffffff" />
-                    </TouchableOpacity>
-                )}
+                <TouchableOpacity onPress={askWalkthrough} style={{ width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' }} accessibilityLabel="How OSAConnect works">
+                    <CircleQuestionMark size={21} color="#ffffff" />
+                </TouchableOpacity>
                 <TouchableOpacity onPress={() => go('/student/notifications')} style={{ width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' }} accessibilityLabel={`Notifications${unread ? `, ${unread} new` : ''}`}>
                     <Bell size={21} color="#ffffff" />
                     {unread > 0 && (

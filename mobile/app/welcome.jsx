@@ -26,7 +26,9 @@ function Figure({ scene, bg, still }) {
     useEffect(() => {
         if (still) return undefined;
         const loops = art.layers.map((l, i) => l.anim && Animated.loop(
-            Animated.timing(clocks[i], { toValue: 1, duration: l.anim.duration, easing: Easing.linear, useNativeDriver: true }),
+            // JavaScript-driven: Android's native animation engine (release APK) silently skipped these loops
+            // (many keyframes, rotation strings, a custom pivot), so the people stood still. The pictures are small.
+            Animated.timing(clocks[i], { toValue: 1, duration: l.anim.duration, easing: Easing.linear, useNativeDriver: false }),
         )).filter(Boolean);
         loops.forEach((loop) => loop.start());
         return () => loops.forEach((loop) => loop.stop());

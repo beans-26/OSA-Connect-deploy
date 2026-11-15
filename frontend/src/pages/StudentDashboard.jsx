@@ -209,7 +209,7 @@ const ServiceRemaining = ({ ticket, remainingHours }) => {
 const DashboardBody = () => {
     // Theme, and the layout's copy of the records: Home starts from it (it's already there when the student comes
     // back from another tab), so the page shows right away and the download below only refreshes it
-    const { isDarkMode, setRecords, dataSaver, records, recordsLoaded, stepsOpen } = useStudentShell();
+    const { isDarkMode, setRecords, dataSaver, records, recordsLoaded, walkthroughAsk } = useStudentShell();
     const [tickets, setTickets] = useState(() => records.tickets);
 
     const [loading, setLoading] = useState(() => !recordsLoaded);
@@ -264,6 +264,14 @@ const DashboardBody = () => {
         setWalkthroughOpen(false);
         fetch('/api/students/walkthrough/', { method: 'POST' }).catch(() => {});
     };
+    // "How OSAConnect works" again, from the header's button (closes any time); only taps made on this page
+    const [walkthroughReplay, setWalkthroughReplay] = useState(false);
+    const walkthroughAskSeen = useRef(walkthroughAsk);
+    useEffect(() => {
+        if (walkthroughAsk === walkthroughAskSeen.current) return;
+        walkthroughAskSeen.current = walkthroughAsk;
+        setWalkthroughReplay(true);
+    }, [walkthroughAsk]);
     const watchIdRef = React.useRef(null);
 
     // Sends a stop saved while offline (PENDING_STOP_KEY). Returns true while it still couldn't be sent.
@@ -810,7 +818,7 @@ const DashboardBody = () => {
     // The step-by-step guide: on its own the first time a new open ticket appears (not over another pop-up),
     // and any time from "How to serve your hours"
     // (not while the header's "How to serve your hours" is open, so the two never stack)
-    const newGuideTicket = !stepsOpen && walkthroughChecked && !walkthroughOpen && !receipt && !completedTicket && !openTicket && tickets.find((t) => (t.status === 'Active' || t.status === 'Ongoing') && !seenGuide.includes(t.id));
+    const newGuideTicket = walkthroughChecked && !walkthroughOpen && !walkthroughReplay && !receipt && !completedTicket && !openTicket && tickets.find((t) => (t.status === 'Active' || t.status === 'Ongoing') && !seenGuide.includes(t.id));
     const shownGuide = guideTicket || newGuideTicket;
     const closeGuide = () => {
         // One "Got it" covers every open ticket the student has now, so two new tickets don't show it twice in a row
@@ -858,6 +866,7 @@ const DashboardBody = () => {
             )}
             <TicketDetails ticket={openTicket} onClose={() => setOpenTicket(null)} />
             <StudentWalkthrough open={walkthroughOpen} firstTime onFinish={finishWalkthrough} />
+            <StudentWalkthrough open={walkthroughReplay && !walkthroughOpen} onClose={() => setWalkthroughReplay(false)} />
             {/* "Open my e-ticket": the guide waits (guideHold) behind the e-ticket and comes back on the same step */}
             <StudentGuide ticket={shownGuide || guideHold} paused={!!openTicket && !!guideHold} onClose={() => { closeGuide(); setGuideHold(null); }} onOpenTicket={(t) => { setGuideHold(shownGuide); setOpenTicket(t); }} />
 

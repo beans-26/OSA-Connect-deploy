@@ -4,9 +4,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import {
     ArrowLeft, ChevronDown, ChevronUp, MessageCircleQuestionMark, Wrench,
-    ShieldCheck, ClipboardList, Mail, PlayCircle, ChevronRight,
+    ShieldCheck, ClipboardList, Mail,
 } from 'lucide-react-native';
-import StudentWalkthrough from '../components/StudentWalkthrough';
 import { HomeHeader } from '../components/StudentLook';
 import { useAuth } from '../components/AuthContext';
 import { useTheme } from '../components/ThemeContext';
@@ -67,7 +66,6 @@ export default function Help() {
     const { isDarkMode, colors } = useTheme();
     const styles = getStyles(colors);
     const isStudent = !user || user.role === 'student';
-    const [walkthrough, setWalkthrough] = useState(false);
     const { report_problem: problem } = help;
 
     const reportProblem = () => {
@@ -102,17 +100,6 @@ export default function Help() {
 
                 {isStudent ? (
                     <>
-                        {/* The first-login walkthrough, again (no wait, closes any time). Same as the website. */}
-                        <TouchableOpacity onPress={() => setWalkthrough(true)} accessibilityRole="button"
-                            style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 16, padding: 16, borderRadius: 16, borderWidth: 2, borderColor: colors.border, backgroundColor: colors.card }}>
-                            <PlayCircle size={22} color={colors.primary} />
-                            <View style={{ flex: 1 }}>
-                                <Text style={{ fontSize: 14, fontWeight: '700', color: colors.text }}>{help.student.walkthrough.title}</Text>
-                                <Text style={{ fontSize: 12, color: colors.textMuted }}>Step by step: what happens if you get a violation</Text>
-                            </View>
-                            <ChevronRight size={18} color={colors.textMuted} />
-                        </TouchableOpacity>
-                        <StudentWalkthrough visible={walkthrough} onClose={() => setWalkthrough(false)} />
 
                         {help.student.faq.map((group) => (
                             <Card key={group.group} icon={MessageCircleQuestionMark} title={group.group} {...cardProps}>

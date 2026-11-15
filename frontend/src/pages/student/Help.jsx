@@ -1,6 +1,5 @@
 import { useState } from 'react';
-import { ChevronDown, ChevronRight, MessageCircleQuestion, PlayCircle, Wrench, ShieldCheck, Mail } from 'lucide-react';
-import StudentWalkthrough from '../../components/StudentWalkthrough';
+import { ChevronDown, MessageCircleQuestion, Wrench, ShieldCheck, Mail } from 'lucide-react';
 // Shared with the mobile app (mobile/app/help.jsx); see the _about note in the file
 import help from '../../../../shared/help-content.json';
 
@@ -71,22 +70,11 @@ const Collapsible = ({ title, children }) => {
 const StudentHelp = () => {
     const { report_problem: problem } = help;
     const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(problem.email)}&su=${encodeURIComponent(problem.subject)}&body=${encodeURIComponent(problem.body)}`;
-    const [walkthrough, setWalkthrough] = useState(false);
 
     return (
         <main className="mx-auto w-full max-w-xl px-4 pb-12 pt-4">
             <p className="mb-4 px-1 text-sm font-medium leading-5 text-[var(--s-muted)]">{help.student.intro}</p>
 
-            {/* The first-login walkthrough, again (no wait, closes any time) */}
-            <button onClick={() => setWalkthrough(true)} className="s-card mb-4 flex w-full items-center gap-3 rounded-[22px] p-4 text-left">
-                <PlayCircle size={22} className="shrink-0 text-[var(--s-primary)]" />
-                <span className="min-w-0 flex-1">
-                    <span className="block text-sm font-bold text-[var(--s-text)]">{help.student.walkthrough.title}</span>
-                    <span className="block text-xs font-medium text-[var(--s-muted)]">Step by step: what happens if you get a violation</span>
-                </span>
-                <ChevronRight size={18} className="shrink-0 text-[var(--s-muted)]" />
-            </button>
-            <StudentWalkthrough open={walkthrough} onClose={() => setWalkthrough(false)} />
 
             {help.student.faq.map((group) => (
                 <Card key={group.group} icon={MessageCircleQuestion} title={group.group}>

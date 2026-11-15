@@ -1,8 +1,6 @@
 import { Suspense, createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Bell, BookOpen, House, LogOut, Settings as SettingsIcon, Ticket, User } from 'lucide-react';
-import StudentGuide from './StudentGuide';
-import TicketDetails from './TicketDetails';
+import { ArrowLeft, Bell, BookOpen, CircleHelp, House, LogOut, Settings as SettingsIcon, Ticket, User } from 'lucide-react';
 import { useStudentTheme } from './useStudentTheme';
 import logoIcon from '../assets/osaconnect-icon.png';
 import logoIconDark from '../assets/osaconnect-icon-dark.png';
@@ -134,12 +132,11 @@ export default function StudentShell() {
         '/student/help': { title: 'Help & Support', line: 'Answers, penalties and how to reach OSA', back: '/student/settings' },
     }[pathname];
     const [guideAsk, setGuideAsk] = useState(0);
-    // Home's step-by-step button (left of the bell, when there's a ticket to serve): "How to serve your hours"
-    // for the open ticket; its forms step opens the e-ticket
-    const [stepsOpen, setStepsOpen] = useState(false);
-    const [stepsTicket, setStepsTicket] = useState(null);
+    // "How to serve your hours" is only on the E-Tickets page (its book icon, top right), not on Home (2026-11).
+    // "How OSAConnect works" (the first-login walkthrough, again) is on Home: its button asks the Home page to open it
+    const [walkthroughAsk, setWalkthroughAsk] = useState(0);
     const value = {
-        guideAsk, stepsOpen,
+        guideAsk, walkthroughAsk,
         ...theme, user, profile, setProfile, records, recordsLoaded, setRecords: takeRecords, reload: load,
         notifications, unread, seen, markAllRead, reminders, setReminders, dataSaver, setDataSaver, openLogout,
     };
@@ -175,9 +172,9 @@ export default function StudentShell() {
                                     <SettingsIcon size={21} />
                                 </button>
                             )}
-                            {tabHeader.action === 'bell' && hasService && (
-                                <button onClick={() => setStepsOpen(true)} aria-label="How to serve your hours" title="How to serve your hours" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-white hover:bg-white/10">
-                                    <BookOpen size={21} />
+                            {tabHeader.action === 'bell' && (
+                                <button onClick={() => setWalkthroughAsk((n) => n + 1)} aria-label="How OSAConnect works" title="How OSAConnect works" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-white hover:bg-white/10">
+                                    <CircleHelp size={21} />
                                 </button>
                             )}
                             {tabHeader.action === 'bell' && (
@@ -251,17 +248,6 @@ export default function StudentShell() {
                     </div>
                 </nav>
 
-                {/* "How to serve your hours" from Home's book button, and the e-ticket its forms step opens */}
-                {stepsOpen && (
-                    <StudentGuide
-                        ticket={records.tickets.find((t) => t.status === 'Ongoing') || records.tickets.find((t) => t.status === 'Active')}
-                        paused={!!stepsTicket}
-                        onClose={() => setStepsOpen(false)}
-                        // The guide waits behind the e-ticket and comes back on the same step when it's closed
-                        onOpenTicket={(t) => setStepsTicket(t)}
-                    />
-                )}
-                <TicketDetails ticket={stepsTicket} onClose={() => setStepsTicket(null)} />
 
                 {/* Same log-out question as the guard and faculty pages (components/ReporterShell.jsx) */}
                 {logoutAsk && (

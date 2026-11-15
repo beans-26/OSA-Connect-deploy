@@ -117,7 +117,7 @@ export default function Dashboard() {
     // The side menu's copy of the records (its badge and "hours remaining" stay current)
     // The layout's copy of the records: if Home has to start again, it shows them right away and the download
     // only refreshes them (with a session running it waits, so the timer isn't shown as stopped meanwhile)
-    const { setRecords, dataSaver, records, recordsLoaded } = useStudentShell();
+    const { setRecords, dataSaver, records, recordsLoaded, walkthroughAsk } = useStudentShell();
     const [refreshing, setRefreshing] = useState(false);
     const styles = getStyles(colors, isDarkMode);
 
@@ -289,6 +289,14 @@ export default function Dashboard() {
         setWalkthroughOpen(false);
         api.post('/students/walkthrough/').catch(() => {});
     };
+    // "How OSAConnect works" again, from the header's button (closes any time); only taps made on this screen
+    const [walkthroughReplay, setWalkthroughReplay] = useState(false);
+    const walkthroughAskSeen = useRef(walkthroughAsk);
+    useEffect(() => {
+        if (walkthroughAsk === walkthroughAskSeen.current) return;
+        walkthroughAskSeen.current = walkthroughAsk;
+        setWalkthroughReplay(true);
+    }, [walkthroughAsk]);
 
     const openTicket = tickets.find(t => t.status === 'Ongoing') || tickets.find(t => t.status === 'Active');
     const completedTicket = !walkthroughOpen && !receipt && seenCompleted
@@ -302,7 +310,7 @@ export default function Dashboard() {
     };
 
     // "How to serve your hours", on its own the first time a new open ticket appears (not over another pop-up)
-    const newGuideTicket = walkthroughChecked && !walkthroughOpen && !receipt && !completedTicket && !openedTicket && seenGuide
+    const newGuideTicket = walkthroughChecked && !walkthroughOpen && !walkthroughReplay && !receipt && !completedTicket && !openedTicket && seenGuide
         ? tickets.find((t) => (t.status === 'Active' || t.status === 'Ongoing') && !seenGuide.includes(t.id))
         : null;
     const closeGuide = () => {
@@ -692,6 +700,7 @@ export default function Dashboard() {
         </Modal>
         <TicketDetails ticket={openedTicket} onClose={() => setOpenedTicket(null)} />
         <StudentWalkthrough visible={walkthroughOpen} firstTime onFinish={finishWalkthrough} />
+        <StudentWalkthrough visible={walkthroughReplay && !walkthroughOpen} onClose={() => setWalkthroughReplay(false)} />
         {/* "Open my e-ticket": the guide waits (guideHold) behind the e-ticket and comes back on the same step */}
         <StudentGuide ticket={newGuideTicket || guideHold} paused={!!openedTicket && !!guideHold} onClose={() => { closeGuide(); setGuideHold(null); }} onOpenTicket={(t) => { setGuideHold(newGuideTicket); setOpenedTicket(t); }} />
         <SafeAreaView style={styles.safeArea}>
