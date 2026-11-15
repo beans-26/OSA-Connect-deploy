@@ -69,10 +69,11 @@ const StudentWalkthrough = ({ open, firstTime = false, onFinish, onClose, title 
 
                 <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 pt-5 pb-1">
                     <p className="pr-10 text-xs font-bold uppercase tracking-wide text-[var(--s-primary)]">{title}</p>
-                    {step === 0 && intro && <p className="mt-1 pr-10 text-sm font-medium leading-5 text-[var(--s-muted)]">{intro}</p>}
+                    {/* On every step (it used to show on the first only, so the box shrank after it) */}
+                    {intro && <p className="mt-1 pr-10 text-sm font-medium leading-5 text-[var(--s-muted)]">{intro}</p>}
 
                     {/* key: a new step remounts, which replays the slide-in */}
-                    <div key={step} className={`wt-step-${dir} mt-3 rounded-2xl p-4 ${s.highlight ? 'border-2 border-[#f59e0b] bg-[#fffbeb] dark:bg-amber-500/10' : 'bg-[var(--s-bg)]'}`}>
+                    <div key={step} className={`wt-step-${dir} mt-3 rounded-2xl p-4 border-2 ${s.highlight ? 'border-[#f59e0b] bg-[#fffbeb] dark:bg-amber-500/10' : 'border-transparent bg-[var(--s-bg)]'}`}>
                         {/* The picture: a student (and a guard on step 1), with the step's icon in the speech bubble.
                             Our own fixed drawing (shared/walkthrough-art.js), no user data in it. */}
                         <div className="relative mx-auto w-full max-w-[190px]" style={{ aspectRatio: `${ART_WIDTH} / ${ART_HEIGHT}` }} aria-hidden="true">
@@ -88,13 +89,21 @@ const StudentWalkthrough = ({ open, firstTime = false, onFinish, onClose, title 
                             </div>
                         </div>
                         <p className="mt-2 text-xs font-bold text-[var(--s-muted)]">Step {step + 1} of {steps.length}</p>
-                        <h2 id="walkthrough-title" className="mt-0.5 text-lg font-black text-[var(--s-text)]">{s.title}</h2>
-                        <p className="mt-1.5 text-sm font-medium leading-5 text-[var(--s-text)]">{s.text}</p>
-                        {stepAction && stepAction.scene === s.scene && (
-                            <button onClick={stepAction.onClick} className="mt-3 flex w-full items-center justify-center gap-2 rounded-[14px] bg-[#f59e0b] p-2.5 text-sm font-bold text-white hover:brightness-105">
-                                {stepAction.icon && <stepAction.icon size={18} />} {stepAction.label}
-                            </button>
-                        )}
+                        {/* Every step's words in the same spot, only this one visible: the box is always as tall as the
+                            longest step, so it doesn't change size on Next / Back */}
+                        <div className="grid">
+                            {steps.map((st, i) => (
+                                <div key={i} style={{ gridArea: '1 / 1' }} className={i === step ? '' : 'invisible'} aria-hidden={i !== step}>
+                                    <h2 id={i === step ? 'walkthrough-title' : undefined} className="mt-0.5 text-lg font-black text-[var(--s-text)]">{st.title}</h2>
+                                    <p className="mt-1.5 text-sm font-medium leading-5 text-[var(--s-text)]">{st.text}</p>
+                                    {stepAction && stepAction.scene === st.scene && (
+                                        <button onClick={stepAction.onClick} tabIndex={i === step ? 0 : -1} className="mt-3 flex w-full items-center justify-center gap-2 rounded-[14px] bg-[#f59e0b] p-2.5 text-sm font-bold text-white hover:brightness-105">
+                                            {stepAction.icon && <stepAction.icon size={18} />} {stepAction.label}
+                                        </button>
+                                    )}
+                                </div>
+                            ))}
+                        </div>
                     </div>
 
                     {/* Progress dots */}
@@ -111,7 +120,7 @@ const StudentWalkthrough = ({ open, firstTime = false, onFinish, onClose, title 
                             <ChevronLeft size={18} /> Back
                         </button>
                     )}
-                    <button onClick={next} className="flex flex-1 items-center justify-center gap-1 rounded-[14px] bg-[var(--s-primary)] px-4 py-3 text-sm font-bold text-white">
+                    <button onClick={next} className="flex flex-1 items-center justify-center gap-1 rounded-[14px] border border-transparent bg-[var(--s-primary)] px-4 py-3 text-sm font-bold text-white">
                         {last ? finishLabel : 'Next'}
                         {!last && <ChevronRight size={18} />}
                     </button>

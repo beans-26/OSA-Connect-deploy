@@ -67,6 +67,7 @@ export default function StudentWalkthrough({ visible, firstTime = false, onFinis
     const [step, setStep] = useState(0);
     const [artWidth, setArtWidth] = useState(ART_MAX_WIDTH);
     const [reduceMotion, setReduceMotion] = useState(false);
+    const [textHeights, setTextHeights] = useState({}); // each step's words, measured: the box fits the tallest
     const slide = useRef(new Animated.Value(1)).current; // 0 -> 1 as a step comes in
     const dir = useRef(1); // 1 = came from Next, -1 = from Back
     const pop = useRef(new Animated.Value(1)).current;
@@ -111,6 +112,21 @@ export default function StudentWalkthrough({ visible, firstTime = false, onFinis
 
     if (!visible) return null;
     const Icon = ICONS[s.icon] || BadgeCheck;
+    const textMax = Math.max(0, ...Object.values(textHeights));
+    // A step's title, words and (on its step) the action button; live: the one shown, the others only measure
+    const stepWords = (st, live) => (
+        <>
+            <Text accessibilityRole={live ? 'header' : undefined} style={{ marginTop: 2, fontSize: 18, fontWeight: '700', color: colors.text }}>{st.title}</Text>
+            <Text style={{ marginTop: 6, fontSize: 14, lineHeight: 20, color: colors.text }}>{st.text}</Text>
+            {stepAction && stepAction.scene === st.scene && (
+                <TouchableOpacity onPress={live ? stepAction.onPress : undefined} disabled={!live} accessibilityRole="button"
+                    style={{ marginTop: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderRadius: 14, backgroundColor: AMBER, padding: 12 }}>
+                    {stepAction.Icon && <stepAction.Icon size={18} color="#fff" />}
+                    <Text style={{ fontSize: 14, fontWeight: '600', color: '#fff' }}>{stepAction.label}</Text>
+                </TouchableOpacity>
+            )}
+        </>
+    );
     const go = (to) => { dir.current = to > step ? 1 : -1; setStep(to); };
     const next = () => (last ? (onFinish || onClose)() : go(step + 1));
     const iconColor = hl ? '#d97706' : last ? '#10b981' : (isDarkMode ? '#60a5fa' : '#1e3a8a');
@@ -130,12 +146,14 @@ export default function StudentWalkthrough({ visible, firstTime = false, onFinis
 
                     <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 6 }} bounces={false}>
                         <Text style={{ paddingRight: 40, fontSize: 12, fontWeight: '600', letterSpacing: 0.5, textTransform: 'uppercase', color: colors.primary }}>{title}</Text>
-                        {step === 0 && !!intro && <Text style={{ marginTop: 4, paddingRight: 40, fontSize: 14, lineHeight: 20, color: colors.textMuted }}>{intro}</Text>}
+                        {/* On every step (it used to show on the first only, so the box shrank after it) */}
+                        {!!intro && <Text style={{ marginTop: 4, paddingRight: 40, fontSize: 14, lineHeight: 20, color: colors.textMuted }}>{intro}</Text>}
 
                         <Animated.View style={{
                             marginTop: 12, borderRadius: 16, padding: 16,
                             backgroundColor: hl ? (isDarkMode ? 'rgba(245,158,11,0.12)' : '#fffbeb') : colors.background,
-                            borderWidth: hl ? 2 : 0, borderColor: AMBER,
+                            // The highlighted step's border is on every step (see-through), so it doesn't add 4 px
+                            borderWidth: 2, borderColor: hl ? AMBER : 'transparent',
                             opacity: slide,
                             transform: [{ translateX: slide.interpolate({ inputRange: [0, 1], outputRange: [36 * dir.current, 0] }) }],
                         }}>
@@ -161,15 +179,20 @@ export default function StudentWalkthrough({ visible, firstTime = false, onFinis
                                 </View>
                             </View>
                             <Text style={{ marginTop: 8, fontSize: 12, fontWeight: '600', color: colors.textMuted }}>Step {step + 1} of {steps.length}</Text>
-                            <Text accessibilityRole="header" style={{ marginTop: 2, fontSize: 18, fontWeight: '700', color: colors.text }}>{s.title}</Text>
-                            <Text style={{ marginTop: 6, fontSize: 14, lineHeight: 20, color: colors.text }}>{s.text}</Text>
-                            {stepAction && stepAction.scene === s.scene && (
-                                <TouchableOpacity onPress={stepAction.onPress} accessibilityRole="button"
-                                    style={{ marginTop: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderRadius: 14, backgroundColor: AMBER, padding: 12 }}>
-                                    {stepAction.Icon && <stepAction.Icon size={18} color="#fff" />}
-                                    <Text style={{ fontSize: 14, fontWeight: '600', color: '#fff' }}>{stepAction.label}</Text>
-                                </TouchableOpacity>
-                            )}
+                            {/* At least as tall as the longest step (measured below, out of sight), so the box doesn't
+                                change size on Next / Back */}
+                            <View style={{ minHeight: textMax }}>
+                                {stepWords(s, true)}
+                                <View pointerEvents="none" accessibilityElementsHidden importantForAccessibility="no-hide-descendants"
+                                    style={{ position: 'absolute', left: 0, right: 0, top: 0, opacity: 0 }}>
+                                    {steps.map((st, i) => (
+                                        <View key={i} style={{ position: 'absolute', left: 0, right: 0, top: 0 }}
+                                            onLayout={(e) => { const h = Math.ceil(e.nativeEvent.layout.height); setTextHeights((prev) => (prev[i] === h ? prev : { ...prev, [i]: h })); }}>
+                                            {stepWords(st, false)}
+                                        </View>
+                                    ))}
+                                </View>
+                            </View>
                         </Animated.View>
 
                         {/* Progress dots */}
@@ -193,7 +216,7 @@ export default function StudentWalkthrough({ visible, firstTime = false, onFinis
                             </TouchableOpacity>
                         )}
                         <TouchableOpacity onPress={next} accessibilityRole="button"
-                            style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, borderRadius: 14, backgroundColor: colors.primary, paddingVertical: 12 }}>
+                            style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, borderRadius: 14, backgroundColor: colors.primary, paddingVertical: 12, borderWidth: 1, borderColor: 'transparent' /* as tall as Back */ }}>
                             <Text style={{ fontSize: 14, fontWeight: '600', color: '#fff' }}>{last ? finishLabel : 'Next'}</Text>
                             {!last && <ChevronRight size={18} color="#fff" />}
                         </TouchableOpacity>

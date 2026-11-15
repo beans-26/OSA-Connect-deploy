@@ -214,7 +214,7 @@ export function StudentTopBar({ title, back }) {
     const hasService = records.tickets.some((t) => t.status === 'Active' || t.status === 'Ongoing');
     const tabHeader = {
         [HOME]: { title: `${timeGreeting()}${firstName ? `, ${firstName}` : ''}!`, line: hasService ? "Let's get those hours done." : "You're all caught up.", action: 'bell' },
-        '/student/etickets': { title: 'E-Tickets', line: 'Tap a ticket to see its service log and forms', action: hasService ? 'guide' : null },
+        '/student/etickets': { title: 'E-Tickets', line: 'Tap a ticket to see its service log and forms', action: 'guide' },
         '/student/personal-info': { title: 'Profile', line: user?.username ? `Student ID ${user.username}` : '', action: 'settings' },
         // The screens under the tabs: the same header, with a back arrow. Same as the website.
         '/student/notifications': { title: 'Notifications', line: 'Updates on your violations and service hours', back: HOME },

@@ -21,6 +21,7 @@ const ETickets = () => {
     const { records, recordsLoaded, reload, guideAsk } = useStudentShell();
     const tickets = records.tickets;
     const [openTicket, setOpenTicket] = useState(null);
+    const [guideGeneral, setGuideGeneral] = useState(false);
     const [guideTicket, setGuideTicket] = useState(null);
     useEffect(() => { reload(); }, [reload]);
 
@@ -32,6 +33,7 @@ const ETickets = () => {
         if (guideAsk === askSeen.current) return;
         askSeen.current = guideAsk;
         if (guideFor) setGuideTicket(guideFor);
+        else setGuideGeneral(true); // no open ticket: the same steps, in general
     }, [guideAsk]); // eslint-disable-line react-hooks/exhaustive-deps
     // Keep an open ticket's details current as the list refreshes
     const shown = openTicket && (tickets.find((t) => t.id === openTicket.id) || openTicket);
@@ -74,7 +76,7 @@ const ETickets = () => {
                 ))
             )}
             <TicketDetails ticket={shown} onClose={() => setOpenTicket(null)} />
-            <StudentGuide ticket={guideTicket} onClose={() => setGuideTicket(null)} onOpenTicket={(t) => { setGuideTicket(null); setOpenTicket(t); }} />
+            <StudentGuide ticket={guideTicket} general={guideGeneral} onClose={() => { setGuideTicket(null); setGuideGeneral(false); }} onOpenTicket={(t) => { setGuideTicket(null); setOpenTicket(t); }} />
         </main>
     );
 };

@@ -125,7 +125,7 @@ export default function StudentShell() {
     // The three tabs (Home, E-Tickets, Profile) have the blue gradient header; the pages under them the top bar
     const tabHeader = {
         [HOME]: { title: `${timeGreeting()}${firstName ? `, ${firstName}` : ''}!`, line: homeLine, action: 'bell' },
-        '/student/etickets': { title: 'E-Tickets', line: 'Tap a ticket to see its service log and forms', action: hasService ? 'guide' : null },
+        '/student/etickets': { title: 'E-Tickets', line: 'Tap a ticket to see its service log and forms', action: 'guide' },
         '/student/personal-info': { title: 'Profile', line: user.username ? `Student ID ${user.username}` : '', action: 'settings' },
         // The pages under the tabs: the same header, with a back arrow
         '/student/notifications': { title: 'Notifications', line: 'Updates on your violations and service hours', back: HOME },
