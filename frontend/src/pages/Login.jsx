@@ -192,7 +192,7 @@ const Login = ({ portal = 'student' }) => {
                                 type="button"
                                 onClick={() => setShowPassword(!showPassword)}
                                 aria-label={showPassword ? 'Hide password' : 'Show password'}
-                                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 transition-colors"
+                                className="absolute right-1 top-1/2 -translate-y-1/2 p-2.5 text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 transition-colors"
                             >
                                 {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                             </button>
@@ -200,7 +200,7 @@ const Login = ({ portal = 'student' }) => {
 
                         {isStudent ? (
                             <div className="flex items-center justify-between gap-3 pt-2">
-                                <Link to="/forgot-password" className="text-xs sm:text-sm font-bold text-blue-800 dark:text-blue-300 hover:underline underline-offset-2">
+                                <Link to="/forgot-password" className="-my-3 inline-block py-3 text-xs sm:text-sm font-bold text-blue-800 dark:text-blue-300 hover:underline underline-offset-2">
                                     Forgot password?
                                 </Link>
                                 <button
@@ -245,7 +245,7 @@ const Login = ({ portal = 'student' }) => {
                         <div className="mt-5 sm:mt-6 pt-4 sm:pt-5 border-t border-dashed border-slate-400/60 dark:border-slate-500/60 text-left">
                             <h2 className="text-sm sm:text-base font-bold text-slate-900 dark:text-white">New student?</h2>
                             <p className="mt-1 text-xs sm:text-sm text-slate-800 dark:text-slate-200 leading-relaxed">
-                                If you don&apos;t have an account yet, <Link to="/register" className="font-bold text-blue-800 dark:text-blue-300 underline underline-offset-2">register here</Link> to get your QR ID and follow your service hours.
+                                If you don&apos;t have an account yet, <Link to="/register" className="-my-2 py-2 font-bold text-blue-800 dark:text-blue-300 underline underline-offset-2">register here</Link> to get your QR ID and follow your service hours.
                             </p>
                         </div>
                     )}

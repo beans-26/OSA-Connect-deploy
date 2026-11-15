@@ -20,6 +20,7 @@ import SessionReceipt from '../../components/SessionReceipt';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { canTrackInBackground, startTracking, stopTracking, isTrackingSession, sendLocationPing, notifyTimerStopped, LAST_RECEIPT_KEY } from '../../components/backgroundTracking';
 import TicketDetails from '../../components/TicketDetails';
+import StudentWalkthrough from '../../components/StudentWalkthrough';
 import { ticketStatusLabel, deadlineNotice } from '../../components/ticketStatus';
 import { StudentTopBar, useStudentShell } from '../../components/StudentShell';
 import MapGate from '../../components/MapGate';
@@ -263,8 +264,22 @@ export default function Dashboard() {
         }
     };
 
+    // "How OSAConnect works": shown once per student (saved on the server), before anything else. Same as the website.
+    const [walkthroughOpen, setWalkthroughOpen] = useState(false);
+    useEffect(() => {
+        let gone = false;
+        api.get('/students/walkthrough/')
+            .then(({ data }) => { if (!gone && !data.seen) setWalkthroughOpen(true); })
+            .catch(() => {});
+        return () => { gone = true; };
+    }, []);
+    const finishWalkthrough = () => {
+        setWalkthroughOpen(false);
+        api.post('/students/walkthrough/').catch(() => {});
+    };
+
     const openTicket = tickets.find(t => t.status === 'Ongoing') || tickets.find(t => t.status === 'Active');
-    const completedTicket = !receipt && seenCompleted
+    const completedTicket = !walkthroughOpen && !receipt && seenCompleted
         ? tickets.find((t) => t.status === 'Completed' && !seenCompleted.includes(t.id))
         : null;
     const dismissCompleted = () => {
@@ -652,6 +667,7 @@ export default function Dashboard() {
             </View>
         </Modal>
         <TicketDetails ticket={openedTicket} onClose={() => setOpenedTicket(null)} />
+        <StudentWalkthrough visible={walkthroughOpen} firstTime onFinish={finishWalkthrough} />
         <SafeAreaView style={styles.safeArea}>
             <StatusBar barStyle={isDarkMode ? "light-content" : "dark-content"} backgroundColor={colors.card} />
             <StudentTopBar title="Home" />

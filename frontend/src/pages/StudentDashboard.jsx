@@ -7,6 +7,7 @@ import QrScannerModal from '../components/QrScannerModal';
 import SessionReceipt from '../components/SessionReceipt';
 import TicketDetails from '../components/TicketDetails';
 import StudentGuide from '../components/StudentGuide';
+import StudentWalkthrough from '../components/StudentWalkthrough';
 import useLeaflet from '../lib/useLeaflet';
 import { useStudentShell } from '../components/StudentShell';
 import MapGate from '../components/MapGate';
@@ -248,6 +249,18 @@ const DashboardBody = () => {
         try { return JSON.parse(localStorage.getItem(GUIDE_SEEN_KEY) || '[]'); } catch { return []; }
     });
     const [guideTicket, setGuideTicket] = useState(null);
+    // "How OSAConnect works": shown once per student (saved on the server), before anything else
+    const [walkthroughOpen, setWalkthroughOpen] = useState(false);
+    useEffect(() => {
+        let gone = false;
+        fetch('/api/students/walkthrough/').then((r) => (r.ok ? r.json() : { seen: true }))
+            .then((d) => { if (!gone && !d.seen) setWalkthroughOpen(true); }).catch(() => {});
+        return () => { gone = true; };
+    }, []);
+    const finishWalkthrough = () => {
+        setWalkthroughOpen(false);
+        fetch('/api/students/walkthrough/', { method: 'POST' }).catch(() => {});
+    };
     const watchIdRef = React.useRef(null);
 
     // Sends a stop saved while offline (PENDING_STOP_KEY). Returns true while it still couldn't be sent.
@@ -785,11 +798,14 @@ const DashboardBody = () => {
 
     // The step-by-step guide: on its own the first time a new open ticket appears (not over another pop-up),
     // and any time from "How to serve your hours"
-    const newGuideTicket = !receipt && !completedTicket && !openTicket && tickets.find((t) => (t.status === 'Active' || t.status === 'Ongoing') && !seenGuide.includes(t.id));
+    const newGuideTicket = !walkthroughOpen && !receipt && !completedTicket && !openTicket && tickets.find((t) => (t.status === 'Active' || t.status === 'Ongoing') && !seenGuide.includes(t.id));
     const shownGuide = guideTicket || newGuideTicket;
     const closeGuide = () => {
-        if (shownGuide && !seenGuide.includes(shownGuide.id)) {
-            const next = [...seenGuide, shownGuide.id];
+        // One "Got it" covers every open ticket the student has now, so two new tickets don't show it twice in a row
+        const open = tickets.filter((t) => t.status === 'Active' || t.status === 'Ongoing').map((t) => t.id);
+        const unseen = [...new Set([shownGuide?.id, ...open])].filter((id) => id && !seenGuide.includes(id));
+        if (unseen.length) {
+            const next = [...seenGuide, ...unseen];
             setSeenGuide(next);
             try { localStorage.setItem(GUIDE_SEEN_KEY, JSON.stringify(next)); } catch { /* shown again next time */ }
         }
@@ -835,6 +851,7 @@ const DashboardBody = () => {
                 </div>
             )}
             <TicketDetails ticket={openTicket} onClose={() => setOpenTicket(null)} />
+            <StudentWalkthrough open={walkthroughOpen} firstTime onFinish={finishWalkthrough} />
             <StudentGuide ticket={shownGuide} onClose={closeGuide} onOpenTicket={(t) => { closeGuide(); setOpenTicket(t); }} />
 
             {/* QR Scanner (end) */}

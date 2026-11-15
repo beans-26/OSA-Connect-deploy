@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ChevronRight, Loader2, Mail, MailWarning, CheckCircle2, ArrowLeft, Eye, EyeOff } from 'lucide-react';
-import campusPhoto from '../assets/ustp-campus-blur.jpg';
+import campusPhoto from '../assets/ustp-campus.webp';
 import osaLogo from '../assets/osaconnect-logo.webp';
 import { STUDENT_LOGIN } from '../lib/portals';
 
@@ -16,8 +16,8 @@ const CODE_LIFETIME_S = 300;
 const RESEND_AFTER_S = 60;
 const MIN_PASSWORD = 8;
 
-const cardClass = 'bg-sky-100/55 dark:bg-blue-950/55 backdrop-blur-md border border-white/70 dark:border-sky-300/25 shadow-[0_0_0_1px_rgba(255,255,255,0.35),0_0_24px_rgba(56,189,248,0.35),0_18px_40px_-8px_rgba(30,58,138,0.55)]';
-const inputClass = 'w-full min-w-0 rounded-md border border-white/80 dark:border-white/15 bg-white/75 dark:bg-slate-900/60 px-3 py-2.5 text-sm font-semibold text-slate-800 dark:text-slate-100 outline-none placeholder:text-slate-400/60 dark:placeholder:text-slate-400/40 focus:border-blue-600 focus:bg-white dark:focus:bg-slate-900';
+// Same look as the login and registration pages: white fields with a thin outline
+const inputClass = 'w-full min-w-0 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 px-3 py-2.5 text-sm font-semibold text-slate-800 dark:text-slate-100 outline-none transition placeholder:text-slate-400/70 dark:placeholder:text-slate-500 focus:border-blue-700 focus:ring-2 focus:ring-blue-600/15 dark:focus:border-blue-400';
 const labelClass = 'block text-xs sm:text-[13px] font-bold text-slate-900 dark:text-white mb-1 sm:mb-1.5';
 const primaryButton = 'h-11 w-full px-5 rounded-md bg-blue-900 text-white text-sm font-bold flex items-center justify-center gap-1.5 hover:bg-blue-800 transition-colors disabled:opacity-60 disabled:cursor-not-allowed';
 
@@ -189,21 +189,25 @@ const ForgotPassword = () => {
     const titles = { 1: 'Forgot your password?', 2: 'Enter the code', 3: 'Set a new password', 4: 'Password changed' };
 
     return (
-        <div className="relative min-h-screen bg-slate-50 dark:bg-slate-900 flex items-center justify-center px-4 py-6 sm:py-8">
-            {/* Same background as the login and registration pages */}
-            <div aria-hidden="true" className="fixed inset-0 scale-105 bg-cover bg-center" style={{ backgroundImage: `url(${campusPhoto})` }} />
-            <div aria-hidden="true" className="fixed inset-0 bg-white/40 dark:bg-slate-950/60" />
+        <div className="relative min-h-screen flex bg-white dark:bg-slate-900">
+            {/* Same layout as the registration page: on wide screens the campus photo, with the form side washed
+                out so it fades in; phones get a plain white page */}
+            <div aria-hidden="true" className="pointer-events-none fixed inset-0 hidden lg:block">
+                <div className="absolute inset-0 bg-cover bg-right" style={{ backgroundImage: `url(${campusPhoto})` }} />
+                <div className="register-wash absolute inset-0" />
+            </div>
 
-            <div className="relative z-10 w-full max-w-md flex flex-col items-center gap-4 sm:gap-5">
+            <div className="relative z-10 flex w-full flex-col items-center justify-center px-4 py-8 sm:px-8 sm:py-10 lg:w-[50%] lg:max-w-[760px] lg:shrink-0 lg:px-12">
+            <div className="w-full max-w-md flex flex-col items-center gap-5 sm:gap-6">
                 <img src={osaLogo} alt="OSAConnect: One scan at a time"
-                    className="w-full max-w-[270px] sm:max-w-[340px] h-auto select-none dark:drop-shadow-[0_0_8px_rgba(255,255,255,0.55)]" draggable="false" />
+                    className="w-full max-w-[140px] sm:max-w-[165px] h-auto select-none dark:drop-shadow-[0_0_8px_rgba(255,255,255,0.55)]" draggable="false" />
 
-                <div className={`w-full rounded-md p-4 sm:p-7 ${cardClass}`}>
+                <div className="w-full">
                     <span className="text-[11px] sm:text-xs font-black uppercase tracking-[0.15em] text-amber-600 dark:text-amber-400">
                         {step > STEP_COUNT ? 'Done' : `Step ${step} of ${STEP_COUNT}`}
                     </span>
                     <div className="mt-2 grid grid-cols-3 gap-1.5" aria-hidden="true">
-                        {[1, 2, 3].map((n) => <span key={n} className={`h-1.5 rounded-full ${n <= step ? 'bg-amber-500' : 'bg-white/60 dark:bg-white/15'}`} />)}
+                        {[1, 2, 3].map((n) => <span key={n} className={`h-1.5 rounded-full ${n <= step ? 'bg-amber-500' : 'bg-slate-200 dark:bg-slate-700'}`} />)}
                     </div>
                     <h1 className="mt-3 sm:mt-4 text-xl sm:text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white">{titles[step]}</h1>
 
@@ -242,7 +246,7 @@ const ForgotPassword = () => {
                                 </div>
                             </div>
 
-                            <div className="flex items-center gap-2.5 rounded-md border border-white/80 dark:border-white/15 bg-white/60 dark:bg-slate-900/50 px-3 py-2.5 text-sm text-slate-800 dark:text-slate-200">
+                            <div className="flex items-center gap-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-2.5 text-sm text-slate-800 dark:text-slate-200">
                                 {sending
                                     ? <Loader2 size={16} className="shrink-0 animate-spin text-blue-900 dark:text-blue-300" aria-hidden="true" />
                                     : <Mail size={16} className="shrink-0 text-blue-900 dark:text-blue-300" aria-hidden="true" />}
@@ -260,7 +264,7 @@ const ForgotPassword = () => {
                                             autoComplete={i === 0 ? 'one-time-code' : 'off'} maxLength={i === 0 ? CODE_LENGTH : 1} aria-label={`Digit ${i + 1}`}
                                             value={(otp[i] || '').trim()} onChange={(e) => typeDigit(i, e.target.value)} onKeyDown={(e) => codeKeyDown(i, e)}
                                             onFocus={(e) => e.target.select()}
-                                            className={`w-full min-w-0 aspect-square max-h-14 rounded-md border bg-white/75 dark:bg-slate-900/60 text-center text-lg sm:text-xl font-bold text-slate-900 dark:text-white outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-400/40 focus:bg-white dark:focus:bg-slate-900 ${codeError ? 'border-red-500' : 'border-white/80 dark:border-white/15'}`} />
+                                            className={`w-full min-w-0 aspect-square max-h-14 rounded-lg border bg-white dark:bg-slate-800 text-center text-lg sm:text-xl font-bold text-slate-900 dark:text-white outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-400/40 focus:bg-white dark:focus:bg-slate-900 ${codeError ? 'border-red-500' : 'border-slate-300 dark:border-slate-600'}`} />
                                     ))}
                                 </div>
                             </fieldset>
@@ -277,7 +281,7 @@ const ForgotPassword = () => {
 
                             <div className="mt-5 grid grid-cols-2 gap-2.5 sm:gap-3">
                                 <button type="button" onClick={() => { setStep(1); setError(''); setCodeError(''); }}
-                                    className="h-11 px-3 rounded-md border border-white/80 dark:border-white/15 bg-white/50 dark:bg-slate-900/40 text-sm font-bold text-slate-900 dark:text-white hover:bg-white/80 dark:hover:bg-slate-900/70">
+                                    className="h-11 px-3 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm font-bold text-slate-900 dark:text-white hover:bg-slate-50 dark:hover:bg-slate-900/70">
                                     ← Change email
                                 </button>
                                 <button type="submit" disabled={loading || !codeComplete || expiresIn === 0} className={`${primaryButton} !px-3`}>
@@ -324,12 +328,13 @@ const ForgotPassword = () => {
 
                     {step < 4 && (
                         <p className="mt-4 text-center text-xs sm:text-sm text-slate-700 dark:text-slate-300">
-                            <Link to={STUDENT_LOGIN} className="inline-flex items-center gap-1 font-bold text-slate-900 dark:text-white underline underline-offset-2">
+                            <Link to={STUDENT_LOGIN} className="-my-3 inline-flex items-center gap-1 py-3 font-bold text-slate-900 dark:text-white underline underline-offset-2">
                                 <ArrowLeft size={14} /> Back to login
                             </Link>
                         </p>
                     )}
                 </div>
+            </div>
             </div>
         </div>
     );

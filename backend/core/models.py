@@ -76,6 +76,8 @@ class Student(Document):
     email = StringField()
     password = StringField()
     qr_data = StringField()
+    # When the student finished the first-login walkthrough ("How OSAConnect works"); empty = not yet
+    walkthrough_seen_at = DateTimeField()
     meta = {'collection': 'students', 'auto_create_index': False, 'strict': False}
 
     def clean(self):

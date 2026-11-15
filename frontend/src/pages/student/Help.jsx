@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { ChevronDown, ListOrdered, MessageCircleQuestion, Wrench, ShieldCheck, Mail } from 'lucide-react';
+import { ChevronDown, ChevronRight, MessageCircleQuestion, PlayCircle, Wrench, ShieldCheck, Mail } from 'lucide-react';
+import StudentWalkthrough from '../../components/StudentWalkthrough';
 // Shared with the mobile app (mobile/app/help.jsx); see the _about note in the file
 import help from '../../../../shared/help-content.json';
 
@@ -30,7 +31,7 @@ const CardTitle = ({ icon: Icon, title }) => (
     </span>
 );
 
-// A card that opens and closes; `fixed` cards (How it works) are always open
+// A card that opens and closes; `fixed` cards are always open
 const Card = ({ icon, title, children, fixed }) => {
     const [open, setOpen] = useState(false);
     if (fixed) {
@@ -70,28 +71,22 @@ const Collapsible = ({ title, children }) => {
 const StudentHelp = () => {
     const { report_problem: problem } = help;
     const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(problem.email)}&su=${encodeURIComponent(problem.subject)}&body=${encodeURIComponent(problem.body)}`;
-    const flow = help.student.flow;
+    const [walkthrough, setWalkthrough] = useState(false);
 
     return (
         <main className="mx-auto w-full max-w-xl px-4 pb-12 pt-4">
             <p className="mb-4 px-1 text-sm font-medium leading-5 text-[var(--s-muted)]">{help.student.intro}</p>
 
-            <Card icon={ListOrdered} title="How it works" fixed>
-                {flow.map((step, i) => (
-                    <div key={step.title} className="flex">
-                        <div className="flex w-8 flex-col items-center">
-                            <span className={`flex h-7 w-7 items-center justify-center rounded-full text-[13px] font-black text-white ${i === flow.length - 1 ? 'bg-[var(--s-success)]' : 'bg-[var(--s-primary)]'}`}>
-                                {i + 1}
-                            </span>
-                            {i < flow.length - 1 && <span className="my-1 w-0.5 flex-1 bg-[var(--s-border)]" />}
-                        </div>
-                        <div className="flex-1 pb-[18px] pl-3">
-                            <p className="text-[15px] font-bold leading-6 text-[var(--s-text)]">{step.title}</p>
-                            {step.text && <p className="text-sm leading-[21px] text-[var(--s-text)]">{step.text}</p>}
-                        </div>
-                    </div>
-                ))}
-            </Card>
+            {/* The first-login walkthrough, again (no wait, closes any time) */}
+            <button onClick={() => setWalkthrough(true)} className="mb-4 flex w-full items-center gap-3 rounded-2xl border-2 border-[var(--s-border)] bg-[var(--s-card)] p-4 text-left">
+                <PlayCircle size={22} className="shrink-0 text-[var(--s-primary)]" />
+                <span className="min-w-0 flex-1">
+                    <span className="block text-sm font-bold text-[var(--s-text)]">{help.student.walkthrough.title}</span>
+                    <span className="block text-xs font-medium text-[var(--s-muted)]">Step by step: what happens if you get a violation</span>
+                </span>
+                <ChevronRight size={18} className="shrink-0 text-[var(--s-muted)]" />
+            </button>
+            <StudentWalkthrough open={walkthrough} onClose={() => setWalkthrough(false)} />
 
             {help.student.faq.map((group) => (
                 <Card key={group.group} icon={MessageCircleQuestion} title={group.group}>

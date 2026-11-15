@@ -281,7 +281,7 @@ class StudentViewSet(viewsets.ModelViewSet):
 
     # Registration and password reset work without logging in; the rest needs the right login
     PUBLIC_ACTIONS = ('request_otp', 'register_with_otp', 'request_password_reset', 'verify_reset_code', 'reset_password')
-    SELF_ACTIONS = ('change_password', 'request_email_change', 'confirm_email_change', 'update_contact')
+    SELF_ACTIONS = ('change_password', 'request_email_change', 'confirm_email_change', 'update_contact', 'walkthrough')
 
     def get_permissions(self):
         if self.action in self.PUBLIC_ACTIONS:
@@ -599,6 +599,17 @@ class StudentViewSet(viewsets.ModelViewSet):
         student.email = new_email
         student.save()
         return Response({"message": "Email updated.", "email": new_email})
+
+    @action(detail=False, methods=['get', 'post'])
+    def walkthrough(self, request):
+        """The first-login walkthrough: GET says whether this student finished it, POST marks it finished."""
+        student = Student.objects.filter(student_id=request.user.username).first()
+        if not student:
+            return Response({"error": "Student not found."}, status=status.HTTP_404_NOT_FOUND)
+        if request.method == 'POST' and not student.walkthrough_seen_at:
+            student.walkthrough_seen_at = utc_now()
+            student.save()
+        return Response({"seen": bool(student.walkthrough_seen_at)})
 
     @action(detail=False, methods=['post'])
     @rate_limited('update-contact', per_ip=(40, M10), per_target=(10, M10), target=lambda r: r.user.username)
@@ -1220,7 +1231,9 @@ def faculty_accounts(request):
     invites = list(FacultyInvite.objects(status__ne='registered'))
     counts = _report_counts([u.username for u in accounts] + [i.email for i in invites])
     order = {'pending': 0, 'unconfirmed': 0, 'invited': 1, 'verified': 1, 'rejected': 2}
-    when = lambda d: -(d or datetime.datetime.min).timestamp()  # noqa: E731
+    # Newest first; a record without a date (e.g. an account an admin made by hand) goes last. Not
+    # datetime.min.timestamp(): that crashes on Windows ("Invalid argument") and emptied this page.
+    when = lambda d: (d is None, -d.timestamp() if d else 0)  # noqa: E731
     accounts.sort(key=lambda u: (order.get(u.faculty_status, 3), when(u.registered_at)))
     invites.sort(key=lambda i: (order.get(i.status, 3), when(i.first_report_at)))
     return Response({

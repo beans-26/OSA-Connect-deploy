@@ -3,9 +3,10 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, StatusBar, Linkin
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import {
-    ArrowLeft, ChevronDown, ChevronUp, ListOrdered, MessageCircleQuestionMark, Scale, Wrench,
-    LifeBuoy, ShieldCheck, ClipboardList, Mail, Phone, MapPin, Clock,
+    ArrowLeft, ChevronDown, ChevronUp, MessageCircleQuestionMark, Scale, Wrench,
+    LifeBuoy, ShieldCheck, ClipboardList, Mail, Phone, MapPin, Clock, PlayCircle, ChevronRight,
 } from 'lucide-react-native';
+import StudentWalkthrough from '../components/StudentWalkthrough';
 import { useAuth } from '../components/AuthContext';
 import { useTheme } from '../components/ThemeContext';
 import api from '../services/api';
@@ -117,6 +118,7 @@ export default function Help() {
     const { isDarkMode, colors } = useTheme();
     const styles = getStyles(colors);
     const isStudent = !user || user.role === 'student';
+    const [walkthrough, setWalkthrough] = useState(false);
     const { contact, report_problem: problem } = help;
 
     const reportProblem = () => {
@@ -142,22 +144,17 @@ export default function Help() {
 
                 {isStudent ? (
                     <>
-                        <Card icon={ListOrdered} title="How it works" {...cardProps}>
-                            {help.student.flow.map((step, i) => (
-                                <View key={step.title} style={styles.stepRow}>
-                                    <View style={styles.stepRail}>
-                                        <View style={[styles.stepDot, i === help.student.flow.length - 1 && { backgroundColor: colors.success }]}>
-                                            <Text style={styles.stepNumber}>{i + 1}</Text>
-                                        </View>
-                                        {i < help.student.flow.length - 1 && <View style={styles.stepLine} />}
-                                    </View>
-                                    <View style={styles.stepText}>
-                                        <Text style={styles.stepTitle}>{step.title}</Text>
-                                        {!!step.text && <Text style={styles.body}>{step.text}</Text>}
-                                    </View>
-                                </View>
-                            ))}
-                        </Card>
+                        {/* The first-login walkthrough, again (no wait, closes any time). Same as the website. */}
+                        <TouchableOpacity onPress={() => setWalkthrough(true)} accessibilityRole="button"
+                            style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 16, padding: 16, borderRadius: 16, borderWidth: 2, borderColor: colors.border, backgroundColor: colors.card }}>
+                            <PlayCircle size={22} color={colors.primary} />
+                            <View style={{ flex: 1 }}>
+                                <Text style={{ fontSize: 14, fontWeight: '700', color: colors.text }}>{help.student.walkthrough.title}</Text>
+                                <Text style={{ fontSize: 12, color: colors.textMuted }}>Step by step: what happens if you get a violation</Text>
+                            </View>
+                            <ChevronRight size={18} color={colors.textMuted} />
+                        </TouchableOpacity>
+                        <StudentWalkthrough visible={walkthrough} onClose={() => setWalkthrough(false)} />
 
                         {help.student.faq.map((group) => (
                             <Card key={group.group} icon={MessageCircleQuestionMark} title={group.group} {...cardProps}>

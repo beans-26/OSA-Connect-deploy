@@ -65,7 +65,7 @@ const SessionReceipt = ({ receipt, onClose }) => {
     const flagged = FLAGGED_ENDS.includes(receipt.end_reason);
     return (
         <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4" role="dialog" aria-modal="true" aria-labelledby="receipt-title" onClick={onClose}>
-            <div className="max-h-[90vh] w-full max-w-sm overflow-y-auto rounded-2xl bg-[var(--s-card)] p-5 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <div className="popup-max-h w-full max-w-sm overflow-y-auto rounded-2xl bg-[var(--s-card)] p-5 shadow-2xl" onClick={(e) => e.stopPropagation()}>
                 <div className="mb-3 text-center">
                     <div className={`mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-full ${flagged ? 'bg-red-500/10 text-red-500' : 'bg-emerald-500/10 text-emerald-500'}`}>
                         {flagged ? <AlertTriangle size={24} /> : <CheckCircle2 size={24} />}

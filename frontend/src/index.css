@@ -348,3 +348,24 @@ body {
     radial-gradient(ellipse 300px 360px at calc(100% - 120px) 20%, rgb(59 130 246 / 0.25), transparent 70%),
     radial-gradient(ellipse 320px 400px at 100% 100%, rgb(255 172 23 / 0.15), transparent 70%);
 }
+
+/* Pop-up height that fits the part of the screen you can actually see. On iPhone Safari, 90vh counts the area
+   behind the address bar and toolbar, so a tall pop-up's bottom (its Close / Got it button) could end up hidden
+   under them, worse on smaller iPhones. dvh is the visible height; 90vh stays as the fallback for old browsers. */
+.popup-max-h {
+  max-height: 90vh;
+  max-height: calc(100dvh - 2rem - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+}
+
+/* Student walkthrough (components/StudentWalkthrough.jsx): each step slides in from the side it comes from,
+   the people in the picture act the step out (motions in shared/walkthrough-art.js), and the icon bubble pops in */
+@keyframes wt-in-next { from { opacity: 0; transform: translateX(36px); } to { opacity: 1; transform: none; } }
+@keyframes wt-in-back { from { opacity: 0; transform: translateX(-36px); } to { opacity: 1; transform: none; } }
+@keyframes wt-pop { 0% { opacity: 0; transform: scale(0.4); } 70% { opacity: 1; transform: scale(1.08); } 100% { transform: scale(1); } }
+.wt-step-next { animation: wt-in-next 320ms cubic-bezier(0.22, 1, 0.36, 1) both; }
+.wt-step-back { animation: wt-in-back 320ms cubic-bezier(0.22, 1, 0.36, 1) both; }
+.wt-move { animation: var(--wt-anim); }
+.wt-bubble { transform-origin: 30% 80%; animation: wt-pop 420ms 150ms cubic-bezier(0.34, 1.56, 0.64, 1) both; }
+@media (prefers-reduced-motion: reduce) {
+  .wt-step-next, .wt-step-back, .wt-move, .wt-bubble { animation: none; }
+}

@@ -70,7 +70,7 @@ const TicketDetails = ({ ticket, onClose, children, forAdmin = false }) => {
 
     return (
         <div className="fixed inset-0 z-[70] flex items-end justify-center bg-black/40 backdrop-blur-sm sm:items-center sm:p-4" role="dialog" aria-modal="true" aria-labelledby="ticket-title" onClick={onClose}>
-            <div className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-t-3xl bg-[var(--s-card)] shadow-2xl sm:rounded-3xl" onClick={(e) => e.stopPropagation()}>
+            <div className="popup-max-h w-full max-w-md overflow-y-auto rounded-t-3xl bg-[var(--s-card)] shadow-2xl sm:rounded-3xl" onClick={(e) => e.stopPropagation()}>
                 {/* Stays at the top while the receipt scrolls */}
                 <div className="sticky top-0 z-10 flex items-start justify-between gap-3 bg-gradient-to-r from-[#1d4ed8] to-[#4338ca] px-5 py-4 shadow-md">
                     <div className="min-w-0">

@@ -159,7 +159,75 @@
       "- If you feel unsafe where you are serving, stop the timer and go to the nearest guard or the OSA office. The hours you served so far are kept.",
       "- Never share your password or let someone else serve or scan for you. Each session is tied to your account and your phone's location.",
       "- OSA will never ask for your password by email, text or chat."
-    ]
+    ],
+    "walkthrough": {
+      "_about": "First-login walkthrough (web: components/StudentWalkthrough.jsx, app: components/StudentWalkthrough.jsx). One step per screen. 'scene' names a picture in shared/walkthrough-art.js; 'icon' names a lucide icon shown in its speech bubble; 'highlight' marks a step students tend to miss.",
+      "title": "How OSAConnect works",
+      "intro": "Take a minute to learn what happens if you get a violation. Read each step before going to the next.",
+      "steps": [
+        {
+          "icon": "ScanLine",
+          "scene": "reported",
+          "title": "You get reported",
+          "text": "If you break a campus rule, a guard or faculty member scans the QR ID on your phone (or types your Student ID) and files a report."
+        },
+        {
+          "icon": "Mail",
+          "scene": "notified",
+          "title": "You get notified",
+          "text": "You receive an email when the report is filed. OSA then reviews it and may approve or dismiss it. Check your notifications for the result."
+        },
+        {
+          "icon": "Scale",
+          "scene": "penalty",
+          "title": "Your penalty",
+          "text": "Penalties follow the OSA Student Handbook: 3 hours of community service for the 1st offense of a violation type, 6 hours for the 2nd, and no entry into the campus from the 3rd."
+        },
+        {
+          "icon": "Ticket",
+          "scene": "ticket",
+          "title": "Your e-ticket appears",
+          "text": "When OSA approves a penalty with hours, an e-ticket appears on your dashboard. It shows your hours, where to serve, and your remaining time."
+        },
+        {
+          "icon": "FileDown",
+          "scene": "forms",
+          "title": "Download your forms",
+          "text": "Open your e-ticket and download the ISO Form and the Reflection Form. Don't skip this: you need both forms to be cleared.",
+          "highlight": true
+        },
+        {
+          "icon": "MapPin",
+          "scene": "walk",
+          "title": "Go to your site and scan",
+          "text": "Go to the location on your e-ticket and scan its QR code to start the timer."
+        },
+        {
+          "icon": "LocateFixed",
+          "scene": "inside",
+          "title": "Stay inside the area",
+          "text": "Keep your phone inside the service area. The timer pauses while you're outside it and continues when you come back."
+        },
+        {
+          "icon": "QrCode",
+          "scene": "scan",
+          "title": "Scan again to end",
+          "text": "When you're done for the day, scan the same QR code again to stop the timer. You need Wi-Fi or mobile data to end a session."
+        },
+        {
+          "icon": "Repeat",
+          "scene": "repeat",
+          "title": "Repeat until 00:00:00",
+          "text": "Come back for more sessions until your remaining time reaches 00:00:00."
+        },
+        {
+          "icon": "BadgeCheck",
+          "scene": "done",
+          "title": "Bring your forms to OSA",
+          "text": "Bring your filled-out ISO Form and Reflection Form to the OSA Office to be cleared. That's it!"
+        }
+      ]
+    }
   },
   "staff": {
     "intro": "How to file violation reports as a guard or staff member.",

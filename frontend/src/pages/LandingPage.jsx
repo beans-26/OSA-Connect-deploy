@@ -353,7 +353,7 @@ const LandingPage = () => {
                             </Link>
                         </div>
                         <p className="mt-5 text-sm text-white/50">
-                            Faculty, staff or guard? <Link to={FACULTY_LOGIN} className="font-semibold text-white/80 underline underline-offset-4 hover:text-white">Log in here</Link>
+                            Faculty, staff or guard? <Link to={FACULTY_LOGIN} className="-my-3 inline-block py-3 font-semibold text-white/80 underline underline-offset-4 hover:text-white">Log in here</Link>
                         </p>
                     </Reveal>
 
