@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { ACTIVITY_KEY } from '../components/studentSession';
 import { homePathFor } from '../lib/portals';
@@ -44,17 +44,36 @@ const PORTALS = {
     },
 };
 
-// Faculty "Remember me": the email (never the password) kept on this device and filled in next time
-const REMEMBER_KEY = 'osa-faculty-remembered-email';
-const readRemembered = () => {
-    try { return localStorage.getItem(REMEMBER_KEY) || ''; } catch { return ''; }
+// "Remember me" (student and faculty logins): the student ID or email (never the password) kept on this device
+// and filled in next time. The faculty key is the one used before students had it.
+const REMEMBER_KEYS = { faculty: 'osa-faculty-remembered-email', student: 'osa-student-remembered-id' };
+const readRemembered = (key) => {
+    try { return localStorage.getItem(key) || ''; } catch { return ''; }
 };
+
+// Guards can only log in on campus (backend login_view): the browser's location goes with the login.
+// Resolves { lat, lng, accuracy }, or rejects with a message to show. precise: wait for GPS (slow indoors);
+// otherwise a quick fix (Wi-Fi / a position from the last 2 minutes), enough for a 400 m campus circle.
+const currentLocation = (precise = false) => new Promise((resolve, reject) => {
+    if (!window.isSecureContext || !navigator.geolocation) {
+        reject(new Error('Location only works on a secure (https) page. Open the site with https:// and try again.'));
+        return;
+    }
+    navigator.geolocation.getCurrentPosition(
+        ({ coords }) => resolve({ lat: coords.latitude, lng: coords.longitude, accuracy: coords.accuracy }),
+        (err) => reject(new Error(err.code === 1
+            ? 'Location access is blocked. Guards can only log in on campus: allow location for this site (the lock icon next to the address bar), then log in again.'
+            : "Couldn't get your location. Turn on location (GPS) and try again.")),
+        precise ? { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 } : { enableHighAccuracy: false, timeout: 8000, maximumAge: 120000 },
+    );
+});
 
 const Login = ({ portal = 'student' }) => {
     const config = PORTALS[portal];
-    const canRemember = portal === 'faculty';
-    const [username, setUsername] = useState(() => (canRemember ? readRemembered() : ''));
-    const [remember, setRemember] = useState(() => canRemember && !!readRemembered());
+    const REMEMBER_KEY = REMEMBER_KEYS[portal];
+    const canRemember = !!REMEMBER_KEY;
+    const [username, setUsername] = useState(() => (canRemember ? readRemembered(REMEMBER_KEY) : ''));
+    const [remember, setRemember] = useState(() => canRemember && !!readRemembered(REMEMBER_KEY));
     const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
     const [loading, setLoading] = useState(false);
@@ -62,18 +81,42 @@ const Login = ({ portal = 'student' }) => {
     const navigate = useNavigate();
     // Set by StudentIdleGuard after an inactivity logout
     const notice = useLocation().state?.notice;
+    // The guard login: find the location as soon as the page opens, so it's ready by the time they tap Login
+    // (one request instead of two, no waiting on GPS after the tap)
+    const earlyLocation = useRef(null);
+    useEffect(() => {
+        if (portal !== 'guard') return;
+        const pending = currentLocation();
+        pending.catch(() => {}); // asked for again on Login if this one failed
+        earlyLocation.current = pending;
+    }, [portal]);
 
     const handleLogin = async (e) => {
         e.preventDefault();
         setLoading(true);
         setError('');
         try {
-            const response = await fetch('/api/login/', {
+            const send = (location) => fetch('/api/login/', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ username, password })
+                body: JSON.stringify({ username, password, location })
             });
-            const data = await response.json();
+            // Guard page: the location found when the page opened (if it worked)
+            let location = earlyLocation.current ? await earlyLocation.current.catch(() => undefined) : undefined;
+            let response = await send(location);
+            let data = await response.json();
+            if (response.status === 403 && (data.needs_location || (data.outside_area && location && location.accuracy > 50))) {
+                // A guard: log in again with where they are (only on campus). A rough fix that came out
+                // "outside": try once more with GPS before giving up
+                try {
+                    location = await currentLocation(Boolean(location));
+                } catch (err) {
+                    setError(err.message);
+                    return;
+                }
+                response = await send(location);
+                data = await response.json();
+            }
             if (response.ok) {
                 // Admins don't get a hint on the other pages; their login page stays unadvertised
                 if (data.role === 'admin' && portal !== 'admin') {
@@ -198,6 +241,17 @@ const Login = ({ portal = 'student' }) => {
                             </button>
                         </div>
 
+                        {isStudent && (
+                            <label className="flex w-full cursor-pointer select-none items-center gap-2 text-xs sm:text-sm font-semibold text-slate-700 dark:text-slate-300">
+                                <input
+                                    type="checkbox"
+                                    checked={remember}
+                                    onChange={(e) => setRemember(e.target.checked)}
+                                    className="h-4 w-4 rounded border-slate-300 accent-blue-900"
+                                />
+                                Remember me
+                            </label>
+                        )}
                         {isStudent ? (
                             <div className="flex items-center justify-between gap-3 pt-2">
                                 <Link to="/forgot-password" className="-my-3 inline-block py-3 text-xs sm:text-sm font-bold text-blue-800 dark:text-blue-300 hover:underline underline-offset-2">
@@ -253,7 +307,7 @@ const Login = ({ portal = 'student' }) => {
                         <div className="mt-5 sm:mt-6 pt-4 sm:pt-5 border-t border-dashed border-slate-400/60 dark:border-slate-500/60 text-left">
                             <h2 className="text-sm sm:text-base font-bold text-slate-900 dark:text-white">No account?</h2>
                             <p className="mt-1 text-xs sm:text-sm text-slate-800 dark:text-slate-200 leading-relaxed">
-                                Faculty and staff can <Link to="/faculty/signup" className="font-bold text-blue-800 dark:text-blue-300 underline underline-offset-2">create an account</Link> with their @ustp.edu.ph email, or report a violation without one by confirming their email with a code.
+                                Faculty can <Link to="/faculty/signup" className="font-bold text-blue-800 dark:text-blue-300 underline underline-offset-2">create an account</Link> with their @ustp.edu.ph email, or report a violation without one by confirming their email with a code.
                             </p>
                             <Link to="/faculty/report" className="mt-3 w-full h-9 sm:h-10 px-4 border-2 border-blue-900 dark:border-blue-300 text-blue-900 dark:text-blue-200 rounded-md font-bold text-sm flex items-center justify-center gap-1.5 hover:bg-white/60 dark:hover:bg-white/10 transition-colors">
                                 Report without an account <ChevronRight size={16} />

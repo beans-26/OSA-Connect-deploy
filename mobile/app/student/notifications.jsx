@@ -3,6 +3,7 @@ import { ScrollView, StatusBar, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { BellOff } from 'lucide-react-native';
 import { useTheme } from '../../components/ThemeContext';
+import { StudentBackdrop, cardLook } from '../../components/StudentLook';
 import { StudentTopBar, useStudentShell } from '../../components/StudentShell';
 import NotificationItem from '../../components/NotificationItem';
 
@@ -11,15 +12,16 @@ import NotificationItem from '../../components/NotificationItem';
 export default function NotificationsScreen() {
     const { isDarkMode, colors } = useTheme();
     const { notifications, seen, markAllRead } = useStudentShell();
-    const styles = getStyles(colors);
+    const styles = getStyles(colors, isDarkMode);
     const newIds = useRef(null);
     if (newIds.current === null && notifications.length) newIds.current = new Set(notifications.filter((n) => !seen.has(n.id)).map((n) => n.id));
     useEffect(() => { markAllRead(); }, [markAllRead]);
 
     return (
         <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
+            <StudentBackdrop isDarkMode={isDarkMode} />
             <StatusBar barStyle={isDarkMode ? 'light-content' : 'dark-content'} backgroundColor={colors.card} />
-            <StudentTopBar title="Notifications" />
+            <StudentTopBar title="Notifications" back="/student/dashboard" />
             <ScrollView contentContainerStyle={styles.content}>
                 {notifications.length === 0 ? (
                     <View style={styles.empty}>
@@ -37,11 +39,11 @@ export default function NotificationsScreen() {
     );
 }
 
-const getStyles = (colors) => StyleSheet.create({
+const getStyles = (colors, isDarkMode) => StyleSheet.create({
     safeArea: { flex: 1, backgroundColor: colors.background },
     content: { padding: 16, paddingBottom: 40 },
     empty: { alignItems: 'center', marginTop: 64, paddingHorizontal: 24 },
-    emptyTitle: { marginTop: 12, fontSize: 14, fontWeight: '600', color: colors.text },
+    emptyTitle: { marginTop: 12, fontSize: 14, fontWeight: '500', color: colors.text },
     emptyText: { marginTop: 4, fontSize: 12, color: colors.textMuted, textAlign: 'center' },
-    card: { backgroundColor: colors.card, borderRadius: 16, borderWidth: 1, borderColor: colors.border, overflow: 'hidden' },
+    card: { backgroundColor: colors.card, borderRadius: 22, overflow: 'hidden', ...cardLook(isDarkMode) },
 });

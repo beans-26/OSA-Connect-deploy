@@ -1,15 +1,15 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, StatusBar, Linking, ActivityIndicator } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, StatusBar, Linking } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import {
-    ArrowLeft, ChevronDown, ChevronUp, MessageCircleQuestionMark, Scale, Wrench,
-    LifeBuoy, ShieldCheck, ClipboardList, Mail, Phone, MapPin, Clock, PlayCircle, ChevronRight,
+    ArrowLeft, ChevronDown, ChevronUp, MessageCircleQuestionMark, Wrench,
+    ShieldCheck, ClipboardList, Mail, PlayCircle, ChevronRight,
 } from 'lucide-react-native';
 import StudentWalkthrough from '../components/StudentWalkthrough';
+import { HomeHeader } from '../components/StudentLook';
 import { useAuth } from '../components/AuthContext';
 import { useTheme } from '../components/ThemeContext';
-import api from '../services/api';
 // Shared with the website (frontend/src/pages/Help.jsx); see the _about note in the file
 import help from '../../shared/help-content.json';
 
@@ -61,57 +61,6 @@ function Card({ icon: Icon, title, children, styles, colors }) {
     );
 }
 
-// Rendered from GET /api/violations/punishments/ so it always matches PUNISHMENT_SYSTEM
-function PenaltiesTable({ styles, colors }) {
-    const [data, setData] = useState(null);
-    const [failed, setFailed] = useState(false);
-
-    useEffect(() => {
-        api.get('/violations/punishments/')
-            .then((res) => setData(res.data))
-            .catch(() => setFailed(true));
-    }, []);
-
-    if (failed) return <Text style={[styles.body, { color: colors.danger }]}>{"The penalties table couldn't be loaded. Check your connection and try again."}</Text>;
-    if (!data) return <ActivityIndicator color={colors.primary} />;
-
-    const ordinals = ['1st', '2nd', '3rd'];
-    return (
-        <View style={{ gap: 12 }}>
-            {data.rules.map((rule) => {
-                const notes = [...new Set(rule.offenses.map((o) => o.punishment))];
-                return (
-                    <View key={rule.violation_type} style={styles.penaltyBox}>
-                        <Text style={styles.penaltyName}>{rule.violation_type}</Text>
-                        <View style={styles.penaltyRow}>
-                            {ordinals.map((label, i) => {
-                                const offense = rule.offenses[i];
-                                const repeated = !offense && data.repeat_last_offense;
-                                const shown = offense || (repeated ? rule.offenses[rule.offenses.length - 1] : null);
-                                return (
-                                    <View key={label} style={styles.penaltyCell}>
-                                        <Text style={styles.penaltyLabel}>{label}</Text>
-                                        <Text style={[styles.penaltyHours, repeated && { color: colors.textMuted }]}>
-                                            {/* A penalty without hours is a sanction (no entry into the campus) */}
-                                            {shown ? (shown.hours > 0 ? `${shown.hours} h` : 'No entry') : '—'}
-                                        </Text>
-                                    </View>
-                                );
-                            })}
-                        </View>
-                        {notes.map((n) => <Text key={n} style={styles.penaltyNote}>{n}</Text>)}
-                    </View>
-                );
-            })}
-            <View style={[styles.penaltyBox, { borderStyle: 'dashed' }]}>
-                <Text style={styles.penaltyName}>Any other violation type</Text>
-                <Text style={styles.penaltyNote}>{data.default.punishment}, {data.default.hours} hours</Text>
-            </View>
-            <Text style={styles.penaltyNote}>Gray values repeat the last listed penalty for later offenses.</Text>
-        </View>
-    );
-}
-
 export default function Help() {
     const router = useRouter();
     const { user } = useAuth();
@@ -119,7 +68,7 @@ export default function Help() {
     const styles = getStyles(colors);
     const isStudent = !user || user.role === 'student';
     const [walkthrough, setWalkthrough] = useState(false);
-    const { contact, report_problem: problem } = help;
+    const { report_problem: problem } = help;
 
     const reportProblem = () => {
         const url = `mailto:${problem.email}?subject=${encodeURIComponent(problem.subject)}&body=${encodeURIComponent(problem.body)}`;
@@ -131,13 +80,22 @@ export default function Help() {
     return (
         <SafeAreaView style={styles.safeArea}>
             <StatusBar barStyle={isDarkMode ? 'light-content' : 'dark-content'} backgroundColor={colors.background} />
-            <View style={styles.header}>
-                <TouchableOpacity onPress={() => (router.canGoBack() ? router.back() : router.replace('/'))} style={{ padding: 4 }} accessibilityLabel="Back">
-                    <ArrowLeft size={24} color={colors.text} />
-                </TouchableOpacity>
-                <Text style={styles.headerTitle}>Help</Text>
-                <View style={{ width: 32 }} />
-            </View>
+            {isStudent ? (
+                // Students: the same blue gradient header as their other screens. Same as the website.
+                <HomeHeader isDarkMode={isDarkMode} greeting="Help & Support" name="Answers, penalties and how to reach OSA" left={(
+                    <TouchableOpacity onPress={() => (router.canGoBack() ? router.back() : router.replace('/'))} style={{ marginLeft: -8, width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' }} accessibilityLabel="Back">
+                        <ArrowLeft size={22} color="#ffffff" />
+                    </TouchableOpacity>
+                )} />
+            ) : (
+                <View style={styles.header}>
+                    <TouchableOpacity onPress={() => (router.canGoBack() ? router.back() : router.replace('/'))} style={{ padding: 4 }} accessibilityLabel="Back">
+                        <ArrowLeft size={24} color={colors.text} />
+                    </TouchableOpacity>
+                    <Text style={styles.headerTitle}>Help</Text>
+                    <View style={{ width: 32 }} />
+                </View>
+            )}
 
             <ScrollView contentContainerStyle={styles.scrollContent}>
                 <Text style={styles.intro}>{isStudent ? help.student.intro : help.staff.intro}</Text>
@@ -183,22 +141,9 @@ export default function Help() {
                                 </Collapsible>
                             ))}
                         </Card>
-                        <Card icon={Scale} title="Violations and penalties" {...cardProps}>
-                            <PenaltiesTable {...cardProps} />
-                        </Card>
                     </>
                 )}
 
-                {!isStudent && (
-                <Card icon={LifeBuoy} title="Contact OSA" {...cardProps}>
-                    {[[MapPin, contact.office], [Clock, contact.hours], [Mail, contact.email], [Phone, contact.phone]].map(([Icon, value]) => (
-                        <View key={value} style={styles.contactRow}>
-                            <Icon size={16} color={colors.textMuted} />
-                            <Text style={[styles.body, { flex: 1 }]}>{value}</Text>
-                        </View>
-                    ))}
-                </Card>
-                )}
 
                 {isStudent && (
                     <Card icon={ShieldCheck} title="Privacy and safety" {...cardProps}>

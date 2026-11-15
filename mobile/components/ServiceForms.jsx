@@ -71,11 +71,11 @@ export default function ServiceForms() {
 }
 
 const getStyles = (colors) => StyleSheet.create({
-    heading: { fontSize: 10, fontWeight: '800', letterSpacing: 2, color: colors.textMuted, marginBottom: 8 },
+    heading: { fontSize: 10, fontWeight: '700', letterSpacing: 2, color: colors.textMuted, marginBottom: 8 },
     row: { flexDirection: 'row', gap: 8 },
     button: {
         flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, borderWidth: 1,
         borderColor: colors.border, backgroundColor: colors.card, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10,
     },
-    buttonText: { fontSize: 12, fontWeight: '700', color: colors.text },
+    buttonText: { fontSize: 12, fontWeight: '600', color: colors.text },
 });

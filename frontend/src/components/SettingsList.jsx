@@ -5,11 +5,13 @@ import { ChevronRight } from 'lucide-react';
 export const Group = ({ label, children }) => (
     <section className="mb-4">
         {label && <h2 className="mb-2 px-1 text-xs font-bold uppercase tracking-[1px] text-[var(--s-muted)]">{label}</h2>}
-        <div className="overflow-hidden rounded-2xl border border-[var(--s-border)] bg-[var(--s-card)]">{children}</div>
+        <div className="s-card overflow-hidden rounded-[22px]">{children}</div>
     </section>
 );
 
-const rowClass = 'flex w-full items-center gap-3 px-4 py-3.5 text-left [&:not(:first-child)]:border-t [&:not(:first-child)]:border-[var(--s-border)]';
+// The line between rows stops 16 px short of the card's edges on both sides
+export const insetDivider = "relative before:pointer-events-none before:absolute before:inset-x-4 before:top-0 before:h-px before:bg-[var(--s-border)] before:content-['']";
+const rowClass = "relative flex w-full items-center gap-3 px-4 py-3.5 text-left [&:not(:first-child)]:before:pointer-events-none [&:not(:first-child)]:before:absolute [&:not(:first-child)]:before:inset-x-4 [&:not(:first-child)]:before:top-0 [&:not(:first-child)]:before:h-px [&:not(:first-child)]:before:bg-[var(--s-border)] [&:not(:first-child)]:before:content-['']";
 
 const Icon = ({ icon: IconComponent }) => (IconComponent
     ? <IconComponent size={20} className="shrink-0 text-[var(--s-muted)]" aria-hidden="true" />

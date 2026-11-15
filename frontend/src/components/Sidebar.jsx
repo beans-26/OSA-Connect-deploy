@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { NavLink, Link, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, User, LogOut, Menu, X, Users, Settings, HelpCircle, ChevronDown, ChevronRight, ChevronsLeft, ChevronsRight, FileSearch, Archive, TrendingUp, Gavel, History, ChartPie, ClipboardList, GraduationCap } from 'lucide-react';
+import { LayoutDashboard, User, LogOut, Menu, X, Users, Settings, HelpCircle, ChevronDown, ChevronRight, ChevronsLeft, ChevronsRight, FileSearch, Archive, TrendingUp, Gavel, ChartPie, GraduationCap } from 'lucide-react';
 import usePolling from '../lib/usePolling';
 import { motion, AnimatePresence } from 'framer-motion';
 import logo from '../assets/osaconnect-logo.webp';
@@ -97,16 +97,14 @@ const Sidebar = ({ role, badges = {} }) => {
         // Guards and faculty & staff: file a report (clipboard + pen), their past reports (clipboard list),
         // and the counts (column chart). The report page's header shortcuts use the same icons.
         guard: [
-            { name: 'Report Violation', path: '/guard/report', icon: Gavel },
-            { name: 'Reports', path: '/guard/reports', icon: ClipboardList },
+            { name: 'Report Violation', path: '/guard/home', icon: Gavel },
             { name: 'Analytics', path: '/guard/analytics', icon: ChartPie },
         ],
         staff: [
-            { name: 'Report Violation', path: '/staff/report', icon: Gavel },
-            { name: 'History', path: '/staff/history', icon: History },
+            { name: 'Report Violation', path: '/faculty/home', icon: Gavel },
         ],
         student: [
-            { name: 'Service Hub', path: '/student/dashboard', icon: LayoutDashboard },
+            { name: 'Service Hub', path: '/student/home', icon: LayoutDashboard },
             { name: 'Settings', path: '/student/settings', icon: User },
         ],
     };
@@ -119,6 +117,7 @@ const Sidebar = ({ role, badges = {} }) => {
             <NavLink
                 key={item.path}
                 to={item.path}
+                end
                 onClick={() => setMobileOpen(false)}
                 title={isCollapsed ? item.name : undefined}
                 className={({ isActive }) => `

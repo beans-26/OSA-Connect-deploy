@@ -15,6 +15,7 @@ export default function StudentLayout() {
                 >
                     <Stack.Screen name="dashboard" />
                     {/* Switching between the side menu's screens: a quick fade instead of a full slide */}
+                    <Stack.Screen name="etickets" options={{ animation: 'none' }} />
                     <Stack.Screen name="settings" options={{ animation: 'none' }} />
                     <Stack.Screen name="personal-info" options={{ animation: 'none' }} />
                     <Stack.Screen name="notifications" options={{ animation: 'none' }} />

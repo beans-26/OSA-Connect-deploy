@@ -1,7 +1,8 @@
 import React from 'react';
-import { ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, StatusBar, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, StatusBar, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../../components/ThemeContext';
+import { StudentBackdrop } from '../../components/StudentLook';
 import { StudentTopBar, useStudentShell } from '../../components/StudentShell';
 import { Group, InfoRow } from '../../components/SettingsList';
 import ContactDetailsCard from '../../components/ContactDetailsCard';
@@ -20,6 +21,7 @@ export default function PersonalInfo() {
 
     return (
         <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
+            <StudentBackdrop isDarkMode={isDarkMode} />
             <StatusBar barStyle={isDarkMode ? 'light-content' : 'dark-content'} backgroundColor={colors.card} />
             <StudentTopBar title="Personal Info" />
             {!profile ? (
@@ -31,12 +33,11 @@ export default function PersonalInfo() {
                             <InfoRow label="Full name" value={profile.name} />
                             <InfoRow label="Student ID" value={profile.student_id} />
                             <InfoRow label="Course" value={profile.course} />
-                            <InfoRow label="College" value={profile.department} />
+                            <InfoRow label="Department" value={profile.department} />
                             <InfoRow label="Year level" value={yearText(profile.year_level)} />
                             <InfoRow label="Gender" value={profile.gender} />
                         </Group>
                         <ContactDetailsCard studentInfo={profile} onUpdated={(changes) => setProfile((p) => ({ ...p, ...changes }))} />
-                        <Text style={styles.note}>Wrong name, course or college? Visit the OSA office to have it corrected.</Text>
                     </ScrollView>
                 </KeyboardAvoidingView>
             )}

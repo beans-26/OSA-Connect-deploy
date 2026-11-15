@@ -1,37 +1,42 @@
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
-import { Animated, AppState, BackHandler, Easing, Modal, Pressable, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Animated, AppState, Easing, Image, Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { usePathname, useRouter } from 'expo-router';
-import { AlertTriangle, ArrowLeft, Bell, BellOff, House, Menu, SlidersHorizontal, User, X } from 'lucide-react-native';
-import NotificationItem from './NotificationItem';
+import { AlertTriangle, ArrowLeft, Bell, BookOpen, House, Settings as SettingsIcon, Ticket, User } from 'lucide-react-native';
 import { useAuth } from './AuthContext';
 import { useTheme } from './ThemeContext';
 import api from '../services/api';
-import { buildNotifications, hoursLabel, readReminders, readSeen, remainingHours, saveReminders, saveSeen, syncDeadlineReminder, readDataSaver, saveDataSaver, IDLE_REFRESH_MS, SAVER_REFRESH_MS } from './studentNotifications';
+import { HomeHeader } from './StudentLook';
+import StudentGuide from './StudentGuide';
+import TicketDetails from './TicketDetails';
+import { timeGreeting } from './greeting';
+import { buildNotifications, readReminders, readSeen, saveReminders, saveSeen, syncDeadlineReminder, readDataSaver, saveDataSaver, IDLE_REFRESH_MS, SAVER_REFRESH_MS } from './studentNotifications';
 
-// The frame of the student screens (mirrors frontend/src/components/StudentShell.jsx): StudentTopBar (menu,
-// title, notification bell) and the side menu (Home, Personal Info, Notifications, Settings; Log out is in Settings).
+// The frame of the student screens (mirrors frontend/src/components/StudentShell.jsx): StudentTopBar (title, a
+// back arrow on sub-screens, the notification bell on Home and the Settings button on Profile) and the floating tab
+// bar at the bottom (E-Tickets, Home in the middle, Profile; Log out is in Settings).
 // The provider sits in app/student/_layout.jsx, so the profile, tickets and notifications are shared.
 const ShellContext = createContext(null);
 export const useStudentShell = () => useContext(ShellContext);
 
 // Side menu colours (same as the website's --s-accent / --s-warn tokens)
 export const shellColors = (isDarkMode) => (isDarkMode
-    ? { accent: '#3b82f6', accentSoft: 'rgba(59,130,246,0.16)', warnBg: 'rgba(245,158,11,0.16)', warnText: '#fcd34d' }
-    : { accent: '#2563eb', accentSoft: '#eef2ff', warnBg: '#fef3c7', warnText: '#92400e' });
+    ? { accent: '#3b82f6', accentSoft: 'rgba(59,130,246,0.16)', warnBg: 'rgba(245,158,11,0.16)', warnText: '#fcd34d', barBg: 'rgba(30,41,59,0.72)', barEdge: 'rgba(255,255,255,0.06)' }
+    : { accent: '#1e3a8a', accentSoft: '#e8ecf8', warnBg: '#fef3c7', warnText: '#92400e', barBg: 'rgba(255,255,255,0.7)', barEdge: 'rgba(16,26,75,0.08)' });
 
+// The bottom tab bar: icons only, Home in the middle. A blue circle sits behind the open tab and slides to the next one.
+// `also`: the screens under a tab (it stays lit there)
 const NAV = [
-    { to: '/student/dashboard', label: 'Home', Icon: House },
-    { to: '/student/personal-info', label: 'Personal Info', Icon: User },
-    { to: '/student/notifications', label: 'Notifications', Icon: Bell, badge: true },
-    { to: '/student/settings', label: 'Settings', Icon: SlidersHorizontal },
+    { to: '/student/etickets', label: 'E-Tickets', Icon: Ticket },
+    { to: '/student/dashboard', label: 'Home', Icon: House, also: ['/student/notifications'] },
+    { to: '/student/personal-info', label: 'Profile', Icon: User, also: ['/student/settings', '/student/change-password'] },
 ];
-const MENU_WIDTH = 280;
-
-const initials = (name = '') => {
-    const words = name.split(/\s+/).filter(Boolean);
-    return ((words[0]?.[0] || '') + (words.length > 1 ? words[words.length - 1][0] : '')).toUpperCase() || '?';
-};
+const TAB_BAR_HEIGHT = 64; // the bar itself, 12 px above the bottom inset; screens leave room for it
+const TAB_BAR_SPACE = TAB_BAR_HEIGHT + 20;
+// Screens without the tab bar (the scanner takes the whole screen)
+const NO_TAB_BAR = ['/student/scan'];
+const TAB_CIRCLE = 50;
+const HOME = '/student/dashboard';
 
 export function StudentShellProvider({ children }) {
     const { user, logout } = useAuth();
@@ -45,10 +50,11 @@ export function StudentShellProvider({ children }) {
     const [reminders, setRemindersState] = useState(true);
     const [dataSaver, setDataSaverState] = useState(true);
     const [seen, setSeen] = useState(new Set());
-    const [menuOpen, setMenuOpen] = useState(false);
-    const [menuShown, setMenuShown] = useState(false); // stays true while the close animation runs
     const [logoutAsk, setLogoutAsk] = useState(null); // null | { timerRunning }
-    const slide = useRef(new Animated.Value(0)).current;
+    const [guideAsk, setGuideAsk] = useState(0);
+    // The tab bar's sliding circle: which slot it's on (animated), and how wide a slot is
+    const tabPos = useRef(new Animated.Value(0)).current;
+    const [slotWidth, setSlotWidth] = useState(0);
 
     const username = user?.username;
     useEffect(() => {
@@ -61,7 +67,8 @@ export function StudentShellProvider({ children }) {
 
     // The dashboard loads the same lists and hands them over (setRecords): no second download within 25 s
     const recordsAt = useRef(0);
-    const takeRecords = useCallback((next) => { recordsAt.current = Date.now(); setRecords(next); }, []);
+    const [recordsLoaded, setRecordsLoaded] = useState(false); // false until the first lists arrive
+    const takeRecords = useCallback((next) => { recordsAt.current = Date.now(); setRecords(next); setRecordsLoaded(true); }, []);
     const load = useCallback(async () => {
         if (!username || Date.now() - recordsAt.current < 25000 || AppState.currentState !== 'active') return;
         try {
@@ -85,19 +92,6 @@ export function StudentShellProvider({ children }) {
     const reminderKey = records.tickets.map((t) => `${t.id}:${t.status}:${t.served_today}`).join('|');
     useEffect(() => { syncDeadlineReminder(records.tickets, reminders); }, [reminderKey, reminders]); // eslint-disable-line react-hooks/exhaustive-deps
 
-    useEffect(() => {
-        if (menuOpen) setMenuShown(true);
-        // Eases out when opening (fast start, soft landing) and slightly quicker on the way back
-        Animated.timing(slide, { toValue: menuOpen ? 1 : 0, duration: 0, easing: menuOpen ? Easing.out(Easing.cubic) : Easing.in(Easing.cubic), useNativeDriver: true }).start(() => {
-            if (!menuOpen) setMenuShown(false);
-        });
-    }, [menuOpen, slide]);
-    useEffect(() => { setMenuOpen(false); }, [pathname]);
-    useEffect(() => {
-        if (!menuOpen) return undefined;
-        const sub = BackHandler.addEventListener('hardwareBackPress', () => { setMenuOpen(false); return true; });
-        return () => sub.remove();
-    }, [menuOpen]);
 
     const notifications = buildNotifications(records.violations, records.tickets, { reminders });
     const unread = notifications.filter((n) => !seen.has(n.id)).length;
@@ -111,7 +105,6 @@ export function StudentShellProvider({ children }) {
     const setDataSaver = (on) => { setDataSaverState(on); saveDataSaver(on); };
 
     const openLogout = async () => {
-        setMenuOpen(false);
         let running = true; // can't check (offline): keep the warning
         try {
             const { data } = await api.get('/etickets/', { params: { student_id: username } });
@@ -120,61 +113,66 @@ export function StudentShellProvider({ children }) {
         setLogoutAsk({ timerRunning: running });
     };
 
+    // Tabs and links between student screens. Home stays mounted at the bottom of the stack: going Home goes back
+    // to it (instant, nothing reloads) instead of stacking a fresh copy, and the other screens open on top of it,
+    // so switching tabs never piles up screens. (In this expo-router, navigate() adds a new screen every time.)
+    // Screens that aren't tabs (Settings from Profile, Notifications from the bell) just open on top, so their back
+    // arrow returns to where the student was.
     const go = (to) => {
-        setMenuOpen(false);
-        if (pathname !== to) router.navigate(to);
+        if (pathname === to) return;
+        if (to === HOME) { router.dismissTo(HOME); return; }
+        const isTab = NAV.some((t) => t.to === to);
+        if (isTab && pathname !== HOME && router.canDismiss()) router.dismissTo(HOME);
+        router.push(to);
     };
 
-    const left = remainingHours(records.tickets);
-    const name = profile?.name || user?.name || 'Student';
     const styles = getStyles(colors, sc);
+    const tabBar = !NO_TAB_BAR.includes(pathname);
+    const tabIndex = NAV.findIndex(({ to, also = [] }) => pathname === to || also.includes(pathname));
+    // Slides to the newly opened tab; the first time it just starts there
+    const tabPlaced = useRef(false);
+    useEffect(() => {
+        if (tabIndex < 0) return;
+        if (!tabPlaced.current) { tabPlaced.current = true; tabPos.setValue(tabIndex); return; }
+        Animated.timing(tabPos, { toValue: tabIndex, duration: 300, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start();
+    }, [tabIndex, tabPos]);
     const value = {
-        profile, setProfile, records, setRecords: takeRecords, reload: load, notifications, unread, seen, markAllRead,
-        reminders, setReminders, dataSaver, setDataSaver, openLogout, openMenu: () => setMenuOpen(true), go,
+        guideAsk, askGuide: () => setGuideAsk((n) => n + 1),
+        profile, setProfile, records, recordsLoaded, setRecords: takeRecords, reload: load, notifications, unread, seen, markAllRead,
+        reminders, setReminders, dataSaver, setDataSaver, openLogout, go,
     };
 
     return (
         <ShellContext.Provider value={value}>
-            <View style={{ flex: 1 }}>
+            {/* The screens end above the tab bar (same background, so the bar still floats) */}
+            <View style={{ flex: 1, backgroundColor: colors.background, paddingBottom: tabBar ? TAB_BAR_SPACE + insets.bottom : 0 }}>
                 {children}
-                {menuShown && (
-                    <View style={StyleSheet.absoluteFill}>
-                        <Animated.View style={[StyleSheet.absoluteFill, styles.backdrop, { opacity: slide }]}>
-                            <Pressable style={{ flex: 1 }} onPress={() => setMenuOpen(false)} accessibilityLabel="Close menu" />
-                        </Animated.View>
-                        <Animated.View
-                            accessibilityViewIsModal
-                            style={[styles.menu, { paddingTop: insets.top + 16, paddingBottom: insets.bottom + 8, transform: [{ translateX: slide.interpolate({ inputRange: [0, 1], outputRange: [-MENU_WIDTH - 20, 0] }) }] }]}
-                        >
-                            <View style={styles.profileRow}>
-                                <View style={styles.avatar}><Text style={styles.avatarText}>{initials(name)}</Text></View>
-                                <View style={{ flex: 1, minWidth: 0 }}>
-                                    <Text style={styles.name} numberOfLines={1}>{name}</Text>
-                                    <Text style={styles.studentId} numberOfLines={1}>{username}</Text>
-                                </View>
-                                <TouchableOpacity onPress={() => setMenuOpen(false)} style={styles.closeBtn} accessibilityLabel="Close menu">
-                                    <X size={20} color={colors.textMuted} />
-                                </TouchableOpacity>
-                            </View>
-                            {left > 0.001 && (
-                                <View style={styles.chip}><Text style={styles.chipText}>{hoursLabel(left)} of service remaining</Text></View>
-                            )}
-                            <View style={{ paddingHorizontal: 8, marginTop: 4 }}>
-                                {NAV.map(({ to, label, Icon, badge }) => {
-                                    const active = pathname === to || (to === '/student/settings' && pathname === '/student/change-password');
-                                    return (
-                                        <TouchableOpacity key={to} onPress={() => go(to)} style={[styles.navItem, active && styles.navItemActive]} accessibilityRole="button" accessibilityState={{ selected: active }}>
-                                            <Icon size={20} color={active ? sc.accent : colors.text} strokeWidth={active ? 2.3 : 2} />
-                                            <Text style={[styles.navText, active && styles.navTextActive]}>{label}</Text>
-                                            {badge && unread > 0 && <View style={styles.badge}><Text style={styles.badgeText}>{unread}</Text></View>}
-                                        </TouchableOpacity>
-                                    );
-                                })}
-                            </View>
-                        </Animated.View>
-                    </View>
-                )}
             </View>
+            {tabBar && (
+                <View style={[styles.tabBarWrap, { bottom: 12 + insets.bottom }]} pointerEvents="box-none">
+                    <View style={styles.tabBar} accessibilityRole="tablist">
+                        <View style={styles.tabRow} onLayout={(e) => setSlotWidth(e.nativeEvent.layout.width / NAV.length)}>
+                            {/* The sliding circle, centred on the open tab's slot */}
+                            {slotWidth > 0 && tabIndex >= 0 && (
+                                <Animated.View pointerEvents="none" style={[styles.tabCircle, {
+                                    left: (slotWidth - TAB_CIRCLE) / 2,
+                                    transform: [{ translateX: Animated.multiply(tabPos, slotWidth) }],
+                                }]} />
+                            )}
+                            {NAV.map(({ to, label, Icon, also = [] }) => {
+                                const active = pathname === to || also.includes(pathname);
+                                return (
+                                    <TouchableOpacity key={to} onPress={() => go(to)} style={styles.tab}
+                                        accessibilityRole="tab" accessibilityLabel={label} accessibilityState={{ selected: active }}>
+                                        {/* The open tab's icon is a little bigger */}
+                                        <Icon size={active ? 26 : 22} color={active ? '#ffffff' : colors.textMuted} strokeWidth={active ? 2.4 : 2} />
+                                    </TouchableOpacity>
+                                );
+                            })}
+                        </View>
+                    </View>
+                </View>
+            )}
 
             <Modal visible={!!logoutAsk} transparent animationType="none" onRequestClose={() => setLogoutAsk(null)}>
                 <View style={styles.modalOverlay}>
@@ -195,34 +193,75 @@ export function StudentShellProvider({ children }) {
     );
 }
 
-/** The top bar of a student screen: menu (or back), the title, and the bell with the unread count. */
 /**
- * The top bar of a student screen: menu (or back), the title, and the bell with the unread count. The bell
- * opens a small panel with the latest notifications (the full list is on the Notifications screen, which
- * has no bell).
+ * The top bar of a student screen: a back arrow on sub-screens and the title; on Home the bell with the unread
+ * count (it opens the Notifications screen), on Profile the Settings button.
  */
 export function StudentTopBar({ title, back }) {
     const { colors, isDarkMode } = useTheme();
     const router = useRouter();
     const pathname = usePathname();
-    const insets = useSafeAreaInsets();
-    const { unread, openMenu, go, notifications, seen, markAllRead } = useStudentShell();
-    const [bellNew, setBellNew] = useState(null); // null = closed, else the ids that were new when it opened
-    const bellAnim = useRef(new Animated.Value(0)).current;
+    const { unread, go, profile, records, askGuide } = useStudentShell();
+    // Home's step-by-step button (left of the bell, when there's a ticket to serve): "How to serve your hours" for
+    // the open ticket; its forms step opens the e-ticket. Same as the website.
+    const [stepsOpen, setStepsOpen] = useState(false);
+    const [stepsTicket, setStepsTicket] = useState(null);
+    const { user } = useAuth();
     const styles = getStyles(colors, shellColors(isDarkMode));
-    // Fades and drops in from the bell; fades back out before the panel closes
-    const openBell = () => {
-        setBellNew(new Set(notifications.filter((n) => !seen.has(n.id)).map((n) => n.id)));
-        markAllRead();
-        bellAnim.setValue(0);
-        Animated.timing(bellAnim, { toValue: 1, duration: 0, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start();
-    };
-    const closeBell = (then) => {
-        Animated.timing(bellAnim, { toValue: 0, duration: 0, easing: Easing.in(Easing.cubic), useNativeDriver: true }).start(() => {
-            setBellNew(null);
-            then?.();
-        });
-    };
+    // The three tabs (Home, E-Tickets, Profile): a blue gradient header instead of the top bar. Home: "Good evening,
+    // Maria!" and the bell; Profile: the Settings button. Same as the website.
+    const firstName = profile?.first_name || (profile?.name || user?.name || '').split(' ')[0];
+    const hasService = records.tickets.some((t) => t.status === 'Active' || t.status === 'Ongoing');
+    const tabHeader = {
+        [HOME]: { title: `${timeGreeting()}${firstName ? `, ${firstName}` : ''}!`, line: hasService ? "Let's get those hours done." : "You're all caught up.", action: 'bell' },
+        '/student/etickets': { title: 'E-Tickets', line: 'Tap a ticket to see its service log and forms', action: hasService ? 'guide' : null },
+        '/student/personal-info': { title: 'Profile', line: user?.username ? `Student ID ${user.username}` : '', action: 'settings' },
+        // The screens under the tabs: the same header, with a back arrow. Same as the website.
+        '/student/notifications': { title: 'Notifications', line: 'Updates on your violations and service hours', back: HOME },
+        '/student/settings': { title: 'Settings', line: 'Appearance, reminders and your account', back: '/student/personal-info' },
+        '/student/change-password': { title: 'Change password', line: 'Keep your account secure', back: '/student/settings' },
+    }[pathname];
+    if (tabHeader) {
+        return (
+            <>
+            {stepsOpen && (
+                <StudentGuide
+                    ticket={records.tickets.find((t) => t.status === 'Ongoing') || records.tickets.find((t) => t.status === 'Active')}
+                    onClose={() => setStepsOpen(false)}
+                    onOpenTicket={(t) => { setStepsOpen(false); setStepsTicket(t); }}
+                />
+            )}
+            <TicketDetails ticket={stepsTicket} onClose={() => setStepsTicket(null)} />
+            <HomeHeader isDarkMode={isDarkMode} greeting={tabHeader.title} name={tabHeader.line} left={tabHeader.back ? (
+                <TouchableOpacity onPress={() => (router.canGoBack() ? router.back() : go(tabHeader.back))} style={{ marginLeft: -8, width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' }} accessibilityLabel="Back">
+                    <ArrowLeft size={22} color="#ffffff" />
+                </TouchableOpacity>
+            ) : null} right={tabHeader.action === 'guide' ? (
+                <TouchableOpacity onPress={askGuide} style={{ width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' }} accessibilityLabel="How to serve your hours">
+                    <BookOpen size={21} color="#ffffff" />
+                </TouchableOpacity>
+            ) : tabHeader.action === 'settings' ? (
+                <TouchableOpacity onPress={() => go('/student/settings')} style={{ width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' }} accessibilityLabel="Settings">
+                    <SettingsIcon size={21} color="#ffffff" />
+                </TouchableOpacity>
+            ) : tabHeader.action === 'bell' ? (
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                {hasService && (
+                    <TouchableOpacity onPress={() => setStepsOpen(true)} style={{ width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' }} accessibilityLabel="How to serve your hours">
+                        <BookOpen size={21} color="#ffffff" />
+                    </TouchableOpacity>
+                )}
+                <TouchableOpacity onPress={() => go('/student/notifications')} style={{ width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' }} accessibilityLabel={`Notifications${unread ? `, ${unread} new` : ''}`}>
+                    <Bell size={21} color="#ffffff" />
+                    {unread > 0 && (
+                        <View style={[styles.bellBadge, { top: 5, right: 4, borderColor: '#162a6e', backgroundColor: '#ef4444' }]}><Text style={styles.bellBadgeText}>{unread > 9 ? '9+' : unread}</Text></View>
+                    )}
+                </TouchableOpacity>
+                </View>
+            ) : null} />
+            </>
+        );
+    }
     return (
         <View style={styles.topBar}>
             {back ? (
@@ -230,94 +269,52 @@ export function StudentTopBar({ title, back }) {
                     <ArrowLeft size={22} color={colors.text} />
                 </TouchableOpacity>
             ) : (
-                <TouchableOpacity onPress={openMenu} style={styles.topBtn} accessibilityLabel="Open menu">
-                    <Menu size={22} color={colors.text} />
-                </TouchableOpacity>
+                // The OSAConnect mark where the back arrow would be (the admin pages' header has the logo too)
+                <View style={styles.topBtn}>
+                    <Image source={isDarkMode ? require('../assets/images/osaconnect-icon-dark.png') : require('../assets/images/osaconnect-icon.png')} style={{ width: 32, height: 32 }} fadeDuration={0} accessibilityLabel="OSAConnect" />
+                </View>
             )}
             <Text style={styles.topTitle} numberOfLines={1}>{title}</Text>
-            {pathname === '/student/notifications' ? <View style={styles.topBtn} /> : (
-                <TouchableOpacity onPress={openBell} style={styles.topBtn} accessibilityLabel={`Notifications${unread ? `, ${unread} new` : ''}`}>
-                    <Bell size={21} color={colors.text} />
-                    {unread > 0 && (
-                        <View style={styles.bellBadge}><Text style={styles.bellBadgeText}>{unread > 9 ? '9+' : unread}</Text></View>
-                    )}
-                </TouchableOpacity>
-            )}
-
-            <Modal visible={!!bellNew} transparent animationType="none" onRequestClose={() => closeBell()}>
-                <Pressable style={StyleSheet.absoluteFill} onPress={() => closeBell()} accessibilityLabel="Close notifications" />
-                <Animated.View style={[styles.bellPanel, { top: insets.top + 52, opacity: bellAnim, transform: [{ translateY: bellAnim.interpolate({ inputRange: [0, 1], outputRange: [-8, 0] }) }, { scale: bellAnim.interpolate({ inputRange: [0, 1], outputRange: [0.97, 1] }) }] }]}>
-                    <Text style={styles.bellPanelTitle}>Notifications</Text>
-                    {notifications.length === 0 ? (
-                        <View style={styles.bellEmpty}>
-                            <BellOff size={26} color={colors.textMuted} />
-                            <Text style={styles.bellEmptyText}>No notifications yet.</Text>
-                        </View>
-                    ) : (
-                        <ScrollView style={{ maxHeight: 380 }}>
-                            {notifications.slice(0, 5).map((n, i) => <NotificationItem key={n.id} n={n} first={i === 0} fresh={bellNew?.has(n.id)} compact />)}
-                        </ScrollView>
-                    )}
-                    {notifications.length > 0 && (
-                        <TouchableOpacity style={styles.bellSeeAll} onPress={() => closeBell(() => go('/student/notifications'))} accessibilityRole="button">
-                            <Text style={styles.bellSeeAllText}>See all notifications{notifications.length > 5 ? ` (${notifications.length})` : ''}</Text>
-                        </TouchableOpacity>
-                    )}
-                </Animated.View>
-            </Modal>
+            {/* (Home's bell and Profile's Settings button are in their gradient headers) */}
+            <View style={styles.topBtn} />
         </View>
     );
 }
 
 const getStyles = (colors, sc) => StyleSheet.create({
-    backdrop: { backgroundColor: 'rgba(0,0,0,0.4)' },
-    menu: {
-        position: 'absolute', top: 0, bottom: 0, left: 0, width: MENU_WIDTH, maxWidth: '82%',
-        backgroundColor: colors.card, shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 20, elevation: 16,
+    tabBarWrap: { position: 'absolute', left: 24, right: 24, alignItems: 'center' },
+    tabBar: {
+        width: '100%', maxWidth: 300, height: TAB_BAR_HEIGHT, padding: 6, justifyContent: 'center',
+        borderRadius: 999, backgroundColor: colors.card, borderWidth: 1, borderColor: sc.barEdge,
+        shadowColor: '#101a4b', shadowOffset: { width: 0, height: 12 }, shadowOpacity: 0.25, shadowRadius: 24, elevation: 12,
     },
-    profileRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingBottom: 12 },
-    avatar: { width: 44, height: 44, borderRadius: 22, backgroundColor: sc.accent, alignItems: 'center', justifyContent: 'center' },
-    avatarText: { color: '#fff', fontWeight: '700', fontSize: 15 },
-    name: { color: colors.text, fontWeight: '700', fontSize: 15 },
-    studentId: { color: colors.textMuted, fontSize: 12, marginTop: 1 },
-    closeBtn: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
-    chip: { marginHorizontal: 16, marginBottom: 8, borderRadius: 10, backgroundColor: sc.warnBg, paddingHorizontal: 12, paddingVertical: 8 },
-    chipText: { color: sc.warnText, fontWeight: '700', fontSize: 12 },
-    navItem: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingHorizontal: 12, paddingVertical: 13, borderRadius: 12, marginBottom: 2 },
-    navItemActive: { backgroundColor: sc.accentSoft },
-    navText: { flex: 1, color: colors.text, fontSize: 15, fontWeight: '500' },
-    navTextActive: { color: sc.accent, fontWeight: '700' },
-    badge: { backgroundColor: colors.danger, borderRadius: 10, paddingHorizontal: 8, paddingVertical: 2 },
-    badgeText: { color: '#fff', fontWeight: '700', fontSize: 11 },
+    tabRow: { flex: 1, flexDirection: 'row', alignItems: 'center' },
+    tab: { flex: 1, height: TAB_CIRCLE, alignItems: 'center', justifyContent: 'center' },
+    tabCircle: {
+        position: 'absolute', top: '50%', marginTop: -TAB_CIRCLE / 2, width: TAB_CIRCLE, height: TAB_CIRCLE, borderRadius: TAB_CIRCLE / 2,
+        backgroundColor: colors.primary,
+        shadowColor: '#1e3a8a', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.35, shadowRadius: 10, elevation: 4,
+    },
     topBar: {
         height: 56, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 8,
-        backgroundColor: colors.card, borderBottomWidth: 1, borderBottomColor: colors.border,
+        // See-through, so the screen's soft glows show behind it (the website's frosted bar)
+        backgroundColor: sc.barBg, borderBottomWidth: 1, borderBottomColor: sc.barEdge,
     },
     topBtn: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
-    topTitle: { flex: 1, textAlign: 'center', color: colors.text, fontSize: 17, fontWeight: '700' },
+    topTitle: { flex: 1, textAlign: 'center', color: colors.text, fontSize: 18, fontWeight: '700', letterSpacing: -0.2 },
     bellBadge: {
         position: 'absolute', top: 5, right: 4, minWidth: 18, height: 18, borderRadius: 9, paddingHorizontal: 4,
         backgroundColor: colors.danger, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: colors.card,
     },
-    bellBadgeText: { color: '#fff', fontSize: 10, fontWeight: '700' },
-    bellPanel: {
-        position: 'absolute', right: 8, width: 340, maxWidth: '94%', backgroundColor: colors.card, borderRadius: 16,
-        borderWidth: 1, borderColor: colors.border, overflow: 'hidden',
-        shadowColor: '#000', shadowOpacity: 0.18, shadowRadius: 20, shadowOffset: { width: 0, height: 8 }, elevation: 12,
-    },
-    bellPanelTitle: { paddingHorizontal: 16, paddingVertical: 12, fontSize: 14, fontWeight: '700', color: colors.text, borderBottomWidth: 1, borderBottomColor: colors.border },
-    bellEmpty: { alignItems: 'center', paddingVertical: 28, gap: 8 },
-    bellEmptyText: { fontSize: 12, color: colors.textMuted },
-    bellSeeAll: { paddingVertical: 12, alignItems: 'center', borderTopWidth: 1, borderTopColor: colors.border },
-    bellSeeAllText: { fontSize: 14, fontWeight: '600', color: sc.accent },
+    bellBadgeText: { color: '#fff', fontSize: 10, fontWeight: '600' },
     modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', padding: 20 },
     modalContent: { backgroundColor: colors.card, borderRadius: 20, padding: 22, width: '100%', maxWidth: 360 },
     modalHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 },
-    modalTitle: { fontSize: 17, fontWeight: '700', color: colors.text },
+    modalTitle: { fontSize: 17, fontWeight: '600', color: colors.text },
     modalMessage: { fontSize: 14, color: colors.textMuted, marginBottom: 20, lineHeight: 20 },
     modalActions: { flexDirection: 'row', gap: 10 },
     modalCancel: { flex: 1, padding: 13, borderRadius: 12, borderWidth: 1, borderColor: colors.border, alignItems: 'center' },
-    modalCancelText: { fontWeight: '600', color: colors.textMuted },
+    modalCancelText: { fontWeight: '500', color: colors.textMuted },
     modalConfirm: { flex: 1, padding: 13, borderRadius: 12, backgroundColor: '#e11d48', alignItems: 'center' },
-    modalConfirmText: { fontWeight: '700', color: '#fff' },
+    modalConfirmText: { fontWeight: '600', color: '#fff' },
 });

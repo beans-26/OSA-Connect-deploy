@@ -31,7 +31,7 @@ const phoneAt = ([hx, hy]) => `<rect x="${hx - 7}" y="${hy - 12}" width="14" hei
 
 // A person standing on the ground line (feet at y = 150), centred on x, in parts that can move on their own:
 // { legs, body (torso, head, left arm), arm (right arm and whatever it holds), shoulder, hand }
-const personParts = (x, { pose = 'stand', shirt = STUDENT_SHIRT, guard = false, facing = 1, legs = 'stand' } = {}) => {
+const personParts = (x, { pose = 'stand', shirt = STUDENT_SHIRT, guard = false, glasses = false, facing = 1, legs = 'stand' } = {}) => {
     const f = facing;
     const shoulder = [x + 17 * f, 74];
     const leftShoulder = [x - 17 * f, 74];
@@ -77,7 +77,11 @@ const personParts = (x, { pose = 'stand', shirt = STUDENT_SHIRT, guard = false, 
             ? `<path d="M${x - 16} 44 Q${x} 26 ${x + 16} 44 Z" fill="${GUARD_SHIRT}"/><rect x="${x - 17 + 6 * f}" y="41" width="34" height="5" rx="2.5" fill="${GUARD_SHIRT}"/><circle cx="${x}" cy="37" r="2.5" fill="#facc15"/>`
             : `<path d="M${x - 16} 48 a16 16 0 0 1 32 0 q-9 -9 -22 -6 q-6 1 -10 6z" fill="${HAIR}"/>`)
         + `<circle cx="${x - 5 + 2 * f}" cy="50" r="1.8" fill="#1f2937"/><circle cx="${x + 5 + 2 * f}" cy="50" r="1.8" fill="#1f2937"/>`
-        + `<path d="M${x - 4 + 2 * f} 56 q4 3 8 0" stroke="#7c2d12" stroke-width="1.6" fill="none" stroke-linecap="round"/>`;
+        + `<path d="M${x - 4 + 2 * f} 56 q4 3 8 0" stroke="#7c2d12" stroke-width="1.6" fill="none" stroke-linecap="round"/>`
+        + (glasses
+            ? `<circle cx="${x - 5 + 2 * f}" cy="50" r="4.2" fill="none" stroke="#1f2937" stroke-width="1.4"/><circle cx="${x + 5 + 2 * f}" cy="50" r="4.2" fill="none" stroke="#1f2937" stroke-width="1.4"/>`
+                + `<path d="M${x - 1 + 2 * f} 50 h2" stroke="#1f2937" stroke-width="1.4"/>`
+            : '');
     const torso = `<path d="M${x - 18} 76 Q${x - 18} 66 ${x - 9} 66 H${x + 9} Q${x + 18} 66 ${x + 18} 76 V112 H${x - 18} Z" fill="${shirt}"/>`
         + (guard ? `<path d="M${x - 9} 76 l3 6 l3 -6z" fill="#facc15"/><rect x="${x - 15}" y="102" width="30" height="4" fill="#111827"/>` : '');
     return { legs: legsSvg, body: torso + leftArm + head, arm, shoulder, hand };
@@ -243,6 +247,35 @@ const SCENES = {
                     svg: `<rect x="${x - 3}" y="${y - 2}" width="6" height="4" rx="1" fill="${color}"/>`,
                     anim: { duration, origin: [x, y], frames: [{ ty: -6, r: 0, o: 0 }, { ty: 4, r: 90, o: 1 }, { ty: 16, r: 180, o: 1 }, { ty: 26, r: 270, o: 0 }], rest: 1 },
                 })),
+            ],
+        };
+    },
+    // The app's start screen (mobile/app/welcome.jsx): who's using the app. A student waving hello...
+    roleStudent: () => {
+        const p = personParts(120, { pose: 'wave' });
+        // A backpack strap over the shoulder
+        const strap = `<path d="M105 68 L128 110" stroke="#f59e0b" stroke-width="4" stroke-linecap="round"/>`;
+        return {
+            bubble: [190, 40],
+            layers: [
+                { svg: p.legs + p.body + strap },
+                { svg: p.arm, anim: { duration: 1400, origin: p.shoulder, frames: [{ r: 0 }, { r: 16 }, { r: -6 }, { r: 16 }, { r: 0 }, { r: 0 }], rest: 0 } },
+            ],
+        };
+    },
+    // ...and a faculty member (glasses, ID lace) bobbing gently while a check mark pops onto their clipboard
+    roleFaculty: () => {
+        const p = personParts(120, { pose: 'paper', shirt: '#0f766e', glasses: true });
+        const lace = `<path d="M111 67 L120 84 L129 67" stroke="#facc15" stroke-width="2.5" fill="none"/>`;
+        const bob = [{ ty: 0 }, { ty: -3 }, { ty: 0 }, { ty: -3 }, { ty: 0 }];
+        return {
+            bubble: [190, 40],
+            layers: [
+                { svg: p.legs + p.body + lace + p.arm, anim: { duration: 3200, origin: [120, 150], frames: bob, rest: 0 } },
+                {
+                    svg: `<path d="M114 102 l4 4 l9 -10" stroke="#16a34a" stroke-width="3.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>`,
+                    anim: { duration: 3200, origin: [120, 101], frames: [{ ty: 0, o: 0, s: 0.4 }, { ty: -3, o: 1, s: 1.15 }, { ty: 0, o: 1, s: 1 }, { ty: -3, o: 1, s: 1 }, { ty: 0, o: 0, s: 1 }], rest: 2 },
+                },
             ],
         };
     },

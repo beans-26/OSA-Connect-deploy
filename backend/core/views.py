@@ -3,7 +3,7 @@ from rest_framework.response import Response
 from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework import status
 from rest_framework.permissions import AllowAny
-from .models import Student, ViolationReport, ETicket, TimeLog, SystemUser, ServiceSite, ClearanceProof, FacultyInvite, utc_now, format_person_name, display_student_name, faculty_reporter_status
+from .models import Student, ViolationReport, ETicket, TimeLog, SystemUser, ServiceSite, ClearanceProof, FacultyInvite, utc_now, format_person_name, display_student_name, student_name_parts, faculty_reporter_status
 from mongoengine.queryset.visitor import Q
 from .serializers import StudentSerializer, ViolationReportSerializer, ETicketSerializer, TimeLogSerializer
 from .passwords import hash_password, verify_password, check_and_upgrade
@@ -36,6 +36,38 @@ EMAIL_RE = re.compile(r'^[^@\s]{1,64}@[^@\s]+\.[^@\s]{2,}$')
 
 
 
+# Guard login geofence (settings.GUARD_GEOFENCE_*): GPS accuracy adds up to this much to the campus circle
+GUARD_ACCURACY_MAX_M = 50
+GUARD_NEEDS_LOCATION = "Guards can only log in on campus. Allow location access, then log in again."
+
+
+def _guard_area_error(request):
+    """(message, extra fields) when a guard's login location (request.data['location']: {lat, lng, accuracy})
+    is missing or outside the campus circle, else None. Checked only after the password is right."""
+    from django.conf import settings
+    if not getattr(settings, 'GUARD_GEOFENCE_ENABLED', True):
+        return None
+    loc = request.data.get('location')
+    loc = loc if isinstance(loc, dict) else {}
+    lat, lng = _float_or_none(loc.get('lat')), _float_or_none(loc.get('lng'))
+    if lat is None or lng is None or not (-90 <= lat <= 90 and -180 <= lng <= 180):
+        return GUARD_NEEDS_LOCATION, {"needs_location": True}
+    accuracy = _float_or_none(loc.get('accuracy')) or 0
+    buffer = min(max(accuracy, 0), GUARD_ACCURACY_MAX_M)
+    # DEMO ONLY: the extra demo places (settings.GUARD_DEMO_AREAS) count too
+    for _name, area_lat, area_lng, area_radius in getattr(settings, 'GUARD_DEMO_AREAS', []):
+        if _distance_m(lat, lng, area_lat, area_lng) <= area_radius + buffer:
+            return None
+    distance = _distance_m(lat, lng, settings.GUARD_GEOFENCE_LAT, settings.GUARD_GEOFENCE_LNG)
+    allowed = settings.GUARD_GEOFENCE_RADIUS_M + buffer
+    if distance <= allowed:
+        return None
+    away = distance - settings.GUARD_GEOFENCE_RADIUS_M
+    where = f"{round(away)} m" if away < 1000 else f"{away / 1000:.1f} km"
+    return (f"You're about {where} outside the campus. Guards can only log in on campus.",
+            {"outside_area": True, "distance_m": round(distance)})
+
+
 @api_view(['POST'])
 @permission_classes([AllowAny])
 @rate_limited('login', per_ip=(60, M5), per_target=(10, M5), target=field('username'))
@@ -56,6 +88,12 @@ def login_view(request):
     user = SystemUser.objects.filter(username__iexact=username).first()
     if user and user.is_active is not False:
         if check_and_upgrade(user, password):
+            # Guards: only on campus (their location comes with the login)
+            if user.role == 'guard':
+                area_error = _guard_area_error(request)
+                if area_error:
+                    message, extra = area_error
+                    return Response({"error": message, **extra}, status=status.HTTP_403_FORBIDDEN)
             return Response({
                 "success": True,
                 "token": issue_token(user.role, user.username, user.password),
@@ -116,28 +154,6 @@ def student_id_error(sid):
     return None
 
 
-# The middle name is required and written out in full ("Santos", "Dela Cruz"), never an initial ("S", "S."):
-# every word at least 2 letters, no periods. Students without one type "N/A". Same rule as
-# frontend/src/lib/names.js and mobile/components/names.js.
-MIDDLE_NAME_WORD = re.compile(r"^[^\W\d_]+(?:['-][^\W\d_]+)*$")
-NO_MIDDLE_NAME = re.compile(r"^n\s*/?\s*a$", re.I)  # N/A, n/a, NA
-MIDDLE_NAME_REQUIRED = "Type your middle name, or N/A if you don't have one."
-MIDDLE_NAME_ERROR = "Type your full middle name (for example Santos), not just the initial. Type N/A if you don't have one."
-
-
-def middle_name_error(value, required=True):
-    """Error for the registration's middle name: missing, or only an initial. None for a full name or N/A."""
-    value = str(value or '').strip()
-    if not value:
-        return MIDDLE_NAME_REQUIRED if required else None
-    if NO_MIDDLE_NAME.match(value):
-        return None
-    words = value.split()
-    if '.' in value or not all(MIDDLE_NAME_WORD.match(w) and len(re.sub(r"['-]", '', w)) >= 2 for w in words):
-        return MIDDLE_NAME_ERROR
-    return None
-
-
 def _registration_details_error(data, require_all):
     """Returns an error message for a taken or malformed Student ID or a bad contact number, else None.
     A record made from a guard's report (no password yet) doesn't count as taken: registering claims it.
@@ -160,8 +176,8 @@ def _registration_details_error(data, require_all):
     if contact and not (contact.isdigit() and len(contact) == 11):
         return "Contact number must be exactly 11 digits (e.g. 09123456789)."
 
-    # Required when registering (require_all); the code request doesn't send it
-    return middle_name_error(data.get('middle_name'), required=require_all)
+    # (No middle name since 2026-11: registration asks for the first and last name only)
+    return None
 
 
 def _resolve_service_site(value):
@@ -394,11 +410,11 @@ class StudentViewSet(viewsets.ModelViewSet):
         if student and student.password:
             return Response({"error": f"Student ID {sid} is already registered."}, status=status.HTTP_400_BAD_REQUEST)
         student = student or Student(student_id=sid)
-        student.name = name
-        # The parts, for "First M. Last" on the pages ("N/A": no middle name)
+        # First and last name only (no middle name since 2026-11)
         student.first_name = _short(data.get('first_name'), 50) or None
-        student.middle_name = _short(data.get('middle_name'), 50) or None
+        student.middle_name = None
         student.last_name = _short(data.get('last_name'), 50) or None
+        student.name = ' '.join(p for p in (student.first_name, student.last_name) if p) or name
         student.course = data.get('course', '')
         student.department = data.get('department', '')
         student.year_level = data.get('year_level', '')
@@ -659,8 +675,8 @@ class StudentViewSet(viewsets.ModelViewSet):
             student.course = data.get('course', student.course)
             student.department = data.get('department', student.department)
             student.year_level = data.get('year_level', student.year_level)
-            student.email = data.get('email', student.email)
-            student.contact_number = data.get('contact_number', student.contact_number)
+            # Email and contact number are the student's own (they change them in their app / profile, the email
+            # with a code): the admin's edit doesn't change them (since 2026-11), whatever the request sends
             if 'gender' in data:
                 student.gender = _gender(data.get('gender'))
 
@@ -687,16 +703,38 @@ DEMO_NO_ID_OFFENSE = {
     3: LIGHT_OFFENSE[3],
 }
 
+# The violations added 2026-11: 5 hours of community service every time (get_punishment repeats the last one)
+FIVE_HOURS = {1: {"punishment": "5 hours community service", "hours": 5}}
+
 PUNISHMENT_SYSTEM = {
-    # The violations guards and faculty & staff report (their report forms list exactly these)
+    # The violations guards, faculty & staff and admins report. The forms show them in two dropdowns
+    # (frontend/src/lib/violationTypes.js, the app's staff/dashboard.jsx): Light, then Less Grave offenses.
+    # Light
     "Curfew Violation": LIGHT_OFFENSE,
     "No ID / Improper ID Sling": DEMO_NO_ID_OFFENSE,  # DEMO (normally LIGHT_OFFENSE)
     "No School Uniform": LIGHT_OFFENSE,
     "Dress Code Violation": LIGHT_OFFENSE,
+    "Smoking": FIVE_HOURS,
+    "Littering": FIVE_HOURS,
+    # Less grave
+    "Verbal Abuse & Cyberbullying": FIVE_HOURS,
+    "Stalking": FIVE_HOURS,
+    "Coercion via Violence": FIVE_HOURS,
+    "Indecent Behavior": FIVE_HOURS,
+    "Alcohol": FIVE_HOURS,
+    "Pornography": FIVE_HOURS,
+    "Gambling": FIVE_HOURS,
+    "ID Fraud": FIVE_HOURS,
+    "Lab Tampering": FIVE_HOURS,
+    "Exam Sabotage": FIVE_HOURS,
 }
 
 # Applied to violation types that aren't in PUNISHMENT_SYSTEM
 DEFAULT_PUNISHMENT = {"punishment": "To be determined", "hours": 4}
+
+# The admin's Report Violation (bulk_create) also lists this one; it's always this many hours (since 2026-11)
+EVENT_VIOLATION = "Failure to attend mandatory campus event"
+EVENT_HOURS = 10
 
 # Keeps every violation record small: a guard's note is a few sentences, never pages of text
 MAX_DESCRIPTION_CHARS = 1000
@@ -817,14 +855,19 @@ def file_violation_reports(data, reporter, reporting_account=None, **reporter_fi
             student_id=student_id,
             name=_short(data.get('name'), 100) or UNREGISTERED_NAME,
             first_name=_short(data.get('first_name'), 50) or None,
-            middle_name=_short(data.get('middle_initial'), 2).rstrip('.') or None,
             last_name=_short(data.get('last_name'), 50) or None,
             course=_short(data.get('course'), 100) or 'Unknown',
             department=_short(data.get('department'), 100) or 'Unknown',
             contact_number=_short(data.get('contact'), 20),
             email=_short(data.get('email'), 254).lower(),
             gender=_gender(data.get('gender')),
-        ).save()
+        )
+        # First and last name only: a typed full name loses its middle name ("Juan Santos Dela Cruz" -> "Juan Dela Cruz")
+        if student.name != UNREGISTERED_NAME:
+            first, _, last = student_name_parts(student)
+            if first and last:
+                student.first_name, student.last_name, student.name = first, last, f"{first} {last}"
+        student.save()
     elif not student.gender and _gender(data.get('gender')):
         # The reporter saw the student: fills in the gender for records that don't have it yet
         student.gender = _gender(data.get('gender'))
@@ -1214,6 +1257,20 @@ def faculty_reset_password(request):
     return Response({"message": message, "active": bool(user.is_active)})
 
 
+def _filed_by_me(request, role):
+    """The reports a guard's or faculty member's account filed (a Q): by reporting_account, older reports (before
+    it was kept) by the account's name, which they were saved under, and for faculty the reports filed with their
+    USTP email before the account existed (faculty_report, no account). Their report list and Analytics use it."""
+    names = [n for n in (request.user.name, request.user.username) if n]
+    mine = Q(reporting_account=request.user.username) | Q(reporting_account=None, reporting_guard__in=names)
+    if role == 'staff':
+        account = SystemUser.objects(username=request.user.username).only('email').first()
+        email = ((account.email if account else None) or (request.user.username if '@' in request.user.username else '')).lower()
+        if email:
+            mine = mine | Q(reporting_email=email)
+    return mine
+
+
 def _report_counts(emails):
     """Reports filed under each email, as an account or without one."""
     counts = {}
@@ -1255,7 +1312,10 @@ def faculty_account_decision(request, username):
     decision = request.data.get('decision')
     if decision not in ('verify', 'reject'):
         return Response({"error": "decision must be 'verify' or 'reject'."}, status=status.HTTP_400_BAD_REQUEST)
-    user = SystemUser.objects(username=username, role='staff', faculty_status__ne=None).first()
+    # Faculty usernames are emails. On Vercel the "@" can reach here still encoded ("%40"), so the account
+    # wasn't found and Confirm said "No faculty account with that email": decode it (no change when it already is)
+    username = urllib.parse.unquote(username)
+    user = SystemUser.objects(username__iexact=username, role='staff', faculty_status__ne=None).first()
     if not user:
         return Response({"error": "No faculty account with that email."}, status=status.HTTP_404_NOT_FOUND)
     user.faculty_status = 'verified' if decision == 'verify' else 'rejected'
@@ -1342,18 +1402,7 @@ class ViolationViewSet(viewsets.ModelViewSet):
             me = Student.objects(student_id=self.request.user.username).first()
             return ViolationReport.objects(student=me).select_related() if me else ViolationReport.objects.none()
         if self.action == 'list' and role in ('guard', 'staff'):
-            # Guards and faculty & staff see the reports their account filed: by reporting_account, and older
-            # reports (before it was kept) by the account's name, which they were saved under
-            names = [n for n in (self.request.user.name, self.request.user.username) if n]
-            mine = Q(reporting_account=self.request.user.username) | Q(reporting_account=None, reporting_guard__in=names)
-            if role == 'staff':
-                # A faculty account made with a USTP email also has the reports filed with that email before it
-                # existed (faculty_report, no account)
-                account = SystemUser.objects(username=self.request.user.username).only('email').first()
-                email = ((account.email if account else None) or (self.request.user.username if '@' in self.request.user.username else '')).lower()
-                if email:
-                    mine = mine | Q(reporting_email=email)
-            return ViolationReport.objects(mine).select_related()
+            return ViolationReport.objects(_filed_by_me(self.request, role)).select_related()
         # select_related loads the students in one query instead of one per violation
         student = _student_filter(self.request)
         if student is False:
@@ -1436,17 +1485,32 @@ class ViolationViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=['post'])
     def bulk_create(self, request):
-        """The admin's "Report Violation" (Students page): one violation for one or more students, approved
-        right away at the chosen building. POST {students: [{student_id, name}], violation_type, description,
-        assigned_building, custom_hours}. Reports are saved under the student ID: an ID with no account gets
-        a placeholder record (with the name the admin typed, if any), which becomes the student's account when
-        they register (register_with_otp), so these violations show up there. Older pages send student_ids
-        and no hours (then the penalty table decides)."""
+        """The admin's "Report Violation" (Students page): one or more violations for one or more students,
+        approved right away at the chosen building. POST {students: [{student_id, name}], violation_types,
+        description, assigned_building}. Each violation is its own report. The hours: a missed mandatory event
+        is always EVENT_HOURS; the others follow the penalty table by offense number, the same as the guards'
+        and faculty's reports (the admin no longer types hours). Reports are saved under the student ID: an ID
+        with no account gets a placeholder record (with the name the admin typed, if any), which becomes the
+        student's account when they register (register_with_otp), so these violations show up there. Older
+        pages send one violation_type and student_ids."""
         data = request.data
         # The building dropdown lists service sites (their site code); older clients send a name
         assigned_site = _resolve_service_site(data.get('assigned_building'))
         assigned_building = assigned_site.name if assigned_site else _short(data.get('assigned_building'), 150)
-        violation_type = _short(data.get('violation_type'), 150) or "Failure to attend mandatory campus event"
+        # The violations ticked (older pages send one violation_type), each one of the reportable kinds
+        raw_types = data.get('violation_types')
+        if not isinstance(raw_types, list):
+            raw_types = [data.get('violation_type') or EVENT_VIOLATION]
+        violation_types = []
+        for t in raw_types:
+            t = _short(t, 150)
+            if t and t not in violation_types:
+                violation_types.append(t)
+        allowed = set(PUNISHMENT_SYSTEM) | {EVENT_VIOLATION}
+        if not violation_types:
+            return Response({"error": "Choose at least one violation."}, status=status.HTTP_400_BAD_REQUEST)
+        if any(t not in allowed for t in violation_types):
+            return Response({"error": "Choose a violation from the list."}, status=status.HTTP_400_BAD_REQUEST)
         description = _short(data.get('description'), MAX_DESCRIPTION_CHARS)
         reporter = request.user.name or request.user.username
 
@@ -1468,17 +1532,6 @@ class ViolationViewSet(viewsets.ModelViewSet):
             return Response({"error": "Report at most 500 students at a time."}, status=status.HTTP_400_BAD_REQUEST)
         if not assigned_building:
             return Response({"error": "Choose the building for their community service."}, status=status.HTTP_400_BAD_REQUEST)
-        custom_hours = data.get('custom_hours')
-        if custom_hours is not None and str(custom_hours).strip() != '':
-            try:
-                custom_hours = float(custom_hours)
-            except (TypeError, ValueError):
-                custom_hours = -1
-            if not 0 <= custom_hours <= 100:
-                return Response({"error": "Required hours must be between 0 and 100."}, status=status.HTTP_400_BAD_REQUEST)
-        else:
-            custom_hours = None
-
         # Every ID is checked before anything is saved, so a typo doesn't leave half the list reported
         problems = [{"student_id": sid, "error": student_id_error(sid)} for sid, _ in students_in if student_id_error(sid)]
         if problems:
@@ -1501,39 +1554,38 @@ class ViolationViewSet(viewsets.ModelViewSet):
                     student.name = name
                     student.save()
 
-                offense_count = get_offense_count(student, violation_type)
-                if custom_hours is not None:
-                    hours = custom_hours
-                    punishment = (f"{hours:g} hour{'' if hours == 1 else 's'} community service" if hours > 0
-                                  else "No community service")
-                else:
-                    punishment_info = get_punishment(violation_type, offense_count)
-                    hours, punishment = punishment_info["hours"], punishment_info["punishment"]
+                for violation_type in violation_types:
+                    offense_count = get_offense_count(student, violation_type)
+                    if violation_type == EVENT_VIOLATION:
+                        hours, punishment = EVENT_HOURS, f"{EVENT_HOURS} hours community service"
+                    else:
+                        punishment_info = get_punishment(violation_type, offense_count)
+                        hours, punishment = punishment_info["hours"], punishment_info["punishment"]
 
-                report = ViolationReport(
-                    student=student,
-                    violation_type=violation_type,
-                    description=description,
-                    reporting_guard=reporter,
-                    reporting_account=request.user.username,
-                    # No hours to serve: nothing to do, so it goes straight to the archives (same as approve)
-                    status="Approved" if hours > 0 else "Completed",
-                    assigned_building=assigned_building,
-                    building_history=[_building_entry(assigned_building, request)],
-                    offense_count=offense_count,
-                    punishment=punishment,
-                    created_at=utc_now()
-                ).save()
-                if hours > 0:
-                    ETicket(
-                        violation=report,
-                        assigned_location=assigned_building,
-                        total_hours_required=hours,
-                        remaining_hours=hours,
-                        status="Active",
-                        **_site_ticket_fields(assigned_site)
+                    report = ViolationReport(
+                        student=student,
+                        violation_type=violation_type,
+                        description=description,
+                        reporting_guard=reporter,
+                        reporting_account=request.user.username,
+                        # No hours to serve (no entry): nothing to do, so it goes straight to the archives (same as approve)
+                        status="Approved" if hours > 0 else "Completed",
+                        assigned_building=assigned_building,
+                        building_history=[_building_entry(assigned_building, request)],
+                        offense_count=offense_count,
+                        punishment=punishment,
+                        created_at=utc_now()
                     ).save()
-                send_violation_email(report)  # skipped when the student has no email yet
+                    if hours > 0:
+                        ETicket(
+                            violation=report,
+                            assigned_location=assigned_building,
+                            total_hours_required=hours,
+                            remaining_hours=hours,
+                            status="Active",
+                            **_site_ticket_fields(assigned_site)
+                        ).save()
+                    send_violation_email(report)  # skipped when the student has no email yet
                 results.append({"student_id": sid, "name": student.name, "status": "success", "has_account": bool(student.password)})
             except Exception as e:
                 results.append({"student_id": sid, "status": "failed", "error": str(e)})
@@ -1670,8 +1722,8 @@ class ViolationViewSet(viewsets.ModelViewSet):
         violation.save()
         if ticket:
             ticket.assigned_location = site.name
-            for field, value in _site_ticket_fields(site).items():
-                setattr(ticket, field, value)
+            for name, value in _site_ticket_fields(site).items():
+                setattr(ticket, name, value)
             ticket.save()
         return Response({"message": f"Assigned to {site.name}.", "assigned_building": site.name}, status=status.HTTP_200_OK)
 
@@ -1685,10 +1737,14 @@ class ViolationViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=['get'])
     def summary(self, request):
         """Violation counts by department, violation type, gender, year level and course (no names), for
-        the guards' analytics. Dismissed reports aren't counted. ?period=day|month|quarter|year limits it to
-        the current one (Philippine time); anything else counts everything."""
+        the guard and faculty Analytics. Guards and faculty only count the reports they filed themselves (since
+        2026-11); admins count everything. Dismissed reports aren't counted. ?period=day|month|quarter|year limits
+        it to the current one (Philippine time); anything else counts everything."""
         from collections import Counter
         reports = ViolationReport.objects(status__ne="Dismissed").only('student', 'violation_type', 'created_at')
+        role = role_of(request)
+        if role in ('guard', 'staff'):
+            reports = reports.filter(_filed_by_me(request, role))
         start = _period_start(request.query_params.get('period'))
         if start:
             reports = reports.filter(created_at__gte=start)

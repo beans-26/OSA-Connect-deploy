@@ -1,12 +1,16 @@
 import { useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import Sidebar from '../../components/Sidebar';
 import ThemeToggle from '../../components/ThemeToggle';
 import usePolling from '../../lib/usePolling';
-import { Check, GraduationCap, Loader2, Mail, MailPlus, Search, UserPlus, UserX } from 'lucide-react';
+import { Check, Clock, GraduationCap, Loader2, Mail, MailPlus, Search, UserPlus, UserX } from 'lucide-react';
 
-// Admin > Faculty Accounts: OSA confirms who is really USTP faculty (backend faculty_accounts).
-//  - Reported without an account: confirming the email sends them a link to finish an account (active at once).
-//  - Created an account: confirming activates it (they can log in; an email tells them).
+// Admin > Faculty Accounts (backend faculty_accounts), in tabs like the Archives' (Active first; ?tab= opens one):
+//  - Pending: who is waiting for OSA's decision, to check against the faculty records. Reported without an
+//    account: confirming the email sends them a link to finish an account (active at once). Created an account:
+//    confirming activates it (they can log in; an email tells them).
+//  - Active: confirmed faculty (and links sent). Rejected: can be confirmed later if it was a mistake.
+const WAITING = ['unconfirmed', 'pending'];
 
 const TONE = {
     unconfirmed: 'bg-amber-100 text-amber-800 dark:bg-amber-500/15 dark:text-amber-300',
@@ -47,6 +51,9 @@ const Section = ({ icon: Icon, title, hint, children, empty }) => (
 );
 
 export default function FacultyAccounts() {
+    const [params, setParams] = useSearchParams();
+    const tab = ['active', 'pending', 'rejected'].includes(params.get('tab')) ? params.get('tab') : 'active';
+    const setTab = (key) => setParams(key === 'active' ? {} : { tab: key }, { replace: true });
     const [data, setData] = useState({ accounts: [], emails: [] });
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState('');
@@ -78,17 +85,26 @@ export default function FacultyAccounts() {
     };
     const confirmEmail = (row) => decide(row.email, '/api/admin/faculty/email/', { email: row.email, decision: 'confirm' },
         (res) => !res.emailed && alert(`Confirmed, but the email to ${row.email} couldn't be sent. Check the email settings.`));
-    // Rejecting is how cases get dismissed: that person's reports still waiting for review go to Archives > Dismissed
-    const dismissedNote = (res) => res.dismissed && alert(`${res.dismissed} pending report${res.dismissed === 1 ? ' was' : 's were'} dismissed and moved to Archives → Dismissed.`);
-    const rejectEmail = (row) => window.confirm(`Reject ${row.email}? They won't get a link to make an account, and their pending reports are dismissed.`)
-        && decide(row.email, '/api/admin/faculty/email/', { email: row.email, decision: 'reject' }, dismissedNote);
-    const decideAccount = (row, decision) => (decision === 'verify' || window.confirm(`Reject ${fullName(row)}? They won't be able to log in, and their pending reports are dismissed.`))
-        && decide(row.username, `/api/admin/faculty/${encodeURIComponent(row.username)}/decision/`, { decision }, dismissedNote);
+    // Rejecting is how cases get dismissed: that person's reports still waiting for review are dismissed (no penalty)
+    const dismissedNote = (res) => res.dismissed && alert(`${res.dismissed} pending report${res.dismissed === 1 ? ' was' : 's were'} dismissed (no penalty for the students).`);
+    // Reject asks first, in a box on the page (askReject: the row), the same look as Log out
+    const [askReject, setAskReject] = useState(null);
+    const rejectNow = (row) => (row.username
+        ? decide(row.username, `/api/admin/faculty/${encodeURIComponent(row.username)}/decision/`, { decision: 'reject' }, dismissedNote)
+        : decide(row.email, '/api/admin/faculty/email/', { email: row.email, decision: 'reject' }, dismissedNote));
+    const rejectEmail = (row) => setAskReject(row);
+    const decideAccount = (row, decision) => (decision === 'reject'
+        ? setAskReject(row)
+        : decide(row.username, `/api/admin/faculty/${encodeURIComponent(row.username)}/decision/`, { decision }, dismissedNote));
 
     const q = search.trim().toLowerCase();
     const match = (r) => !q || fullName(r).toLowerCase().includes(q) || r.email.toLowerCase().includes(q);
-    const emails = data.emails.filter(match);
-    const accounts = data.accounts.filter(match);
+    // Pending: everyone still waiting. Accounts: the decided ones (active / link sent, then rejected)
+    const waiting = (r) => WAITING.includes(r.status);
+    const emails = data.emails.filter((r) => match(r) && waiting(r));
+    const accounts = data.accounts.filter((r) => match(r) && waiting(r));
+    const active = [...data.accounts, ...data.emails].filter((r) => match(r) && (r.status === 'verified' || r.status === 'invited'));
+    const rejected = [...data.accounts, ...data.emails].filter((r) => match(r) && r.status === 'rejected');
     const button = 'flex items-center gap-1.5 rounded-xl px-4 py-2 text-xs font-bold disabled:opacity-60';
 
     return (
@@ -104,6 +120,23 @@ export default function FacultyAccounts() {
                         <ThemeToggle />
                     </header>
 
+                    {/* Active, Pending, Rejected (the same tabs as the Archives) */}
+                    <div className="flex flex-wrap gap-1.5" role="tablist" aria-label="Faculty accounts">
+                        {[['active', 'Active', GraduationCap, active.length], ['pending', 'Pending', Clock, emails.length + accounts.length], ['rejected', 'Rejected', UserX, rejected.length]].map(([key, label, Icon, count]) => (
+                            <button
+                                key={key}
+                                role="tab"
+                                aria-selected={tab === key}
+                                onClick={() => setTab(key)}
+                                className={`flex items-center gap-1.5 rounded-full px-4 py-2 text-xs font-bold transition-colors ${tab === key
+                                    ? (key === 'rejected' ? 'bg-red-600 text-white' : key === 'pending' ? 'bg-amber-500 text-white' : 'bg-ustp-blue text-white')
+                                    : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-100 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700'}`}
+                            >
+                                <Icon size={14} /> {label} <span className={tab === key ? 'text-white/70' : 'text-slate-400'}>{loading ? '' : count}</span>
+                            </button>
+                        ))}
+                    </div>
+
                     <div className="relative w-full md:max-w-sm">
                         <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
                         <input type="search" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search name or email"
@@ -112,11 +145,46 @@ export default function FacultyAccounts() {
 
                     {loading ? (
                         <div className="py-16 text-center"><Loader2 className="mx-auto animate-spin text-ustp-blue" size={32} /></div>
+                    ) : tab === 'active' ? (
+                        <>
+                            <Section icon={GraduationCap} title="Active"
+                                hint="Confirmed faculty. Those who reported without an account were sent a link to finish one (Link sent). Reject removes their access and dismisses their pending reports."
+                                empty={active.length ? null : (q ? 'No faculty match' : 'No confirmed faculty yet')}>
+                                {active.map((row) => (
+                                    <Row key={row.username || row.email} row={row} sub={row.username ? `Signed up ${when(row.registered_at)}` : `First report ${when(row.first_report_at)}`} actions={(
+                                        <>
+                                            {row.status === 'invited' && (
+                                                <button onClick={() => confirmEmail(row)} disabled={busy === row.email} className={`${button} bg-blue-50 text-ustp-blue hover:bg-blue-100 dark:bg-blue-500/10 dark:text-blue-300`}>
+                                                    <MailPlus size={14} /> Send link again
+                                                </button>
+                                            )}
+                                            <button onClick={() => (row.username ? decideAccount(row, 'reject') : rejectEmail(row))} disabled={busy === (row.username || row.email)} className={`${button} bg-red-50 text-red-600 hover:bg-red-100 dark:bg-red-500/10 dark:text-red-400`}>
+                                                <UserX size={14} /> Reject
+                                            </button>
+                                        </>
+                                    )} />
+                                ))}
+                            </Section>
+                        </>
+                    ) : tab === 'rejected' ? (
+                        <>
+                            <Section icon={UserX} title="Rejected"
+                                hint="They can't log in or report with an account. Confirm if you rejected someone by mistake."
+                                empty={rejected.length ? null : (q ? 'No rejected faculty match' : 'No rejected faculty')}>
+                                {rejected.map((row) => (
+                                    <Row key={row.username || row.email} row={row} sub={row.username ? `Signed up ${when(row.registered_at)}` : `First report ${when(row.first_report_at)}`} actions={(
+                                        <button onClick={() => (row.username ? decideAccount(row, 'verify') : confirmEmail(row))} disabled={busy === (row.username || row.email)} className={`${button} bg-emerald-500 text-white hover:bg-emerald-600`}>
+                                            {busy === (row.username || row.email) ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />} Confirm
+                                        </button>
+                                    )} />
+                                ))}
+                            </Section>
+                        </>
                     ) : (
                         <>
                             <Section icon={MailPlus} title="Reported without an account"
                                 hint="The name is read from the email. Their reports are on hold until you decide: Confirm sends them a link to finish an account; Reject dismisses their pending reports."
-                                empty={emails.length ? null : (q ? 'No emails match' : 'No emails to confirm')}>
+                                empty={emails.length ? null : (q ? 'No emails match' : 'No emails waiting')}>
                                 {emails.map((row) => (
                                     <Row key={row.email} row={row} sub={`First report ${when(row.first_report_at)}`} actions={(
                                         <>
@@ -142,7 +210,7 @@ export default function FacultyAccounts() {
 
                             <Section icon={UserPlus} title="Created an account"
                                 hint="These accounts can't log in until you confirm them. Confirm emails them that their account is active; Reject dismisses their pending reports."
-                                empty={accounts.length ? null : (q ? 'No accounts match' : 'No faculty accounts yet')}>
+                                empty={accounts.length ? null : (q ? 'No accounts match' : 'No accounts waiting')}>
                                 {accounts.map((row) => (
                                     <Row key={row.username} row={row} sub={`Signed up ${when(row.registered_at)}`} actions={(
                                         <>
@@ -164,6 +232,33 @@ export default function FacultyAccounts() {
                     )}
                 </main>
             </div>
+
+            {/* Reject? (asks before rejecting anyone) */}
+            {askReject && (
+                <div className="fixed inset-0 z-[100] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4" role="alertdialog" aria-modal="true" aria-labelledby="reject-title">
+                    <div className="bg-white dark:bg-slate-800 rounded-3xl p-6 w-full max-w-sm shadow-2xl animate-in zoom-in-95 duration-150 border border-slate-100 dark:border-slate-700 text-center">
+                        <div className="w-12 h-12 bg-red-50 dark:bg-red-950/50 text-red-500 dark:text-red-400 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <UserX size={22} />
+                        </div>
+                        <h3 id="reject-title" className="text-lg font-black text-slate-900 dark:text-white">Reject {fullName(askReject)}?</h3>
+                        <p className="text-sm font-medium text-slate-500 dark:text-slate-400 mt-1 mb-6">
+                            {askReject.username
+                                ? "They won't be able to log in, and their reports waiting for review are dismissed."
+                                : "They won't get a link to make an account, and their reports waiting for review are dismissed."}
+                        </p>
+                        <div className="flex gap-3">
+                            <button onClick={() => setAskReject(null)} autoFocus
+                                className="flex-1 py-3 bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-200 rounded-xl font-bold text-sm hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors">
+                                Cancel
+                            </button>
+                            <button onClick={() => { const row = askReject; setAskReject(null); rejectNow(row); }}
+                                className="flex-1 py-3 bg-red-600 text-white rounded-xl font-bold text-sm hover:bg-red-700 transition-colors shadow-md shadow-red-200 dark:shadow-none">
+                                Reject
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

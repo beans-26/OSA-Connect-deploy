@@ -103,7 +103,7 @@
               "Penalties follow the OSA Student Handbook (Section 3, Non-Academic Light Offenses): 3 hours of community service for the first offense of a violation type, 6 hours for the second, and no entry into the campus from the third.",
               "The offense number counts your earlier reports of the same violation type that weren't dismissed.",
               "When OSA approves the report, this penalty is applied as is; OSA only chooses the building where you serve. A no-entry sanction has no hours to serve, so it doesn't create an e-ticket.",
-              "Students reported for missing a mandatory campus event get the hours OSA sets for that event."
+              "Students reported for missing a mandatory campus event get 10 hours of community service."
             ]
           }
         ]
@@ -258,11 +258,11 @@
       {
         "title": "Choosing the violation type",
         "web": [
-          "Pick from: Curfew Violation, No ID / Improper ID Sling, No School Uniform, or Dress Code Violation.",
+          "Open Less Grave Offenses or Light Offenses and tap + next to each violation the student committed. Most are 5 hours; Curfew, No ID, No School Uniform and Dress Code are 3 hours, then 6, then no entry.",
           "The date and time fields are for your reference; the report is timestamped when you submit it."
         ],
         "mobile": [
-          "Pick from: Curfew Violation, No ID / Improper ID Sling, No School Uniform, or Dress Code Violation.",
+          "Open Less Grave Offenses or Light Offenses and tap + next to each violation the student committed. Most are 5 hours; Curfew, No ID, No School Uniform and Dress Code are 3 hours, then 6, then no entry.",
           "The date and time fields are for your reference; the report is timestamped when you submit it."
         ]
       },
@@ -296,8 +296,8 @@
       {
         "title": "Bulk reporting",
         "a": [
-          "In Students, tap Report Violation. Type or paste the student IDs (new lines, commas or spaces between them), choose the building, enter the hours, check the summary, and tap Confirm & report.",
-          "These reports use the violation type \"Failure to attend mandatory campus event\". They're approved right away: students with hours get an e-ticket (0 hours means no service), and each student with an email on file is emailed."
+          "In Students, tap Report Violation. Type or paste the student IDs (new lines, commas or spaces between them), tick the violations (choose all that apply), choose the building, check the summary, and tap Confirm & report.",
+          "There are no hours to type: \"Failure to attend mandatory campus event\" is always 10 hours, and the other violations follow the penalty table (3 hours, 6 hours, then no entry). Each violation is its own report, approved right away: students with hours get an e-ticket, and each student with an email on file is emailed."
         ]
       },
       {

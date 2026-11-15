@@ -2,6 +2,20 @@ import datetime
 from rest_framework_mongoengine import serializers
 from .models import Student, ViolationReport, ETicket, TimeLog, SystemUser, utc_now, display_student_name, student_name_parts, faculty_reporter_status, report_reporter_role
 
+def _reporter_lookups(context):
+    """Who-filed-it lookups shared by every record of one response (a list shares its serializer context):
+    every account's role, loaded in one query the first time it's needed, and each faculty email's status,
+    looked up once. Without it, each report cost its own database trips (about 55 ms each on the live site)."""
+    shared = context.get('_reporters') if isinstance(context, dict) else None
+    if shared is None:
+        shared = {'roles': None, 'faculty': {}}
+        if isinstance(context, dict):
+            context['_reporters'] = shared
+    if shared['roles'] is None:
+        shared['roles'] = {u.username: u.role for u in SystemUser.objects.only('username', 'role')}
+    return shared
+
+
 class StudentSerializer(serializers.DocumentSerializer):
     class Meta:
         model = Student
@@ -30,9 +44,10 @@ class ViolationReportSerializer(serializers.DocumentSerializer):
         data['id'] = str(instance.id)
         # Filed by a faculty member OSA hasn't confirmed ('unconfirmed': no Approve/Dismiss until OSA decides)
         # or rejected; None otherwise
-        data['reporter_status'] = faculty_reporter_status(instance.reporting_email) if instance.reporting_email else None
+        lookups = _reporter_lookups(self.context)
+        data['reporter_status'] = faculty_reporter_status(instance.reporting_email, lookups['faculty']) if instance.reporting_email else None
         # Who filed it, for "Reported by guard / faculty / OSA"
-        data['reporter_role'] = report_reporter_role(instance)
+        data['reporter_role'] = report_reporter_role(instance, lookups['roles'])
         return data
 
 class ETicketSerializer(serializers.DocumentSerializer):
@@ -125,7 +140,7 @@ class ETicketSerializer(serializers.DocumentSerializer):
                     # For the e-ticket receipt (student and admin)
                     'offense_count': v_ref.offense_count,
                     'reporting_guard': v_ref.reporting_guard,
-                    'reporter_role': report_reporter_role(v_ref),
+                    'reporter_role': report_reporter_role(v_ref, _reporter_lookups(self.context)['roles']),
                     'created_at': (v_ref.created_at.isoformat() + 'Z') if v_ref.created_at else None,
                     'assigned_building': v_ref.assigned_building,
                     'building_history': v_ref.building_history or [],

@@ -20,7 +20,7 @@ const NotificationList = () => {
                     <p className="mt-1 text-xs text-[var(--s-muted)]">Updates about your violations and service hours show up here.</p>
                 </div>
             ) : (
-                <ul className="overflow-hidden rounded-2xl border border-[var(--s-border)] bg-[var(--s-card)]">
+                <ul className="s-card overflow-hidden rounded-[22px]">
                     {notifications.map((n) => <NotificationItem key={n.id} n={n} fresh={newIds.current?.has(n.id)} />)}
                 </ul>
             )}

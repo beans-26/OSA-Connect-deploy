@@ -7,7 +7,7 @@ import ThemeToggle from '../../components/ThemeToggle';
 import { useServiceSites } from '../../components/useServiceSites';
 import ReportViolationModal from '../../components/ReportViolationModal';
 import { DEPARTMENTS, DEPARTMENT_COURSES, yearLevelsFor, GENDERS } from '../../lib/academics';
-import { studentName } from '../../lib/names';
+import { studentName, shortenFullName } from '../../lib/names';
 
 // Course <option>s grouped under their department
 const CourseOptions = () => DEPARTMENTS.map((dept) => (
@@ -100,7 +100,8 @@ const AllStudents = () => {
             const response = await fetch(`/api/students/${selectedStudent.student_id}/`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(editStudent)
+                // Email and contact number aren't sent: only the student changes those
+                body: JSON.stringify({ ...editStudent, email: undefined, contact_number: undefined })
             });
 
             if (response.ok) {
@@ -158,23 +159,9 @@ const AllStudents = () => {
     const formatQRData = (student) => {
         if (!student.name) return student.student_id;
 
-        const nameParts = student.name.trim().split(/\s+/);
-        let firstName = nameParts[0] || '';
-        let middleInitial = '';
-        let lastName = '';
-
-        if (nameParts.length >= 2) {
-            const lastPart = nameParts[nameParts.length - 1];
-            if (lastPart.endsWith('.') || lastPart.length <= 3) {
-                middleInitial = lastPart;
-                lastName = nameParts.length > 2 ? nameParts[nameParts.length - 2] : '';
-            } else {
-                lastName = lastPart;
-                middleInitial = nameParts.length > 2 ? nameParts[1] : '';
-            }
-        }
-
-        const formattedName = `${firstName.toUpperCase()} ${middleInitial.toUpperCase()} ${lastName.toUpperCase()}`.trim();
+        // First and last name only (no middle name or initial)
+        const parts = student.name_parts;
+        const formattedName = (parts?.first ? `${parts.first} ${parts.last || ''}` : shortenFullName(student.name)).trim().toUpperCase();
         const course = student.course ? student.course.replace(/^BS|^BSIT|^BSCS|^BSCE|^BSEE|^BSME|^BSCpE/i, '').trim() : '';
 
         return `${student.student_id} ${formattedName} ${course}`.trim();
@@ -461,29 +448,18 @@ const AllStudents = () => {
                                     </select>
                                 </div>
                             </div>
-                            {/* Row 4: Email & Contact */}
+                            {/* Row 4: Email & Contact, shown only: the student changes them in their own profile */}
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
                                     <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1.5">Email</label>
-                                    <input
-                                        type="email"
-                                        value={editStudent.email}
-                                        onChange={(e) => setEditStudent({ ...editStudent, email: e.target.value })}
-                                        className="w-full px-4 py-2.5 border-2 border-slate-100 dark:border-slate-700 rounded-xl focus:border-ustp-blue focus:outline-none bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white text-sm font-medium"
-                                        placeholder="e.g., john@example.com"
-                                    />
+                                    <p className="w-full truncate px-4 py-2.5 border-2 border-slate-100 dark:border-slate-700 rounded-xl bg-slate-100 dark:bg-slate-900/60 text-slate-500 dark:text-slate-400 text-sm font-medium" title={editStudent.email}>{editStudent.email || '—'}</p>
                                 </div>
                                 <div>
                                     <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1.5">Contact Number</label>
-                                    <input
-                                        type="text"
-                                        value={editStudent.contact_number}
-                                        onChange={(e) => setEditStudent({ ...editStudent, contact_number: e.target.value })}
-                                        className="w-full px-4 py-2.5 border-2 border-slate-100 dark:border-slate-700 rounded-xl focus:border-ustp-blue focus:outline-none bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white text-sm font-medium"
-                                        placeholder="e.g., 09351234567"
-                                    />
+                                    <p className="w-full truncate px-4 py-2.5 border-2 border-slate-100 dark:border-slate-700 rounded-xl bg-slate-100 dark:bg-slate-900/60 text-slate-500 dark:text-slate-400 text-sm font-medium">{editStudent.contact_number || '—'}</p>
                                 </div>
                             </div>
+                            <p className="-mt-2 text-[11px] font-medium text-slate-500 dark:text-slate-400">Only the student can change their email and contact number, from their own profile.</p>
                             {/* Actions */}
                             <div className="flex gap-3 pt-2">
                                 <button

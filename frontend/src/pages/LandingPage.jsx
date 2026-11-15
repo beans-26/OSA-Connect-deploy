@@ -71,9 +71,9 @@ const roles = [
     },
     {
         icon: ShieldCheck,
-        title: 'Guards and faculty & staff',
+        title: 'Guards and faculty',
         points: ['Scan a student’s QR ID to report', 'Attach details and the time of the incident', 'Follow each report through OSA’s review', 'Faculty can report even without an account'],
-        cta: { to: FACULTY_LOGIN, label: 'Faculty & staff login' },
+        cta: { to: FACULTY_LOGIN, label: 'Faculty login' },
     },
     {
         icon: UserCheck,
@@ -317,7 +317,7 @@ const LandingPage = () => {
                             <a key={link.name} href={link.href} onClick={() => setMobileMenuOpen(false)} className="rounded-lg px-3 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-800">{link.name}</a>
                         ))}
                         <Link to="/student" className="mt-2 rounded-xl py-3 text-center text-sm font-bold text-slate-900" style={{ backgroundColor: ORANGE }}>Student login</Link>
-                        <Link to={FACULTY_LOGIN} className="rounded-xl border border-slate-200 py-3 text-center text-sm font-bold text-slate-700 dark:border-slate-600 dark:text-slate-200">Faculty & staff login</Link>
+                        <Link to={FACULTY_LOGIN} className="rounded-xl border border-slate-200 py-3 text-center text-sm font-bold text-slate-700 dark:border-slate-600 dark:text-slate-200">Faculty login</Link>
                     </div>
                 )}
             </nav>
@@ -440,7 +440,7 @@ const LandingPage = () => {
                         <div className="flex-1">
                             <Smartphone size={24} className="text-slate-700 dark:text-slate-300" />
                             <h3 className="mt-4 text-lg font-bold text-slate-900 dark:text-white">Android app</h3>
-                            <p className="mt-2 text-sm leading-relaxed text-slate-500 dark:text-slate-400">For students, guards and faculty & staff. Keeps the service timer running in the background.</p>
+                            <p className="mt-2 text-sm leading-relaxed text-slate-500 dark:text-slate-400">For students, guards and faculty. Keeps the service timer running in the background.</p>
                             <a href={ANDROID_DOWNLOAD_PATH} className="mt-5 inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-bold text-slate-900 transition hover:brightness-105" style={{ backgroundColor: ORANGE }}>
                                 <Download size={16} /> Download the APK
                             </a>
@@ -473,7 +473,7 @@ const LandingPage = () => {
                     <div className="flex flex-wrap justify-center gap-x-6 gap-y-2 text-sm font-semibold text-slate-500 dark:text-slate-400">
                         <Link to="/student" className="hover:text-slate-900 dark:hover:text-white">Student login</Link>
                         <Link to="/register" className="hover:text-slate-900 dark:hover:text-white">Register</Link>
-                        <Link to={FACULTY_LOGIN} className="hover:text-slate-900 dark:hover:text-white">Faculty & staff</Link>
+                        <Link to={FACULTY_LOGIN} className="hover:text-slate-900 dark:hover:text-white">Faculty</Link>
                     </div>
                 </div>
                 <p className="mx-auto mt-10 max-w-7xl text-center text-xs text-slate-400 md:text-left">© {new Date().getFullYear()} OSAConnect</p>

@@ -50,7 +50,7 @@ const getStyles = (colors) => StyleSheet.create({
     divider: { borderTopWidth: 1, borderTopColor: colors.border },
     icon: { alignItems: 'center', justifyContent: 'center', marginTop: 2 },
     titleRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', gap: 8 },
-    title: { flexShrink: 1, fontSize: 14, fontWeight: '700', color: colors.text },
+    title: { flexShrink: 1, fontSize: 14, fontWeight: '600', color: colors.text },
     time: { fontSize: 11, color: colors.textMuted },
     body: { marginTop: 2, fontSize: 12, lineHeight: 18, color: colors.textMuted },
     dot: { width: 8, height: 8, borderRadius: 4, marginTop: 8 },

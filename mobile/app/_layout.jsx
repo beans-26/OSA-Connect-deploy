@@ -30,6 +30,7 @@ function RootContent() {
                 }}
             >
                 <Stack.Screen name="index" />
+                <Stack.Screen name="welcome" />
                 <Stack.Screen name="login" />
                 <Stack.Screen name="student" />
                 <Stack.Screen name="staff" />

@@ -1,4 +1,3 @@
-import re
 from mongoengine import Document, StringField, DateTimeField, IntField, ReferenceField, FloatField, BooleanField, ListField, DictField, BinaryField
 import datetime
 from enum import Enum
@@ -66,7 +65,7 @@ class Student(Document):
     # The name's parts, kept since 2026-10 (registration, and the report form's typed name). Pages show
     # "First M. Last" (display_student_name); older records only have `name`, which is split instead.
     first_name = StringField()
-    middle_name = StringField()  # in full from registration; a report form only has the initial
+    middle_name = StringField()  # no longer used (names are first and last only since 2026-11); kept for old data
     last_name = StringField()
     course = StringField()
     department = StringField()
@@ -99,9 +98,9 @@ def student_name_parts(student):
     have the full name "First Middle Last", read as: the last word (with any particles before it, and a suffix
     after it) is the last name, the word before it the middle name, the rest the first name. A first name of two
     words with no middle name ("John Paul Reyes") can't be told apart there."""
+    # Names are first and last only (no middle name or initial, since 2026-11): the middle part is always ''
     if student.first_name and student.last_name:
-        middle = (student.middle_name or '').strip()
-        return student.first_name, (middle[0].upper() if middle and not re.match(r'^n\s*/?\s*a$', middle, re.I) else ''), student.last_name
+        return student.first_name, '', student.last_name
     words = (student.name or '').split()
     suffix = words.pop() if len(words) > 2 and words[-1].lower().rstrip(',') in NAME_SUFFIXES else ''
     if len(words) < 3:
@@ -111,14 +110,15 @@ def student_name_parts(student):
         while i - 1 >= 1 and words[i - 1].lower() in LAST_NAME_PARTICLES:
             i -= 1
         if i >= 2:
-            first, initial, last = ' '.join(words[:i - 1]), words[i - 1][0].upper(), ' '.join(words[i:])
+            # The word before the last name was the middle name: dropped
+            first, initial, last = ' '.join(words[:i - 1]), '', ' '.join(words[i:])
         else:
             first, initial, last = ' '.join(words[:i]), '', ' '.join(words[i:])
     return first, initial, ' '.join(p for p in (last, suffix) if p)
 
 
 def display_student_name(student):
-    """'Juan D. Dela Cruz': the name pages show, with the middle name as an initial."""
+    """'Juan Dela Cruz': the name pages show, first and last name (no middle name)."""
     first, initial, last = student_name_parts(student)
     return ' '.join(p for p in (first, f'{initial}.' if initial else '', last) if p) or student.name
 
@@ -269,12 +269,17 @@ class ServiceSite(Document):
     meta = {'collection': 'service_sites', 'ordering': ['-registered_at'], 'auto_create_index': False, 'strict': False}
 
 
-def faculty_reporter_status(email):
+def faculty_reporter_status(email, cache=None):
     """Whether OSA has confirmed the faculty member behind a USTP email: 'unconfirmed' (filed without an account,
-    or a sign-up OSA hasn't confirmed), 'rejected', or None (confirmed, or an account OSA made)."""
+    or a sign-up OSA hasn't confirmed), 'rejected', or None (confirmed, or an account OSA made). cache: a dict kept
+    for one request (a list of reports), so each email is looked up once instead of once per report."""
     email = (email or '').lower()
     if not email:
         return None
+    if cache is not None:
+        if email not in cache:
+            cache[email] = faculty_reporter_status(email)
+        return cache[email]
     invite = FacultyInvite.objects(email=email).only('status').first()
     if invite and invite.status in ('unconfirmed', 'rejected'):
         return invite.status
@@ -284,11 +289,15 @@ def faculty_reporter_status(email):
     return None if invite else 'unconfirmed'
 
 
-def report_reporter_role(report):
+def report_reporter_role(report, roles=None):
     """Who filed a report: 'faculty' (a faculty account or a USTP email), 'guard', or 'admin' (OSA). Reports from
-    before reporting_account was kept came from guards."""
+    before reporting_account was kept came from guards. roles: {username: role} of every account, loaded once for a
+    list of reports (there are only a few accounts), instead of one lookup per report."""
     if getattr(report, 'reporting_email', None):
         return 'faculty'
+    if roles is not None:
+        role = roles.get(report.reporting_account, 'guard') if report.reporting_account else 'guard'
+        return 'faculty' if role == 'staff' else role
     account = SystemUser.objects(username=report.reporting_account).only('role').first() if report.reporting_account else None
     role = account.role if account else 'guard'
     return 'faculty' if role == 'staff' else role

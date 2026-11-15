@@ -14,7 +14,8 @@ const Archives = () => {
     const [logs, setLogs] = useState([]);
     const [searchTerm, setSearchTerm] = useState('');
     const [filterType, setFilterType] = useState('All');
-    const [tab, setTab] = useState('completed'); // 'completed' | 'dismissed'
+    // Completed cases only: the Dismissed tab was removed (2026-11); dismissed reports aren't listed here
+    const tab = 'completed';
     // 'loading' until the first response, so an empty list isn't shown as "No Archived Records" too early
     const [loadState, setLoadState] = useState('loading'); // loading | ready | error
     // The case opened by clicking it (its id, so the 30 s refresh shows the latest data)
@@ -55,9 +56,7 @@ const Archives = () => {
         const ticket = tickets.find(t => t.violation_details?.id === v.id || t.violation === v.id);
         return status === 'completed' && !ticket;
     });
-    // The Dismissed tab: reports OSA dismissed (for example a faculty reporter not in OSA's faculty records)
-    const dismissedViolations = violations.filter(v => (v.status || '').toLowerCase() === 'dismissed');
-    const archivedViolations = tab === 'dismissed' ? dismissedViolations : completedViolations;
+    const archivedViolations = completedViolations;
 
     // Opens an uploaded clearance photo (kind 'iso_form' or 'reflection') full screen over the page
     const openClearanceFile = async (violation, kind, label) => {
@@ -158,7 +157,7 @@ const Archives = () => {
 
             const nameParts = (student.name || '').split(' ');
             const parts = student.name_parts;
-            const firstName = parts?.first ? `${parts.first}${parts.middle_initial ? ` ${parts.middle_initial}.` : ''}` : (nameParts[0] || '');
+            const firstName = parts?.first ? parts.first : (nameParts[0] || '');
             const lastName = parts?.last ?? (nameParts.slice(1).join(' ') || '');
 
             return [
@@ -254,22 +253,6 @@ const Archives = () => {
                     </div>
                 </header>
 
-                {/* Completed cases, and the ones OSA dismissed */}
-                <div className="mb-4 flex gap-1.5 print:hidden" role="tablist" aria-label="Archive">
-                    {[['completed', 'Completed', CheckCircle, completedViolations.length], ['dismissed', 'Dismissed', XCircle, dismissedViolations.length]].map(([key, label, Icon, count]) => (
-                        <button
-                            key={key}
-                            role="tab"
-                            aria-selected={tab === key}
-                            onClick={() => setTab(key)}
-                            className={`flex items-center gap-1.5 rounded-full px-4 py-2 text-xs font-bold transition-colors ${tab === key
-                                ? (key === 'dismissed' ? 'bg-red-600 text-white' : 'bg-ustp-blue text-white')
-                                : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-100 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700'}`}
-                        >
-                            <Icon size={14} /> {label} <span className={tab === key ? 'text-white/70' : 'text-slate-400'}>{count}</span>
-                        </button>
-                    ))}
-                </div>
 
                 <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 mb-4 print:hidden">
                     <div className="flex-1 relative">
@@ -475,7 +458,7 @@ const Archives = () => {
                                 const servedHours = Math.floor(totalServed / 3600);
                                 const nameParts = (student.name || '').split(' ');
             const parts = student.name_parts;
-                                const firstName = parts?.first ? `${parts.first}${parts.middle_initial ? ` ${parts.middle_initial}.` : ''}` : (nameParts[0] || '');
+                                const firstName = parts?.first ? parts.first : (nameParts[0] || '');
                                 const lastName = parts?.last ?? (nameParts.slice(1).join(' ') || '');
 
                                 const formatDatePrint = (dateStr) => {

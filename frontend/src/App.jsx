@@ -26,8 +26,7 @@ const ForgotPassword = page(() => import('./pages/ForgotPassword'));
 const StudentRegistration = page(() => import('./pages/StudentRegistration'));
 const AndroidDownload = page(() => import('./pages/AndroidDownload'));
 const ReportViolation = page(() => import('./pages/guard/ReportViolation'));
-const GuardReports = page(() => import('./pages/guard/GuardReports'));
-const GuardHistory = page(() => import('./pages/guard/GuardHistory'));
+const ReporterProfile = page(() => import('./pages/guard/ReporterProfile'));
 const FacultyReport = page(() => import('./pages/FacultyReport'));
 const FacultySignup = page(() => import('./pages/FacultySignup'));
 const FacultyForgotPassword = page(() => import('./pages/FacultyForgotPassword'));
@@ -46,6 +45,7 @@ const PersonalInfo = page(() => import('./pages/student/PersonalInfo'));
 const StudentNotifications = page(() => import('./pages/student/Notifications'));
 const ChangePassword = page(() => import('./pages/student/ChangePassword'));
 const StudentHelp = page(() => import('./pages/student/Help'));
+const StudentETickets = page(() => import('./pages/student/ETickets'));
 const StudentShell = page(() => import('./components/StudentShell'));
 const ReporterShell = page(() => import('./components/ReporterShell'));
 const Help = page(() => import('./pages/Help'));
@@ -77,16 +77,16 @@ const ProtectedRoute = ({ element, allowedRoles }) => {
             <p className="text-slate-500 font-medium mb-8 text-sm leading-relaxed">This link is restricted. Your account does not have permission for this section.</p>
             <div className="space-y-3">
               {user.role === 'student' && (
-                <a href="/student/dashboard" className="block w-full bg-ustp-blue text-white py-4 rounded-xl font-black uppercase text-xs tracking-widest hover:bg-blue-700 transition shadow-lg shadow-blue-200">My Dashboard</a>
+                <a href="/student/home" className="block w-full bg-ustp-blue text-white py-4 rounded-xl font-black uppercase text-xs tracking-widest hover:bg-blue-700 transition shadow-lg shadow-blue-200">My Dashboard</a>
               )}
               {user.role === 'guard' && (
-                <a href="/guard/report" className="block w-full bg-ustp-blue text-white py-4 rounded-xl font-black uppercase text-xs tracking-widest hover:bg-blue-700 transition shadow-lg shadow-blue-200">Guard Dashboard</a>
+                <a href="/guard/home" className="block w-full bg-ustp-blue text-white py-4 rounded-xl font-black uppercase text-xs tracking-widest hover:bg-blue-700 transition shadow-lg shadow-blue-200">Guard Dashboard</a>
               )}
               {user.role === 'admin' && (
                 <a href="/admin/overview" className="block w-full bg-ustp-blue text-white py-4 rounded-xl font-black uppercase text-xs tracking-widest hover:bg-blue-700 transition shadow-lg shadow-blue-200">Admin Dashboard</a>
               )}
               {user.role === 'staff' && (
-                <a href="/staff/report" className="block w-full bg-ustp-blue text-white py-4 rounded-xl font-black uppercase text-xs tracking-widest hover:bg-blue-700 transition shadow-lg shadow-blue-200">Faculty Dashboard</a>
+                <a href="/faculty/home" className="block w-full bg-ustp-blue text-white py-4 rounded-xl font-black uppercase text-xs tracking-widest hover:bg-blue-700 transition shadow-lg shadow-blue-200">Faculty Dashboard</a>
               )}
               <button onClick={async () => { if (user.role === 'student') await stopActiveSession(user.username); localStorage.removeItem('user'); window.location.href = loginPathFor(user.role); }} className="block w-full bg-slate-100 text-slate-500 py-4 rounded-xl font-black uppercase text-xs tracking-widest hover:bg-slate-200 transition">Log Out</button>
             </div>
@@ -105,10 +105,10 @@ const OldLoginRedirect = ({ to }) => <Navigate to={to} replace state={useLocatio
 // Pages with a sidebar animate only their <main> (the .page-enter class) so the sidebar stays still
 const SIDEBAR_PAGES = /^\/(admin\/|help$)/;
 // The student pages share one layout (components/StudentShell.jsx): one key, so it stays mounted and its
-// side menu slides closed over the next page (the layout fades the page content itself)
-const STUDENT_SHELL_PAGES = /^\/student\/(dashboard|personal-info|notifications|help|settings(\/password)?)$/;
+// tab bar's circle slides to the next tab (the layout fades the page content itself)
+const STUDENT_SHELL_PAGES = /^\/student\/(home|etickets|personal-info|notifications|help|settings(\/password)?)$/;
 // Same for the guard and faculty & staff pages (components/ReporterShell.jsx)
-const REPORTER_SHELL_PAGES = /^\/(guard\/(report|reports|analytics)|staff\/(report|history|help))$/;
+const REPORTER_SHELL_PAGES = /^\/(guard\/(home|analytics|profile)|faculty\/(home|analytics|profile|help))$/;
 
 // Fades each page in when the route changes. Opacity only: a transform here would
 // break the pages' position: fixed modals and menus while the animation runs.
@@ -116,7 +116,7 @@ const PageFade = ({ children }) => {
   const location = useLocation();
   return (
     <motion.div
-      key={STUDENT_SHELL_PAGES.test(location.pathname) ? 'student-shell' : REPORTER_SHELL_PAGES.test(location.pathname) ? (location.pathname.startsWith('/staff/') ? 'staff-shell' : 'guard-shell') : location.pathname}
+      key={STUDENT_SHELL_PAGES.test(location.pathname) ? 'student-shell' : REPORTER_SHELL_PAGES.test(location.pathname) ? (location.pathname.startsWith('/faculty/') ? 'staff-shell' : 'guard-shell') : location.pathname}
       initial={SIDEBAR_PAGES.test(location.pathname) ? false : { opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.25, ease: 'easeOut' }}
@@ -159,26 +159,35 @@ function App() {
 
           {/* Guard and faculty & staff pages share one layout (top bar and side menu, components/ReporterShell.jsx) */}
           <Route element={<ProtectedRoute element={<ReporterShell />} allowedRoles={['guard', 'admin']} />}>
-            <Route path="/guard/report" element={<ReportViolation />} />
-            <Route path="/guard/reports" element={<GuardReports />} />
+            <Route path="/guard/home" element={<ReportViolation />} />
             <Route path="/guard/analytics" element={<GuardAnalytics />} />
+            <Route path="/guard/profile" element={<ReporterProfile />} />
           </Route>
-          {/* History became Reports (everyone's reports, not only the guard's own) */}
-          <Route path="/guard/history" element={<Navigate to="/guard/reports" replace />} />
-          <Route path="/guard/*" element={<Navigate to="/guard/report" replace />} />
+          {/* The guards' Reports and faculty's History lists were removed (2026-11): their old links open Report Violation */}
+          <Route path="/guard/report" element={<Navigate to="/guard/home" replace />} />
+          <Route path="/guard/*" element={<Navigate to="/guard/home" replace />} />
 
           {/* Faculty with an account (logged in at /faculty); without one they report at /faculty/report */}
           <Route element={<ProtectedRoute element={<ReporterShell />} allowedRoles={['staff']} />}>
-            <Route path="/staff/report" element={<ReportViolation />} />
-            <Route path="/staff/history" element={<GuardHistory />} />
-            <Route path="/staff/help" element={<Help embedded />} />
+            <Route path="/faculty/home" element={<ReportViolation />} />
+            <Route path="/faculty/analytics" element={<GuardAnalytics />} />
+            <Route path="/faculty/profile" element={<ReporterProfile />} />
+            <Route path="/faculty/help" element={<Help embedded />} />
           </Route>
-          <Route path="/staff/*" element={<Navigate to="/staff/report" replace />} />
+          {/* Faculty pages moved from /staff/... to /faculty/... (2026-11): old links still work */}
+          <Route path="/staff/report" element={<Navigate to="/faculty/home" replace />} />
+          <Route path="/staff/home" element={<Navigate to="/faculty/home" replace />} />
+          <Route path="/staff/analytics" element={<Navigate to="/faculty/analytics" replace />} />
+          <Route path="/staff/profile" element={<Navigate to="/faculty/profile" replace />} />
+          <Route path="/staff/help" element={<Navigate to="/faculty/help" replace />} />
+          <Route path="/staff/*" element={<Navigate to="/faculty/home" replace />} />
 
           <Route path="/admin/overview" element={<ProtectedRoute element={<StaffDashboard />} allowedRoles={['admin']} />} />
           <Route path="/admin/students" element={<ProtectedRoute element={<AllStudents />} allowedRoles={['admin']} />} />
           <Route path="/admin/pending" element={<ProtectedRoute element={<PendingReviews />} allowedRoles={['admin']} />} />
           <Route path="/admin/faculty" element={<ProtectedRoute element={<FacultyAccounts />} allowedRoles={['admin']} />} />
+          {/* Briefly its own page: now the Pending tab of Faculty Accounts */}
+          <Route path="/admin/faculty/pending" element={<Navigate to="/admin/faculty?tab=pending" replace />} />
           <Route path="/admin/archives" element={<ProtectedRoute element={<Archives />} allowedRoles={['admin']} />} />
           <Route path="/admin/settings" element={<ProtectedRoute element={<StaffSettings />} allowedRoles={['admin']} />} />
           <Route path="/admin/analytics" element={<ProtectedRoute element={<Analytics />} allowedRoles={['admin']} />} />
@@ -187,16 +196,19 @@ function App() {
           <Route path="/help" element={<ProtectedRoute element={<Help />} allowedRoles={['admin', 'staff', 'guard', 'student']} />} />
           <Route path="/admin/help" element={<Navigate to="/help" replace />} />
 
-          {/* Student pages share one layout (top bar and side menu, components/StudentShell.jsx) */}
+          {/* Student pages share one layout (top bar and tab bar, components/StudentShell.jsx) */}
           <Route element={<ProtectedRoute element={<StudentShell />} allowedRoles={['student']} />}>
-            <Route path="/student/dashboard" element={<StudentDashboard />} />
+            <Route path="/student/home" element={<StudentDashboard />} />
+            {/* Home was /student/dashboard until 2026-11: old links still work */}
+            <Route path="/student/dashboard" element={<Navigate to="/student/home" replace />} />
+            <Route path="/student/etickets" element={<StudentETickets />} />
             <Route path="/student/settings" element={<Settings />} />
             <Route path="/student/settings/password" element={<ChangePassword />} />
             <Route path="/student/personal-info" element={<PersonalInfo />} />
             <Route path="/student/notifications" element={<StudentNotifications />} />
             <Route path="/student/help" element={<StudentHelp />} />
           </Route>
-          <Route path="/student/*" element={<Navigate to="/student/dashboard" replace />} />
+          <Route path="/student/*" element={<Navigate to="/student/home" replace />} />
           {/* Old link from when students were mobile-only */}
           <Route path="/mobile-only" element={<Navigate to={STUDENT_LOGIN} replace />} />
 

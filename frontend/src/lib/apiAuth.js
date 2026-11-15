@@ -14,6 +14,7 @@ const readUser = () => {
 };
 
 let redirecting = false;
+const GET_TIMEOUT_MS = 20000;
 
 export const installApiAuth = () => {
     const originalFetch = window.fetch.bind(window);
@@ -23,6 +24,12 @@ export const installApiAuth = () => {
         if (!isApi || url.includes('/api/login')) return originalFetch(input, init);
 
         const user = readUser();
+        // A slow connection: a refresh (GET) that hangs is given up after GET_TIMEOUT_MS instead of waiting
+        // forever (the next poll tries again). Saves and uploads are never cut off.
+        const method = (init.method || (typeof input === 'string' ? 'GET' : input.method) || 'GET').toUpperCase();
+        if (method === 'GET' && !init.signal && typeof AbortSignal !== 'undefined' && AbortSignal.timeout) {
+            init = { ...init, signal: AbortSignal.timeout(GET_TIMEOUT_MS) };
+        }
         if (user?.token) {
             const headers = new Headers(init.headers || (typeof input === 'string' ? undefined : input.headers));
             if (!headers.has('Authorization')) headers.set('Authorization', `Bearer ${user.token}`);

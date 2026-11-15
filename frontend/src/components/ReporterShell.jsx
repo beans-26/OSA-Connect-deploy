@@ -1,100 +1,58 @@
-import { Suspense, useCallback, useEffect, useState } from 'react';
+import { Suspense, useState } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { ChartPie, CircleHelp, ClipboardList, Gavel, History, LogOut, Menu, X } from 'lucide-react';
+import { ArrowLeft, ChartPie, House, LogOut, User } from 'lucide-react';
 import { loginPathFor } from '../lib/portals';
-import usePolling from '../lib/usePolling';
 
-// Guards: the reports list (guards' and faculty's) is loaded here every 30 s so the menu can show how many
-// came in since the guard last opened Reports (kept on this device)
-const SEEN_KEY = 'osa-guard-reports-seen';
-const FEED_REFRESH_MS = 30000;
-const readSeen = () => {
-    try {
-        const saved = localStorage.getItem(SEEN_KEY);
-        if (saved) return saved;
-        // First time on this device: start counting from now, not the whole month
-        const now = new Date().toISOString();
-        localStorage.setItem(SEEN_KEY, now);
-        return now;
-    } catch { return new Date().toISOString(); }
-};
-
-// The layout route of the guard and faculty & staff pages, built like the student one (StudentShell.jsx):
-// a top bar with the menu button and the page title, and a side menu with the account, the pages and Log out.
-// It stays mounted while moving between pages, so the menu slides closed over the next page.
+// The layout route of the guard and faculty & staff pages, in the student pages' design (StudentShell.jsx):
+// a navy gradient header with the page title and the account, a white page, and the floating tab bar at the
+// bottom (Analytics, Home in the middle, Profile) with a circle that slides to the open tab. Log out is in Profile.
 
 const PAGES = {
-    '/guard/report': 'Report Violation',
-    '/guard/reports': 'Reports',
+    '/guard/home': 'Report Violation',
     '/guard/analytics': 'Analytics',
-    '/staff/report': 'Report Violation',
-    '/staff/history': 'History',
-    '/staff/help': 'Help',
+    '/guard/profile': 'Profile',
+    '/faculty/home': 'Report Violation',
+    '/faculty/analytics': 'Analytics',
+    '/faculty/profile': 'Profile',
+    '/faculty/help': 'Help & Support',
 };
-// Guards: report, reports (everyone's), analytics. Faculty & staff: report, history (their own), help.
+// Pages under a tab: the tab stays lit and the header gets a back arrow
+const BACK = { '/faculty/help': '/faculty/profile' };
+// Guards and faculty & staff: Analytics, Home (Report Violation) in the middle, Profile.
+// (The reports / history lists were removed, 2026-11.)
 const NAV = {
     guard: [
-        { to: '/guard/report', label: 'Report Violation', icon: Gavel },
-        { to: '/guard/reports', label: 'Reports', icon: ClipboardList, badge: true },
         { to: '/guard/analytics', label: 'Analytics', icon: ChartPie },
+        { to: '/guard/home', label: 'Home', icon: House },
+        { to: '/guard/profile', label: 'Profile', icon: User },
     ],
     staff: [
-        { to: '/staff/report', label: 'Report Violation', icon: Gavel },
-        { to: '/staff/history', label: 'History', icon: History },
-        { to: '/staff/help', label: 'Help', icon: CircleHelp },
+        { to: '/faculty/analytics', label: 'Analytics', icon: ChartPie },
+        { to: '/faculty/home', label: 'Home', icon: House },
+        { to: '/faculty/profile', label: 'Profile', icon: User },
     ],
 };
-const ROLE_LABEL = { guard: 'Guard', staff: 'Faculty & Staff', admin: 'OSA Admin' };
+const ROLE_LABEL = { guard: 'Guard', staff: 'Faculty', admin: 'OSA Admin' };
 
 // Set inline: the global colour-transition rule in index.css would override a transition class
 const EASE = 'cubic-bezier(0.22, 1, 0.36, 1)';
-const slideStyle = { transition: `translate 320ms ${EASE}, transform 320ms ${EASE}, visibility 320ms` };
-const fadeStyle = { transition: 'opacity 300ms ease-out' };
-
-const initials = (name = '') => {
-    const words = name.split(/\s+/).filter(Boolean);
-    return ((words[0]?.[0] || '') + (words.length > 1 ? words[words.length - 1][0] : '')).toUpperCase() || '?';
-};
+const TAB_SLIDE = { transition: `left 320ms ${EASE}` };
+const TAB_COLOR = { transition: `color 250ms ${EASE}` };
+const TAB_ICON = { transition: `transform 280ms ${EASE}` };
 
 export default function ReporterShell() {
     const navigate = useNavigate();
     const { pathname } = useLocation();
     const user = JSON.parse(localStorage.getItem('user') || '{}');
-    // The pages under /guard/ get the guard menu (admins can open them too); /staff/ the faculty & staff menu
-    const area = pathname.startsWith('/staff/') ? 'staff' : 'guard';
+    // The pages under /guard/ get the guard tabs (admins can open them too); /faculty/ the faculty & staff tabs
+    const area = pathname.startsWith('/faculty/') ? 'staff' : 'guard';
     const nav = NAV[area];
     const name = user.full_name || user.name || user.username || 'Account';
-    const [menuOpen, setMenuOpen] = useState(false);
     const [askLogout, setAskLogout] = useState(false);
-
-    const isGuardArea = area === 'guard';
-    const [feed, setFeed] = useState({ reports: [], days: 30, loaded: false, error: '' });
-    const [seenAt, setSeenAt] = useState(readSeen);
-    usePolling(async () => {
-        if (!isGuardArea) return;
-        try {
-            const r = await fetch('/api/violations/feed/');
-            const data = await r.json().catch(() => ({}));
-            if (r.ok) setFeed({ reports: data.reports || [], days: data.days || 30, loaded: true, error: '' });
-            else setFeed((prev) => ({ ...prev, loaded: true, error: data.error || "Couldn't load the reports." }));
-        } catch {
-            setFeed((prev) => ({ ...prev, loaded: true, error: prev.loaded ? prev.error : "Can't reach the server." }));
-        }
-    }, FEED_REFRESH_MS, [isGuardArea]);
-    const markSeen = useCallback(() => {
-        const now = new Date().toISOString();
-        try { localStorage.setItem(SEEN_KEY, now); } catch { /* private mode */ }
-        setSeenAt(now);
-    }, []);
-    const newReports = isGuardArea ? feed.reports.filter((r) => Date.parse(r.created_at) > Date.parse(seenAt)).length : 0;
-
-    useEffect(() => { setMenuOpen(false); }, [pathname]);
-    useEffect(() => {
-        if (!menuOpen) return undefined;
-        const onKey = (e) => e.key === 'Escape' && setMenuOpen(false);
-        window.addEventListener('keydown', onKey);
-        return () => window.removeEventListener('keydown', onKey);
-    }, [menuOpen]);
+    const tabPath = BACK[pathname] || pathname;
+    // Home (the report page) fits the screen: the page doesn't scroll (only a long form inside it would)
+    const isHome = pathname === nav[1].to;
+    const tabIndex = nav.findIndex(({ to }) => to === tabPath);
 
     const logout = () => {
         localStorage.removeItem('user');
@@ -102,70 +60,60 @@ export default function ReporterShell() {
     };
 
     return (
-        <div className="flo-type min-h-screen bg-slate-50 dark:bg-slate-900">
-            {/* Top bar */}
-            <div className="sticky top-0 z-30 border-b border-slate-200 bg-white/95 backdrop-blur dark:border-slate-800 dark:bg-slate-900/95">
-                <div className="mx-auto flex h-14 w-full max-w-5xl items-center gap-2 px-3">
-                    <button onClick={() => setMenuOpen(true)} aria-label={newReports ? `Open menu, ${newReports} new reports` : 'Open menu'} aria-expanded={menuOpen} className="relative flex h-10 w-10 items-center justify-center rounded-full text-slate-800 hover:bg-slate-100 dark:text-slate-100 dark:hover:bg-slate-800">
-                        <Menu size={22} />
-                        {newReports > 0 && <span className="absolute right-1 top-1 h-2.5 w-2.5 rounded-full bg-red-500 ring-2 ring-white dark:ring-slate-900" />}
-                    </button>
-                    <h1 className="flex-1 truncate text-center text-base font-bold text-slate-900 dark:text-white">{PAGES[pathname] || ''}</h1>
-                    <span className="h-10 w-10" aria-hidden="true" />
-                </div>
-            </div>
-
-            {/* Pages load on first visit; the top bar and menu stay on screen meanwhile */}
-            <Suspense fallback={<div className="flex justify-center py-20"><span className="h-8 w-8 animate-spin rounded-full border-4 border-ustp-blue border-t-transparent" /></div>}>
-                <div key={pathname} className="page-enter"><Outlet context={{ feed, seenAt, markSeen }} /></div>
-            </Suspense>
-
-            {/* Side menu */}
-            <div className={`fixed inset-0 z-[70] bg-black/40 ${menuOpen ? 'opacity-100' : 'pointer-events-none opacity-0'}`} style={fadeStyle} onClick={() => setMenuOpen(false)} aria-hidden="true" />
-            <aside
-                role="dialog"
-                aria-modal="true"
-                aria-label="Menu"
-                aria-hidden={!menuOpen}
-                inert={!menuOpen ? '' : undefined}
-                className={`fixed inset-y-0 left-0 z-[71] flex w-[280px] max-w-[82vw] flex-col bg-white shadow-2xl will-change-transform dark:bg-slate-900 ${menuOpen ? 'visible translate-x-0' : 'invisible -translate-x-[calc(100%+32px)]'}`}
-                style={slideStyle}
-            >
-                <div className="flex items-center gap-3 px-4 pb-3 pt-5">
-                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-ustp-blue text-sm font-bold text-white">{initials(name)}</div>
+        <div className={`flo-type bg-white dark:bg-slate-900 ${isHome ? 'flex h-[100dvh] flex-col overflow-hidden' : 'min-h-screen'}`}>
+            {/* Blue gradient header: the page, the account, Log out (same look as the student pages) */}
+            <header className="relative shrink-0 overflow-hidden rounded-b-[20px] bg-gradient-to-br from-[#0f1a4a] via-[#162a6e] to-[#1e3a8a] text-white shadow-[0_14px_34px_-16px_rgba(15,26,74,0.6)] dark:from-[#0b1338] dark:via-[#122159] dark:to-[#1a3278]">
+                <span aria-hidden="true" className="pointer-events-none absolute -right-16 -top-20 h-56 w-56 rounded-full bg-white/10 blur-3xl" />
+                <span aria-hidden="true" className="pointer-events-none absolute -bottom-24 left-10 h-48 w-48 rounded-full bg-[#ffac17]/20 blur-3xl" />
+                <div className="relative mx-auto flex w-full max-w-5xl items-center gap-3 px-5 pb-3.5 pt-[calc(18px+env(safe-area-inset-top))]">
+                    {BACK[pathname] && (
+                        <button onClick={() => navigate(BACK[pathname])} aria-label="Back" className="-ml-2 flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-white hover:bg-white/10">
+                            <ArrowLeft size={22} />
+                        </button>
+                    )}
                     <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-bold text-slate-900 dark:text-white">{name}</p>
-                        <p className="truncate text-xs text-slate-500 dark:text-slate-400">{ROLE_LABEL[user.role] || ROLE_LABEL[area]}</p>
+                        <h1 className="truncate text-[20px] font-bold leading-tight tracking-[-0.2px]">{PAGES[pathname] || ''}</h1>
+                        <p className="truncate text-[13px] font-medium text-white/85">{name} · {ROLE_LABEL[user.role] || ROLE_LABEL[area]}</p>
                     </div>
-                    <button onClick={() => setMenuOpen(false)} aria-label="Close menu" className="flex h-9 w-9 items-center justify-center rounded-full text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800">
-                        <X size={20} />
-                    </button>
                 </div>
-                <nav className="mt-1 flex flex-col gap-1 px-2">
-                    {nav.map(({ to, label, icon: Icon, badge }) => {
-                        const active = pathname === to;
-                        return (
-                            <button
-                                key={to}
-                                onClick={() => { setMenuOpen(false); if (!active) navigate(to); }}
-                                aria-current={active ? 'page' : undefined}
-                                className={`flex items-center gap-3.5 rounded-xl px-3 py-3 text-left text-sm ${active ? 'bg-blue-50 font-bold text-ustp-blue dark:bg-blue-500/15 dark:text-blue-300' : 'font-medium text-slate-800 hover:bg-slate-100 dark:text-slate-100 dark:hover:bg-slate-800'}`}
-                            >
-                                <Icon size={19} strokeWidth={active ? 2.3 : 2} />
-                                <span className="flex-1">{label}</span>
-                                {badge && newReports > 0 && !active && (
-                                    <span aria-label={`${newReports} new`} className="flex h-[22px] min-w-[22px] items-center justify-center rounded-full bg-red-100 px-1.5 text-[10px] font-black text-red-600 dark:bg-red-500/20 dark:text-red-400">
-                                        {newReports > 99 ? '99+' : newReports}
-                                    </span>
-                                )}
-                            </button>
-                        );
-                    })}
-                </nav>
-                <button onClick={() => { setMenuOpen(false); setAskLogout(true); }} className="mt-auto flex items-center gap-3.5 px-5 py-5 text-sm font-medium text-red-500 hover:opacity-80">
-                    <LogOut size={18} /> Log out
-                </button>
-            </aside>
+            </header>
+
+            {/* Pages load on first visit; the header and tab bar stay on screen meanwhile */}
+            <Suspense fallback={<div className="flex justify-center py-20"><span className="h-8 w-8 animate-spin rounded-full border-4 border-ustp-blue border-t-transparent" /></div>}>
+                <div key={pathname} className={`page-enter ${isHome ? 'min-h-0 flex-1 overflow-y-auto pb-[calc(80px+env(safe-area-inset-bottom))]' : ''}`}>
+                    <Outlet context={{ area, openLogout: () => setAskLogout(true) }} />
+                </div>
+            </Suspense>
+            {/* Room under the last thing on the page, so the tab bar never covers it */}
+            {!isHome && <div className="h-[calc(96px+env(safe-area-inset-bottom))]" aria-hidden="true" />}
+
+            {/* Bottom tab bar (icons only): a blue circle behind the open tab slides to the next one */}
+            <nav aria-label="Pages" className="fixed inset-x-0 z-40 mx-auto w-[calc(100%-48px)] max-w-[300px]" style={{ bottom: 'calc(12px + env(safe-area-inset-bottom))' }}>
+                <div className="rounded-full border border-slate-100 bg-white/80 p-1.5 shadow-[0_12px_34px_-8px_rgba(16,26,75,0.25)] backdrop-blur-xl backdrop-saturate-150 dark:border-slate-700 dark:bg-slate-800/80">
+                    <div className="relative flex h-12 items-center">
+                        {tabIndex >= 0 && (
+                            <span aria-hidden="true" className="absolute top-0 h-12 w-12 rounded-full bg-ustp-blue shadow-[0_6px_16px_rgba(30,58,138,0.35)]"
+                                style={{ ...TAB_SLIDE, left: `calc(${((tabIndex + 0.5) / nav.length) * 100}% - 24px)` }} />
+                        )}
+                        {nav.map(({ to, label, icon: Icon }) => {
+                            const active = tabPath === to;
+                            return (
+                                <button
+                                    key={to}
+                                    onClick={() => pathname !== to && navigate(to)}
+                                    aria-label={label}
+                                    title={label}
+                                    aria-current={active ? 'page' : undefined}
+                                    style={TAB_COLOR}
+                                    className={`relative z-10 flex h-12 flex-1 items-center justify-center rounded-full ${active ? 'text-white' : 'text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'}`}
+                                >
+                                    <Icon size={22} strokeWidth={active ? 2.4 : 2} style={{ ...TAB_ICON, transform: active ? 'scale(1.2)' : 'none' }} />
+                                </button>
+                            );
+                        })}
+                    </div>
+                </div>
+            </nav>
 
             {/* Same log-out question as before */}
             {askLogout && (

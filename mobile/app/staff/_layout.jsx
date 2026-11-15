@@ -1,60 +1,21 @@
-import { Stack, useRouter } from 'expo-router';
+import { Stack } from 'expo-router';
 import RequireRole from '../../components/RequireRole';
-import { TouchableOpacity, View } from 'react-native';
-import { useTheme } from '../../components/ThemeContext';
-import { User, CircleQuestionMark } from 'lucide-react-native';
+import { ReporterShellProvider } from '../../components/ReporterShell';
 
+// Guards and faculty & staff: three tabs at the bottom (Analytics, Home = the report form, Profile), same as the
+// website's guard / faculty pages. The tab bar and the "Log out?" question live in components/ReporterShell.jsx.
 export default function StaffLayout() {
-    const router = useRouter();
-    const { colors } = useTheme();
-
     return (
         <RequireRole roles={['staff', 'guard']}>
-            <Stack
-                screenOptions={{
-                    headerStyle: {
-                        backgroundColor: colors.card,
-                    },
-                    headerTintColor: colors.text,
-                    contentStyle: { backgroundColor: colors.background },
-                    animation: 'none',
-                    headerTitleStyle: {
-                        fontWeight: 'bold',
-                    },
-                    headerRight: () => (
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 16, marginRight: 15 }}>
-                            <TouchableOpacity onPress={() => router.push('/help')} accessibilityLabel="Help">
-                                <CircleQuestionMark size={24} color={colors.text} />
-                            </TouchableOpacity>
-                            <TouchableOpacity onPress={() => router.push('/staff/settings')}>
-                                <User size={24} color={colors.text} />
-                            </TouchableOpacity>
-                        </View>
-                    ),
-                }}
-            >
-                <Stack.Screen 
-                    name="dashboard" 
-                    options={{
-                        title: 'Personnel Dashboard',
-                        // The screen draws its own Guard Report header with Help / Log Out
-                        headerShown: false,
-                    }}
-                />
-                <Stack.Screen
-                    name="settings"
-                    options={{
-                        headerShown: false,
-                        // Same "tab" switch feel as the student Dashboard ↔ Settings
-                        animation: 'none',
-                    }}
-                />
-                {/* Camera gets its own native full-screen screen; the report form stays mounted underneath */}
-                <Stack.Screen
-                    name="scan"
-                    options={{ headerShown: false, presentation: 'fullScreenModal', animation: 'none' }}
-                />
-            </Stack>
+            <ReporterShellProvider>
+                <Stack screenOptions={{ headerShown: false, animation: 'none' }}>
+                    <Stack.Screen name="dashboard" />
+                    <Stack.Screen name="analytics" />
+                    <Stack.Screen name="profile" />
+                    {/* Camera gets its own native full-screen screen; the report form stays mounted underneath */}
+                    <Stack.Screen name="scan" options={{ presentation: 'fullScreenModal', animation: 'none' }} />
+                </Stack>
+            </ReporterShellProvider>
         </RequireRole>
     );
 }

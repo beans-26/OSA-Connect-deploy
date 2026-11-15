@@ -28,6 +28,9 @@ const api = axios.create({
 // Every request carries the login token from /login/ (saved with the user), so the server knows who is
 // asking and what they may do (backend/core/auth.py). This also covers the background location task.
 api.interceptors.request.use(async (config) => {
+    // A slow connection: a refresh (GET) that hangs is given up after 20 s instead of waiting forever (the next
+    // refresh tries again). Saves, photos and the location pings are never cut off.
+    if ((config.method || 'get').toLowerCase() === 'get' && !config.timeout) config.timeout = 20000;
     if (!String(config.url || '').includes('/login/')) {
         try {
             const token = JSON.parse((await AsyncStorage.getItem('user')) || 'null')?.token;

@@ -1,15 +1,15 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Scan, Send, CheckCircle2, X, UserRound, UserCheck, Loader2, IdCard, Building2, GraduationCap, Users, Phone, Mail, CalendarDays, Clock, BadgeCheck, MailCheck } from 'lucide-react';
+import { Scan, CheckCircle2, X, UserRound, UserCheck, Keyboard, ArrowLeft, ArrowRight, Loader2, IdCard, Building2, GraduationCap, Users, Phone, Mail, CalendarDays, Clock, BadgeCheck, MailCheck } from 'lucide-react';
 
-// The guard-on-duty name typed on this device, filled in again for the next report
-const ON_DUTY_KEY = 'osa-guard-on-duty';
 import QrScannerModal from '../../components/QrScannerModal';
+import scanMark from '../../assets/osaconnect-icon.png';
 import { parseStudentQr, NOT_A_STUDENT_QR } from '../../components/studentQr';
 import { DEPARTMENTS, GENDERS, departmentForCourse, courseOptionsFor } from '../../lib/academics';
 // Violation types a guard or faculty & staff can report (shared with the admin's Report Violation)
 import { VIOLATIONS } from '../../lib/violationTypes';
-import { studentName as displayStudentName, shortenFullName } from '../../lib/names';
+import ViolationPicker from '../../components/ViolationPicker';
+import { studentName as displayStudentName } from '../../lib/names';
 
 // Phones get shorter boxes (py-2) so the whole form fits with less scrolling, like registration
 const inputClass = "w-full min-w-0 bg-slate-50 dark:bg-slate-900 border-2 border-slate-100 dark:border-slate-700 rounded-lg sm:rounded-xl px-3 py-2 sm:py-2.5 font-semibold text-sm text-slate-800 dark:text-slate-200 focus:border-ustp-blue outline-none transition-colors placeholder:text-slate-400 disabled:cursor-not-allowed disabled:opacity-60";
@@ -17,12 +17,14 @@ const inputClass = "w-full min-w-0 bg-slate-50 dark:bg-slate-900 border-2 border
 // boxes with a small chevron; `empty` makes "Choose" faint like a placeholder (same as StudentRegistration)
 const selectClass = (empty) => `${inputClass} appearance-none truncate bg-[length:14px] bg-[right_0.6rem_center] bg-no-repeat pr-8 ${empty ? '!text-slate-400 !font-medium' : ''}`;
 const selectArrow = { backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E\")" };
-const labelClass = "mb-1 ml-1 block text-xs font-bold text-slate-500 dark:text-slate-400";
+const labelClass = "rv-label mb-1 ml-1 block text-xs font-bold text-[#1e2a6b] dark:text-blue-200";
 
 // A field label with its icon
-const Label = ({ htmlFor, icon: Icon, children }) => (
-    <label htmlFor={htmlFor} className="mb-1 ml-1 flex items-center gap-1.5 text-xs font-bold text-slate-500 dark:text-slate-400">
-        <Icon size={13} className="shrink-0" aria-hidden="true" /> {children}
+// Text only (no icon), for a minimal form; `icon` is still accepted and ignored
+// rv-label: tightened on short screens; `text` (a text box's label) can hide there, its placeholder names the field
+const Label = ({ htmlFor, children, text = false }) => (
+    <label htmlFor={htmlFor} className={`rv-label ${text ? 'rv-label-text' : ''} mb-1 ml-1 block text-xs font-bold text-[#1e2a6b] dark:text-blue-200`}>
+        {children}
     </label>
 );
 
@@ -30,7 +32,7 @@ const Label = ({ htmlFor, icon: Icon, children }) => (
 const emptyForm = () => ({
     student_id: '', gender: '', course: '', department: '', contact: '',
     // Typed in for a student who isn't registered yet; a registered student's name comes from their record
-    first_name: '', middle_initial: '', last_name: '', record_name: '', record_display: '', record_registered: false, record_year: '',
+    first_name: '', last_name: '', record_name: '', record_display: '', record_registered: false, record_year: '',
     email: '', violations: [], // one or more; each becomes its own report
     incident_date: new Date().toISOString().split('T')[0],
     incident_time: new Date().toTimeString().slice(0, 5),
@@ -57,21 +59,10 @@ const ReportViolation = ({ publicFaculty = false }) => {
     // Guards share accounts, so a guard account types the name of the guard on duty (kept on this device for
     // the next report). It's the "Reported by" OSA sees. Faculty & staff report as themselves.
     const isGuard = userRole === 'guard';
+    // Guards and logged-in faculty & staff report the same way: the scan / enter manually choice first, then the
+    // form in two steps. (Faculty without an account confirm their email on a single form instead.)
+    const kiosk = isGuard || (userRole === 'staff' && !publicFaculty);
     // First and last name, kept on this device as "First|Last" (an older full name: its first word is the first name)
-    const [onDuty, setOnDuty] = useState(() => {
-        let saved = '';
-        try { saved = localStorage.getItem(ON_DUTY_KEY) || ''; } catch { /* private mode */ }
-        if (saved.includes('|')) {
-            const [first, last] = saved.split('|');
-            return { first, last };
-        }
-        const [first = '', ...rest] = saved.trim().split(/\s+/);
-        return { first, last: rest.join(' ') };
-    });
-    const onDutyName = `${onDuty.first.trim()} ${onDuty.last.trim()}`.trim();
-    const saveOnDuty = () => {
-        try { localStorage.setItem(ON_DUTY_KEY, `${onDuty.first.trim()}|${onDuty.last.trim()}`); } catch { /* private mode */ }
-    };
     const isFaculty = publicFaculty || userRole === 'staff';
 
     // Faculty email confirmation: type the email -> "Confirm email address" sends a code -> type it -> the
@@ -84,7 +75,8 @@ const ReportViolation = ({ publicFaculty = false }) => {
     const [emailError, setEmailError] = useState('');
     const [emailHasAccount, setEmailHasAccount] = useState(false); // the email already has a faculty account
     const verifiedName = verified ? [verified.first_name, verified.last_name].filter(Boolean).join(' ') : '';
-    const reporterName = isGuard ? (onDutyName || '—') : publicFaculty ? (verifiedName || '—') : userName;
+    // Guards: the guard account's name (the server names the report after it too)
+    const reporterName = publicFaculty ? (verifiedName || '—') : userName;
 
     const postJson = async (url, body) => {
         setEmailBusy(true);
@@ -137,18 +129,44 @@ const ReportViolation = ({ publicFaculty = false }) => {
     const [isScanning, setIsScanning] = useState(false);
     const [showConfirmModal, setShowConfirmModal] = useState(false);
     const [form, setForm] = useState(emptyForm);
+    // Guards start on a kiosk-style screen: scan the student's ID, or enter the details by hand. The form shows
+    // once they choose (after a successful scan, or "Enter manually"); cancelling the camera keeps the start screen.
+    const [started, setStarted] = useState(!kiosk);
+    // "Enter manually": typing only. The kiosk forms (guards, faculty & staff) never show a scan button on the ID
+    // box: scanning is the start screen's "Scan Student ID"
+    const [manual, setManual] = useState(false);
+    // Guards fill in the report in two steps: 1. the student, then (Next) 2. the violation, date and time
+    const [step, setStep] = useState(1);
+    const studentRef = useRef(null);
+    const nextStep = () => {
+        // The browser's own checks on the student fields (required, 10-number ID...), one at a time
+        const fields = studentRef.current ? [...studentRef.current.querySelectorAll('input, select, textarea')] : [];
+        if (fields.some((el) => !el.reportValidity())) return;
+        setStep(2);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+    const guardStep1 = kiosk && step === 1;
+    const guardStep2 = kiosk && step === 2;
+    const [focusId, setFocusId] = useState(false);
+    useEffect(() => {
+        if (!focusId) return;
+        document.getElementById('rv-id')?.focus();
+        setFocusId(false);
+    }, [focusId]);
 
     // The scanner only hands over codes that parseStudentQr accepts (see validate below)
     const handleScanResult = (decodedText) => {
         setIsScanning(false);
         const student = parseStudentQr(decodedText);
         if (!student) return;
+        setStarted(true);
         // The QR's name (in full, as registered) and course; the department follows from the course
         setForm(prev => ({
             ...prev,
             student_id: student.studentId,
             record_name: student.name || prev.record_name,
-            record_display: student.name ? shortenFullName(student.name) : prev.record_display,
+            // The full name as registered ("Vincent Macahilos Dagaraga"), not shortened to an initial
+            record_display: student.name || prev.record_display,
             course: student.course || prev.course,
             department: departmentForCourse(student.course) || prev.department,
         }));
@@ -172,7 +190,8 @@ const ReportViolation = ({ publicFaculty = false }) => {
                         ...prev, student_id: id,
                         record_registered: Boolean(data.has_account),
                         record_year: data.year_level || '',
-                        ...(useName && { record_name: data.name, record_display: displayStudentName(data) }),
+                        // The full name as registered, not "First M. Last"
+                        ...(useName && { record_name: data.name, record_display: data.name || displayStudentName(data) }),
                         course: known(data.course) ? data.course : prev.course,
                         department: known(data.department) ? data.department : prev.department,
                         contact: data.contact_number || prev.contact, email: data.email || prev.email,
@@ -192,20 +211,17 @@ const ReportViolation = ({ publicFaculty = false }) => {
     };
 
     // The name sent (in full) and shown ("Juan D. Cruz"): from the student's record or QR, else the typed fields
-    const middleInitial = form.middle_initial.replace(/[^a-z]/gi, '').slice(0, 1).toUpperCase();
-    const typedName = [form.first_name.trim(), middleInitial && `${middleInitial}.`, form.last_name.trim()].filter(Boolean).join(' ');
+    // First and last name only (no middle initial)
+    const typedName = [form.first_name.trim(), form.last_name.trim()].filter(Boolean).join(' ');
     const sentName = form.record_name || typedName;
     const studentName = form.record_display || form.record_name || typedName;
 
     const handleSubmit = (e) => {
         e.preventDefault();
+        if (guardStep1) { nextStep(); return; } // Enter on step 1 goes to step 2, it doesn't send
         if (!form.violations.length) {
             alert('Choose at least one violation.');
             return;
-        }
-        if (isGuard) {
-            if (!onDuty.first.trim() || !onDuty.last.trim()) { alert('Type the first and last name of the guard on duty.'); return; }
-            saveOnDuty();
         }
         // Faculty: the button says "Confirm email address" until the email is confirmed with its code
         if (publicFaculty && !verified) {
@@ -234,7 +250,6 @@ const ReportViolation = ({ publicFaculty = false }) => {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     ...form, name: sentName, violation_types: form.violations, reporting_guard: userName,
-                    on_duty_name: isGuard ? onDutyName : undefined,
                     token: publicFaculty ? verified?.token : undefined,
                 }),
             });
@@ -259,6 +274,9 @@ const ReportViolation = ({ publicFaculty = false }) => {
     const resetForm = () => {
         setSent(false);
         setForm(emptyForm());
+        setStarted(!kiosk); // back to the scan / enter manually screen
+        setManual(false);
+        setStep(1);
     };
 
     const violationLabels = form.violations.map((v) => VIOLATIONS.find(([value]) => value === v)?.[1] || v);
@@ -351,7 +369,7 @@ const ReportViolation = ({ publicFaculty = false }) => {
                         <div className="grid grid-cols-2 gap-3 p-5">
                             <button onClick={() => setShowConfirmModal(false)} className="py-3 rounded-xl border-2 border-slate-200 dark:border-slate-600 text-slate-700 dark:text-slate-200 font-bold text-sm hover:bg-slate-50 dark:hover:bg-slate-700">Edit</button>
                             <button onClick={confirmSubmission} disabled={loading} className="py-3 rounded-xl bg-ustp-blue text-white font-bold text-sm flex items-center justify-center gap-2 hover:bg-blue-800 disabled:opacity-60">
-                                <Send size={16} /> {violationLabels.length > 1 ? `Send ${violationLabels.length} reports` : 'Send report'}
+                                {violationLabels.length > 1 ? `Send ${violationLabels.length} reports` : 'Send report'}
                             </button>
                         </div>
                     </div>
@@ -359,10 +377,45 @@ const ReportViolation = ({ publicFaculty = false }) => {
             )}
 
             {/* Confirmation modal before logging out */}
-            <main className="w-full px-3 py-4 md:px-6 md:py-6">
-                <div className="max-w-4xl mx-auto w-full pb-10">
-                    {!sent ? (
-                        <form onSubmit={handleSubmit} className="card-premium p-3.5 sm:p-6 space-y-4 sm:space-y-5">
+            <main className={`w-full px-3 py-4 md:px-6 md:py-6 ${kiosk ? 'report-compact' : ''} ${!sent && !started ? 'h-full' : ''}`}>
+                <div className={`max-w-4xl mx-auto w-full ${!sent && !started ? 'h-full' : 'pb-10'}`}>
+                    {!sent && !started ? (
+                        // The guard's start screen (kiosk style): two boxes to choose from, scan the student's ID or type the details
+                        <div className="flex h-full flex-col items-center justify-center px-1 py-2">
+                            <p className="mb-3 text-center text-xs font-semibold uppercase tracking-[2px] text-slate-500 sm:text-sm dark:text-slate-400">How do you want to report?</p>
+                            <div className="grid w-full max-w-2xl grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
+                                <button type="button" onClick={() => setIsScanning(true)}
+                                    className="group flex flex-col items-center gap-2 rounded-3xl border-2 border-slate-200 bg-white p-4 text-center sm:gap-3 sm:p-6 shadow-[0_10px_30px_-12px_rgba(16,26,75,0.2)] transition-all hover:border-[#1e2a6b] hover:shadow-[0_14px_34px_-12px_rgba(16,26,75,0.3)] active:scale-[0.98] dark:border-slate-700 dark:bg-slate-800 dark:hover:border-blue-400">
+                                    <img src={scanMark} alt="" className="h-20 w-20 select-none transition-transform group-hover:scale-105 sm:h-32 sm:w-32" draggable="false" />
+                                    <span className="text-lg font-black uppercase tracking-[0.5px] text-[#1e2a6b] sm:text-xl dark:text-white">Scan Student ID</span>
+                                    <span className="text-xs font-medium text-slate-500 dark:text-slate-400">Point the camera at the student's ID or QR code</span>
+                                </button>
+                                <button type="button" onClick={() => { setStarted(true); setManual(true); setFocusId(true); }}
+                                    className="group flex flex-col items-center gap-2 rounded-3xl border-2 border-slate-200 bg-white p-4 text-center sm:gap-3 sm:p-6 shadow-[0_10px_30px_-12px_rgba(16,26,75,0.2)] transition-all hover:border-[#1e2a6b] hover:shadow-[0_14px_34px_-12px_rgba(16,26,75,0.3)] active:scale-[0.98] dark:border-slate-700 dark:bg-slate-800 dark:hover:border-blue-400">
+                                    <span className="flex h-20 w-20 items-center justify-center rounded-3xl bg-[#1e2a6b]/5 text-[#1e2a6b] transition-transform group-hover:scale-105 sm:h-32 sm:w-32 dark:bg-white/5 dark:text-white">
+                                        <Keyboard size={48} strokeWidth={1.6} />
+                                    </span>
+                                    <span className="text-lg font-black uppercase tracking-[0.5px] text-[#1e2a6b] sm:text-xl dark:text-white">Enter Manually</span>
+                                    <span className="text-xs font-medium text-slate-500 dark:text-slate-400">Tap here to input student info manually</span>
+                                </button>
+                            </div>
+                        </div>
+                    ) : !sent ? (
+                        <>
+                        {/* Guards: back to the scan / enter manually choice (in case of a wrong tap); clears the form */}
+                        {kiosk && (
+                            // Back and the step on one row
+                            <div className="mb-2 flex items-center justify-between gap-2">
+                                <button type="button" onClick={() => (step === 2 ? setStep(1) : (setForm(emptyForm()), setStarted(false), setManual(false)))}
+                                    className="-ml-1 inline-flex items-center gap-1.5 rounded-full px-2.5 py-1.5 text-sm font-bold text-ustp-blue hover:bg-blue-50 dark:text-blue-300 dark:hover:bg-white/5">
+                                    <ArrowLeft size={17} /> Back
+                                </button>
+                                <p className="px-1 text-xs font-bold uppercase tracking-[1.5px] text-slate-500 dark:text-slate-400">
+                                    Step {step} of 2 · {step === 1 ? 'Student' : 'Violation'}
+                                </p>
+                            </div>
+                        )}
+                        <form onSubmit={handleSubmit} className="rv-stack card-premium p-3.5 sm:p-6 space-y-4 sm:space-y-5">
                             {/* Faculty (no account): the USTP email the report is sent under, confirmed with a code */}
                             {publicFaculty && (
                                 <div id="rv-faculty" className={`rounded-xl border-2 px-3 py-3 ${verified ? 'border-emerald-100 dark:border-emerald-900/60 bg-emerald-50/60 dark:bg-emerald-950/30' : 'border-blue-100 dark:border-blue-900/60 bg-blue-50/60 dark:bg-blue-950/30'}`}>
@@ -407,43 +460,34 @@ const ReportViolation = ({ publicFaculty = false }) => {
                                     )}
                                 </div>
                             )}
-                            {/* Guard accounts are shared: who is on duty (remembered on this device) */}
-                            {isGuard && (
-                                <div className="flex flex-col sm:flex-row sm:items-center gap-1.5 sm:gap-3 rounded-xl border-2 border-blue-100 dark:border-blue-900/60 bg-blue-50/60 dark:bg-blue-950/30 px-3 py-2.5">
-                                    <p className="flex shrink-0 items-center gap-1.5 text-xs font-bold text-ustp-blue dark:text-blue-300">
-                                        <UserCheck size={15} /> Guard on duty
-                                    </p>
-                                    <div className="grid flex-1 grid-cols-2 gap-2">
-                                        <input id="rv-onduty-first" aria-label="Guard's first name" required value={onDuty.first} maxLength={50} autoComplete="given-name"
-                                            onChange={(e) => setOnDuty((prev) => ({ ...prev, first: e.target.value }))} onBlur={saveOnDuty}
-                                            placeholder="First name" className={`${inputClass} !bg-white dark:!bg-slate-900`} />
-                                        <input id="rv-onduty-last" aria-label="Guard's last name" required value={onDuty.last} maxLength={50} autoComplete="family-name"
-                                            onChange={(e) => setOnDuty((prev) => ({ ...prev, last: e.target.value }))} onBlur={saveOnDuty}
-                                            placeholder="Last name" className={`${inputClass} !bg-white dark:!bg-slate-900`} />
+                            <div className={`grid grid-cols-1 gap-4 sm:gap-5 ${kiosk ? '' : 'md:grid-cols-2'}`}>
+                                {/* Student (guards: step 1) */}
+                                {guardStep2 && (
+                                    // Step 2: who the report is about, from step 1
+                                    <div className="flex items-center gap-3 rounded-xl bg-slate-50 px-3 py-2.5 dark:bg-slate-900/60">
+                                        <p className="min-w-0 flex-1 truncate text-sm font-bold text-slate-800 dark:text-slate-100">{studentName || 'Student'} <span className="font-medium text-slate-500 dark:text-slate-400">· {form.student_id}</span></p>
+                                        <button type="button" onClick={() => setStep(1)} className="shrink-0 text-xs font-bold text-ustp-blue hover:underline dark:text-blue-300">Edit</button>
                                     </div>
-                                </div>
-                            )}
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-5">
-                                {/* Student */}
-                                <section className="space-y-2.5 sm:space-y-3 min-w-0">
-                                    <h2 className="flex items-center gap-2 text-sm font-bold text-slate-800 dark:text-slate-200">
-                                        <UserRound size={16} className="text-ustp-blue" /> Student
+                                )}
+                                <section ref={studentRef} className={`rv-stack space-y-2.5 sm:space-y-3 min-w-0 ${guardStep2 ? 'hidden' : ''}`}>
+                                    <h2 className={`flex items-center gap-2 text-base font-black text-ustp-blue dark:text-blue-300 ${kiosk ? 'hidden' : ''}`}>
+                                        Student
                                     </h2>
                                     <div>
-                                        <Label htmlFor="rv-id" icon={IdCard}>Student ID (type it or scan their QR)</Label>
+                                        <Label text htmlFor="rv-id" icon={IdCard}>{manual || kiosk ? 'Student ID' : 'Student ID (type it or scan their QR)'}</Label>
                                         <div className="relative">
-                                            <input id="rv-id" required value={form.student_id} onChange={handleIdChange} placeholder="Student ID" inputMode="numeric" maxLength={10} minLength={10} title="10 numbers, like 2023303188" className={`${inputClass} pr-12`} />
-                                            <button type="button" onClick={() => setIsScanning(true)} aria-label="Scan student QR" className="absolute right-1.5 top-1.5 bottom-1.5 aspect-square bg-ustp-blue text-white rounded-lg flex items-center justify-center active:scale-95 transition-transform">
+                                            <input id="rv-id" required value={form.student_id} onChange={handleIdChange} placeholder="Student ID" inputMode="numeric" maxLength={10} minLength={10} title="10 numbers, like 2023303188" className={`${inputClass} ${manual || kiosk ? '' : 'pr-12'}`} />
+                                            {!manual && !kiosk && <button type="button" onClick={() => setIsScanning(true)} aria-label="Scan student QR" className="absolute right-1.5 top-1.5 bottom-1.5 aspect-square bg-ustp-blue text-white rounded-lg flex items-center justify-center active:scale-95 transition-transform">
                                                 <Scan size={16} />
-                                            </button>
+                                            </button>}
                                         </div>
                                     </div>
                                     {form.record_name ? (
                                         // From the student's record or QR (the report goes by ID): the name, and what the
                                         // record says about them; the fields below are filled in from it too
                                         <div>
-                                            <p className={labelClass}>Name</p>
-                                            <div className="flex items-start gap-2 rounded-lg sm:rounded-xl border-2 border-emerald-100 dark:border-emerald-900/60 bg-emerald-50/60 dark:bg-emerald-950/30 px-3 py-2 sm:py-2.5">
+                                            <p className={`${labelClass} rv-label-text`}>Name</p>
+                                            <div className="rv-namebox flex items-start gap-2 rounded-lg sm:rounded-xl border-2 border-emerald-100 dark:border-emerald-900/60 bg-emerald-50/60 dark:bg-emerald-950/30 px-3 py-2 sm:py-2.5">
                                                 <UserCheck size={15} className="mt-0.5 shrink-0 text-emerald-600 dark:text-emerald-400" />
                                                 <div className="min-w-0">
                                                     <p className="truncate text-sm font-bold text-slate-800 dark:text-slate-200">{studentName}</p>
@@ -455,18 +499,14 @@ const ReportViolation = ({ publicFaculty = false }) => {
                                             </div>
                                         </div>
                                     ) : (
-                                        // Not registered yet: typed in, saved as "First M. Last"
-                                        <div className="grid grid-cols-[1fr_4.5rem_1fr] gap-2.5 sm:gap-3">
+                                        // Not registered yet: typed in, saved as "First Last"
+                                        <div className="grid grid-cols-2 gap-2.5 sm:gap-3">
                                             <div className="min-w-0">
-                                                <Label htmlFor="rv-first" icon={UserRound}>First name</Label>
+                                                <Label text htmlFor="rv-first" icon={UserRound}>First name</Label>
                                                 <input id="rv-first" required placeholder="First name" autoComplete="off" maxLength={50} value={form.first_name} onChange={e => setForm({ ...form, first_name: e.target.value })} className={inputClass} />
                                             </div>
                                             <div className="min-w-0">
-                                                <label htmlFor="rv-mi" className={labelClass}>M.I.</label>
-                                                <input id="rv-mi" placeholder="M.I." autoComplete="off" maxLength={2} title="Middle initial (leave blank if none)" value={form.middle_initial} onChange={e => setForm({ ...form, middle_initial: e.target.value.replace(/[^a-z.]/gi, '').slice(0, 2) })} className={`${inputClass} text-center uppercase`} />
-                                            </div>
-                                            <div className="min-w-0">
-                                                <label htmlFor="rv-last" className={labelClass}>Last name</label>
+                                                <label htmlFor="rv-last" className={`${labelClass} rv-label-text`}>Last name</label>
                                                 <input id="rv-last" required placeholder="Last name" autoComplete="off" maxLength={50} value={form.last_name} onChange={e => setForm({ ...form, last_name: e.target.value })} className={inputClass} />
                                             </div>
                                         </div>
@@ -501,38 +541,26 @@ const ReportViolation = ({ publicFaculty = false }) => {
                                             </select>
                                         </div>
                                         <div className="min-w-0">
-                                            <Label htmlFor="rv-contact" icon={Phone}>Contact number</Label>
+                                            <Label text htmlFor="rv-contact" icon={Phone}>Contact number</Label>
                                             <input id="rv-contact" required type="tel" placeholder="Contact number" value={form.contact} onChange={e => setForm({ ...form, contact: e.target.value })} className={inputClass} />
                                         </div>
                                     </div>
                                     <div>
-                                        <Label htmlFor="rv-email" icon={Mail}>Email</Label>
+                                        <Label text htmlFor="rv-email" icon={Mail}>Email</Label>
                                         <input id="rv-email" required type="email" placeholder="Email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} className={inputClass} />
                                     </div>
                                 </section>
 
-                                {/* Violation */}
-                                <section className="space-y-2.5 sm:space-y-3 min-w-0">
-                                    <h2 className="flex items-center gap-2 text-sm font-bold text-slate-800 dark:text-slate-200">
+                                {/* Violation (guards: step 2) */}
+                                <section className={`rv-stack space-y-2.5 sm:space-y-3 min-w-0 ${guardStep1 ? 'hidden' : ''}`}>
+                                    <h2 className={`flex items-center gap-2 text-base font-black text-ustp-blue dark:text-blue-300 ${kiosk ? 'hidden' : ''}`}>
                                         Violation
                                     </h2>
                                     {/* Tick every violation the student committed; each becomes its own report */}
                                     <fieldset>
                                         <legend className={labelClass}>What happened (choose all that apply)</legend>
-                                        {/* Two per row, also on phones */}
-                                        <div className="grid grid-cols-2 gap-2">
-                                            {VIOLATIONS.map(([value, label]) => {
-                                                const checked = form.violations.includes(value);
-                                                return (
-                                                    <label key={value} className={`flex cursor-pointer items-center gap-2 sm:gap-2.5 rounded-lg sm:rounded-xl border-2 px-2.5 sm:px-3 py-2 sm:py-2.5 text-xs sm:text-sm leading-tight font-semibold transition-colors ${checked
-                                                        ? 'border-red-400 bg-red-50 text-red-700 dark:border-red-500/60 dark:bg-red-500/10 dark:text-red-300'
-                                                        : 'border-slate-100 bg-slate-50 text-slate-700 hover:border-slate-200 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300'}`}>
-                                                        <input type="checkbox" checked={checked} onChange={() => toggleViolation(value)} className="h-4 w-4 shrink-0 accent-red-600" />
-                                                        {label}
-                                                    </label>
-                                                );
-                                            })}
-                                        </div>
+                                        {/* Two dropdowns (Less Grave, Light): + adds a violation */}
+                                        <ViolationPicker value={form.violations} onToggle={toggleViolation} />
                                         {form.violations.length > 1 && (
                                             <p className="mt-1.5 ml-1 text-xs font-semibold text-red-600 dark:text-red-400">{form.violations.length} violations: each is sent as its own report.</p>
                                         )}
@@ -548,25 +576,33 @@ const ReportViolation = ({ publicFaculty = false }) => {
                                             <input id="rv-time" type="time" required value={form.incident_time} onChange={e => setForm({ ...form, incident_time: e.target.value })} className={`${inputClass} appearance-none`} />
                                         </div>
                                     </div>
-                                    <p className="rounded-xl bg-slate-50 dark:bg-slate-900 px-3 py-2 sm:py-2.5 text-xs font-medium text-slate-500 dark:text-slate-400">
+                                    <p className="rv-note rounded-xl bg-slate-50 dark:bg-slate-900 px-3 py-2 sm:py-2.5 text-xs font-medium text-slate-500 dark:text-slate-400">
                                         OSA reviews every report before any penalty is given. The student gets an email about it.
                                     </p>
                                 </section>
                             </div>
 
-                            {publicFaculty && !verified ? (
+                            {guardStep1 ? (
+                                // Guards, step 1: on to the violation
+                                // preventDefault + its own key: the Submit button takes this spot as the step changes, and the same tap
+                                // must not count as a press on it (that sent the form / asked for a violation)
+                                <button key="next" type="button" onClick={(e) => { e.preventDefault(); nextStep(); }} className="bg-ustp-blue text-white w-full py-3 sm:py-3.5 rounded-xl text-sm font-bold flex items-center justify-center gap-2 hover:bg-blue-800">
+                                    Next <ArrowRight size={18} />
+                                </button>
+                            ) : publicFaculty && !verified ? (
                                 // Faculty: confirm the email first (sends the code), then the button becomes Submit report
                                 <button type="submit" disabled={emailBusy} className="bg-ustp-blue text-white w-full py-3 sm:py-3.5 rounded-xl text-sm font-bold flex items-center justify-center gap-2 hover:bg-blue-800 active:scale-[0.99] transition-transform disabled:opacity-60">
                                     {emailBusy ? <Loader2 size={18} className="animate-spin" /> : <MailCheck size={18} />}
                                     {codeSentTo ? 'Type the code sent to your email' : 'Confirm email address'}
                                 </button>
                             ) : (
-                                <button type="submit" disabled={loading} className="bg-ustp-blue text-white w-full py-3 sm:py-3.5 rounded-xl text-sm font-bold flex items-center justify-center gap-2 hover:bg-blue-800 active:scale-[0.99] transition-transform disabled:opacity-60">
-                                    {loading ? <Loader2 size={18} className="animate-spin" /> : <Send size={18} />}
+                                <button key="submit" type="submit" disabled={loading} className="bg-ustp-blue text-white w-full py-3 sm:py-3.5 rounded-xl text-sm font-bold flex items-center justify-center gap-2 hover:bg-blue-800 active:scale-[0.99] transition-transform disabled:opacity-60">
+                                    {loading && <Loader2 size={18} className="animate-spin" />}
                                     {loading ? 'Sending…' : 'Submit report'}
                                 </button>
                             )}
                         </form>
+                        </>
                     ) : (
                         // Sent: the same slip, marked sent, so the guard can see exactly what went to OSA
                         <div className="card-premium mx-auto w-full max-w-md p-5 sm:p-7">
@@ -599,10 +635,7 @@ const ReportViolation = ({ publicFaculty = false }) => {
                                 </p>
                             </div>
 
-                            <div className={`mt-5 grid gap-3 ${['guard', 'staff'].includes(userRole) ? 'grid-cols-2' : 'grid-cols-1'}`}>
-                                {['guard', 'staff'].includes(userRole) && (
-                                    <Link to={userRole === 'guard' ? '/guard/reports' : '/staff/history'} className="py-3 rounded-xl border-2 border-slate-200 dark:border-slate-600 text-center text-slate-700 dark:text-slate-200 font-bold text-sm hover:bg-slate-50 dark:hover:bg-slate-700">{userRole === 'guard' ? 'View reports' : 'View history'}</Link>
-                                )}
+                            <div className="mt-5 grid grid-cols-1 gap-3">
                                 <button onClick={resetForm} className="py-3 rounded-xl bg-ustp-blue text-white font-bold text-sm hover:bg-blue-800">Report another</button>
                             </div>
                         </div>

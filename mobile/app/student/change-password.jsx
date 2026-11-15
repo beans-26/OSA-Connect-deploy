@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Eye, EyeOff } from 'lucide-react-native';
 import { useAuth } from '../../components/AuthContext';
 import { useTheme } from '../../components/ThemeContext';
+import { StudentBackdrop } from '../../components/StudentLook';
 import { StudentTopBar, shellColors } from '../../components/StudentShell';
 import api from '../../services/api';
 
@@ -41,6 +42,7 @@ export default function ChangePassword() {
     ];
     return (
         <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
+            <StudentBackdrop isDarkMode={isDarkMode} />
             <StatusBar barStyle={isDarkMode ? 'light-content' : 'dark-content'} backgroundColor={colors.card} />
             <StudentTopBar title="Change password" back="/student/settings" />
             <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
@@ -80,10 +82,10 @@ const getStyles = (colors, sc) => StyleSheet.create({
     label: { fontSize: 12, color: colors.textMuted, marginBottom: 4 },
     input: { borderWidth: 1, borderColor: colors.border, backgroundColor: colors.background, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 11, fontSize: 15, color: colors.text },
     showRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 16 },
-    showText: { fontSize: 12, fontWeight: '600', color: sc.accent },
+    showText: { fontSize: 12, fontWeight: '500', color: sc.accent },
     button: { height: 48, borderRadius: 12, backgroundColor: sc.accent, alignItems: 'center', justifyContent: 'center' },
-    buttonText: { color: '#fff', fontSize: 14, fontWeight: '700' },
-    message: { marginBottom: 12, borderRadius: 8, padding: 10, fontSize: 12, fontWeight: '700', textAlign: 'center', overflow: 'hidden' },
+    buttonText: { color: '#fff', fontSize: 14, fontWeight: '600' },
+    message: { marginBottom: 12, borderRadius: 8, padding: 10, fontSize: 12, fontWeight: '600', textAlign: 'center', overflow: 'hidden' },
     success: { backgroundColor: '#ecfdf5', color: '#059669' },
     error: { backgroundColor: '#fef2f2', color: '#dc2626' },
 });

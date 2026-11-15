@@ -110,7 +110,7 @@ export default function FacultySignup() {
                         {waiting ? 'Account created.'
                             : step === 'code' ? `Enter the 6-digit code we sent to ${form.email}. It expires in 5 minutes.`
                             : inviteState === 'ready' ? 'OSA confirmed you as USTP faculty. Add your details and confirm one last code.'
-                            : 'For USTP faculty & staff who report student violations. OSA confirms new accounts before they can log in.'}
+                            : 'For USTP faculty who report student violations. OSA confirms new accounts before they can log in.'}
                     </p>
 
                     {error && (

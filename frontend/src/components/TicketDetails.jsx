@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { X, ChevronDown, LogIn, CheckCircle2, Clock, FileText, Download, Loader2 } from 'lucide-react';
+import { X, ChevronDown, LogIn, CheckCircle2, Clock, FileText, Download, Loader2, MapPin, CalendarClock } from 'lucide-react';
 import { ticketReceipt } from '../lib/ticketStatus';
 import { SessionReceiptBody, receiptDate, formatDuration, FLAGGED_ENDS } from './SessionReceipt';
 
@@ -9,8 +9,26 @@ import { SessionReceiptBody, receiptDate, formatDuration, FLAGGED_ENDS } from '.
 // The admin Archives open it too (forAdmin), with `children` shown under the ticket (the clearance photos).
 // The title bar stays at the top while the receipt scrolls. Students also get the two blank forms to bring
 // to OSA (FM-USTP-OSA-013 ISO form, FM-USTP-OSA-14 reflection form) while the ticket isn't cleared.
+// "28h 05m"
+const hoursMinutes = (hours) => {
+    const mins = Math.max(0, Math.round((hours || 0) * 60));
+    return `${Math.floor(mins / 60)}h ${String(mins % 60).padStart(2, '0')}m`;
+};
+
 const TicketDetails = ({ ticket, onClose, children, forAdmin = false }) => {
     const [receipts, setReceipts] = useState(null);
+    // The full receipt (violation, sanction, buildings...) is folded away for students so the essentials come first;
+    // the admin Archives see it open
+    const [showDetails, setShowDetails] = useState(forAdmin);
+    // Closing: the sheet slides back down (and the background fades) before it's removed
+    const [closing, setClosing] = useState(false);
+    useEffect(() => { setClosing(false); }, [ticket?.id]);
+    const close = () => {
+        if (closing) return;
+        if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) { onClose(); return; }
+        setClosing(true);
+        setTimeout(onClose, 260);
+    };
     const [error, setError] = useState('');
     const [openDate, setOpenDate] = useState(null);
     const [openSessions, setOpenSessions] = useState(() => new Set());
@@ -69,30 +87,97 @@ const TicketDetails = ({ ticket, onClose, children, forAdmin = false }) => {
     const toneClass = { red: 'text-[#dc2626]', good: 'text-[#059669]', bad: 'text-[#dc2626]' };
 
     return (
-        <div className="fixed inset-0 z-[70] flex items-end justify-center bg-black/40 backdrop-blur-sm sm:items-center sm:p-4" role="dialog" aria-modal="true" aria-labelledby="ticket-title" onClick={onClose}>
-            <div className="popup-max-h w-full max-w-md overflow-y-auto rounded-t-3xl bg-[var(--s-card)] shadow-2xl sm:rounded-3xl" onClick={(e) => e.stopPropagation()}>
+        <div className={`${closing ? 'sheet-fade-out' : 'sheet-fade'} fixed inset-0 z-[70] flex items-end justify-center bg-black/40 backdrop-blur-sm sm:items-center sm:p-4`} role="dialog" aria-modal="true" aria-labelledby="ticket-title" onClick={close}>
+            {/* sheet-up: slides up from the bottom as it opens (index.css) */}
+            <div className={`${closing ? 'sheet-down' : 'sheet-up'} popup-max-h w-full max-w-md overflow-y-auto rounded-t-3xl bg-[var(--s-card)] shadow-2xl sm:rounded-3xl`} onClick={(e) => e.stopPropagation()}>
                 {/* Stays at the top while the receipt scrolls */}
-                <div className="sticky top-0 z-10 flex items-start justify-between gap-3 bg-gradient-to-r from-[#1d4ed8] to-[#4338ca] px-5 py-4 shadow-md">
+                <div className="sticky top-0 z-10 flex items-start justify-between gap-3 bg-gradient-to-r from-[#0f1a4a] to-[#1e3a8a] px-5 py-4 shadow-md">
                     <div className="min-w-0">
                         <p className="text-[10px] font-black uppercase tracking-[2px] text-blue-100">E-Ticket</p>
                         <h2 id="ticket-title" className="text-lg font-black text-white">{ticket.violation_details?.violation_type || 'Violation'}</h2>
                     </div>
-                    <button onClick={onClose} aria-label="Close" className="rounded-full bg-white/15 p-2 text-white hover:bg-white/25">
+                    <button onClick={close} aria-label="Close" className="rounded-full bg-white/15 p-2 text-white hover:bg-white/25">
                         <X size={18} />
                     </button>
                 </div>
                 <div className="p-5">
 
-                    {/* The ticket as a short receipt: violation, required action, buildings assigned */}
-                    <div className="mb-5 overflow-hidden rounded-2xl border border-[var(--s-border)]">
-                        <div className={`flex items-center gap-3 border-b px-4 py-3 ${headerStyle[0]}`}>
-                            <HeaderIcon size={20} className={`shrink-0 ${headerStyle[1]}`} />
-                            <div className="min-w-0">
-                                <p className={`text-sm font-black ${headerStyle[1]}`}>{summary.header.title}</p>
-                                <p className={`text-[11px] font-semibold ${headerStyle[2]}`}>{summary.header.subtitle}</p>
+                    {/* At a glance: where the ticket stands, time left, progress, building and deadline */}
+                    {(() => {
+                        const required = ticket.total_hours_required || 0;
+                        const remaining = ticket.base_remaining_hours ?? ticket.remaining_hours ?? 0;
+                        const pct = required ? Math.min(100, Math.round(((required - remaining) / required) * 100)) : 0;
+                        const open = ['Active', 'Ongoing'].includes(ticket.status);
+                        const deadline = summary.sections[1].lines.find(([label]) => label === 'Deadline');
+                        const building = summary.buildings[summary.buildings.length - 1]?.name;
+                        return (
+                            <div className="s-card mb-4 rounded-[22px] p-4">
+                                <div className="flex items-center gap-3">
+                                    <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border ${headerStyle[0]}`}>
+                                        <HeaderIcon size={20} className={headerStyle[1]} />
+                                    </span>
+                                    <div className="min-w-0">
+                                        <p className="text-sm font-bold text-[var(--s-text)]">{summary.header.title}</p>
+                                        <p className="text-xs text-[var(--s-muted)]">{open ? 'Time left to serve' : summary.header.subtitle}</p>
+                                    </div>
+                                </div>
+                                {open && (
+                                    <>
+                                        <p className="mt-3 text-[32px] font-bold leading-none tabular-nums tracking-tight text-[var(--s-text)]">{hoursMinutes(remaining)}</p>
+                                        <div className="mt-3 h-2 overflow-hidden rounded-full bg-[var(--s-border)]" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100} aria-label="Hours served">
+                                            <div className="h-full rounded-full bg-[var(--s-accent)]" style={{ width: `${pct}%` }} />
+                                        </div>
+                                        <p className="mt-1.5 text-xs text-[var(--s-muted)]">{hoursMinutes(required - remaining)} of {hoursMinutes(required)} served</p>
+                                    </>
+                                )}
+                                {(building || deadline) && (
+                                    <div className="mt-3 flex flex-wrap gap-2">
+                                        {building && (
+                                            <span className="inline-flex items-center gap-1.5 rounded-full bg-[var(--s-accent-soft)] px-2.5 py-1 text-xs font-semibold text-[var(--s-accent)]">
+                                                <MapPin size={13} /> {building}
+                                            </span>
+                                        )}
+                                        {deadline && (
+                                            <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ${deadline[2] === 'bad' ? 'bg-[#fee2e2] text-[#b91c1c] dark:bg-red-500/15 dark:text-red-300' : 'bg-[var(--s-bg)] text-[var(--s-muted)]'}`}>
+                                                <CalendarClock size={13} /> Deadline {deadline[1]}
+                                            </span>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
+                        );
+                    })()}
+
+                    {/* The blank forms to fill in by hand and bring to OSA: highlighted, they're easy to miss */}
+                    {!forAdmin && ['Active', 'Ongoing', 'Completed'].includes(ticket.status) && (
+                        <div className="mb-5 rounded-2xl border-2 border-[#f59e0b] bg-[#fffbeb] p-3.5 dark:bg-amber-500/10">
+                            <p className="text-sm font-black text-[#92400e] dark:text-amber-200">Download your forms</p>
+                            <p className="mb-3 mt-0.5 text-xs font-medium leading-4 text-[#b45309] dark:text-amber-300">
+                                Fill them in and bring both to the OSA office. You can't be cleared without them.
+                            </p>
+                            <div className="grid grid-cols-2 gap-2">
+                                {[['iso', 'ISO Form'], ['reflection', 'Reflection Form']].map(([kind, label]) => (
+                                    <button
+                                        key={kind}
+                                        onClick={() => downloadForm(kind)}
+                                        disabled={!!formBusy}
+                                        className="flex items-center justify-center gap-1.5 rounded-xl bg-[#f59e0b] px-3 py-3 text-xs font-black text-white shadow-sm hover:brightness-105 disabled:opacity-60"
+                                    >
+                                        {formBusy === kind ? <Loader2 size={15} className="animate-spin" /> : <Download size={15} />} {label}
+                                    </button>
+                                ))}
                             </div>
                         </div>
-                        <div className="px-4">
+                    )}
+
+                    {/* The full receipt, folded away: violation, required action, buildings assigned */}
+                    <div className="s-card mb-5 overflow-hidden rounded-[22px]">
+                        <button onClick={() => setShowDetails((v) => !v)} aria-expanded={showDetails} className="flex w-full items-center justify-between gap-3 px-4 py-3.5 text-left">
+                            <span className="text-sm font-bold text-[var(--s-text)]">Ticket details</span>
+                            <ChevronDown size={18} className={`shrink-0 text-[var(--s-muted)] transition-transform ${showDetails ? 'rotate-180' : ''}`} />
+                        </button>
+                        {showDetails && (
+                        <div className="border-t border-[var(--s-border)] px-4">
                             {summary.sections.map((section) => (
                                 <div key={section.title} className="border-t border-dashed border-[var(--s-border)] py-3 first:border-t-0">
                                     <p className="mb-1 text-[9px] font-black uppercase tracking-[2px] text-[var(--s-muted)]">{section.title}</p>
@@ -120,29 +205,8 @@ const TicketDetails = ({ ticket, onClose, children, forAdmin = false }) => {
                                 </div>
                             )}
                         </div>
+                        )}
                     </div>
-
-                    {/* The blank forms to fill in by hand and bring to OSA: highlighted, they're easy to miss */}
-                    {!forAdmin && ['Active', 'Ongoing', 'Completed'].includes(ticket.status) && (
-                        <div className="mb-5 rounded-2xl border-2 border-[#f59e0b] bg-[#fffbeb] p-3.5 dark:bg-amber-500/10">
-                            <p className="text-sm font-black text-[#92400e] dark:text-amber-200">Download your forms</p>
-                            <p className="mb-3 mt-0.5 text-xs font-medium leading-4 text-[#b45309] dark:text-amber-300">
-                                Fill them in and bring both to the OSA office. You can't be cleared without them.
-                            </p>
-                            <div className="grid grid-cols-2 gap-2">
-                                {[['iso', 'ISO Form'], ['reflection', 'Reflection Form']].map(([kind, label]) => (
-                                    <button
-                                        key={kind}
-                                        onClick={() => downloadForm(kind)}
-                                        disabled={!!formBusy}
-                                        className="flex items-center justify-center gap-1.5 rounded-xl bg-[#f59e0b] px-3 py-3 text-xs font-black text-white shadow-sm hover:brightness-105 disabled:opacity-60"
-                                    >
-                                        {formBusy === kind ? <Loader2 size={15} className="animate-spin" /> : <Download size={15} />} {label}
-                                    </button>
-                                ))}
-                            </div>
-                        </div>
-                    )}
 
                     {children}
 

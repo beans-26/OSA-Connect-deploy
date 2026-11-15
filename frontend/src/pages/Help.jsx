@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { ChevronDown, Mail, Phone, MapPin, Clock, Scale, LifeBuoy, ShieldCheck, ClipboardList } from 'lucide-react';
+import { useState } from 'react';
+import { ChevronDown, Mail, ShieldCheck, ClipboardList } from 'lucide-react';
 import Sidebar from '../components/Sidebar';
 // Shared with the mobile app (mobile/app/help.jsx); see the _about note in the file
 import help from '../../../shared/help-content.json';
@@ -57,62 +57,6 @@ const Section = ({ id, icon: Icon, title, intro, children }) => (
     </section>
 );
 
-// Rendered from GET /api/violations/punishments/ so it always matches PUNISHMENT_SYSTEM
-const PenaltiesTable = () => {
-    const [data, setData] = useState(null);
-    const [failed, setFailed] = useState(false);
-
-    useEffect(() => {
-        fetch('/api/violations/punishments/')
-            .then((r) => (r.ok ? r.json() : Promise.reject(r.status)))
-            .then(setData)
-            .catch(() => setFailed(true));
-    }, []);
-
-    if (failed) return <p className="text-sm font-medium text-red-500">{"The penalties table couldn't be loaded. Check your connection and reload the page."}</p>;
-    if (!data) return <p className="text-sm text-slate-400">Loading penalties…</p>;
-
-    const ordinals = ['1st', '2nd', '3rd'];
-    return (
-        <div className="space-y-3">
-            {data.rules.map((rule) => {
-                const notes = [...new Set(rule.offenses.map((o) => o.punishment))];
-                return (
-                    <div key={rule.violation_type} className="rounded-2xl border border-slate-100 p-4 dark:border-slate-700">
-                        <p className="font-bold text-slate-900 dark:text-white">{rule.violation_type}</p>
-                        <div className="mt-3 grid grid-cols-3 gap-2 text-center">
-                            {ordinals.map((label, i) => {
-                                const offense = rule.offenses[i];
-                                const repeated = !offense && data.repeat_last_offense;
-                                const shown = offense || (repeated ? rule.offenses[rule.offenses.length - 1] : null);
-                                return (
-                                    <div key={label} className="rounded-xl bg-slate-50 px-2 py-2 dark:bg-slate-900/60">
-                                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">{label}</p>
-                                        <p className={`text-base font-black ${repeated ? 'text-slate-400' : 'text-slate-900 dark:text-white'}`}>
-                                            {/* A penalty without hours is a sanction (no entry into the campus) */}
-                                            {shown ? (shown.hours > 0 ? `${shown.hours} h` : 'No entry') : '—'}
-                                        </p>
-                                    </div>
-                                );
-                            })}
-                        </div>
-                        <ul className="mt-3 space-y-0.5 text-xs text-slate-500 dark:text-slate-400">
-                            {notes.map((n) => <li key={n}>{n}</li>)}
-                        </ul>
-                    </div>
-                );
-            })}
-            <div className="rounded-2xl border border-dashed border-slate-200 p-4 text-sm dark:border-slate-600">
-                <p className="font-bold text-slate-900 dark:text-white">Any other violation type</p>
-                <p className="mt-1 text-slate-500 dark:text-slate-400">
-                    {data.default.punishment}, {data.default.hours} hours
-                </p>
-            </div>
-            <p className="text-xs text-slate-400">Gray values repeat the last listed penalty for later offenses.</p>
-        </div>
-    );
-};
-
 // `embedded`: inside the faculty & staff layout (components/ReporterShell.jsx), which has the menu and title
 const Help = ({ embedded = false }) => {
     const user = JSON.parse(localStorage.getItem('user') || '{}');
@@ -120,20 +64,14 @@ const Help = ({ embedded = false }) => {
     // Students have their own Help & Support inside the student layout; faculty & staff have theirs inside
     // their layout; guards have no Help page
     if (role === 'student') return <Navigate to="/student/help" replace />;
-    if (!embedded && role === 'staff') return <Navigate to="/staff/help" replace />;
-    if (role === 'guard') return <Navigate to="/guard/report" replace />;
+    if (!embedded && role === 'staff') return <Navigate to="/faculty/help" replace />;
+    if (role === 'guard') return <Navigate to="/guard/home" replace />;
     const isAdmin = role === 'admin';
-    const { contact, report_problem: problem } = help;
+    const { report_problem: problem } = help;
     const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(problem.email)}&su=${encodeURIComponent(problem.subject)}&body=${encodeURIComponent(problem.body)}`;
 
-    // Admins: only the admin guide. Faculty & staff: filing reports, penalties and contact
-    const sections = isAdmin
-        ? [{ id: 'admin', label: 'Admin' }]
-        : [
-            { id: 'reporting', label: 'Filing reports' },
-            { id: 'penalties', label: 'Penalties' },
-            { id: 'contact', label: 'Contact OSA' },
-        ];
+    // Admins: only the admin guide. Faculty: filing reports
+    const sections = isAdmin ? [{ id: 'admin', label: 'Admin' }] : [{ id: 'reporting', label: 'Filing reports' }];
 
     return (
         <div className={embedded ? '' : 'isolate flex min-h-screen bg-slate-50 dark:bg-slate-900'}>
@@ -172,23 +110,10 @@ const Help = ({ embedded = false }) => {
                                 ))}
                             </Section>
 
-                            <Section id="penalties" icon={Scale} title="Violations and penalties" intro="Penalties by offense number, from the OSA Student Handbook (Section 3, Non-Academic Light Offenses).">
-                                <div className="mt-3">
-                                    <PenaltiesTable />
-                                </div>
-                            </Section>
-
-                            <Section id="contact" icon={LifeBuoy} title="Contact OSA">
-                                <ul className="mt-3 space-y-3 text-sm text-slate-600 dark:text-slate-300">
-                                    <li className="flex items-start gap-3"><MapPin size={18} className="mt-0.5 shrink-0 text-slate-400" /> {contact.office}</li>
-                                    <li className="flex items-start gap-3"><Clock size={18} className="mt-0.5 shrink-0 text-slate-400" /> {contact.hours}</li>
-                                    <li className="flex items-start gap-3"><Mail size={18} className="mt-0.5 shrink-0 text-slate-400" /> <span className="break-all">{contact.email}</span></li>
-                                    <li className="flex items-start gap-3"><Phone size={18} className="mt-0.5 shrink-0 text-slate-400" /> {contact.phone}</li>
-                                </ul>
-                                <a href={gmailUrl} target="_blank" rel="noopener noreferrer" className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-ustp-blue px-5 py-3 text-sm font-bold text-white hover:opacity-90 sm:w-auto">
-                                    <Mail size={16} /> Report a problem
-                                </a>
-                            </Section>
+                            {/* No penalties table or OSA contact for faculty (2026-11): just a way to report a problem */}
+                            <a href={gmailUrl} target="_blank" rel="noopener noreferrer" className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-ustp-blue px-5 py-3 text-sm font-bold text-white hover:opacity-90 sm:w-auto">
+                                <Mail size={16} /> Report a problem
+                            </a>
                         </>
                     )}
                 </div>

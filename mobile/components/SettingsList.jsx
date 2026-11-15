@@ -3,12 +3,13 @@ import { Switch, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { ChevronRight } from 'lucide-react-native';
 import { useTheme } from './ThemeContext';
 import { shellColors } from './StudentShell';
+import { cardLook } from './StudentLook';
 
 // The grouped-list look of the student Settings and Personal Info screens (mirrors
 // frontend/src/components/SettingsList.jsx): an uppercase label over a rounded card of rows.
 const useStyles = () => {
-    const { colors } = useTheme();
-    return { colors, styles: getStyles(colors) };
+    const { colors, isDarkMode } = useTheme();
+    return { colors, styles: getStyles(colors, isDarkMode) };
 };
 
 export function Group({ label, children }) {
@@ -18,7 +19,8 @@ export function Group({ label, children }) {
         <View style={styles.group}>
             {label ? <Text style={styles.groupLabel}>{label.toUpperCase()}</Text> : null}
             <View style={styles.card}>
-                {rows.map((row, i) => <View key={i} style={i > 0 && styles.divider}>{row}</View>)}
+                {/* The line between rows stops 16 px short of the card's edges on both sides */}
+                {rows.map((row, i) => <View key={i}>{i > 0 && <View style={styles.divider} />}{row}</View>)}
             </View>
         </View>
     );
@@ -76,15 +78,15 @@ export function InfoRow({ label, value, action }) {
     );
 }
 
-const getStyles = (colors) => StyleSheet.create({
+const getStyles = (colors, isDarkMode) => StyleSheet.create({
     group: { marginBottom: 16 },
-    groupLabel: { fontSize: 12, fontWeight: '700', letterSpacing: 1, color: colors.textMuted, marginBottom: 8, paddingHorizontal: 4 },
-    card: { backgroundColor: colors.card, borderRadius: 16, borderWidth: 1, borderColor: colors.border, overflow: 'hidden' },
-    divider: { borderTopWidth: 1, borderTopColor: colors.border },
+    groupLabel: { fontSize: 12, fontWeight: '600', letterSpacing: 1, color: colors.textMuted, marginBottom: 8, paddingHorizontal: 4 },
+    card: { backgroundColor: colors.card, borderRadius: 22, overflow: 'hidden', ...cardLook(isDarkMode) },
+    divider: { height: 1, marginHorizontal: 16, backgroundColor: colors.border },
     row: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingVertical: 14 },
-    title: { fontSize: 15, fontWeight: '600', color: colors.text },
+    title: { fontSize: 15, fontWeight: '500', color: colors.text },
     subtitle: { fontSize: 12, color: colors.textMuted, marginTop: 2 },
     value: { fontSize: 14, color: colors.textMuted },
     infoLabel: { fontSize: 12, color: colors.textMuted },
-    infoValue: { fontSize: 15, fontWeight: '600', color: colors.text, marginTop: 2 },
+    infoValue: { fontSize: 15, fontWeight: '500', color: colors.text, marginTop: 2 },
 });

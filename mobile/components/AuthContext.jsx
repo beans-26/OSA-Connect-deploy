@@ -22,7 +22,7 @@ export const AuthProvider = ({ children }) => {
             try {
                 await AsyncStorage.removeItem('user');
                 setUser(null);
-                router.replace('/login');
+                router.replace('/welcome');
             } finally {
                 handling = false;
             }
@@ -69,7 +69,7 @@ export const AuthProvider = ({ children }) => {
         try {
             await AsyncStorage.removeItem('user');
             setUser(null);
-            router.replace('/login');
+            router.replace('/welcome');
         } catch (error) {
             console.error('Failed to clear user data', error);
         }

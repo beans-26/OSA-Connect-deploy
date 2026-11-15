@@ -25,7 +25,7 @@ export default function FacultyReport() {
             </div>
             <div className="page-enter">
                 <p className="mx-auto max-w-4xl px-3 pt-4 text-xs font-medium text-slate-500 dark:text-slate-400 md:px-6">
-                    For USTP faculty &amp; staff without an account: confirm your @ustp.edu.ph email before sending.
+                    For USTP faculty without an account: confirm your @ustp.edu.ph email before sending.
                     Have an account? <Link to="/faculty" className="font-bold text-ustp-blue hover:underline dark:text-blue-300">Log in</Link>.
                 </p>
                 <ReportViolation publicFaculty />

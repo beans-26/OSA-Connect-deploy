@@ -1,14 +1,21 @@
 import { useMemo, useState } from 'react';
 import { X, ChevronDown } from 'lucide-react';
 import { ServiceSiteOptions, postAssignment } from './useServiceSites';
-import { EVENT_VIOLATION } from '../lib/violationTypes';
+import { EVENT_VIOLATION, EVENT_HOURS, VIOLATIONS, VIOLATION_GROUPS, hoursNote } from '../lib/violationTypes';
+import ViolationPicker from './ViolationPicker';
 
-// The admin's "Report Violation" (Students page), for students who missed a mandatory event: add one or
-// more students by typing or pasting their IDs (new lines, commas or spaces between them), choose the
-// building and the hours, check the summary, and report. An ID without an account needs nothing more (just the ID); the report is
+// The guards' two dropdowns plus a third for a missed mandatory event
+const ADMIN_GROUPS = [...VIOLATION_GROUPS, { id: 'event', label: 'Mandatory Events', items: [EVENT_VIOLATION] }];
+
+// The admin's "Report Violation" (Students page): add one or more students by typing or pasting their IDs
+// (new lines, commas or spaces between them), tick the violations (the same ones guards and faculty report,
+// plus a missed mandatory event), choose the building, check the summary, and report. No hours to type: a
+// missed mandatory event is always EVENT_HOURS, the others follow the penalty table by offense number. An ID without an account needs nothing more (just the ID); the report is
 // saved under the ID and shows up on their account when they register (bulk_create in backend core/views.py).
 
 const STUDENT_ID = /^\d{10}$/;
+// The violations the admin can tick: the guards' and faculty's, plus a missed mandatory event
+const ADMIN_VIOLATIONS = [...VIOLATIONS.map(([value]) => value), EVENT_VIOLATION];
 // Longer lists fold into a dropdown on the confirmation
 const OPEN_LIST_UP_TO = 3;
 const label = 'text-xs font-bold text-slate-500 dark:text-slate-400 mb-1.5 block';
@@ -20,7 +27,8 @@ const ReportViolationModal = ({ students, serviceSites, onClose, onReported }) =
     const [rows, setRows] = useState([]);
     const [idText, setIdText] = useState('');
     const [idNote, setIdNote] = useState('');
-    const [form, setForm] = useState({ violation_type: EVENT_VIOLATION, assigned_building: '', custom_hours: '' });
+    const [form, setForm] = useState({ violations: [], assigned_building: '' });
+    const toggleViolation = (v) => setForm((f) => ({ ...f, violations: f.violations.includes(v) ? f.violations.filter((x) => x !== v) : [...f.violations, v] }));
     const [confirming, setConfirming] = useState(false);
     const [listOpen, setListOpen] = useState(false);
     const [saving, setSaving] = useState(false);
@@ -56,13 +64,13 @@ const ReportViolationModal = ({ students, serviceSites, onClose, onReported }) =
 
     const remove = (sid) => setRows((prev) => prev.filter((r) => r.student_id !== sid));
 
-    const hours = form.custom_hours === '' ? NaN : Number(form.custom_hours);
-    const hoursOk = Number.isFinite(hours) && hours >= 0 && hours <= 100;
-    const ready = rows.length > 0 && form.assigned_building && hoursOk;
+    // In the list's order, whatever order they were ticked
+    const chosen = ADMIN_VIOLATIONS.filter((v) => form.violations.includes(v));
+    const ready = rows.length > 0 && chosen.length > 0 && form.assigned_building;
     const missing = !rows.length ? 'Add at least one student ID.'
-        : !form.assigned_building ? 'Choose a building.' : !hoursOk ? 'Input the hours (0 to 100).' : '';
+        : !chosen.length ? 'Choose at least one violation.' : !form.assigned_building ? 'Choose a building.' : '';
     const site = serviceSites.sites?.find((s) => s.site_code === form.assigned_building);
-    const hoursText = `${hours} hour${hours === 1 ? '' : 's'}`;
+    const hoursFor = (v) => (v === EVENT_VIOLATION ? `${EVENT_HOURS} hours` : hoursNote(v) === '5 h' ? '5 hours' : 'By offense (3 h, 6 h, then no entry)');
     const displayName = (r) => (r.hasAccount ? r.name : 'Not registered yet');
 
     // "Report students": check everything on the confirmation first
@@ -80,7 +88,8 @@ const ReportViolationModal = ({ students, serviceSites, onClose, onReported }) =
         setProblems({});
         try {
             const { ok, cancelled, data } = await postAssignment('/api/violations/bulk_create/', {
-                ...form,
+                violation_types: chosen,
+                assigned_building: form.assigned_building,
                 // Only the IDs: accounts keep their names, and IDs without one keep what's on record
                 students: rows.map((r) => ({ student_id: r.student_id })),
             });
@@ -139,13 +148,12 @@ const ReportViolationModal = ({ students, serviceSites, onClose, onReported }) =
                     <div className="space-y-4">
                         <dl className="rounded-xl border border-slate-200 dark:border-slate-700 divide-y divide-dashed divide-slate-200 dark:divide-slate-700 text-sm">
                             {[
-                                ['Violation', form.violation_type, 'text-red-600 dark:text-red-400'],
+                                ...chosen.map((v) => [v, hoursFor(v), 'text-slate-900 dark:text-white', 'text-red-600 dark:text-red-400']),
                                 ['Building', site?.name || form.assigned_building],
-                                ['Hours', `${hoursText} each`],
                                 ['Status', 'Approved right away'],
-                            ].map(([term, value, tone]) => (
+                            ].map(([term, value, tone, termTone]) => (
                                 <div key={term} className="flex items-baseline justify-between gap-4 px-4 py-2.5">
-                                    <dt className="shrink-0 text-xs font-semibold text-slate-500 dark:text-slate-400">{term}</dt>
+                                    <dt className={`shrink-0 text-xs font-semibold ${termTone || 'text-slate-500 dark:text-slate-400'}`}>{term}</dt>
                                     <dd className={`min-w-0 text-right font-bold ${tone || 'text-slate-900 dark:text-white'}`}>{value}</dd>
                                 </div>
                             ))}
@@ -237,25 +245,19 @@ const ReportViolationModal = ({ students, serviceSites, onClose, onReported }) =
                             )}
                         </div>
 
-                        {/* 2. The violation, the same for everyone listed */}
+                        {/* 2. The violations, the same for everyone listed (each one is its own report) */}
                         <div className="space-y-3 border-t border-slate-100 dark:border-slate-700 pt-5">
-                            <div>
-                                <span className={label}>Violation</span>
-                                <p className="rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-700 px-3.5 py-2.5 text-sm font-bold text-red-600 dark:text-red-400">
-                                    {EVENT_VIOLATION}
-                                </p>
-                            </div>
-                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                                <div className="sm:col-span-2">
+                            <fieldset>
+                                <legend className={label}>Violations (choose all that apply)</legend>
+                                <ViolationPicker value={chosen} onToggle={toggleViolation} groups={ADMIN_GROUPS} />
+                                <p className="mt-1.5 text-[11px] font-medium text-slate-500 dark:text-slate-400">Most are 5 hours. Curfew, ID, uniform and dress code follow the OSA penalty table (3 h, 6 h, then no entry). A missed event is {EVENT_HOURS} hours.</p>
+                            </fieldset>
+                            <div className="grid grid-cols-1 gap-3">
+                                <div>
                                     <label className={label} htmlFor="rv-building">Building for their community service</label>
                                     <select id="rv-building" required value={form.assigned_building} onChange={(e) => setForm({ ...form, assigned_building: e.target.value })} className={field}>
                                         <ServiceSiteOptions {...serviceSites} placeholder="Choose a building" />
                                     </select>
-                                </div>
-                                <div>
-                                    <label className={label} htmlFor="rv-hours">Hours</label>
-                                    <input id="rv-hours" type="number" required min="0" max="100" step="0.5" inputMode="decimal" value={form.custom_hours}
-                                        onChange={(e) => setForm({ ...form, custom_hours: e.target.value })} placeholder="Input hours" className={field} />
                                 </div>
                             </div>
                         </div>

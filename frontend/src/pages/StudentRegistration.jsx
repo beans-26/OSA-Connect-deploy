@@ -3,7 +3,6 @@ import { Download, ChevronRight, Loader2, Mail, MailWarning, CheckCircle2 } from
 import QRCode from 'react-qr-code';
 import { Link } from 'react-router-dom';
 import { DEPARTMENTS, DEPARTMENT_COURSES, GENDERS, yearLevelsFor } from '../lib/academics';
-import { middleNameError, middleNameText, MIDDLE_NAME_HINT } from '../lib/names';
 import campusPhoto from '../assets/ustp-campus.webp';
 import osaLogo from '../assets/osaconnect-logo.webp';
 // The Data Privacy Notice (shared with the mobile app's registration)
@@ -80,7 +79,6 @@ const StudentRegistration = () => {
     const [studentData, setStudentData] = useState({
         student_id: '',
         first_name: '',
-        middle_name: '',
         last_name: '',
         gender: '',
         course: '',
@@ -111,9 +109,9 @@ const StudentRegistration = () => {
         }));
     };
 
-    // Same format as the mobile app: "ID FIRST MIDDLE LAST COURSE"
+    // Same format as the mobile app: "ID FIRST LAST COURSE" (no middle name)
     const formatQRData = (student) => {
-        const nameParts = [student.first_name, middleNameText(student.middle_name), student.last_name].filter(Boolean);
+        const nameParts = [student.first_name, student.last_name].filter(Boolean);
         const formattedName = nameParts.join(' ').toUpperCase();
         return `${student.student_id} ${formattedName} ${student.course || ''}`.trim();
     };
@@ -177,12 +175,6 @@ const StudentRegistration = () => {
             document.getElementById('reg-id')?.focus();
             return;
         }
-        const middleError = middleNameError(studentData.middle_name);
-        if (middleError) {
-            alert(middleError);
-            document.getElementById('reg-middle')?.focus();
-            return;
-        }
         if (studentData.contact_number.length !== 11) {
             alert('Contact number must be exactly 11 digits (e.g. 09123456789).');
             return;
@@ -232,9 +224,8 @@ const StudentRegistration = () => {
         e.preventDefault();
         setSaving(true);
         try {
-            // "N/A" (no middle name) isn't part of the name
-            const middle = middleNameText(studentData.middle_name);
-            const fullName = `${studentData.first_name} ${middle ? middle + ' ' : ''}${studentData.last_name}`.trim();
+            // First and last name only (no middle name)
+            const fullName = `${studentData.first_name} ${studentData.last_name}`.trim();
             const response = await fetch('/api/students/register_with_otp/', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -274,12 +265,8 @@ const StudentRegistration = () => {
         img.src = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgData)));
     };
 
-    // Shown beside the QR on the last step: "Juan S. Dela Cruz" and "BS Information Technology · 2nd Year"
-    const displayName = [
-        studentData.first_name,
-        middleNameText(studentData.middle_name) ? `${middleNameText(studentData.middle_name)[0].toUpperCase()}.` : '',
-        studentData.last_name,
-    ].filter(Boolean).join(' ');
+    // Shown beside the QR on the last step: "Juan Dela Cruz" and "BS Information Technology · 2nd Year"
+    const displayName = [studentData.first_name, studentData.last_name].filter(Boolean).join(' ');
     const ordinal = (n) => ({ 1: '1st', 2: '2nd', 3: '3rd' }[n] || `${n}th`);
     const yearText = /^\d+$/.test(studentData.year_level) ? `${ordinal(Number(studentData.year_level))} Year` : studentData.year_level;
     const programText = [studentData.course, yearText].filter(Boolean).join(' · ');
@@ -337,29 +324,26 @@ const StudentRegistration = () => {
                                     maxLength={10} onChange={(e) => setStudentData({ ...studentData, student_id: e.target.value.replace(/\D/g, '').slice(0, 10) })} className={inputClass} />
                             </Field>
 
-                            <div className="grid grid-cols-2 sm:grid-cols-3 items-end gap-x-2.5 gap-y-2.5 sm:gap-3">
-                                <Field id="reg-first" label="First name" className="col-span-2 sm:col-span-1">
+                            <div className="grid grid-cols-2 items-end gap-x-2.5 gap-y-2.5 sm:gap-3">
+                                <Field id="reg-first" label="First name">
                                     <input id="reg-first" required type="text" autoComplete="given-name" placeholder="First name" value={studentData.first_name} onChange={set('first_name')} className={inputClass} />
-                                </Field>
-                                <Field id="reg-middle" label="Middle name" info={MIDDLE_NAME_HINT}>
-                                    <input id="reg-middle" required type="text" autoComplete="additional-name" placeholder="Middle name" value={studentData.middle_name} onChange={set('middle_name')} className={inputClass} />
                                 </Field>
                                 <Field id="reg-last" label="Last name">
                                     <input id="reg-last" required type="text" autoComplete="family-name" placeholder="Last name" value={studentData.last_name} onChange={set('last_name')} className={inputClass} />
                                 </Field>
                             </div>
 
-                            {/* College first; it decides the program list and year levels (Grade 11/12 for SHS) */}
-                            <Field id="reg-college" label="College">
+                            {/* Department first; it decides the course list and year levels (Grade 11/12 for SHS) */}
+                            <Field id="reg-college" label="Department">
                                 <select id="reg-college" required value={studentData.department} onChange={(e) => changeDepartment(e.target.value)} className={selectClass(!studentData.department)} style={selectArrow}>
-                                    <option value="" disabled>Choose your college</option>
+                                    <option value="" disabled>Choose your department</option>
                                     {DEPARTMENTS.map((o) => <option key={o} value={o}>{o}</option>)}
                                 </select>
                             </Field>
 
-                            <Field id="reg-program" label="Program">
+                            <Field id="reg-program" label="Course">
                                 <select id="reg-program" required disabled={!studentData.department} value={studentData.course} onChange={set('course')} className={selectClass(!studentData.course)} style={selectArrow}>
-                                    <option value="" disabled>{studentData.department ? 'Choose your program' : 'Choose a college first'}</option>
+                                    <option value="" disabled>{studentData.department ? 'Choose your course' : 'Choose a department first'}</option>
                                     {courseOptions.map((o) => <option key={o} value={o}>{o}</option>)}
                                 </select>
                             </Field>
@@ -374,7 +358,7 @@ const StudentRegistration = () => {
                                 </Field>
                                 <Field id="reg-year" label="Year level">
                                     <select id="reg-year" required disabled={!studentData.department} value={studentData.year_level} onChange={set('year_level')} className={selectClass(!studentData.year_level)} style={selectArrow}>
-                                        <option value="" disabled>{studentData.department ? 'Choose' : 'College first'}</option>
+                                        <option value="" disabled>{studentData.department ? 'Choose' : 'Department first'}</option>
                                         {yearOptions.map((y) => <option key={y.value} value={y.value}>{y.label}</option>)}
                                     </select>
                                 </Field>
@@ -517,7 +501,7 @@ const StudentRegistration = () => {
                                         <dd className="text-sm sm:text-base font-bold text-slate-900 dark:text-white">{displayName}</dd>
                                     </div>
                                     <div>
-                                        <dt className="text-[10px] sm:text-[11px] font-black uppercase tracking-[0.15em] text-slate-600 dark:text-slate-400">Program</dt>
+                                        <dt className="text-[10px] sm:text-[11px] font-black uppercase tracking-[0.15em] text-slate-600 dark:text-slate-400">Course</dt>
                                         <dd className="text-sm sm:text-base font-bold text-slate-900 dark:text-white">{programText}</dd>
                                     </div>
                                 </dl>

@@ -60,22 +60,22 @@ const StudentWalkthrough = ({ open, firstTime = false, onFinish, onClose, title 
         <div className="student-ui" data-theme={dark ? 'dark' : 'light'}>
         <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="walkthrough-title"
             onClick={firstTime ? undefined : onClose}>
-            <div className="popup-max-h relative flex w-full max-w-md flex-col overflow-hidden rounded-3xl bg-[var(--s-card)] shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <div className="popup-max-h relative flex w-full max-w-sm flex-col overflow-hidden rounded-3xl bg-[var(--s-card)] shadow-2xl" onClick={(e) => e.stopPropagation()}>
                 {!firstTime && (
                     <button onClick={onClose} aria-label="Close" className="absolute right-3 top-3 z-10 flex h-9 w-9 items-center justify-center rounded-full bg-[var(--s-bg)] text-[var(--s-muted)]">
                         <X size={18} />
                     </button>
                 )}
 
-                <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-6 pt-6 pb-2">
+                <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 pt-5 pb-1">
                     <p className="pr-10 text-xs font-bold uppercase tracking-wide text-[var(--s-primary)]">{title}</p>
                     {step === 0 && intro && <p className="mt-1 pr-10 text-sm font-medium leading-5 text-[var(--s-muted)]">{intro}</p>}
 
                     {/* key: a new step remounts, which replays the slide-in */}
-                    <div key={step} className={`wt-step-${dir} mt-4 rounded-2xl p-5 ${s.highlight ? 'border-2 border-[#f59e0b] bg-[#fffbeb] dark:bg-amber-500/10' : 'bg-[var(--s-bg)]'}`}>
+                    <div key={step} className={`wt-step-${dir} mt-3 rounded-2xl p-4 ${s.highlight ? 'border-2 border-[#f59e0b] bg-[#fffbeb] dark:bg-amber-500/10' : 'bg-[var(--s-bg)]'}`}>
                         {/* The picture: a student (and a guard on step 1), with the step's icon in the speech bubble.
                             Our own fixed drawing (shared/walkthrough-art.js), no user data in it. */}
-                        <div className="relative mx-auto w-full max-w-[260px]" style={{ aspectRatio: `${ART_WIDTH} / ${ART_HEIGHT}` }} aria-hidden="true">
+                        <div className="relative mx-auto w-full max-w-[190px]" style={{ aspectRatio: `${ART_WIDTH} / ${ART_HEIGHT}` }} aria-hidden="true">
                             <style>{art.layers.map((l, i) => (l.anim ? keyframesCss(`wt-${s.scene}-${i}`, l.anim) : '')).join(' ')}</style>
                             {art.layers.map((l, i) => (
                                 <div key={i} className={`absolute inset-0 ${l.anim ? 'wt-move' : ''}`} style={layerStyle(`wt-${s.scene}-${i}`, l.anim)} dangerouslySetInnerHTML={{ __html: l.svg }} />
@@ -87,25 +87,25 @@ const StudentWalkthrough = ({ open, firstTime = false, onFinish, onClose, title 
                                 </div>
                             </div>
                         </div>
-                        <p className="mt-3 text-xs font-bold text-[var(--s-muted)]">Step {step + 1} of {steps.length}</p>
-                        <h2 id="walkthrough-title" className="mt-0.5 text-xl font-black text-[var(--s-text)]">{s.title}</h2>
-                        <p className="mt-2 text-[15px] font-medium leading-6 text-[var(--s-text)]">{s.text}</p>
+                        <p className="mt-2 text-xs font-bold text-[var(--s-muted)]">Step {step + 1} of {steps.length}</p>
+                        <h2 id="walkthrough-title" className="mt-0.5 text-lg font-black text-[var(--s-text)]">{s.title}</h2>
+                        <p className="mt-1.5 text-sm font-medium leading-5 text-[var(--s-text)]">{s.text}</p>
                         {stepAction && stepAction.scene === s.scene && (
-                            <button onClick={stepAction.onClick} className="mt-4 flex w-full items-center justify-center gap-2 rounded-[14px] bg-[#f59e0b] p-3 text-sm font-bold text-white hover:brightness-105">
+                            <button onClick={stepAction.onClick} className="mt-3 flex w-full items-center justify-center gap-2 rounded-[14px] bg-[#f59e0b] p-2.5 text-sm font-bold text-white hover:brightness-105">
                                 {stepAction.icon && <stepAction.icon size={18} />} {stepAction.label}
                             </button>
                         )}
                     </div>
 
                     {/* Progress dots */}
-                    <div className="mt-4 flex justify-center gap-1.5" aria-hidden="true">
+                    <div className="mt-3 flex justify-center gap-1.5" aria-hidden="true">
                         {steps.map((_, i) => (
                             <span key={i} className={`h-1.5 rounded-full transition-all ${i === step ? 'w-5 bg-[var(--s-primary)]' : i < step ? 'w-1.5 bg-[var(--s-primary)]/50' : 'w-1.5 bg-[var(--s-border)]'}`} />
                         ))}
                     </div>
                 </div>
 
-                <div className="flex shrink-0 gap-2 border-t border-[var(--s-border)] p-4 sm:p-6 sm:pt-4">
+                <div className="flex shrink-0 gap-2 border-t border-[var(--s-border)] p-3.5">
                     {step > 0 && (
                         <button onClick={() => go(step - 1)} className="flex items-center justify-center gap-1 rounded-[14px] border border-[var(--s-border)] px-4 py-3 text-sm font-bold text-[var(--s-text)]">
                             <ChevronLeft size={18} /> Back

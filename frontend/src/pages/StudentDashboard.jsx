@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { AlertTriangle, BookOpen, Play, QrCode, Clock, Info, ChevronRight, CheckCircle2, WifiOff } from 'lucide-react';
-import saluteFace from '../assets/salute.png';
-import { ticketStatusLabel, deadlineNotice } from '../lib/ticketStatus';
+import { AlertTriangle, Play, QrCode, Clock, Info, CheckCircle2, WifiOff } from 'lucide-react';
+import { deadlineNotice } from '../lib/ticketStatus';
 import usePolling from '../lib/usePolling';
 import QrScannerModal from '../components/QrScannerModal';
 import SessionReceipt from '../components/SessionReceipt';
@@ -12,7 +11,6 @@ import useLeaflet from '../lib/useLeaflet';
 import { useStudentShell } from '../components/StudentShell';
 import MapGate from '../components/MapGate';
 import { IDLE_REFRESH_MS, RUNNING_REFRESH_MS, SAVER_REFRESH_MS } from '../lib/studentNotifications';
-import { timeGreeting, todayLabel, studentStatusLine } from '../lib/greeting';
 import { outsideSiteMessage, GEO_MESSAGES } from '../lib/geo';
 
 // Service site QR codes hold only the site code, e.g. "LIB-01" (same rule as backend/core/site_views.py).
@@ -189,15 +187,15 @@ const ServiceRemaining = ({ ticket, remainingHours }) => {
         <div className="mb-4 w-full text-left">
             <div className="flex items-center justify-between gap-2">
                 <p className="text-sm font-bold text-[var(--s-muted)]">Community service remaining</p>
-                <span className="shrink-0 rounded-full bg-[var(--s-bg)] px-2.5 py-1 text-[11px] font-bold text-[var(--s-muted)]">Not timed in</span>
+                <span className="shrink-0 rounded-full bg-[var(--s-accent-soft)] px-2.5 py-1 text-[11px] font-bold text-[var(--s-accent)]">Not timed in</span>
             </div>
             {/* The (i) sits beside the countdown, under the pill, so it adds no height */}
             <div className="mt-1 flex items-start justify-between gap-2">
-                <p className="text-[44px] font-black leading-tight tabular-nums tracking-tight text-[var(--s-text)]">{hms(remainingHours)}</p>
+                <p className="text-[44px] font-bold leading-tight tabular-nums tracking-tight text-[var(--s-text)]">{hms(remainingHours)}</p>
                 <DeadlineInfo ticket={ticket} />
             </div>
             <p className="text-[13px] font-medium text-[var(--s-muted)]">of {Math.round(required * 100) / 100} hrs required{site ? ` · ${site}` : ''}</p>
-            <div className="mt-3 h-2 overflow-hidden rounded-full bg-[var(--s-bg)]" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100} aria-label="Hours done">
+            <div className="mt-3 h-2 overflow-hidden rounded-full bg-[var(--s-border)]" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100} aria-label="Hours done">
                 <div className="h-full rounded-full bg-[var(--s-accent)]" style={{ width: `${pct}%` }} />
             </div>
             <div className="mt-1.5 flex justify-between text-xs font-semibold text-[var(--s-muted)]">
@@ -209,11 +207,12 @@ const ServiceRemaining = ({ ticket, remainingHours }) => {
 };
 
 const DashboardBody = () => {
-    // Theme, and the side menu's copy of the records (its badge and "hours remaining" stay current)
-    const { isDarkMode, setRecords, dataSaver } = useStudentShell();
-    const [tickets, setTickets] = useState([]);
+    // Theme, and the layout's copy of the records: Home starts from it (it's already there when the student comes
+    // back from another tab), so the page shows right away and the download below only refreshes it
+    const { isDarkMode, setRecords, dataSaver, records, recordsLoaded, stepsOpen } = useStudentShell();
+    const [tickets, setTickets] = useState(() => records.tickets);
 
-    const [loading, setLoading] = useState(true);
+    const [loading, setLoading] = useState(() => !recordsLoaded);
     const [isScanning, setIsScanning] = useState(false);
     const [showStopScanner, setShowStopScanner] = useState(false);
     // Ending a session needs the server: while the phone is offline the student is told to turn on Wi-Fi or data
@@ -251,10 +250,13 @@ const DashboardBody = () => {
     const [guideTicket, setGuideTicket] = useState(null);
     // "How OSAConnect works": shown once per student (saved on the server), before anything else
     const [walkthroughOpen, setWalkthroughOpen] = useState(false);
+    // The ticket guide waits until we know whether the walkthrough comes first
+    const [walkthroughChecked, setWalkthroughChecked] = useState(false);
     useEffect(() => {
         let gone = false;
         fetch('/api/students/walkthrough/').then((r) => (r.ok ? r.json() : { seen: true }))
-            .then((d) => { if (!gone && !d.seen) setWalkthroughOpen(true); }).catch(() => {});
+            .then((d) => { if (!gone && !d.seen) setWalkthroughOpen(true); }).catch(() => {})
+            .finally(() => { if (!gone) setWalkthroughChecked(true); });
         return () => { gone = true; };
     }, []);
     const finishWalkthrough = () => {
@@ -616,6 +618,39 @@ const DashboardBody = () => {
         }
     };
 
+    // The service timer from the tickets: running when the server has an open session (and no stop saved
+    // offline is still waiting to be sent)
+    const applyTimer = (studentTickets) => {
+        const openTickets = studentTickets.filter(t => t.status === 'Ongoing' || t.status === 'Active');
+        if (openTickets.length > 0) {
+            const ongoingTicket = openTickets.find(t => t.status === 'Ongoing') || openTickets[0];
+
+            // Still offline-stopped (the saved stop hasn't reached the server): keep the timer stopped
+            if (ongoingTicket.active_time_in && readPendingStop()?.eticketId !== ongoingTicket.id) {
+                // Same as the mobile app: time served so far by the server's own clock (balance before
+                // this session minus the live balance), anchored to this device's clock. Parsing the
+                // stored time_in breaks when the server and the student are in different time zones.
+                const base = ongoingTicket.base_remaining_hours ?? ongoingTicket.remaining_hours ?? 0;
+                const live = ongoingTicket.remaining_hours ?? base;
+                const servedMs = Math.max(0, (base - live) * 3600 * 1000);
+                setStartTime(Date.now() - servedMs);
+                setTimerActive(true);
+            } else {
+                setTimerActive(false);
+                setStartTime(null);
+                setElapsed(0);
+            }
+        } else {
+            setTimerActive(false);
+            setStartTime(null);
+            setElapsed(0);
+        }
+    };
+    // Coming back to Home: the timer from the layout's tickets straight away, before the refresh arrives
+    useEffect(() => {
+        if (recordsLoaded) applyTimer(records.tickets);
+    }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
     const fetchStudentData = async () => {
         if (!user.username) return;
         // A stop saved while offline goes first, so the server's open session isn't shown as running again
@@ -637,35 +672,10 @@ const DashboardBody = () => {
             const studentTickets = allTickets.filter(t =>
                 t.violation_details?.student_details?.student_id === user.username
             );
-            const openTickets = studentTickets.filter(t => t.status === 'Ongoing' || t.status === 'Active');
-
             setTickets(studentTickets);
             setRecords({ violations: studentViolations, tickets: studentTickets });
 
-            // Check for active Backend Timer
-            if (openTickets.length > 0) {
-                const ongoingTicket = openTickets.find(t => t.status === 'Ongoing') || openTickets[0];
-
-                // Still offline-stopped (the saved stop hasn't reached the server): keep the timer stopped
-                if (ongoingTicket.active_time_in && readPendingStop()?.eticketId !== ongoingTicket.id) {
-                    // Same as the mobile app: time served so far by the server's own clock (balance before
-                    // this session minus the live balance), anchored to this device's clock. Parsing the
-                    // stored time_in breaks when the server and the student are in different time zones.
-                    const base = ongoingTicket.base_remaining_hours ?? ongoingTicket.remaining_hours ?? 0;
-                    const live = ongoingTicket.remaining_hours ?? base;
-                    const servedMs = Math.max(0, (base - live) * 3600 * 1000);
-                    setStartTime(Date.now() - servedMs);
-                    setTimerActive(true);
-                } else {
-                    setTimerActive(false);
-                    setStartTime(null);
-                    setElapsed(0);
-                }
-            } else {
-                setTimerActive(false);
-                setStartTime(null);
-                setElapsed(0);
-            }
+            applyTimer(studentTickets);
         } catch (error) {
             console.error('Error fetching student data:', error);
         } finally {
@@ -798,7 +808,8 @@ const DashboardBody = () => {
 
     // The step-by-step guide: on its own the first time a new open ticket appears (not over another pop-up),
     // and any time from "How to serve your hours"
-    const newGuideTicket = !walkthroughOpen && !receipt && !completedTicket && !openTicket && tickets.find((t) => (t.status === 'Active' || t.status === 'Ongoing') && !seenGuide.includes(t.id));
+    // (not while the header's "How to serve your hours" is open, so the two never stack)
+    const newGuideTicket = !stepsOpen && walkthroughChecked && !walkthroughOpen && !receipt && !completedTicket && !openTicket && tickets.find((t) => (t.status === 'Active' || t.status === 'Ongoing') && !seenGuide.includes(t.id));
     const shownGuide = guideTicket || newGuideTicket;
     const closeGuide = () => {
         // One "Got it" covers every open ticket the student has now, so two new tickets don't show it twice in a row
@@ -811,13 +822,7 @@ const DashboardBody = () => {
         }
         setGuideTicket(null);
     };
-    const guideFor = tickets.find((t) => t.status === 'Ongoing') || tickets.find((t) => t.status === 'Active');
 
-    const ticketBadge = (status) =>
-        status === 'Active' ? 'bg-[#dcfce7] text-[#10b981]' :
-        status === 'Completed' ? 'bg-[#fef3c7] text-[#b45309]' :
-        status === 'Cleared' ? 'bg-[#f1f5f9] text-[#64748b]' :
-        'bg-[#faf5ff] text-[#7c3aed]';
 
     return (
         <>
@@ -866,17 +871,6 @@ const DashboardBody = () => {
             )}
 
             <main className="mx-auto w-full max-w-xl px-4 pb-10 pt-4">
-                {/* Header */}
-                <header className="mb-4 flex items-center justify-between">
-                    <div className="flex-1">
-                        <p className="mb-1 text-xs font-bold uppercase tracking-[1.5px] text-[var(--s-muted)]">{todayLabel()}</p>
-                        <h2 className="text-2xl font-black tracking-[0.3px] text-[var(--s-text)]">{timeGreeting()}, {displayName}</h2>
-                        {(timerActive || activeTicket) && (
-                            <p className="mt-1 text-sm font-semibold text-[var(--s-muted)]">{studentStatusLine({ sessionActive: timerActive, openTicket: activeTicket, tickets })}</p>
-                        )}
-                    </div>
-                </header>
-
                 {/* Hours done, not cleared yet: what to bring to OSA (stays until OSA approves) */}
                 {clearanceTicket && (
                     <div className="mb-4 flex gap-3 rounded-[16px] border border-[#a7f3d0] bg-[#ecfdf5] p-4">
@@ -892,7 +886,7 @@ const DashboardBody = () => {
 
                 {/* Service card while there's community service to do; otherwise just a hello */}
                 {timerActive || activeTicket ? (
-                    <section className={`mb-4 rounded-[24px] bg-[var(--s-card)] p-4 sm:p-5 shadow-[0_8px_30px_rgba(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.2)] border border-[var(--s-border)] ${isOutOfBounds ? 'border-[1.5px] border-[#ef4444]' : ''}`}>
+                    <section className="mx-2 mb-4 mt-3">
                         {timerActive ? (
                             <>
                                 <div className="mb-3 flex items-center">
@@ -901,7 +895,7 @@ const DashboardBody = () => {
                                         Live Community Service
                                     </span>
                                 </div>
-                                <div className="my-2 text-[52px] font-black leading-tight tabular-nums text-[var(--s-text)]">
+                                <div className="my-2 text-[52px] font-bold leading-tight tabular-nums text-[var(--s-text)]">
                                     {formatRemainingTime()}
                                 </div>
 
@@ -968,14 +962,16 @@ const DashboardBody = () => {
                             </>
                         ) : (
                             <div className="flex flex-col items-center text-center">
+                                {/* 1. What's left to serve */}
+                                {activeTicket && <ServiceRemaining ticket={activeTicket} remainingHours={displayHours} />}
+
+                                {/* The map, where to go and the scan button, together in a box */}
+                                <div className="s-card flex w-full flex-col items-center rounded-[22px] p-4">
                                 {activeTicket ? (
                                     <>
-                                        {/* 1. What's left to serve */}
-                                        <ServiceRemaining ticket={activeTicket} remainingHours={displayHours} />
-
                                         {/* 2. The map to the site */}
                                         {hub && (
-                                            <div className="mb-3 w-full text-left">
+                                            <div className="mb-3 w-full text-left [&>button]:mt-0">
                                                 {!isScanning && !showStopScanner && (
                                                     <MapGate><GeofenceMap hub={hub} location={location} isOutOfBounds={false} isDarkMode={isDarkMode} approach /></MapGate>
                                                 )}
@@ -984,7 +980,7 @@ const DashboardBody = () => {
 
                                         {/* 3. Where to go */}
                                         <p className="mb-3 max-w-md text-xs sm:text-sm font-medium leading-relaxed text-[var(--s-muted)]">
-                                            Go to <span className="font-bold text-[var(--s-text)]">{activeTicket.assigned_site?.name || activeTicket.assigned_location || 'your service site'}</span> and scan the QR code to start your timer.
+                                            Go to <span className="font-bold text-[var(--s-primary)]">{activeTicket.assigned_site?.name || activeTicket.assigned_location || 'your service site'}</span> and scan the QR code to start your timer.
                                         </p>
                                     </>
                                 ) : null}
@@ -992,16 +988,17 @@ const DashboardBody = () => {
                                 {/* 4. Time in */}
                                 <button 
                                     onClick={() => setIsScanning(true)} 
-                                    className="inline-flex items-center justify-center gap-2.5 rounded-2xl bg-gradient-to-r from-[#1d4ed8] to-[#4338ca] hover:from-[#1e40af] hover:to-[#3730a3] px-8 py-3.5 text-sm font-bold text-white shadow-lg shadow-blue-500/25 hover:shadow-blue-500/35 hover:scale-[1.02] active:scale-[0.98] transition-all tracking-wide cursor-pointer"
+                                    className="inline-flex items-center justify-center gap-2.5 rounded-2xl bg-gradient-to-r from-[#0f1a4a] to-[#1e3a8a] hover:from-[#0b1338] hover:to-[#162a6e] px-8 py-3.5 text-sm font-bold text-white shadow-lg shadow-[#0f1a4a]/25 hover:shadow-[#0f1a4a]/35 hover:scale-[1.02] active:scale-[0.98] transition-all tracking-wide cursor-pointer"
                                 >
                                     <QrCode size={18} strokeWidth={2.2} />
                                     <span>Scan QR Code to Time-In</span>
                                 </button>
+                                </div>
                             </div>
                         )}
                     </section>
                 ) : !loading && (
-                    <section className="mb-4 flex items-center gap-3 rounded-[24px] border border-[var(--s-border)] bg-[var(--s-card)] p-4 sm:p-5">
+                    <section className="s-card mb-4 flex items-center gap-3 rounded-[24px] p-4 sm:p-5">
                         <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#dcfce7] text-[#059669] dark:bg-emerald-500/15 dark:text-emerald-300">
                             <CheckCircle2 size={22} />
                         </span>
@@ -1012,51 +1009,6 @@ const DashboardBody = () => {
                     </section>
                 )}
 
-                {/* E-Tickets */}
-                <section className="mb-4">
-                    <h2 className="mb-0.5 text-lg font-black text-[var(--s-text)]">E-Tickets</h2>
-                    <p className="mb-3 text-sm font-medium text-[var(--s-muted)]">Tap a ticket to see its service log and forms</p>
-                    {guideFor && (
-                        <button onClick={() => setGuideTicket(guideFor)} className="mb-3 flex w-full items-center gap-3 rounded-2xl border border-[#fcd34d] bg-[#fffbeb] p-3 text-left dark:border-amber-500/40 dark:bg-amber-500/10">
-                            <BookOpen size={20} className="shrink-0 text-[#d97706]" />
-                            <span className="min-w-0 flex-1">
-                                <span className="block text-sm font-bold text-[var(--s-text)]">How to serve your hours</span>
-                                <span className="block text-xs font-medium text-[var(--s-muted)]">Step by step, including the ISO Form and Reflection Form</span>
-                            </span>
-                            <ChevronRight size={18} className="shrink-0 text-[var(--s-muted)]" />
-                        </button>
-                    )}
-                    {loading ? (
-                        <div className="mt-4 flex justify-center">
-                            <span className="h-5 w-5 animate-spin rounded-full border-2 border-[var(--s-primary)] border-t-transparent" />
-                        </div>
-                    ) : tickets.length === 0 ? (
-                        <div className="flex flex-col items-center gap-2 py-6 text-[var(--s-border)]">
-                            {/* 🫡 in black and white (Noto emoji art as an image, so every device shows it) */}
-                            <img src={saluteFace} alt="" className="h-11 w-11 select-none" draggable="false" />
-                            <p className="text-[13px] italic text-[var(--s-muted)]">No e-tickets. You have no community service to serve.</p>
-                        </div>
-                    ) : (
-                        tickets.map((ticket, idx) => (
-                            <button
-                                key={ticket.id || idx}
-                                onClick={() => setOpenTicket(ticket)}
-                                className="mb-2 flex w-full items-center rounded-xl border border-[var(--s-border)] bg-[var(--s-card)] p-3.5 text-left shadow-[0_1px_4px_rgba(0,0,0,0.04)] hover:border-[var(--s-primary)]"
-                            >
-                                <span className={`mr-3 h-2 w-2 shrink-0 rounded-full ${ticket.status === 'Active' ? 'bg-[#ff6b35]' : 'bg-[var(--s-success)]'}`} />
-                                <div className="min-w-0 flex-1">
-                                    <p className="truncate text-[13px] font-bold text-[var(--s-text)]">Ticket #{ticket.id}</p>
-                                    <p className="mt-0.5 text-[11px] text-[var(--s-muted)]">{ticket.violation_details?.violation_type || 'Violation'}</p>
-                                    <p className="mt-0.5 text-[10px] text-[var(--s-muted)]">Required: {ticket.total_hours_required || 0} hrs</p>
-                                </div>
-                                <span className={`rounded-full px-2.5 py-1 text-[10px] font-bold ${ticketBadge(ticket.status)}`}>
-                                    {ticketStatusLabel(ticket)}
-                                </span>
-                                <ChevronRight size={16} className="ml-2 shrink-0 text-[var(--s-muted)]" />
-                            </button>
-                        ))
-                    )}
-                </section>
             </main>
         </>
     );

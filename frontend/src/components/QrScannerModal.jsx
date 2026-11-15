@@ -2,6 +2,19 @@ import { useEffect, useRef, useState } from 'react';
 import QrScanner from 'qr-scanner';
 import { X, ImageUp, CameraOff, RotateCcw } from 'lucide-react';
 
+// Why the camera won't open, from the browser itself: 'insecure' (not https), the getUserMedia error name
+// (NotAllowedError, NotReadableError, NotFoundError...), or '' when it opens fine now
+async function cameraFailure() {
+    if (!window.isSecureContext || !navigator.mediaDevices?.getUserMedia) return 'insecure';
+    try {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+        stream.getTracks().forEach((t) => t.stop());
+        return '';
+    } catch (e) {
+        return String(e?.name || e || '');
+    }
+}
+
 // Full-screen QR scanner shared by the student and guard pages.
 // Mount it only while scanning; it releases the camera on unmount (and before onResult,
 // so the next step, e.g. the photo-proof camera, can open the camera immediately).
@@ -18,6 +31,7 @@ const QrScannerModal = ({ title, subtitle, accent = '#1e3a8a', allowUpload = fal
     const validateRef = useRef(validate);
     validateRef.current = validate;
     const lastRejectRef = useRef({ text: null, at: 0 });
+    const retriedRef = useRef(false);
     const errorTimerRef = useRef(null);
     const [scanError, setScanError] = useState(null);
     const [status, setStatus] = useState('starting'); // starting | scanning | detected | error
@@ -80,15 +94,30 @@ const QrScannerModal = ({ title, subtitle, accent = '#1e3a8a', allowUpload = fal
 
             scanner.start()
                 .then(() => { if (!cancelled) setStatus('scanning'); })
-                .catch((err) => {
+                .catch(async (err) => {
                     if (cancelled) return;
-                    const msg = String(err?.name || err || '');
+                    // qr-scanner says "Camera not found." for every failure (blocked, busy, no https), so ask the
+                    // browser directly to learn the real reason
+                    const reason = await cameraFailure();
+                    if (cancelled) return;
+                    if (!reason && !retriedRef.current) {
+                        // It opens now (e.g. the permission was just allowed): start the scanner again, once
+                        retriedRef.current = true;
+                        setAttempt((a) => a + 1);
+                        return;
+                    }
+                    const msg = reason || String(err?.name || err || '');
+                    const upload = allowUpload ? ' You can upload a photo of the QR code instead.' : '';
                     setErrorMsg(
-                        /NotAllowed|Permission/i.test(msg)
-                            ? 'Camera access is blocked. On iPhone (Safari): tap the page menu button on the left of the address bar (it shows aA or a page icon) > Website Settings > Camera > Allow, and check Settings > Apps > Safari > Camera. On other browsers: tap the lock icon next to the address bar and allow Camera. Then try again.'
-                            : /NotFound|not found|no camera/i.test(msg)
-                                ? `No camera was found on this device.${allowUpload ? ' You can upload a photo of the QR code instead.' : ''}`
-                                : 'The camera could not be started. Close other apps using it and try again.'
+                        /insecure/.test(msg)
+                            ? `The camera only works on a secure (https) page. Open the site with https:// and try again.${upload}`
+                            : /NotAllowed|Permission|Security/i.test(msg)
+                                ? 'Camera access is blocked. On iPhone (Safari): tap the page menu button on the left of the address bar (it shows aA or a page icon) > Website Settings > Camera > Allow, and check Settings > Apps > Safari > Camera. On other browsers: tap the lock icon next to the address bar and allow Camera. On a computer, also check that the system lets the browser use the camera (Windows: Settings > Privacy & security > Camera). Then try again.'
+                                : /NotReadable|AbortError|TrackStart/i.test(msg)
+                                    ? `The camera is being used by another app or tab. Close it (Zoom, Teams, Camera app, another browser tab) and try again.${upload}`
+                                    : /NotFound|DevicesNotFound|OverConstrained|not found|no camera/i.test(msg)
+                                        ? `No camera was found on this device. Connect or turn on a camera and try again.${upload}`
+                                        : `The camera could not be started. Close other apps using it and try again.${upload}`
                     );
                     setStatus('error');
                 });
@@ -184,7 +213,7 @@ const QrScannerModal = ({ title, subtitle, accent = '#1e3a8a', allowUpload = fal
                         <h3 className="text-lg font-black">Scanner unavailable</h3>
                         <p className="mt-2 text-sm leading-5 text-slate-500">{errorMsg}</p>
                         <div className="mt-6 flex gap-3">
-                            <button onClick={() => setAttempt((a) => a + 1)} className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-slate-100 p-3 text-sm font-bold text-slate-600">
+                            <button onClick={() => { retriedRef.current = false; setAttempt((a) => a + 1); }}className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-slate-100 p-3 text-sm font-bold text-slate-600">
                                 <RotateCcw size={16} /> Try again
                             </button>
                             {allowUpload && (

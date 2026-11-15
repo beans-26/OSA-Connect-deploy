@@ -1,27 +1,36 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView, Modal, ActivityIndicator, useWindowDimensions } from 'react-native';
+import React, { useState, useRef } from 'react';
+import { View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView, Modal, ActivityIndicator, useWindowDimensions, Image } from 'react-native';
 import { showAlert } from '../../components/showAlert';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useCameraPermissions } from 'expo-camera';
-import { AlertCircle, ScanLine, Send, CheckCircle2, LogOut, User, UserCheck, AlertTriangle, Check, X } from 'lucide-react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { AlertCircle, CheckCircle2, AlertTriangle, Check, X, Keyboard, ArrowLeft, ArrowRight, Plus, ChevronDown, UserCheck } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import SelectField from '../../components/SelectField';
 import { onCameraResult } from '../../components/cameraResults';
 import { parseStudentQr, NOT_A_STUDENT_QR } from '../../components/studentQr';
 import api from '../../services/api';
+import { HomeHeader } from '../../components/StudentLook';
 import { useAuth } from '../../components/AuthContext';
 import { useTheme } from '../../components/ThemeContext';
 import { DEPARTMENTS, GENDERS, departmentForCourse, courseOptionsFor } from '../../constants/Data';
 
 // Same options as the website's Guard Report (frontend/src/pages/guard/ReportViolation.jsx);
 // values match PUNISHMENT_SYSTEM in backend/core/views.py
-const VIOLATION_TYPES = [
-    { label: 'Curfew Violation', value: 'Curfew Violation' },
-    { label: 'No ID / Improper ID Sling', value: 'No ID / Improper ID Sling' },
-    { label: 'No School Uniform', value: 'No School Uniform' },
-    { label: 'Dress Code Violation', value: 'Dress Code Violation' },
+// (frontend/src/lib/violationTypes.js): two dropdowns, Light then Less Grave
+const VIOLATION_GROUPS = [
+    {
+        id: 'light', label: 'Light Offenses', items: [
+            'Curfew Violation', 'No ID / Improper ID Sling', 'No School Uniform', 'Dress Code Violation', 'Smoking', 'Littering',
+        ],
+    },
+    {
+        id: 'less-grave', label: 'Less Grave Offenses', items: [
+            'Verbal Abuse & Cyberbullying', 'Stalking', 'Coercion via Violence', 'Indecent Behavior', 'Alcohol',
+            'Pornography', 'Gambling', 'ID Fraud', 'Lab Tampering', 'Exam Sabotage',
+        ],
+    },
 ];
+const VIOLATION_TYPES = VIOLATION_GROUPS.flatMap((g) => g.items.map((v) => ({ label: v, value: v })));
 
 const pad = (n) => String(n).padStart(2, '0');
 const today = () => {
@@ -33,17 +42,17 @@ const nowTime = () => {
     return `${pad(d.getHours())}:${pad(d.getMinutes())}`;
 };
 
-// The guard-on-duty name typed on this phone, filled in again for the next report (same as the website)
-const ON_DUTY_KEY = 'osa-guard-on-duty';
 
 const emptyForm = () => ({
     student_id: '', name: '', gender: '', course: '', department: '', contact: '',
     email: '', violations: [], // one or more; each becomes its own report
+    // From the student lookup: a registered student's name shows in a green box (as on the website)
+    registered: false, year: '',
     incident_date: today(), incident_time: nowTime(),
 });
 
 export default function PersonnelDashboard() {
-    const { user, logout } = useAuth();
+    const { user } = useAuth();
     const router = useRouter();
     const { colors, isDarkMode } = useTheme();
     const { width } = useWindowDimensions();
@@ -61,14 +70,40 @@ export default function PersonnelDashboard() {
     const debounceTimer = useRef(null);
 
     const accountName = user?.full_name || user?.username || 'Personnel';
-    // Guards share accounts, so a guard account types the name of the guard on duty (kept on this phone for
-    // the next report). It's the "Reported by" OSA sees. Faculty & staff report as themselves.
+    // Reports go under the account's name (guards: the guard account). Same as the website.
     const isGuard = user?.role === 'guard';
-    const [onDutyName, setOnDutyName] = useState('');
-    useEffect(() => {
-        AsyncStorage.getItem(ON_DUTY_KEY).then((saved) => { if (saved) setOnDutyName(saved); }).catch(() => {});
-    }, []);
-    const reporterName = isGuard ? (onDutyName.trim() || '—') : accountName;
+    // Guards and faculty & staff report the same way: the scan / enter manually choice first, then the form in two
+    // steps. Same as the website.
+    const kiosk = true;
+    const reporterName = accountName;
+    // Guards start on a kiosk-style screen: scan the student's ID, or enter the details by hand. The form shows
+    // once they choose (after a successful scan, or "Enter manually"); leaving the camera keeps the start screen.
+    const [started, setStarted] = useState(!kiosk);
+    // Guards fill in the report in two steps: 1. the student, then (Next) 2. the violation, date and time.
+    // Same as the website.
+    const [step, setStep] = useState(1);
+    const [openGroup, setOpenGroup] = useState(null); // the violation dropdown that's open
+    const guardStep1 = kiosk && step === 1;
+    const guardStep2 = kiosk && step === 2;
+    const scrollRef = useRef(null);
+    const nextStep = () => {
+        const missing = ['student_id', 'name', 'gender', 'course', 'department', 'email', 'contact'].some((k) => !String(form[k] || '').trim());
+        if (missing) {
+            setAlertMessage({ visible: true, title: 'Missing details', message: "Fill in every detail about the student." });
+            return;
+        }
+        if (form.student_id.length !== 10) {
+            setAlertMessage({ visible: true, title: 'Student ID', message: 'Student ID must be exactly 10 numbers, like 2023303188.' });
+            return;
+        }
+        setStep(2);
+        scrollRef.current?.scrollTo({ y: 0, animated: true });
+    };
+    const idInputRef = useRef(null);
+    const enterManually = () => {
+        setStarted(true);
+        setTimeout(() => idInputRef.current?.focus(), 150);
+    };
 
     const fetchStudentData = async (id) => {
         const cleanId = id?.trim();
@@ -87,6 +122,8 @@ export default function PersonnelDashboard() {
                     contact: data.contact_number || prev.contact,
                     email: data.email || prev.email,
                     gender: data.gender || prev.gender,
+                    registered: Boolean(data.has_account),
+                    year: data.year_level || '',
                 };
             });
         } catch {
@@ -97,7 +134,7 @@ export default function PersonnelDashboard() {
     // Student IDs are 10 numbers: only digits, and the student is looked up once all 10 are typed
     const handleIdChange = (text) => {
         const cleanText = text.replace(/\D/g, '').slice(0, 10);
-        setForm((prev) => ({ ...prev, student_id: cleanText }));
+        setForm((prev) => (cleanText === prev.student_id ? prev : { ...prev, student_id: cleanText, registered: false, year: '' }));
         if (debounceTimer.current) clearTimeout(debounceTimer.current);
         if (cleanText.length === 10) {
             debounceTimer.current = setTimeout(() => fetchStudentData(cleanText), 500);
@@ -111,6 +148,7 @@ export default function PersonnelDashboard() {
             setAlertMessage({ visible: true, title: 'Invalid QR Code', message: NOT_A_STUDENT_QR });
             return;
         }
+        setStarted(true);
         setForm((prev) => ({
             ...prev,
             student_id: student.studentId,
@@ -148,13 +186,6 @@ export default function PersonnelDashboard() {
             setAlertMessage({ visible: true, title: 'Student ID', message: 'Student ID must be exactly 10 numbers, like 2023303188.' });
             return;
         }
-        if (isGuard) {
-            if (!onDutyName.trim()) {
-                setAlertMessage({ visible: true, title: 'Guard on duty', message: 'Type the name of the guard on duty.' });
-                return;
-            }
-            AsyncStorage.setItem(ON_DUTY_KEY, onDutyName.trim()).catch(() => {});
-        }
         setShowConfirmModal(true);
     };
 
@@ -162,7 +193,7 @@ export default function PersonnelDashboard() {
         setShowConfirmModal(false);
         setLoading(true);
         try {
-            await api.post('/violations/', { ...form, violation_types: form.violations, reporting_guard: accountName, on_duty_name: isGuard ? onDutyName.trim() : undefined });
+            await api.post('/violations/', { ...form, violation_types: form.violations, reporting_guard: accountName });
             setSubmitted(true);
         } catch (error) {
             setAlertMessage({ visible: true, title: "Couldn't send the report", message: error.response?.data?.error || 'Check the details and try again.' });
@@ -174,6 +205,8 @@ export default function PersonnelDashboard() {
     const resetForm = () => {
         setForm(emptyForm());
         setSubmitted(false);
+        setStarted(!kiosk); // back to the scan / enter manually screen
+        setStep(1);
     };
 
     // Ticks or unticks a violation; the list keeps the order of VIOLATION_TYPES
@@ -235,154 +268,211 @@ export default function PersonnelDashboard() {
 
     return (
         <View style={styles.container}>
-            <ScrollView contentContainerStyle={[styles.scrollContent, { paddingTop: insets.top + (wide ? 32 : 16) }]} keyboardShouldPersistTaps="handled">
-                {/* Title with Log out beside it, same as the website header */}
-                <View style={styles.pageHeader}>
-                    <View style={{ flex: 1 }}>
-                        <Text style={styles.pageTitle}>Report a violation</Text>
-                        <Text style={styles.pageSubtitle}>Signed in as {accountName}</Text>
-                    </View>
-                    <View style={styles.pillRow}>
-                        <TouchableOpacity style={styles.pill} onPress={logout} accessibilityLabel="Log Out">
-                            <LogOut size={14} color={colors.danger} />
-                            {wide && <Text style={[styles.pillText, { color: colors.danger }]}>Log out</Text>}
-                        </TouchableOpacity>
-                    </View>
-                </View>
+            {/* Blue gradient header: the page and the account (Log out is on the Profile tab; same as the website) */}
+            <View style={{ paddingTop: insets.top }}>
+                <HomeHeader isDarkMode={isDarkMode} greeting="Report Violation" name={`${accountName} · ${isGuard ? 'Guard' : 'Faculty'}`} />
+            </View>
+            <ScrollView ref={scrollRef} contentContainerStyle={[styles.scrollContent, { paddingTop: wide ? 24 : 16 }]} keyboardShouldPersistTaps="handled">
 
-                {!submitted ? (
+                {!submitted && !started ? (
+                    // The guard's start screen (kiosk style): two boxes to choose from. Same as the website.
+                    <View style={styles.kiosk}>
+                        <Text style={styles.kioskAsk}>HOW DO YOU WANT TO REPORT?</Text>
+                        <View style={[styles.kioskRow, wide && { flexDirection: 'row' }]}>
+                            <TouchableOpacity style={styles.kioskBox} onPress={startScan} accessibilityRole="button" accessibilityLabel="Scan student ID">
+                                <Image source={require('../../assets/images/osaconnect-icon.png')} style={{ width: 112, height: 112 }} fadeDuration={0} />
+                                <Text style={styles.kioskTitle}>SCAN STUDENT ID</Text>
+                                <Text style={styles.kioskSub}>Point the camera at the student&apos;s ID or QR code</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity style={styles.kioskBox} onPress={enterManually} accessibilityRole="button" accessibilityLabel="Enter manually">
+                                <View style={styles.kioskIcon}><Keyboard size={60} color={isDarkMode ? '#ffffff' : '#1e2a6b'} strokeWidth={1.6} /></View>
+                                <Text style={styles.kioskTitle}>ENTER MANUALLY</Text>
+                                <Text style={styles.kioskSub}>Tap here to input student info manually</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                ) : !submitted ? (
+                    <>
+                    {/* Guards: back to the scan / enter manually choice (in case of a wrong tap); clears the form */}
+                    {kiosk && (
+                        <TouchableOpacity onPress={() => { if (step === 2) { setStep(1); return; } setForm(emptyForm()); setStarted(false); }} style={styles.backChoice} accessibilityRole="button" accessibilityLabel="Back">
+                            <ArrowLeft size={18} color={colors.primary} />
+                            <Text style={styles.backChoiceText}>Back</Text>
+                        </TouchableOpacity>
+                    )}
+                    {kiosk && <Text style={styles.stepLabel}>STEP {step} OF 2 · {step === 1 ? 'STUDENT' : 'VIOLATION'}</Text>}
                     <View style={styles.card}>
-                        {/* Guard accounts are shared: who is on duty (remembered on this phone) */}
-                        {isGuard ? (
-                            <View style={styles.onDuty}>
-                                <View style={styles.onDutyLabelRow}>
-                                    <UserCheck size={15} color={colors.primary} />
-                                    <Text style={styles.onDutyLabel}>Guard on duty</Text>
-                                </View>
-                                <TextInput
-                                    style={[styles.field, styles.onDutyField]}
-                                    placeholder="Your full name"
-                                    placeholderTextColor={colors.textMuted}
-                                    value={onDutyName}
-                                    onChangeText={setOnDutyName}
-                                    onEndEditing={() => AsyncStorage.setItem(ON_DUTY_KEY, onDutyName.trim()).catch(() => {})}
-                                    autoCapitalize="words"
-                                    autoComplete="name"
-                                    maxLength={100}
-                                />
+                        {guardStep2 && (
+                            // Step 2: who the report is about, from step 1
+                            <View style={styles.stepStudent}>
+                                <Text style={styles.stepStudentText} numberOfLines={1}>{form.name || 'Student'} <Text style={{ color: colors.textMuted, fontWeight: '500' }}>· {form.student_id}</Text></Text>
+                                <TouchableOpacity onPress={() => setStep(1)} hitSlop={8}><Text style={styles.stepEdit}>Edit</Text></TouchableOpacity>
                             </View>
-                        ) : null}
-                        <View style={styles.columns}>
-                            {/* Left column: the student */}
-                            <View style={styles.column}>
-                                <View style={styles.cardHeader}>
-                                    <User size={16} color={colors.primary} />
-                                    <Text style={styles.cardTitle}>Student</Text>
+                        )}
+                        <View style={[styles.columns, kiosk && { flexDirection: 'column' }]}>
+                            {/* Left column: the student (guards: step 1) */}
+                            <View style={[styles.column, guardStep2 && { display: 'none' }]}>
+                                {/* Same layout as the website: a label on each field, two short fields per row */}
+                                {!kiosk && (
+                                    <View style={styles.cardHeader}>
+                                        <Text style={styles.cardTitle}>Student</Text>
+                                    </View>
+                                )}
+                                <View>
+                                    <Text style={styles.tinyLabel}>Student ID</Text>
+                                    <TextInput
+                                        ref={idInputRef}
+                                        style={styles.field}
+                                        placeholder="Student ID"
+                                        placeholderTextColor={colors.textMuted}
+                                        value={form.student_id}
+                                        onChangeText={handleIdChange}
+                                        keyboardType="number-pad"
+                                        maxLength={10}
+                                    />
                                 </View>
                                 <View>
-                                    <Text style={styles.tinyLabel}>Student ID (type it or scan their QR)</Text>
-                                    <View>
+                                    <Text style={styles.tinyLabel}>Name</Text>
+                                    {form.registered && form.name ? (
+                                        // A registered student: their name from their account, in a green box
+                                        <View style={styles.nameBox}>
+                                            <UserCheck size={18} color={isDarkMode ? '#6ee7b7' : '#059669'} />
+                                            <View style={{ flex: 1, minWidth: 0 }}>
+                                                <Text style={styles.nameBoxName} numberOfLines={1}>{form.name}</Text>
+                                                <Text style={styles.nameBoxSub}>
+                                                    {['Registered student', form.year && (/^\d$/.test(String(form.year)) ? `Year ${form.year}` : form.year)].filter(Boolean).join(' · ')}
+                                                </Text>
+                                            </View>
+                                        </View>
+                                    ) : (
                                         <TextInput
-                                            style={[styles.field, styles.idField]}
-                                            placeholder="Student ID"
-                                            placeholderTextColor={colors.border}
-                                            value={form.student_id}
-                                            onChangeText={handleIdChange}
-                                            keyboardType="number-pad"
-                                            maxLength={10}
+                                            style={styles.field}
+                                            placeholder="Full name"
+                                            placeholderTextColor={colors.textMuted}
+                                            value={form.name}
+                                            onChangeText={(t) => setForm({ ...form, name: t })}
                                         />
-                                        <TouchableOpacity style={styles.scanButton} onPress={startScan} accessibilityLabel="Scan student QR code">
-                                            <ScanLine size={18} color="#fff" />
-                                        </TouchableOpacity>
+                                    )}
+                                </View>
+                                {/* Department first, then only its courses (same as registration) */}
+                                <View style={styles.row}>
+                                    <View style={styles.half}>
+                                        <Text style={styles.tinyLabel}>Department</Text>
+                                        <SelectField
+                                            value={form.department}
+                                            options={DEPARTMENTS}
+                                            placeholder="Department"
+                                            title="Select Department"
+                                            onChange={(v) => setForm((prev) => ({
+                                                ...prev,
+                                                department: v,
+                                                course: courseOptionsFor(v).includes(prev.course) ? prev.course : '',
+                                            }))}
+                                            style={styles.field}
+                                        />
+                                    </View>
+                                    <View style={styles.half}>
+                                        <Text style={styles.tinyLabel}>Course</Text>
+                                        <SelectField
+                                            value={form.course}
+                                            options={courseOptionsFor(form.department, form.course)}
+                                            placeholder={form.department ? 'Course' : 'Department first'}
+                                            title="Select Course"
+                                            searchable={courseOptionsFor(form.department).length > 6}
+                                            disabled={!form.department}
+                                            onChange={(v) => setForm((prev) => ({ ...prev, course: v }))}
+                                            style={styles.field}
+                                        />
                                     </View>
                                 </View>
-                                <TextInput
-                                    style={styles.field}
-                                    placeholder="Full name"
-                                    placeholderTextColor={colors.textMuted}
-                                    value={form.name}
-                                    onChangeText={(t) => setForm({ ...form, name: t })}
-                                />
-                                <SelectField
-                                    value={form.gender}
-                                    options={GENDERS}
-                                    placeholder="Gender"
-                                    title="Select Gender"
-                                    onChange={(v) => setForm((prev) => ({ ...prev, gender: v }))}
-                                    style={styles.field}
-                                />
-                                {/* Department first, then only its courses (same as registration).
-                                    Side by side on wide screens; stacked on phones so long names fit */}
-                                <View style={wide ? styles.row : styles.stack}>
-                                    <SelectField
-                                        value={form.department}
-                                        options={DEPARTMENTS}
-                                        placeholder="Department"
-                                        title="Select Department"
-                                        onChange={(v) => setForm((prev) => ({
-                                            ...prev,
-                                            department: v,
-                                            course: courseOptionsFor(v).includes(prev.course) ? prev.course : '',
-                                        }))}
-                                        style={[styles.field, wide && { flex: 1 }]}
-                                    />
-                                    <SelectField
-                                        value={form.course}
-                                        options={courseOptionsFor(form.department, form.course)}
-                                        placeholder={form.department ? 'Course' : 'Choose department first'}
-                                        title="Select Course"
-                                        searchable={courseOptionsFor(form.department).length > 6}
-                                        disabled={!form.department}
-                                        onChange={(v) => setForm((prev) => ({ ...prev, course: v }))}
-                                        style={[styles.field, wide && { flex: 1 }]}
+                                <View style={styles.row}>
+                                    <View style={styles.half}>
+                                        <Text style={styles.tinyLabel}>Gender</Text>
+                                        <SelectField
+                                            value={form.gender}
+                                            options={GENDERS}
+                                            placeholder="Choose"
+                                            title="Select Gender"
+                                            onChange={(v) => setForm((prev) => ({ ...prev, gender: v }))}
+                                            style={styles.field}
+                                        />
+                                    </View>
+                                    <View style={styles.half}>
+                                        <Text style={styles.tinyLabel}>Contact number</Text>
+                                        <TextInput
+                                            style={styles.field}
+                                            placeholder="Contact number"
+                                            placeholderTextColor={colors.textMuted}
+                                            keyboardType="phone-pad"
+                                            value={form.contact}
+                                            onChangeText={(t) => setForm({ ...form, contact: t })}
+                                        />
+                                    </View>
+                                </View>
+                                <View>
+                                    <Text style={styles.tinyLabel}>Email</Text>
+                                    <TextInput
+                                        style={styles.field}
+                                        placeholder="Email"
+                                        placeholderTextColor={colors.textMuted}
+                                        keyboardType="email-address"
+                                        autoCapitalize="none"
+                                        value={form.email}
+                                        onChangeText={(t) => setForm({ ...form, email: t })}
                                     />
                                 </View>
-                                <TextInput
-                                    style={styles.field}
-                                    placeholder="Email"
-                                    placeholderTextColor={colors.textMuted}
-                                    keyboardType="email-address"
-                                    autoCapitalize="none"
-                                    value={form.email}
-                                    onChangeText={(t) => setForm({ ...form, email: t })}
-                                />
-                                <TextInput
-                                    style={styles.field}
-                                    placeholder="Contact Number"
-                                    placeholderTextColor={colors.textMuted}
-                                    keyboardType="phone-pad"
-                                    value={form.contact}
-                                    onChangeText={(t) => setForm({ ...form, contact: t })}
-                                />
                             </View>
 
-                            {/* Right column: the violation */}
-                            <View style={styles.column}>
-                                <View style={styles.cardHeader}>
-                                    <AlertTriangle size={16} color={colors.danger} />
-                                    <Text style={styles.cardTitle}>Violation</Text>
-                                </View>
+                            {/* Right column: the violation (guards: step 2) */}
+                            <View style={[styles.column, guardStep1 && { display: 'none' }]}>
+                                {!kiosk && (
+                                    <View style={styles.cardHeader}>
+                                        <Text style={styles.cardTitle}>Violation</Text>
+                                    </View>
+                                )}
                                 {/* Tick every violation the student committed; each becomes its own report */}
                                 <Text style={styles.tinyLabel}>What happened (choose all that apply)</Text>
-                                <View style={styles.violationList}>
-                                    {VIOLATION_TYPES.map(({ label, value }) => {
-                                        const checked = form.violations.includes(value);
-                                        return (
-                                            <TouchableOpacity
-                                                key={value}
-                                                style={[styles.violationOption, checked && styles.violationOptionOn]}
-                                                onPress={() => toggleViolation(value)}
-                                                accessibilityRole="checkbox"
-                                                accessibilityState={{ checked }}
-                                            >
-                                                <View style={[styles.checkBox, checked && styles.checkBoxOn]}>
-                                                    {checked ? <Check size={13} color="#fff" strokeWidth={3} /> : null}
+                                {/* Two dropdowns (one open at a time): + adds a violation, tap again to remove */}
+                                {VIOLATION_GROUPS.map((g) => {
+                                    const open = openGroup === g.id;
+                                    const count = g.items.filter((v) => form.violations.includes(v)).length;
+                                    return (
+                                        <View key={g.id} style={styles.groupBox}>
+                                            <TouchableOpacity style={styles.groupHead} onPress={() => setOpenGroup(open ? null : g.id)} accessibilityRole="button" accessibilityState={{ expanded: open }}>
+                                                <Text style={styles.groupTitle}>{g.label}</Text>
+                                                <View style={styles.groupRight}>
+                                                    {count > 0 ? <View style={styles.groupCount}><Text style={styles.groupCountText}>{count}</Text></View> : null}
+                                                    <ChevronDown size={18} color={colors.textMuted} style={open ? { transform: [{ rotate: '180deg' }] } : null} />
                                                 </View>
-                                                <Text style={[styles.violationOptionText, checked && styles.violationText]}>{label}</Text>
                                             </TouchableOpacity>
-                                        );
-                                    })}
-                                </View>
+                                            {open ? (
+                                                <ScrollView style={styles.groupList} nestedScrollEnabled>
+                                                    {g.items.map((v) => {
+                                                        const on = form.violations.includes(v);
+                                                        return (
+                                                            <TouchableOpacity key={v} style={[styles.groupItem, on && styles.violationOptionOn]} onPress={() => toggleViolation(v)} accessibilityRole="checkbox" accessibilityState={{ checked: on }}>
+                                                                <Text style={[styles.violationOptionText, on && styles.violationText]}>{v}</Text>
+                                                                <View style={[styles.plusCircle, on && styles.plusCircleOn]}>
+                                                                    {on ? <Check size={14} color="#fff" strokeWidth={3} /> : <Plus size={14} color={colors.textMuted} strokeWidth={3} />}
+                                                                </View>
+                                                            </TouchableOpacity>
+                                                        );
+                                                    })}
+                                                </ScrollView>
+                                            ) : null}
+                                        </View>
+                                    );
+                                })}
+                                {form.violations.length ? (
+                                    <View style={styles.chips}>
+                                        {form.violations.map((v) => (
+                                            <TouchableOpacity key={v} style={styles.chip} onPress={() => toggleViolation(v)} accessibilityLabel={`Remove ${v}`}>
+                                                <Text style={styles.chipText}>{v}</Text>
+                                                <X size={12} color={isDarkMode ? '#fca5a5' : '#b91c1c'} />
+                                            </TouchableOpacity>
+                                        ))}
+                                    </View>
+                                ) : null}
                                 {form.violations.length > 1 ? (
                                     <Text style={styles.violationCount}>{form.violations.length} violations: each is sent as its own report.</Text>
                                 ) : null}
@@ -411,15 +501,21 @@ export default function PersonnelDashboard() {
                             </View>
                         </View>
 
+                        {guardStep1 ? (
+                            // Guards, step 1: on to the violation
+                            <TouchableOpacity style={styles.submitButton} onPress={nextStep} accessibilityRole="button">
+                                <Text style={styles.submitText}>Next</Text>
+                                <ArrowRight size={18} color="#fff" />
+                            </TouchableOpacity>
+                        ) : (
                         <TouchableOpacity style={[styles.submitButton, loading && { opacity: 0.7 }]} onPress={confirmSubmit} disabled={loading}>
                             {loading ? <ActivityIndicator color="#fff" /> : (
-                                <>
-                                    <Send size={18} color="#fff" />
-                                    <Text style={styles.submitText}>Submit report</Text>
-                                </>
+                                <Text style={styles.submitText}>Submit report</Text>
                             )}
                         </TouchableOpacity>
+                        )}
                     </View>
+                    </>
                 ) : (
                     // Sent: the same slip, marked for review, so the guard sees exactly what went to OSA
                     <View style={[styles.card, styles.successCard]}>
@@ -459,7 +555,6 @@ export default function PersonnelDashboard() {
                                 <Text style={styles.slipEditText}>Edit</Text>
                             </TouchableOpacity>
                             <TouchableOpacity style={styles.slipSend} onPress={processSubmission}>
-                                <Send size={16} color="#fff" />
                                 <Text style={styles.slipSendText}>{form.violations.length > 1 ? `Send ${form.violations.length} reports` : 'Send report'}</Text>
                             </TouchableOpacity>
                         </View>
@@ -492,7 +587,7 @@ export default function PersonnelDashboard() {
 const getStyles = (colors, isDarkMode, wide) => StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: colors.background,
+        backgroundColor: isDarkMode ? colors.background : '#ffffff',
     },
     scrollContent: {
         padding: wide ? 32 : 16,
@@ -562,9 +657,9 @@ const getStyles = (colors, isDarkMode, wide) => StyleSheet.create({
         marginBottom: 2,
     },
     cardTitle: {
-        fontSize: 14,
+        fontSize: 16,
         fontWeight: '800',
-        color: colors.text,
+        color: colors.primary,
     },
     columns: {
         flexDirection: wide ? 'row' : 'column',
@@ -582,14 +677,27 @@ const getStyles = (colors, isDarkMode, wide) => StyleSheet.create({
         gap: 8,
     },
     tinyLabel: {
-        fontSize: 9,
-        fontWeight: '800',
-        textTransform: 'uppercase',
-        letterSpacing: 2,
-        color: colors.border,
+        fontSize: 12,
+        fontWeight: '700',
+        color: isDarkMode ? '#bfdbfe' : '#1e2a6b',
         marginLeft: 4,
         marginBottom: 4,
     },
+    half: { flex: 1, minWidth: 0 },
+    // A registered student's name (green, like the website)
+    nameBox: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 10,
+        borderWidth: 2,
+        borderColor: isDarkMode ? 'rgba(16, 185, 129, 0.35)' : '#d1fae5',
+        backgroundColor: isDarkMode ? 'rgba(16, 185, 129, 0.1)' : '#ecfdf5',
+        borderRadius: 10,
+        paddingHorizontal: 12,
+        paddingVertical: 8,
+    },
+    nameBoxName: { fontSize: 15, fontWeight: '700', color: colors.text },
+    nameBoxSub: { fontSize: 11.5, fontWeight: '500', color: colors.textMuted, marginTop: 1 },
     field: {
         backgroundColor: colors.background,
         borderWidth: 2,
@@ -620,7 +728,23 @@ const getStyles = (colors, isDarkMode, wide) => StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center',
     },
-    // Guard on duty (guard accounts only), above the form
+    stepLabel: { fontSize: 12, fontWeight: '700', letterSpacing: 1.5, color: colors.textMuted, marginBottom: 8, paddingHorizontal: 4 },
+    stepStudent: { flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10, marginBottom: 12, backgroundColor: colors.background },
+    stepStudentText: { flex: 1, fontSize: 14, fontWeight: '700', color: colors.text },
+    stepEdit: { fontSize: 12, fontWeight: '700', color: colors.primary },
+    backChoice: { alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 8, paddingHorizontal: 12, marginBottom: 8, borderRadius: 999 },
+    backChoiceText: { fontSize: 14, fontWeight: '700', color: colors.primary },
+    // The guard's start screen: two boxes to choose from
+    kiosk: { alignItems: 'center', paddingVertical: 24 },
+    kioskAsk: { fontSize: 13, fontWeight: '600', letterSpacing: 2, color: colors.textMuted, marginBottom: 16, textAlign: 'center' },
+    kioskRow: { width: '100%', maxWidth: 680, gap: 16 },
+    kioskBox: {
+        flex: 1, alignItems: 'center', gap: 10, padding: 24, borderRadius: 24, borderWidth: 2, borderColor: colors.border, backgroundColor: colors.card,
+        shadowColor: '#101a4b', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.15, shadowRadius: 18, elevation: 5,
+    },
+    kioskIcon: { width: 112, height: 112, borderRadius: 24, alignItems: 'center', justifyContent: 'center', backgroundColor: isDarkMode ? 'rgba(255,255,255,0.05)' : 'rgba(30,42,107,0.05)' },
+    kioskTitle: { fontSize: 20, fontWeight: '800', letterSpacing: 0.5, color: isDarkMode ? '#ffffff' : '#1e2a6b', textAlign: 'center' },
+    kioskSub: { fontSize: 12, color: colors.textMuted, textAlign: 'center' },
     onDuty: {
         borderWidth: 2,
         borderColor: isDarkMode ? 'rgba(59, 130, 246, 0.35)' : '#dbeafe',
@@ -664,6 +788,20 @@ const getStyles = (colors, isDarkMode, wide) => StyleSheet.create({
         justifyContent: 'center',
     },
     checkBoxOn: { backgroundColor: '#dc2626', borderColor: '#dc2626' },
+    // The two violation dropdowns
+    groupBox: { borderWidth: 2, borderColor: colors.border, borderRadius: 12, backgroundColor: colors.background, overflow: 'hidden', marginBottom: 8 },
+    groupHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 12, paddingVertical: 11 },
+    groupTitle: { fontSize: 14, fontWeight: '700', color: colors.text },
+    groupRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+    groupCount: { backgroundColor: '#dc2626', borderRadius: 999, paddingHorizontal: 7, paddingVertical: 1 },
+    groupCountText: { color: '#fff', fontSize: 11, fontWeight: '800' },
+    groupList: { maxHeight: 200, borderTopWidth: 1, borderTopColor: colors.border, backgroundColor: colors.card },
+    groupItem: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 12, paddingVertical: 9 },
+    plusCircle: { width: 28, height: 28, borderRadius: 14, borderWidth: 2, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
+    plusCircleOn: { backgroundColor: '#dc2626', borderColor: '#dc2626' },
+    chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 8 },
+    chip: { flexDirection: 'row', alignItems: 'center', gap: 4, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4, backgroundColor: isDarkMode ? 'rgba(248, 113, 113, 0.12)' : '#fef2f2' },
+    chipText: { fontSize: 12, fontWeight: '700', color: isDarkMode ? '#fca5a5' : '#b91c1c' },
     violationCount: { fontSize: 12, fontWeight: '700', color: isDarkMode ? '#fca5a5' : '#dc2626', marginTop: -2 },
     violationText: {
         fontWeight: '800',

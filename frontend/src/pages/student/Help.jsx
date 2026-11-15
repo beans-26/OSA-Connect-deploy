@@ -36,14 +36,14 @@ const Card = ({ icon, title, children, fixed }) => {
     const [open, setOpen] = useState(false);
     if (fixed) {
         return (
-            <section className="mb-4 rounded-2xl border-2 border-[var(--s-border)] bg-[var(--s-card)] p-5">
+            <section className="s-card mb-4 rounded-[22px] p-5">
                 <h2><CardTitle icon={icon} title={title} /></h2>
                 <div className="mt-4">{children}</div>
             </section>
         );
     }
     return (
-        <section className="mb-4 rounded-2xl border-2 border-[var(--s-border)] bg-[var(--s-card)]">
+        <section className="s-card mb-4 rounded-[22px]">
             <h2>
                 <button type="button" onClick={() => setOpen(!open)} aria-expanded={open} className="flex w-full items-center justify-between gap-3 p-5 text-left">
                     <CardTitle icon={icon} title={title} />
@@ -78,7 +78,7 @@ const StudentHelp = () => {
             <p className="mb-4 px-1 text-sm font-medium leading-5 text-[var(--s-muted)]">{help.student.intro}</p>
 
             {/* The first-login walkthrough, again (no wait, closes any time) */}
-            <button onClick={() => setWalkthrough(true)} className="mb-4 flex w-full items-center gap-3 rounded-2xl border-2 border-[var(--s-border)] bg-[var(--s-card)] p-4 text-left">
+            <button onClick={() => setWalkthrough(true)} className="s-card mb-4 flex w-full items-center gap-3 rounded-[22px] p-4 text-left">
                 <PlayCircle size={22} className="shrink-0 text-[var(--s-primary)]" />
                 <span className="min-w-0 flex-1">
                     <span className="block text-sm font-bold text-[var(--s-text)]">{help.student.walkthrough.title}</span>

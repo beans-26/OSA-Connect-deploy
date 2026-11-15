@@ -32,7 +32,7 @@ export const rolesForLogin = (portal) => ({
 /** Where each role lands after logging in. */
 export const homePathFor = (role) => ({
     admin: '/admin/overview',
-    staff: '/staff/report',
-    guard: '/guard/report',
-    student: '/student/dashboard',
+    staff: '/faculty/home',
+    guard: '/guard/home',
+    student: '/student/home',
 })[role];

@@ -93,6 +93,9 @@ export default function AuthScreen({ maxWidth = 400, logoWidth = 220, children }
                             source={require('../assets/images/osaconnect-logo.png')}
                             style={{ width: logoWidth, height: Math.round(logoWidth * 392 / 1032), opacity: introDone ? 1 : 0 }}
                             resizeMode="contain"
+                            // Android fades every image in over 300 ms, so on the screen after the Student / Faculty
+                            // choice the logo showed up after the rest of the page: show it at once
+                            fadeDuration={0}
                             accessibilityLabel="OSAConnect: One scan at a time"
                         />
                         <View style={styles.card}>{children}</View>

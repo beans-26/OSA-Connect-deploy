@@ -7,7 +7,6 @@ import { captureRef } from 'react-native-view-shot';
 // The legacy entry still has saveToLibraryAsync (the new API throws on it)
 import * as MediaLibrary from 'expo-media-library/legacy';
 import { showAlert } from '../components/showAlert';
-import { middleNameError, middleNameText, MIDDLE_NAME_HINT } from '../components/names';
 import Svg, { Circle, Rect } from 'react-native-svg';
 import { DEPARTMENTS, DEPARTMENT_COURSES, GENDERS, yearLevelsFor } from '../constants/Data';
 import SelectField from '../components/SelectField';
@@ -62,7 +61,6 @@ export default function Register() {
     const [studentData, setStudentData] = useState({
         student_id: '',
         first_name: '',
-        middle_name: '',
         last_name: '',
         gender: '',
         course: '',
@@ -156,11 +154,6 @@ export default function Register() {
             showAlert('Student ID', 'Student ID must be exactly 10 numbers, like 2023303188.');
             return;
         }
-        const middleError = middleNameError(studentData.middle_name);
-        if (middleError) {
-            showAlert('Middle Name', middleError);
-            return;
-        }
         if (studentData.contact_number.length !== 11) {
             showAlert('Invalid Contact Number', 'Contact number must be exactly 11 digits (e.g. 09123456789).');
             return;
@@ -210,9 +203,8 @@ export default function Register() {
         if (saving || !codeComplete) return;
         setSaving(true);
         try {
-            // "N/A" (no middle name) isn't part of the name
-            const middle = middleNameText(studentData.middle_name);
-            const fullName = `${studentData.first_name} ${middle ? middle + ' ' : ''}${studentData.last_name}`.trim();
+            // First and last name only (no middle name). Same as the website.
+            const fullName = `${studentData.first_name} ${studentData.last_name}`.trim();
             await api.post('/students/register_with_otp/', { ...studentData, name: fullName, otp });
             setStep(3);
         } catch (error) {
@@ -245,19 +237,15 @@ export default function Register() {
         }
     };
 
-    // Same format as the website: "ID FIRST MIDDLE LAST COURSE"
+    // Same format as the website: "ID FIRST LAST COURSE" (no middle name)
     const formatQRData = (student) => {
-        const nameParts = [student.first_name, middleNameText(student.middle_name), student.last_name].filter(Boolean);
+        const nameParts = [student.first_name, student.last_name].filter(Boolean);
         const formattedName = nameParts.join(' ').toUpperCase();
         return `${student.student_id} ${formattedName} ${student.course || ''}`.trim();
     };
 
-    // Shown beside the QR on the last step: "Juan S. Dela Cruz" and "BS Information Technology · 2nd Year"
-    const displayName = [
-        studentData.first_name,
-        middleNameText(studentData.middle_name) ? `${middleNameText(studentData.middle_name)[0].toUpperCase()}.` : '',
-        studentData.last_name,
-    ].filter(Boolean).join(' ');
+    // Shown beside the QR on the last step: "Juan Dela Cruz" and "BS Information Technology · 2nd Year"
+    const displayName = [studentData.first_name, studentData.last_name].filter(Boolean).join(' ');
     const ordinal = (n) => ({ 1: '1st', 2: '2nd', 3: '3rd' }[n] || `${n}th`);
     const yearText = /^\d+$/.test(studentData.year_level) ? `${ordinal(Number(studentData.year_level))} Year` : studentData.year_level;
     const programText = [studentData.course, yearText].filter(Boolean).join(' · ');
@@ -286,39 +274,36 @@ export default function Register() {
                             value={studentData.student_id} onChangeText={(t) => set('student_id')(t.replace(/\D/g, '').slice(0, 10))} />
                     </Field>
 
-                    <Field label="First name">
-                        <TextInput {...inputProps('first')} returnKeyType="go" onSubmitEditing={requestOTP} placeholder="First name" autoComplete="name-given" value={studentData.first_name} onChangeText={set('first_name')} />
-                    </Field>
                     <View style={styles.row}>
-                        <Field label="Middle name" info={MIDDLE_NAME_HINT} style={styles.half}>
-                            <TextInput {...inputProps('middle')} returnKeyType="go" onSubmitEditing={requestOTP} placeholder="Middle name" autoComplete="name-middle" value={studentData.middle_name} onChangeText={set('middle_name')} />
+                        <Field label="First name" style={styles.half}>
+                            <TextInput {...inputProps('first')} returnKeyType="go" onSubmitEditing={requestOTP} placeholder="First name" autoComplete="name-given" value={studentData.first_name} onChangeText={set('first_name')} />
                         </Field>
                         <Field label="Last name" style={styles.half}>
                             <TextInput {...inputProps('last')} returnKeyType="go" onSubmitEditing={requestOTP} placeholder="Last name" autoComplete="name-family" value={studentData.last_name} onChangeText={set('last_name')} />
                         </Field>
                     </View>
 
-                    {/* College first; it decides the program list and year levels (Grade 11/12 for SHS) */}
-                    <Field label="College">
+                    {/* Department first; it decides the course list and year levels (Grade 11/12 for SHS) */}
+                    <Field label="Department">
                         <SelectField
                             value={studentData.department}
                             options={DEPARTMENTS}
-                            placeholder="Choose your college"
+                            placeholder="Choose your department"
                             placeholderColor={C.placeholder}
-                            title="Choose your college"
+                            title="Choose your department"
                             onChange={changeDepartment}
                             style={selectStyle}
                             textStyle={studentData.department ? styles.selectText : styles.selectPlaceholder}
                             iconColor={C.textMuted}
                         />
                     </Field>
-                    <Field label="Program">
+                    <Field label="Course">
                         <SelectField
                             value={studentData.course}
                             options={courseOptions}
-                            placeholder={studentData.department ? 'Choose your program' : 'Choose a college first'}
+                            placeholder={studentData.department ? 'Choose your course' : 'Choose a department first'}
                             placeholderColor={C.placeholder}
-                            title="Choose your program"
+                            title="Choose your course"
                             searchable={courseOptions.length > 6}
                             disabled={!studentData.department}
                             onChange={set('course')}
@@ -346,7 +331,7 @@ export default function Register() {
                             <SelectField
                                 value={studentData.year_level}
                                 options={yearOptions}
-                                placeholder={studentData.department ? 'Choose' : 'College first'}
+                                placeholder={studentData.department ? 'Choose' : 'Department first'}
                                 placeholderColor={C.placeholder}
                                 title="Choose your year"
                                 disabled={!studentData.department}

@@ -31,7 +31,7 @@ const SettingsBody = () => {
             </Group>
             <button
                 onClick={openLogout}
-                className="mt-2 flex w-full items-center justify-center gap-2 rounded-2xl border border-[var(--s-border)] bg-[var(--s-card)] p-4 text-[15px] font-semibold text-[var(--s-danger)] hover:bg-[var(--s-bg)]"
+                className="mt-2 flex w-full items-center justify-center gap-2 s-card rounded-[22px] p-4 text-[15px] font-semibold text-[var(--s-danger)] hover:bg-[var(--s-bg)]"
             >
                 <LogOut size={18} /> Log out
             </button>

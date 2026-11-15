@@ -53,6 +53,8 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    # Compresses the API's JSON (lists are about 5x smaller), for students on slow or metered mobile data
+    'django.middleware.gzip.GZipMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',
     'corsheaders.middleware.CorsMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
@@ -206,5 +208,16 @@ FACULTY_TEST_EMAILS = {e.strip().lower() for e in os.getenv('FACULTY_TEST_EMAILS
 # DEMO ONLY: the team's Gmail works as a faculty email everywhere (live site included) for thesis demos.
 # Remove this line when the system goes into real use.
 FACULTY_TEST_EMAILS.add('beansilog26@gmail.com')
+
+# Guard login geofence: guards can only log in on campus, a circle around USTP CDO (the CEA / CITC buildings).
+# Their phone or browser sends its location with the login (core/views.py login_view). Change the circle with
+# these, or set GUARD_GEOFENCE_ENABLED=False to turn the check off (e.g. a demo away from campus).
+GUARD_GEOFENCE_ENABLED = os.getenv('GUARD_GEOFENCE_ENABLED', 'True') != 'False'
+GUARD_GEOFENCE_LAT = float(os.getenv('GUARD_GEOFENCE_LAT', '8.4857'))
+GUARD_GEOFENCE_LNG = float(os.getenv('GUARD_GEOFENCE_LNG', '124.6567'))
+GUARD_GEOFENCE_RADIUS_M = float(os.getenv('GUARD_GEOFENCE_RADIUS_M', '400'))
+# DEMO ONLY: more places where guards may log in, as (name, lat, lng, radius in m). "Ila nyko" is the team's demo
+# spot (its service site); 150 m so phone GPS works there. Remove when the system goes into real use.
+GUARD_DEMO_AREAS = [('Ila nyko', 8.5567196, 124.5326305, 150)]
 
 print(f"SMTP CONFIG: Host={EMAIL_HOST}, User={EMAIL_HOST_USER}, PW_Len={len(EMAIL_HOST_PASSWORD) if EMAIL_HOST_PASSWORD else 0}")

@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
-  View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, StatusBar, AppState, Modal, Image, RefreshControl
+  View, Text, StyleSheet, ScrollView, TouchableOpacity, StatusBar, AppState, Modal, RefreshControl
 } from 'react-native';
 import { showAlert } from '../../components/showAlert';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { QrCode, Play, AlertTriangle, Clock, Info, ChevronRight, CheckCircle2 } from 'lucide-react-native';
+import { QrCode, Play, AlertTriangle, Clock, Info, CheckCircle2 } from 'lucide-react-native';
 import { useCameraPermissions } from 'expo-camera';
 import * as Location from 'expo-location';
 import { useAuth } from '../../components/AuthContext';
@@ -14,14 +14,15 @@ import MapViewComponent from '../../components/MapViewComponent';
 import { onCameraResult } from '../../components/cameraResults';
 import { parseServiceQr, serviceQrAction, NOT_A_START_QR, NOT_A_STOP_QR } from '../../components/serviceQr';
 import { useTheme } from '../../components/ThemeContext';
-import { timeGreeting, todayLabel, studentStatusLine } from '../../components/greeting';
+import { StudentBackdrop, cardLook } from '../../components/StudentLook';
 import { outsideSiteMessage } from '../../components/geo';
 import SessionReceipt from '../../components/SessionReceipt';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { canTrackInBackground, startTracking, stopTracking, isTrackingSession, sendLocationPing, notifyTimerStopped, LAST_RECEIPT_KEY } from '../../components/backgroundTracking';
 import TicketDetails from '../../components/TicketDetails';
 import StudentWalkthrough from '../../components/StudentWalkthrough';
-import { ticketStatusLabel, deadlineNotice } from '../../components/ticketStatus';
+import StudentGuide from '../../components/StudentGuide';
+import { deadlineNotice } from '../../components/ticketStatus';
 import { StudentTopBar, useStudentShell } from '../../components/StudentShell';
 import MapGate from '../../components/MapGate';
 import { IDLE_REFRESH_MS, RUNNING_REFRESH_MS, SAVER_REFRESH_MS } from '../../components/studentNotifications';
@@ -51,6 +52,8 @@ const LiveTimer = ({ elapsedSeconds, requiredSeconds, textStyle }) => {
 };
 
 const COMPLETED_SEEN_KEY = 'osa-completed-notice-seen';
+// Tickets whose "How to serve your hours" guide this phone already showed (once per new ticket, like the website)
+const GUIDE_SEEN_KEY = 'osa-ticket-guide-seen';
 
 // "Community service remaining" before timing in: the countdown (hh:mm:ss), the hours required and the
 // site, and how much is done. Same as ServiceRemaining in frontend/src/pages/StudentDashboard.jsx.
@@ -71,18 +74,18 @@ function ServiceRemaining({ ticket, colors, isDarkMode }) {
     const done = Math.max(0, required - remainingHours);
     const pct = required ? Math.min(100, Math.round((done / required) * 100)) : 0;
     const site = ticket.assigned_site?.name || ticket.assigned_location;
-    const accent = isDarkMode ? '#3b82f6' : '#2563eb';
+    const accent = isDarkMode ? '#3b82f6' : '#1e3a8a';
     return (
         <View style={{ alignSelf: 'stretch', marginBottom: 14 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-                <Text style={{ flexShrink: 1, fontSize: 14, fontWeight: '700', color: colors.textMuted }}>Community service remaining</Text>
-                <View style={{ backgroundColor: colors.background, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4 }}>
-                    <Text style={{ fontSize: 11, fontWeight: '700', color: colors.textMuted }}>Not timed in</Text>
+                <Text style={{ flexShrink: 1, fontSize: 14, fontWeight: '600', color: colors.textMuted }}>Community service remaining</Text>
+                <View style={{ backgroundColor: isDarkMode ? 'rgba(59,130,246,0.16)' : '#eef2ff', borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4 }}>
+                    <Text style={{ fontSize: 11, fontWeight: '600', color: accent }}>Not timed in</Text>
                 </View>
             </View>
             {/* The (i) sits beside the countdown, under the pill, so it adds no height */}
             <View style={{ marginTop: 4, flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 }}>
-                <Text style={{ fontSize: 44, fontWeight: '800', color: colors.text, fontVariant: ['tabular-nums'], letterSpacing: -0.5 }}>{hms(remainingHours)}</Text>
+                <Text style={{ fontSize: 44, fontWeight: '600', color: colors.text, fontVariant: ['tabular-nums'], letterSpacing: -0.5 }}>{hms(remainingHours)}</Text>
                 {notice && (
                     <TouchableOpacity onPress={() => setShowDeadline((v) => !v)} hitSlop={10} style={{ paddingTop: 6, paddingRight: 4 }} accessibilityRole="button" accessibilityLabel={notice.title} accessibilityState={{ expanded: showDeadline }}>
                         <Info size={18} color={notice.overdue ? '#dc2626' : colors.textMuted} />
@@ -91,17 +94,17 @@ function ServiceRemaining({ ticket, colors, isDarkMode }) {
             </View>
             {notice && showDeadline && (
                 <View style={{ marginBottom: 8, borderWidth: 1, borderRadius: 12, padding: 12, borderColor: notice.overdue ? '#fca5a5' : '#fde68a', backgroundColor: notice.overdue ? '#fee2e2' : '#fffbeb' }}>
-                    <Text style={{ fontSize: 14, fontWeight: '800', color: notice.overdue ? '#b91c1c' : '#92400e' }}>{notice.title}</Text>
-                    <Text style={{ marginTop: 2, fontSize: 12, lineHeight: 18, fontWeight: '600', color: notice.overdue ? '#991b1b' : '#92400e' }}>{notice.message}</Text>
+                    <Text style={{ fontSize: 14, fontWeight: '700', color: notice.overdue ? '#b91c1c' : '#92400e' }}>{notice.title}</Text>
+                    <Text style={{ marginTop: 2, fontSize: 12, lineHeight: 18, fontWeight: '500', color: notice.overdue ? '#991b1b' : '#92400e' }}>{notice.message}</Text>
                 </View>
             )}
             <Text style={{ fontSize: 13, color: colors.textMuted }}>of {Math.round(required * 100) / 100} hrs required{site ? ` · ${site}` : ''}</Text>
-            <View style={{ marginTop: 12, height: 8, borderRadius: 4, backgroundColor: colors.background, overflow: 'hidden' }} accessibilityRole="progressbar" accessibilityValue={{ min: 0, max: 100, now: pct }}>
+            <View style={{ marginTop: 12, height: 8, borderRadius: 4, backgroundColor: colors.border, overflow: 'hidden' }} accessibilityRole="progressbar" accessibilityValue={{ min: 0, max: 100, now: pct }}>
                 <View style={{ height: '100%', width: `${pct}%`, borderRadius: 4, backgroundColor: accent }} />
             </View>
             <View style={{ marginTop: 6, flexDirection: 'row', justifyContent: 'space-between' }}>
-                <Text style={{ fontSize: 12, fontWeight: '600', color: colors.textMuted }}>{hm(done)} done</Text>
-                <Text style={{ fontSize: 12, fontWeight: '600', color: colors.textMuted }}>{pct}%</Text>
+                <Text style={{ fontSize: 12, fontWeight: '500', color: colors.textMuted }}>{hm(done)} done</Text>
+                <Text style={{ fontSize: 12, fontWeight: '500', color: colors.textMuted }}>{pct}%</Text>
             </View>
         </View>
     );
@@ -112,13 +115,15 @@ export default function Dashboard() {
     const router = useRouter();
     const { isDarkMode, colors } = useTheme();
     // The side menu's copy of the records (its badge and "hours remaining" stay current)
-    const { setRecords, dataSaver } = useStudentShell();
+    // The layout's copy of the records: if Home has to start again, it shows them right away and the download
+    // only refreshes them (with a session running it waits, so the timer isn't shown as stopped meanwhile)
+    const { setRecords, dataSaver, records, recordsLoaded } = useStudentShell();
     const [refreshing, setRefreshing] = useState(false);
-    const styles = getStyles(colors);
+    const styles = getStyles(colors, isDarkMode);
 
-    const [violations, setViolations] = useState([]);
-    const [tickets, setTickets] = useState([]);
-    const [loading, setLoading] = useState(true);
+    const cacheUsable = recordsLoaded && !records.tickets.some((t) => t.status === 'Ongoing');
+    const [tickets, setTickets] = useState(() => (cacheUsable ? records.tickets : []));
+    const [loading, setLoading] = useState(() => !cacheUsable);
     const [cameraPermission, requestCameraPermission] = useCameraPermissions();
     const [timerActive, setTimerActive] = useState(false);
     const [startTime, setStartTime] = useState(null);
@@ -142,7 +147,11 @@ export default function Dashboard() {
         AsyncStorage.getItem(COMPLETED_SEEN_KEY)
             .then((v) => setSeenCompleted(JSON.parse(v || '[]')))
             .catch(() => setSeenCompleted([]));
+        AsyncStorage.getItem(GUIDE_SEEN_KEY)
+            .then((v) => setSeenGuide(JSON.parse(v || '[]')))
+            .catch(() => setSeenGuide([]));
     }, []);
+    const [seenGuide, setSeenGuide] = useState(null);
     const lastFixRef = useRef({ lat: null, lng: null, distance: null });
     const problemRef = useRef(null);
     const autoStoppingRef = useRef(false);
@@ -196,7 +205,6 @@ export default function Dashboard() {
             const studentTickets = Array.isArray(ticketRes.data)
                 ? ticketRes.data.filter(t => t.violation_details?.student_details?.student_id === user.username)
                 : [];
-            setViolations(studentViolations);
             setTickets(studentTickets);
             setRecords({ violations: studentViolations, tickets: studentTickets });
             // Same ticket selection and countdown source as the web dashboard
@@ -266,11 +274,14 @@ export default function Dashboard() {
 
     // "How OSAConnect works": shown once per student (saved on the server), before anything else. Same as the website.
     const [walkthroughOpen, setWalkthroughOpen] = useState(false);
+    // The ticket guide waits until we know whether the walkthrough comes first
+    const [walkthroughChecked, setWalkthroughChecked] = useState(false);
     useEffect(() => {
         let gone = false;
         api.get('/students/walkthrough/')
             .then(({ data }) => { if (!gone && !data.seen) setWalkthroughOpen(true); })
-            .catch(() => {});
+            .catch(() => {})
+            .finally(() => { if (!gone) setWalkthroughChecked(true); });
         return () => { gone = true; };
     }, []);
     const finishWalkthrough = () => {
@@ -287,6 +298,18 @@ export default function Dashboard() {
         const next = [...seenCompleted, completedTicket.id];
         setSeenCompleted(next);
         AsyncStorage.setItem(COMPLETED_SEEN_KEY, JSON.stringify(next)).catch(() => {});
+    };
+
+    // "How to serve your hours", on its own the first time a new open ticket appears (not over another pop-up)
+    const newGuideTicket = walkthroughChecked && !walkthroughOpen && !receipt && !completedTicket && !openedTicket && seenGuide
+        ? tickets.find((t) => (t.status === 'Active' || t.status === 'Ongoing') && !seenGuide.includes(t.id))
+        : null;
+    const closeGuide = () => {
+        // One "Got it" covers every open ticket the student has now, so two new tickets don't show it twice in a row
+        const open = tickets.filter((t) => t.status === 'Active' || t.status === 'Ongoing').map((t) => t.id);
+        const next = [...new Set([...(seenGuide || []), ...open])];
+        setSeenGuide(next);
+        AsyncStorage.setItem(GUIDE_SEEN_KEY, JSON.stringify(next)).catch(() => {});
     };
 
     // Hours served but not cleared yet: the student brings the signed ISO form and reflection paper to OSA
@@ -617,7 +640,7 @@ export default function Dashboard() {
                         setLocation({ ...newLoc.coords, timestamp: newLoc.timestamp });
                     }
                 );
-            } catch (e) {
+            } catch {
                 showAlert('Location Error', 'Unable to fetch your current location. Please try again.');
                 return;
             }
@@ -668,7 +691,9 @@ export default function Dashboard() {
         </Modal>
         <TicketDetails ticket={openedTicket} onClose={() => setOpenedTicket(null)} />
         <StudentWalkthrough visible={walkthroughOpen} firstTime onFinish={finishWalkthrough} />
+        <StudentGuide ticket={newGuideTicket} onClose={closeGuide} onOpenTicket={(t) => { closeGuide(); setOpenedTicket(t); }} />
         <SafeAreaView style={styles.safeArea}>
+            <StudentBackdrop isDarkMode={isDarkMode} />
             <StatusBar barStyle={isDarkMode ? "light-content" : "dark-content"} backgroundColor={colors.card} />
             <StudentTopBar title="Home" />
             <ScrollView
@@ -677,17 +702,6 @@ export default function Dashboard() {
                 showsVerticalScrollIndicator={false}
                 refreshControl={<RefreshControl refreshing={refreshing} onRefresh={pullRefresh} colors={[colors.primary]} tintColor={colors.primary} />}
             >
-                {/* Header */}
-                <View style={styles.header}>
-                    <View style={styles.headerLeft}>
-                        <Text style={styles.greeting}>{todayLabel()}</Text>
-                        <Text style={styles.userName}>{timeGreeting()}, {displayName}</Text>
-                        {(timerActive || openTicket) && (
-                            <Text style={styles.subGreeting}>{studentStatusLine({ sessionActive: timerActive, openTicket, tickets })}</Text>
-                        )}
-                    </View>
-                </View>
-
                 {/* Hours done, not cleared yet: what to bring to OSA (stays until OSA approves). Same as the website. */}
                 {clearanceTicket && (
                     <View style={[styles.deadlineBox, styles.clearanceBox]}>
@@ -703,7 +717,7 @@ export default function Dashboard() {
 
                 {/* Service card while there's community service to do; otherwise just a hello. Same as the website. */}
                 {timerActive || openTicket ? (
-                    <View style={[styles.sessionCard, isOutOfBounds && styles.sessionCardWarning]}>
+                    <View style={styles.sessionCard}>
                         {timerActive ? (
                             <>
                                 <View style={styles.sessionCardHeader}>
@@ -839,6 +853,8 @@ export default function Dashboard() {
                                     // 1. What's left to serve
                                     <ServiceRemaining ticket={openTicket} colors={colors} isDarkMode={isDarkMode} />
                                 ) : null}
+                                {/* The map, where to go and the scan button, together in a box. Same as the website. */}
+                                <View style={[styles.scanBox, siteTarget && { paddingTop: 4 }]}>
                                 {/* 2. The map to the site */}
                                 {siteTarget && (
                                     <View style={styles.approachBox}>
@@ -880,7 +896,7 @@ export default function Dashboard() {
                                 {/* 3. Where to go */}
                                 {openTicket && (
                                     <Text style={styles.reportText}>
-                                        Go to <Text style={{ fontWeight: '700', color: colors.text }}>{assignedSite?.name || openTicket.assigned_location || 'your service site'}</Text> and scan the QR code to start your timer.
+                                        Go to <Text style={{ fontWeight: '600', color: colors.primary }}>{assignedSite?.name || openTicket.assigned_location || 'your service site'}</Text> and scan the QR code to start your timer.
                                     </Text>
                                 )}
                                 {/* 4. Time in */}
@@ -888,6 +904,7 @@ export default function Dashboard() {
                                     <QrCode size={18} color="#fff" strokeWidth={2.2} />
                                     <Text style={styles.scanCtaText}>Scan QR Code to Time-In</Text>
                                 </TouchableOpacity>
+                                </View>
                             </>
                         )}
                     </View>
@@ -901,52 +918,6 @@ export default function Dashboard() {
                     </View>
                 )}
 
-                {/* E-Tickets */}
-                <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>E-Tickets</Text>
-                    <Text style={styles.sectionSubtitle}>Tap a ticket to see its service log and forms</Text>
-                    {loading ? (
-                        <ActivityIndicator color={colors.primary} style={{ marginTop: 16 }} />
-                    ) : tickets.length === 0 ? (
-                        <View style={styles.emptyLogs}>
-                            {/* 🫡 in black and white, same image as the website */}
-                            <Image source={require('../../assets/images/salute.png')} style={{ width: 44, height: 44 }} accessibilityIgnoresInvertColors />
-                            <Text style={styles.emptyLogsText}>No e-tickets. You have no community service to serve.</Text>
-                        </View>
-                    ) : (
-                        tickets.map((ticket, idx) => (
-                            <TouchableOpacity key={ticket.id || idx} style={styles.logRow} onPress={() => setOpenedTicket(ticket)} accessibilityRole="button">
-                                <View style={[styles.logDot, ticket.status === 'Active' && styles.logDotActive]} />
-                                <View style={styles.logInfo}>
-                                    <Text style={styles.logTicket}>Ticket #{ticket.id}</Text>
-                                    <Text style={styles.logTime}>
-                                        {ticket.violation_details?.violation_type || 'Violation'}
-                                    </Text>
-                                    <Text style={styles.logTimeSmall}>
-                                        Required: {ticket.total_hours_required || 0} hrs
-                                    </Text>
-                                </View>
-                                <View style={[styles.logStatusBadge,
-                                    ticket.status === 'Active' ? styles.logStatusActive :
-                                    ticket.status === 'Completed' ? styles.logStatusAwaiting :
-                                    ticket.status === 'Cleared' ? styles.logStatusDone :
-                                    styles.logStatusPending
-                                ]}>
-                                    <Text style={[styles.logStatusText,
-                                        ticket.status === 'Active' ? styles.logStatusTextActive :
-                                        ticket.status === 'Completed' ? styles.logStatusTextAwaiting :
-                                        ticket.status === 'Cleared' ? styles.logStatusTextDone :
-                                        styles.logStatusTextPending
-                                    ]}>
-                                        {ticketStatusLabel(ticket)}
-                                    </Text>
-                                </View>
-                                <ChevronRight size={16} color={colors.textMuted} style={{ marginLeft: 8 }} />
-                            </TouchableOpacity>
-                        ))
-                    )}
-                </View>
-
                 {/* Bottom padding */}
                 <View style={{ height: 100 }} />
             </ScrollView>
@@ -957,7 +928,7 @@ export default function Dashboard() {
     );
 }
 
-const getStyles = (colors) => StyleSheet.create({
+const getStyles = (colors, isDarkMode) => StyleSheet.create({
     safeArea: {
         flex: 1,
         backgroundColor: colors.background,
@@ -985,7 +956,7 @@ const getStyles = (colors) => StyleSheet.create({
     },
     greeting: {
         fontSize: 12,
-        fontWeight: '800',
+        fontWeight: '700',
         color: colors.textMuted,
         letterSpacing: 2,
         marginBottom: 4,
@@ -994,7 +965,7 @@ const getStyles = (colors) => StyleSheet.create({
     },
     userName: {
         fontSize: 24,
-        fontWeight: '800',
+        fontWeight: '700',
         color: colors.text,
         letterSpacing: 0.5,
         lineHeight: 32,
@@ -1002,22 +973,15 @@ const getStyles = (colors) => StyleSheet.create({
     subGreeting: {
         fontSize: 14,
         color: colors.textMuted,
-        fontWeight: '600',
+        fontWeight: '500',
         marginTop: 4,
         lineHeight: 20,
     },
+    // No card around the timer and scan: they sit on the screen under Home's header. Same as the website.
     sessionCard: {
-        backgroundColor: colors.card,
-        borderRadius: 20,
-        padding: 16,
+        marginHorizontal: 8,
+        marginTop: 12,
         marginBottom: 16,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.08,
-        shadowRadius: 12,
-        elevation: 4,
-        borderWidth: 1,
-        borderColor: colors.border,
     },
     sessionCardWarning: {
         borderColor: '#ef4444',
@@ -1030,7 +994,7 @@ const getStyles = (colors) => StyleSheet.create({
     },
     sessionCardTitle: {
         fontSize: 12,
-        fontWeight: '800',
+        fontWeight: '700',
         color: colors.success,
         marginLeft: 8,
         textTransform: 'uppercase',
@@ -1042,14 +1006,15 @@ const getStyles = (colors) => StyleSheet.create({
     },
     timerText: {
         fontSize: 52,
-        fontWeight: '800',
+        fontWeight: '600',
         color: colors.text,
         fontVariant: ['tabular-nums'],
         lineHeight: 65,
     },
-    helloCard: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: colors.card, borderRadius: 20, borderWidth: 1, borderColor: colors.border, padding: 16, marginBottom: 16 },
+    scanBox: { alignItems: 'center', backgroundColor: colors.card, borderRadius: 22, padding: 16, ...cardLook(isDarkMode) },
+    helloCard: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: colors.card, borderRadius: 24, padding: 16, marginBottom: 16, ...cardLook(isDarkMode) },
     helloIcon: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#dcfce7', alignItems: 'center', justifyContent: 'center' },
-    helloTitle: { fontSize: 16, fontWeight: '800', color: colors.text },
+    helloTitle: { fontSize: 16, fontWeight: '700', color: colors.text },
     helloText: { marginTop: 2, fontSize: 14, fontWeight: '500', color: colors.textMuted },
     reportText: { fontSize: 13, lineHeight: 19, color: colors.textMuted, textAlign: 'center', marginTop: 0, marginBottom: 12, paddingHorizontal: 4 },
     approachBox: {
@@ -1068,7 +1033,7 @@ const getStyles = (colors) => StyleSheet.create({
     },
     scanCtaText: {
         color: '#fff',
-        fontWeight: '700',
+        fontWeight: '600',
         fontSize: 13,
         letterSpacing: 0.5,
         lineHeight: 20,
@@ -1099,7 +1064,7 @@ const getStyles = (colors) => StyleSheet.create({
     },
     locationStatus: {
         fontSize: 13,
-        fontWeight: '700',
+        fontWeight: '600',
         color: colors.textMuted,
         lineHeight: 20,
     },
@@ -1119,7 +1084,7 @@ const getStyles = (colors) => StyleSheet.create({
     cooldownText: {
         color: '#d97706',
         fontSize: 13,
-        fontWeight: '700',
+        fontWeight: '600',
         flexShrink: 1,
     },
     endButtonBlue: {
@@ -1134,7 +1099,7 @@ const getStyles = (colors) => StyleSheet.create({
     },
     endButtonBlueText: {
         color: '#ffffff',
-        fontWeight: 'bold',
+        fontWeight: '600',
         fontSize: 14,
         textTransform: 'uppercase',
         letterSpacing: 1,
@@ -1170,7 +1135,7 @@ const getStyles = (colors) => StyleSheet.create({
     },
     liveGpsText: {
         fontSize: 9,
-        fontWeight: '800',
+        fontWeight: '700',
         color: colors.text,
         letterSpacing: 1,
     },
@@ -1201,14 +1166,14 @@ const getStyles = (colors) => StyleSheet.create({
     },
     mapLegendText: {
         fontSize: 10,
-        fontWeight: '700',
+        fontWeight: '600',
         color: colors.text,
     },
     mapLegendRadius: {
         fontSize: 10,
         color: colors.textMuted,
         marginTop: 2,
-        fontWeight: '600',
+        fontWeight: '500',
     },
     hubMarkerDot: {
         width: 18,
@@ -1260,7 +1225,7 @@ const getStyles = (colors) => StyleSheet.create({
     },
     redWarningTitle: {
         color: '#ffffff',
-        fontWeight: '800',
+        fontWeight: '700',
         fontSize: 13,
         letterSpacing: 0.5,
         textTransform: 'uppercase',
@@ -1269,7 +1234,7 @@ const getStyles = (colors) => StyleSheet.create({
         color: '#fecdd3',
         fontSize: 12,
         marginTop: 2,
-        fontWeight: '600',
+        fontWeight: '500',
     },
     redWarningTimerBox: {
         backgroundColor: '#fff',
@@ -1281,14 +1246,14 @@ const getStyles = (colors) => StyleSheet.create({
     redWarningTimerText: {
         color: '#e11d48',
         fontSize: 20,
-        fontWeight: '800',
+        fontWeight: '700',
     },
     section: {
         marginBottom: 16,
     },
     sectionTitle: {
         fontSize: 18,
-        fontWeight: '800',
+        fontWeight: '700',
         color: colors.text,
         marginBottom: 4,
         lineHeight: 28,
@@ -1340,7 +1305,7 @@ const getStyles = (colors) => StyleSheet.create({
     },
     logTicket: {
         fontSize: 13,
-        fontWeight: '700',
+        fontWeight: '600',
         color: colors.text,
         lineHeight: 20,
     },
@@ -1364,7 +1329,7 @@ const getStyles = (colors) => StyleSheet.create({
     logStatusActive: { backgroundColor: '#dcfce7' },
     logStatusDone: { backgroundColor: '#f1f5f9' },
     logStatusPending: { backgroundColor: '#faf5ff' },
-    logStatusText: { fontSize: 10, fontWeight: '700' },
+    logStatusText: { fontSize: 10, fontWeight: '600' },
     logStatusTextActive: { color: '#10b981' },
     logStatusTextDone: { color: '#64748b' },
     logStatusTextPending: { color: '#7c3aed' },
@@ -1372,16 +1337,16 @@ const getStyles = (colors) => StyleSheet.create({
     logStatusTextAwaiting: { color: '#b45309' },
     deadlineBox: { flexDirection: 'row', gap: 12, borderWidth: 1, borderColor: '#fde68a', backgroundColor: '#fffbeb', borderRadius: 16, padding: 16, marginBottom: 16 },
     clearanceBox: { borderColor: '#a7f3d0', backgroundColor: '#ecfdf5' },
-    deadlineTitle: { fontSize: 14, fontWeight: '800', color: '#92400e' },
-    deadlineText: { marginTop: 2, fontSize: 12, lineHeight: 18, fontWeight: '600', color: '#92400e' },
+    deadlineTitle: { fontSize: 14, fontWeight: '700', color: '#92400e' },
+    deadlineText: { marginTop: 2, fontSize: 12, lineHeight: 18, fontWeight: '500', color: '#92400e' },
     completedOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', alignItems: 'center', justifyContent: 'center', padding: 20 },
     completedCard: { width: '100%', maxWidth: 380, backgroundColor: colors.card, borderRadius: 24, padding: 24, alignItems: 'center' },
     completedIcon: { width: 56, height: 56, borderRadius: 28, backgroundColor: '#dcfce7', alignItems: 'center', justifyContent: 'center', marginBottom: 16 },
-    completedTitle: { fontSize: 18, fontWeight: '800', color: colors.text, textAlign: 'center' },
+    completedTitle: { fontSize: 18, fontWeight: '700', color: colors.text, textAlign: 'center' },
     completedText: { marginTop: 8, fontSize: 14, lineHeight: 20, fontWeight: '500', color: colors.textMuted, textAlign: 'center' },
-    completedBold: { fontWeight: '700', color: colors.text },
+    completedBold: { fontWeight: '600', color: colors.text },
     completedButton: { marginTop: 20, alignSelf: 'stretch', backgroundColor: colors.primary, borderRadius: 14, padding: 14, alignItems: 'center' },
-    completedButtonText: { color: '#ffffff', fontSize: 14, fontWeight: '700' },
+    completedButtonText: { color: '#ffffff', fontSize: 14, fontWeight: '600' },
 });
 
 const darkMapStyle = [

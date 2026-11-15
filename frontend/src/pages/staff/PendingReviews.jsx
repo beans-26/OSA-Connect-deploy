@@ -211,7 +211,7 @@ const PendingReviews = () => {
                                         </p>
                                         {/* Shortcut to where the reporter is confirmed or rejected */}
                                         {selectedReport.reporter_status === 'unconfirmed' && (
-                                            <Link to="/admin/faculty" className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-xl bg-amber-500 py-2.5 text-xs font-bold text-white shadow-sm hover:bg-amber-600 transition-colors">
+                                            <Link to="/admin/faculty?tab=pending" className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-xl bg-amber-500 py-2.5 text-xs font-bold text-white shadow-sm hover:bg-amber-600 transition-colors">
                                                 Go to Faculty Accounts to confirm or reject <ChevronRight size={15} />
                                             </Link>
                                         )}

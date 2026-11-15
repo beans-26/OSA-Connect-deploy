@@ -11,11 +11,11 @@ import { walkthroughScene, fullFrame, restFrame, ART_WIDTH, ART_HEIGHT } from '.
 const guide = help.student.walkthrough;
 const ICONS = { BadgeCheck, FileDown, LocateFixed, Mail, MapPin, QrCode, Repeat, Scale, ScanLine, Ticket };
 const AMBER = '#f59e0b';
-const ART_MAX_WIDTH = 260;
+const ART_MAX_WIDTH = 190;
 
 // A picture layer's motion as an Animated style, from its frames (shared/walkthrough-art.js); progress runs 0 -> 1
 // once per loop. Moves are in picture units, scaled to the drawn width. Motion off: the still frame.
-const layerMotion = (anim, progress, scale, still) => {
+export const layerMotion = (anim, progress, scale, still) => {
     const [ox, oy] = anim.origin || [ART_WIDTH / 2, ART_HEIGHT / 2];
     const transformOrigin = `${(ox / ART_WIDTH) * 100}% ${(oy / ART_HEIGHT) * 100}%`;
     if (still) {
@@ -23,9 +23,27 @@ const layerMotion = (anim, progress, scale, still) => {
         return { transformOrigin, opacity: f.o, transform: [{ translateX: f.tx * scale }, { translateY: f.ty * scale }, { rotate: `${f.r}deg` }, { scale: f.s }] };
     }
     const frames = anim.frames.map(fullFrame);
-    const inputRange = frames.map((_, i) => i / (frames.length - 1));
-    const easing = anim.linear ? undefined : Easing.inOut(Easing.quad);
-    const track = (key, map = (v) => v) => progress.interpolate({ inputRange, outputRange: frames.map((f) => map(f[key])), easing });
+    // The native driver can't ease inside interpolate, so the ease-in-out between frames is baked in as extra
+    // points (SUBSTEPS per gap, linear in between), the same curve as the website's CSS
+    const SUBSTEPS = anim.linear ? 1 : 8;
+    const ease = anim.linear ? (t) => t : Easing.inOut(Easing.quad);
+    const gaps = frames.length - 1;
+    const inputRange = [];
+    const points = [];
+    for (let i = 0; i < gaps; i += 1) {
+        for (let k = 0; k < SUBSTEPS; k += 1) {
+            const t = k / SUBSTEPS;
+            inputRange.push((i + t) / gaps);
+            points.push([frames[i], frames[i + 1], ease(t)]);
+        }
+    }
+    inputRange.push(1);
+    points.push([frames[gaps], frames[gaps], 0]);
+    const track = (key, map = (v) => v) => progress.interpolate({
+        inputRange,
+        // Rounded: float noise like 8.9e-16 must not reach the native side as "8.9e-16deg"
+        outputRange: points.map(([a, b, e]) => map(Math.round((a[key] + (b[key] - a[key]) * e) * 1000) / 1000)),
+    });
     return {
         transformOrigin,
         opacity: track('o'),
@@ -42,7 +60,9 @@ const layerMotion = (anim, progress, scale, still) => {
 // picture of a student doing it. Each step slides in from the side it comes from, the people act the step out and
 // the icon bubble pops in (all off when the phone's Reduce motion is on). firstTime (right after the first
 // login): it can't be closed until the last step. Reopened from Help: closes any time.
-export default function StudentWalkthrough({ visible, firstTime = false, onFinish, onClose }) {
+// The e-ticket's "How to serve your hours" (StudentGuide) uses it too, with its own title, intro, steps (the
+// serving ones), last button and an action on one step (open the e-ticket on the forms step).
+export default function StudentWalkthrough({ visible, firstTime = false, onFinish, onClose, title = guide.title, intro = guide.intro, steps = guide.steps, finishLabel = 'I understand', stepAction }) {
     const { colors, isDarkMode } = useTheme();
     const [step, setStep] = useState(0);
     const [artWidth, setArtWidth] = useState(ART_MAX_WIDTH);
@@ -50,7 +70,6 @@ export default function StudentWalkthrough({ visible, firstTime = false, onFinis
     const slide = useRef(new Animated.Value(1)).current; // 0 -> 1 as a step comes in
     const dir = useRef(1); // 1 = came from Next, -1 = from Back
     const pop = useRef(new Animated.Value(1)).current;
-    const steps = guide.steps;
     const last = step === steps.length - 1;
 
     useEffect(() => {
@@ -101,7 +120,7 @@ export default function StudentWalkthrough({ visible, firstTime = false, onFinis
     return (
         <Modal visible transparent animationType="none" statusBarTranslucent onRequestClose={firstTime ? () => {} : onClose}>
             <SafeAreaView style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: 16 }}>
-                <View style={{ maxHeight: '100%', backgroundColor: colors.card, borderRadius: 24, overflow: 'hidden' }}>
+                <View style={{ maxHeight: '100%', width: '100%', maxWidth: 380, alignSelf: 'center', backgroundColor: colors.card, borderRadius: 24, overflow: 'hidden' }}>
                     {!firstTime && (
                         <TouchableOpacity onPress={onClose} accessibilityLabel="Close" hitSlop={8}
                             style={{ position: 'absolute', right: 12, top: 12, zIndex: 1, width: 36, height: 36, borderRadius: 18, backgroundColor: colors.background, alignItems: 'center', justifyContent: 'center' }}>
@@ -109,12 +128,12 @@ export default function StudentWalkthrough({ visible, firstTime = false, onFinis
                         </TouchableOpacity>
                     )}
 
-                    <ScrollView contentContainerStyle={{ padding: 24, paddingBottom: 8 }} bounces={false}>
-                        <Text style={{ paddingRight: 40, fontSize: 12, fontWeight: '700', letterSpacing: 0.5, textTransform: 'uppercase', color: colors.primary }}>{guide.title}</Text>
-                        {step === 0 && <Text style={{ marginTop: 4, paddingRight: 40, fontSize: 14, lineHeight: 20, color: colors.textMuted }}>{guide.intro}</Text>}
+                    <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 6 }} bounces={false}>
+                        <Text style={{ paddingRight: 40, fontSize: 12, fontWeight: '600', letterSpacing: 0.5, textTransform: 'uppercase', color: colors.primary }}>{title}</Text>
+                        {step === 0 && !!intro && <Text style={{ marginTop: 4, paddingRight: 40, fontSize: 14, lineHeight: 20, color: colors.textMuted }}>{intro}</Text>}
 
                         <Animated.View style={{
-                            marginTop: 16, borderRadius: 16, padding: 20,
+                            marginTop: 12, borderRadius: 16, padding: 16,
                             backgroundColor: hl ? (isDarkMode ? 'rgba(245,158,11,0.12)' : '#fffbeb') : colors.background,
                             borderWidth: hl ? 2 : 0, borderColor: AMBER,
                             opacity: slide,
@@ -141,9 +160,16 @@ export default function StudentWalkthrough({ visible, firstTime = false, onFinis
                                     </Animated.View>
                                 </View>
                             </View>
-                            <Text style={{ marginTop: 12, fontSize: 12, fontWeight: '700', color: colors.textMuted }}>Step {step + 1} of {steps.length}</Text>
-                            <Text accessibilityRole="header" style={{ marginTop: 2, fontSize: 20, fontWeight: '800', color: colors.text }}>{s.title}</Text>
-                            <Text style={{ marginTop: 8, fontSize: 15, lineHeight: 23, color: colors.text }}>{s.text}</Text>
+                            <Text style={{ marginTop: 8, fontSize: 12, fontWeight: '600', color: colors.textMuted }}>Step {step + 1} of {steps.length}</Text>
+                            <Text accessibilityRole="header" style={{ marginTop: 2, fontSize: 18, fontWeight: '700', color: colors.text }}>{s.title}</Text>
+                            <Text style={{ marginTop: 6, fontSize: 14, lineHeight: 20, color: colors.text }}>{s.text}</Text>
+                            {stepAction && stepAction.scene === s.scene && (
+                                <TouchableOpacity onPress={stepAction.onPress} accessibilityRole="button"
+                                    style={{ marginTop: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderRadius: 14, backgroundColor: AMBER, padding: 12 }}>
+                                    {stepAction.Icon && <stepAction.Icon size={18} color="#fff" />}
+                                    <Text style={{ fontSize: 14, fontWeight: '600', color: '#fff' }}>{stepAction.label}</Text>
+                                </TouchableOpacity>
+                            )}
                         </Animated.View>
 
                         {/* Progress dots */}
@@ -158,17 +184,17 @@ export default function StudentWalkthrough({ visible, firstTime = false, onFinis
                         </View>
                     </ScrollView>
 
-                    <View style={{ flexDirection: 'row', gap: 8, padding: 16, borderTopWidth: 1, borderTopColor: colors.border }}>
+                    <View style={{ flexDirection: 'row', gap: 8, padding: 14, borderTopWidth: 1, borderTopColor: colors.border }}>
                         {step > 0 && (
                             <TouchableOpacity onPress={() => go(step - 1)} accessibilityRole="button"
                                 style={{ flexDirection: 'row', alignItems: 'center', gap: 4, borderRadius: 14, borderWidth: 1, borderColor: colors.border, paddingHorizontal: 16, paddingVertical: 12 }}>
                                 <ChevronLeft size={18} color={colors.text} />
-                                <Text style={{ fontSize: 14, fontWeight: '700', color: colors.text }}>Back</Text>
+                                <Text style={{ fontSize: 14, fontWeight: '600', color: colors.text }}>Back</Text>
                             </TouchableOpacity>
                         )}
                         <TouchableOpacity onPress={next} accessibilityRole="button"
                             style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, borderRadius: 14, backgroundColor: colors.primary, paddingVertical: 12 }}>
-                            <Text style={{ fontSize: 14, fontWeight: '700', color: '#fff' }}>{last ? 'I understand' : 'Next'}</Text>
+                            <Text style={{ fontSize: 14, fontWeight: '600', color: '#fff' }}>{last ? finishLabel : 'Next'}</Text>
                             {!last && <ChevronRight size={18} color="#fff" />}
                         </TouchableOpacity>
                     </View>

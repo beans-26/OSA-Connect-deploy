@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useStudentShell } from '../../components/StudentShell';
 import { Mail, Phone, UserRound, IdCard, GraduationCap, Building2, Layers, User } from 'lucide-react';
 import { studentName } from '../../lib/names';
-import { Group, InfoRow } from '../../components/SettingsList';
+import { Group, InfoRow, insetDivider } from '../../components/SettingsList';
 
 const postJson = async (url, body) => {
     const response = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
@@ -113,7 +113,7 @@ const ContactDetails = ({ studentInfo, onUpdated }) => {
                     )
                 )}
             </div>
-            <div className="border-t border-[var(--s-border)]">
+            <div className={insetDivider}>
                 <InfoRow icon={Phone} label="Contact number" value={studentInfo.contact_number} action={editing !== 'contact' && <button onClick={() => open('contact')} className={changeBtn}>Change</button>} />
                 {editing === 'contact' && (
                     <form onSubmit={saveContact} className="space-y-3 px-4 pb-4">
@@ -145,12 +145,11 @@ const PersonalInfoBody = () => {
                 <InfoRow icon={UserRound} label="Name" value={studentName(profile)} />
                 <InfoRow icon={IdCard} label="Student ID" value={profile.student_id} />
                 <InfoRow icon={GraduationCap} label="Course" value={profile.course} />
-                <InfoRow icon={Building2} label="College" value={profile.department} />
+                <InfoRow icon={Building2} label="Department" value={profile.department} />
                 <InfoRow icon={Layers} label="Year level" value={yearText(profile.year_level)} />
                 <InfoRow icon={User} label="Gender" value={profile.gender} />
             </Group>
             <ContactDetails studentInfo={profile} onUpdated={(changes) => setProfile((p) => ({ ...p, ...changes }))} />
-            <p className="px-1 text-xs text-[var(--s-muted)]">Wrong name, course or college? Visit the OSA office to have it corrected.</p>
         </main>
     );
 };

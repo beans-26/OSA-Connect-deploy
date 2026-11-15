@@ -110,7 +110,7 @@ export default function ContactDetailsCard({ studentInfo, onUpdated }) {
                 ) : (
                     <View style={styles.form}>
                         <Text style={styles.hint}>
-                            Enter the 6-digit code sent to <Text style={{ fontWeight: '700', color: colors.text }}>{codeSentTo}</Text>. It expires in 5 minutes. Check Spam / Junk too.
+                            Enter the 6-digit code sent to <Text style={{ fontWeight: '600', color: colors.text }}>{codeSentTo}</Text>. It expires in 5 minutes. Check Spam / Junk too.
                         </Text>
                         {input({ placeholder: '6-digit code', keyboardType: 'number-pad', maxLength: 6, value: form.code, onChangeText: (t) => setForm({ ...form, code: t.replace(/\D/g, '') }), style: [styles.input, styles.code] })}
                         {buttons({ onCancel: () => setCodeSentTo(''), cancelLabel: 'Back', onSubmit: confirmEmail, label: 'Verify & save', disabled: form.code.length < 6 })}
@@ -133,17 +133,17 @@ export default function ContactDetailsCard({ studentInfo, onUpdated }) {
 
 const getStyles = (colors, accent) => StyleSheet.create({
     change: { borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6 },
-    changeText: { fontSize: 14, fontWeight: '600', color: accent },
+    changeText: { fontSize: 14, fontWeight: '500', color: accent },
     form: { paddingHorizontal: 16, paddingBottom: 16, gap: 10 },
     input: { borderWidth: 1, borderColor: colors.border, backgroundColor: colors.background, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 11, fontSize: 15, color: colors.text },
     code: { textAlign: 'center', letterSpacing: 6, fontSize: 18 },
     hint: { fontSize: 12, lineHeight: 17, color: colors.textMuted },
     buttons: { flexDirection: 'row', gap: 8 },
     cancel: { flex: 1, height: 44, borderRadius: 12, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
-    cancelText: { fontSize: 14, fontWeight: '600', color: colors.textMuted },
+    cancelText: { fontSize: 14, fontWeight: '500', color: colors.textMuted },
     submit: { flex: 1, height: 44, borderRadius: 12, backgroundColor: accent, alignItems: 'center', justifyContent: 'center' },
-    submitText: { fontSize: 14, fontWeight: '700', color: '#fff' },
-    message: { margin: 12, marginBottom: 0, borderRadius: 8, padding: 10, fontSize: 12, fontWeight: '700', textAlign: 'center', overflow: 'hidden' },
+    submitText: { fontSize: 14, fontWeight: '600', color: '#fff' },
+    message: { margin: 12, marginBottom: 0, borderRadius: 8, padding: 10, fontSize: 12, fontWeight: '600', textAlign: 'center', overflow: 'hidden' },
     success: { backgroundColor: '#ecfdf5', color: '#059669' },
     error: { backgroundColor: '#fef2f2', color: '#dc2626' },
 });

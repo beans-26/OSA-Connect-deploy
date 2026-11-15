@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
-import { Loader2, Building2, Users, Layers, GraduationCap } from 'lucide-react';
+import { Loader2, Building2, Users, Layers, GraduationCap, Download } from 'lucide-react';
 import BreakdownBars, { BREAKDOWN_COLORS } from '../../components/BreakdownBars';
 
-// Campus-wide violation counts for guards: by department, violation type, gender, year level and course.
+// The violations this guard or faculty member reported, counted by department, violation type, gender, year level and course.
 // Counts only (GET /api/violations/summary/), no student names; dismissed reports aren't counted.
 const PERIODS = [
     { id: 'day', label: 'Today' },
@@ -24,6 +24,21 @@ const GuardAnalytics = () => {
     const [period, setPeriod] = useState('month');
     const [data, setData] = useState(null);
     const [error, setError] = useState('');
+    // Download: the whole page for the chosen period as a PDF (lib/analyticsPdf.js)
+    const [downloading, setDownloading] = useState(false);
+    const download = async () => {
+        if (!data || downloading) return;
+        setDownloading(true);
+        try {
+            const { downloadAnalyticsPdf } = await import('../../lib/analyticsPdf');
+            const user = JSON.parse(localStorage.getItem('user') || '{}');
+            await downloadAnalyticsPdf({ data, periodLabel: PERIODS.find((p) => p.id === period)?.label || '', breakdowns: BREAKDOWNS, preparedBy: user.full_name || user.username });
+        } catch {
+            alert("Couldn't make the PDF. Try again.");
+        } finally {
+            setDownloading(false);
+        }
+    };
 
     useEffect(() => {
         let cancelled = false;
@@ -43,8 +58,12 @@ const GuardAnalytics = () => {
             <main className="w-full px-3 py-4 md:px-6 md:py-6">
                 {/* Same width and compact style as Violation History */}
                 <div className="mx-auto w-full max-w-5xl">
-                    <header className="mb-2.5 sm:mb-3">
-                        <p className="text-slate-500 dark:text-slate-400 font-medium text-xs">Campus-wide counts of reported violations.</p>
+                    <header className="mb-2.5 flex items-center justify-between gap-3 sm:mb-3">
+                        <p className="text-slate-500 dark:text-slate-400 font-medium text-xs">Counts of the violations you reported.</p>
+                        <button onClick={download} disabled={!data || downloading}
+                            className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-ustp-blue px-3.5 py-2 text-xs font-bold text-white shadow-sm hover:brightness-110 disabled:opacity-50">
+                            {downloading ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />} Download PDF
+                        </button>
                     </header>
 
                     {/* The periods on one line (they scroll sideways on narrow phones) */}

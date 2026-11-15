@@ -15,7 +15,7 @@ export default function Index() {
     }
 
     if (!user) {
-        return <Redirect href="/login" />;
+        return <Redirect href="/welcome" />;
     }
 
     // Route students
@@ -29,7 +29,7 @@ export default function Index() {
     }
 
     // Fallback if somehow someone else logs in
-    return <Redirect href="/login" />;
+    return <Redirect href="/welcome" />;
 }
 
 const styles = StyleSheet.create({

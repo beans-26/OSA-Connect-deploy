@@ -18,7 +18,7 @@ export default function RequireRole({ roles, children }) {
             </View>
         );
     }
-    if (!user) return <Redirect href="/login" />;
+    if (!user) return <Redirect href="/welcome" />;
     if (!roles.includes(user.role)) return <Redirect href="/" />;
     return children;
 }

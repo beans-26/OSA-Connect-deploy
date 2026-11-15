@@ -5,6 +5,7 @@ import { LogOut } from 'lucide-react-native';
 import Constants from 'expo-constants';
 import { useRouter } from 'expo-router';
 import { useTheme } from '../../components/ThemeContext';
+import { StudentBackdrop } from '../../components/StudentLook';
 import { StudentTopBar, useStudentShell } from '../../components/StudentShell';
 import { Group, Row, ToggleRow } from '../../components/SettingsList';
 
@@ -19,8 +20,9 @@ export default function Settings() {
 
     return (
         <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
+            <StudentBackdrop isDarkMode={isDarkMode} />
             <StatusBar barStyle={isDarkMode ? 'light-content' : 'dark-content'} backgroundColor={colors.card} />
-            <StudentTopBar title="Settings" />
+            <StudentTopBar title="Settings" back="/student/personal-info" />
             <ScrollView contentContainerStyle={styles.content}>
                 <Group label="Appearance">
                     <ToggleRow title="Dark mode" subtitle="Easier on the eyes at night" value={isDarkMode} onValueChange={(on) => changeTheme(on ? 'dark' : 'light')} />
@@ -54,5 +56,5 @@ const getStyles = (colors) => StyleSheet.create({
         marginTop: 4, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, padding: 16,
         borderRadius: 16, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.card,
     },
-    logoutText: { fontSize: 15, fontWeight: '600', color: colors.danger },
+    logoutText: { fontSize: 15, fontWeight: '500', color: colors.danger },
 });
