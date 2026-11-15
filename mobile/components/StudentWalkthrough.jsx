@@ -62,7 +62,8 @@ export const layerMotion = (anim, progress, scale, still) => {
 // login): it can't be closed until the last step. Reopened from Help: closes any time.
 // The e-ticket's "How to serve your hours" (StudentGuide) uses it too, with its own title, intro, steps (the
 // serving ones), last button and an action on one step (open the e-ticket on the forms step).
-export default function StudentWalkthrough({ visible, firstTime = false, onFinish, onClose, title = guide.title, intro = guide.intro, steps = guide.steps, finishLabel = 'I understand', stepAction }) {
+// paused: hidden for now (e.g. while the e-ticket its button opened is showing), back on the same step after
+export default function StudentWalkthrough({ visible, paused = false, firstTime = false, onFinish, onClose, title = guide.title, intro = guide.intro, steps = guide.steps, finishLabel = 'I understand', stepAction }) {
     const { colors, isDarkMode } = useTheme();
     const [step, setStep] = useState(0);
     const [artWidth, setArtWidth] = useState(ART_MAX_WIDTH);
@@ -110,7 +111,7 @@ export default function StudentWalkthrough({ visible, firstTime = false, onFinis
         return () => loops.forEach((loop) => loop.stop());
     }, [art, clocks, visible, reduceMotion]);
 
-    if (!visible) return null;
+    if (!visible || paused) return null;
     const Icon = ICONS[s.icon] || BadgeCheck;
     const textMax = Math.max(0, ...Object.values(textHeights));
     // A step's title, words and (on its step) the action button; live: the one shown, the others only measure

@@ -227,8 +227,10 @@ export function StudentTopBar({ title, back }) {
             {stepsOpen && (
                 <StudentGuide
                     ticket={records.tickets.find((t) => t.status === 'Ongoing') || records.tickets.find((t) => t.status === 'Active')}
+                    paused={!!stepsTicket}
                     onClose={() => setStepsOpen(false)}
-                    onOpenTicket={(t) => { setStepsOpen(false); setStepsTicket(t); }}
+                    // The guide waits behind the e-ticket and comes back on the same step when it's closed
+                    onOpenTicket={(t) => setStepsTicket(t)}
                 />
             )}
             <TicketDetails ticket={stepsTicket} onClose={() => setStepsTicket(null)} />

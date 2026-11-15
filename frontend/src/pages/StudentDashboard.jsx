@@ -252,6 +252,7 @@ const DashboardBody = () => {
     const [walkthroughOpen, setWalkthroughOpen] = useState(false);
     // The ticket guide waits until we know whether the walkthrough comes first
     const [walkthroughChecked, setWalkthroughChecked] = useState(false);
+    const [guideHold, setGuideHold] = useState(null); // the guide's ticket while its e-ticket is open
     useEffect(() => {
         let gone = false;
         fetch('/api/students/walkthrough/').then((r) => (r.ok ? r.json() : { seen: true }))
@@ -857,7 +858,8 @@ const DashboardBody = () => {
             )}
             <TicketDetails ticket={openTicket} onClose={() => setOpenTicket(null)} />
             <StudentWalkthrough open={walkthroughOpen} firstTime onFinish={finishWalkthrough} />
-            <StudentGuide ticket={shownGuide} onClose={closeGuide} onOpenTicket={(t) => { closeGuide(); setOpenTicket(t); }} />
+            {/* "Open my e-ticket": the guide waits (guideHold) behind the e-ticket and comes back on the same step */}
+            <StudentGuide ticket={shownGuide || guideHold} paused={!!openTicket && !!guideHold} onClose={() => { closeGuide(); setGuideHold(null); }} onOpenTicket={(t) => { setGuideHold(shownGuide); setOpenTicket(t); }} />
 
             {/* QR Scanner (end) */}
             {showStopScanner && (

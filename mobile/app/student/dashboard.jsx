@@ -276,6 +276,7 @@ export default function Dashboard() {
     const [walkthroughOpen, setWalkthroughOpen] = useState(false);
     // The ticket guide waits until we know whether the walkthrough comes first
     const [walkthroughChecked, setWalkthroughChecked] = useState(false);
+    const [guideHold, setGuideHold] = useState(null); // the guide's ticket while its e-ticket is open
     useEffect(() => {
         let gone = false;
         api.get('/students/walkthrough/')
@@ -691,7 +692,8 @@ export default function Dashboard() {
         </Modal>
         <TicketDetails ticket={openedTicket} onClose={() => setOpenedTicket(null)} />
         <StudentWalkthrough visible={walkthroughOpen} firstTime onFinish={finishWalkthrough} />
-        <StudentGuide ticket={newGuideTicket} onClose={closeGuide} onOpenTicket={(t) => { closeGuide(); setOpenedTicket(t); }} />
+        {/* "Open my e-ticket": the guide waits (guideHold) behind the e-ticket and comes back on the same step */}
+        <StudentGuide ticket={newGuideTicket || guideHold} paused={!!openedTicket && !!guideHold} onClose={() => { closeGuide(); setGuideHold(null); }} onOpenTicket={(t) => { setGuideHold(newGuideTicket); setOpenedTicket(t); }} />
         <SafeAreaView style={styles.safeArea}>
             <StudentBackdrop isDarkMode={isDarkMode} />
             <StatusBar barStyle={isDarkMode ? "light-content" : "dark-content"} backgroundColor={colors.card} />

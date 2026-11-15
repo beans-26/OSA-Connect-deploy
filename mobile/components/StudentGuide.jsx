@@ -13,10 +13,10 @@ const SERVE_STEPS = ALL_STEPS.slice(ALL_STEPS.findIndex((s) => s.scene === 'form
 // that opens the e-ticket, where the ISO Form and Reflection Form are downloaded.
 // Shown once per new ticket (student/dashboard.jsx), and again from the E-Tickets screen. general: the same steps
 // for a student without an open ticket (E-Tickets' book icon is always there), with a general intro and no button.
-export default function StudentGuide({ ticket, general = false, onOpenTicket, onClose }) {
+export default function StudentGuide({ ticket, general = false, paused = false, onOpenTicket, onClose }) {
     if (!ticket && !general) return null;
     if (!ticket) {
-        return <StudentWalkthrough visible title="How to serve your hours" intro="If you get community service hours for a violation, here's how to serve them." steps={SERVE_STEPS} finishLabel="Got it" onClose={onClose} onFinish={onClose} />;
+        return <StudentWalkthrough visible paused={paused} title="How to serve your hours" intro="If you get community service hours for a violation, here's how to serve them." steps={SERVE_STEPS} finishLabel="Got it" onClose={onClose} onFinish={onClose} />;
     }
     const site = ticket.assigned_site?.name || ticket.assigned_location;
     const hours = ticket.total_hours_required;
@@ -25,6 +25,7 @@ export default function StudentGuide({ ticket, general = false, onOpenTicket, on
     return (
         <StudentWalkthrough
             visible
+            paused={paused}
             title="How to serve your hours"
             intro={intro}
             steps={SERVE_STEPS}

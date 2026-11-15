@@ -33,7 +33,8 @@ const layerStyle = (name, anim) => {
 // step. Reopened from Help: closes any time.
 // The e-ticket's "How to serve your hours" (StudentGuide) uses it too, with its own title, intro, steps (the
 // serving ones), last button and an action on one step (open the e-ticket on the forms step).
-const StudentWalkthrough = ({ open, firstTime = false, onFinish, onClose, title = guide.title, intro = guide.intro, steps = guide.steps, finishLabel = 'I understand', stepAction }) => {
+// paused: hidden for now (e.g. while the e-ticket its button opened is showing), back on the same step after
+const StudentWalkthrough = ({ open, paused = false, firstTime = false, onFinish, onClose, title = guide.title, intro = guide.intro, steps = guide.steps, finishLabel = 'I understand', stepAction }) => {
     const [step, setStep] = useState(0);
     // Which way the last move went, for the slide-in direction
     const [dir, setDir] = useState('next');
@@ -44,7 +45,7 @@ const StudentWalkthrough = ({ open, firstTime = false, onFinish, onClose, title 
     // Back to the first step each time it opens
     useEffect(() => { if (open) { setStep(0); setDir('next'); } }, [open]);
 
-    if (!open) return null;
+    if (!open || paused) return null;
     const s = steps[step];
     const Icon = ICONS[s.icon] || BadgeCheck;
     const next = () => (last ? (onFinish || onClose)() : go(step + 1));

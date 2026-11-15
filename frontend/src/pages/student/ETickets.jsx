@@ -76,7 +76,7 @@ const ETickets = () => {
                 ))
             )}
             <TicketDetails ticket={shown} onClose={() => setOpenTicket(null)} />
-            <StudentGuide ticket={guideTicket} general={guideGeneral} onClose={() => { setGuideTicket(null); setGuideGeneral(false); }} onOpenTicket={(t) => { setGuideTicket(null); setOpenTicket(t); }} />
+            <StudentGuide ticket={guideTicket} general={guideGeneral} paused={!!openTicket} onClose={() => { setGuideTicket(null); setGuideGeneral(false); }} onOpenTicket={(t) => setOpenTicket(t)} />
         </main>
     );
 };
