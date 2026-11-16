@@ -137,6 +137,8 @@ export default function Dashboard() {
     const [warningCountdown, setWarningCountdown] = useState(null);
     // Seconds the student has been outside the service area (the timer is paused), or null when inside
     const [awaySeconds, setAwaySeconds] = useState(null);
+    // Time away this session as the server last reported it (it isn't counted as served): { s, outside, at }
+    const [pausedBase, setPausedBase] = useState({ s: 0, outside: false, at: 0 });
     // Time-out receipt shown after a session ends
     const [receipt, setReceipt] = useState(null);
     // E-ticket opened from the list (its details and service log)
@@ -246,6 +248,7 @@ export default function Dashboard() {
                     // Anchor to this phone's clock so the countdown keeps ticking between polls
                     setStartTime(Date.now() - elapsedSinceIn * 1000);
                     setElapsedSeconds(elapsedSinceIn);
+                    setPausedBase({ s: activeTicket.active_paused_seconds || 0, outside: !!activeTicket.active_outside, at: Date.now() });
 
                     if (elapsedSinceIn < 20 && elapsedSinceIn >= 0) {
                         const remainingCooldown = 20 - elapsedSinceIn;
@@ -667,6 +670,13 @@ export default function Dashboard() {
         router.push({ pathname: '/student/scan', params: { mode: timerActive ? 'end' : 'start' } });
     };
 
+    // Total time away this session (not counted as served): the server's figure, plus the current trip while the
+    // student is outside (the server's figure already includes it once it has heard about the trip). Same as the website.
+    const awayTotal = !timerActive ? 0 : pausedBase.s + (!away ? 0
+        : pausedBase.outside ? Math.max(0, Math.floor((Date.now() - pausedBase.at) / 1000)) : (awaySeconds || 0));
+    const clockAway = (sec) => `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`;
+    const wordsAway = (sec) => (sec >= 60 ? `${Math.floor(sec / 60)}m ${String(sec % 60).padStart(2, '0')}s` : `${sec}s`);
+
     const displayName = user?.name?.split(' ')[0] || user?.username || 'User';
     const assignedSite = (tickets.find(t => t.status === 'Ongoing') || tickets.find(t => t.status === 'Active'))?.assigned_site;
     // Before a session: how far and which way the student's site is (targetLocation comes from the open ticket)
@@ -756,15 +766,23 @@ export default function Dashboard() {
                                                     You're {Math.round(currentDistance)} m from the site. Go back to continue.
                                                 </Text>
                                                 <Text style={{ fontSize: 12, fontWeight: '600', color: '#b45309', marginTop: 2 }}>
-                                                    Away {Math.floor((awaySeconds || 0) / 60)}:{String((awaySeconds || 0) % 60).padStart(2, '0')} · the session ends after {PAUSE_LIMIT_TEXT} away
+                                                    Away {clockAway(awaySeconds || 0)} now{awayTotal > (awaySeconds || 0) ? ` · ${clockAway(awayTotal)} this session` : ''} · the session ends after {PAUSE_LIMIT_TEXT} away
                                                 </Text>
                                             </View>
                                         ) : (
-                                            <Text style={styles.locationStatus}>
-                                                {location
-                                                    ? `Within service area — ${Math.round(currentDistance)}m from hub`
-                                                    : 'Fetching location...'}
-                                            </Text>
+                                            <View style={{ flexShrink: 1 }}>
+                                                <Text style={styles.locationStatus}>
+                                                    {location
+                                                        ? `Within service area — ${Math.round(currentDistance)}m from hub`
+                                                        : 'Fetching location...'}
+                                                </Text>
+                                                {/* After a trip outside: how much time away this session so far (not counted) */}
+                                                {awayTotal > 0 && (
+                                                    <Text style={{ fontSize: 12, fontWeight: '600', color: colors.textMuted, marginTop: 2 }}>
+                                                        Time away this session: {wordsAway(awayTotal)} (not counted)
+                                                    </Text>
+                                                )}
+                                            </View>
                                         )}
                                     </View>
                                 </View>

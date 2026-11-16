@@ -235,6 +235,8 @@ const DashboardBody = () => {
     const [currentDistance, setCurrentDistance] = useState(0);
     // Seconds the student has been outside the service area (the timer is paused), or null when inside
     const [awaySeconds, setAwaySeconds] = useState(null);
+    // Time away this session as the server last reported it (it isn't counted as served): { s, outside, at }
+    const [pausedBase, setPausedBase] = useState({ s: 0, outside: false, at: 0 });
     // Time-out receipt shown after a session ends (scanned out or stopped automatically)
     const [receipt, setReceipt] = useState(null);
     // E-ticket opened from the list (its details and service log)
@@ -644,10 +646,12 @@ const DashboardBody = () => {
                 const servedMs = Math.max(0, (base - live) * 3600 * 1000);
                 setStartTime(Date.now() - servedMs);
                 setTimerActive(true);
+                setPausedBase({ s: ongoingTicket.active_paused_seconds || 0, outside: !!ongoingTicket.active_outside, at: Date.now() });
             } else {
                 setTimerActive(false);
                 setStartTime(null);
                 setElapsed(0);
+                setPausedBase({ s: 0, outside: false, at: 0 });
             }
         } else {
             setTimerActive(false);
@@ -790,6 +794,13 @@ const DashboardBody = () => {
         }
     };
 
+    // Total time away this session (not counted as served): the server's figure, plus the current trip while
+    // the student is outside (the server's figure already includes it once it has heard about the trip)
+    const awayTotal = !timerActive ? 0 : pausedBase.s + (!isOutOfBounds ? 0
+        : pausedBase.outside ? Math.max(0, Math.floor((Date.now() - pausedBase.at) / 1000)) : (awaySeconds || 0));
+    const clockAway = (sec) => `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`;
+    const wordsAway = (sec) => (sec >= 60 ? `${Math.floor(sec / 60)}m ${String(sec % 60).padStart(2, '0')}s` : `${sec}s`);
+
     const formatRemainingTime = () => {
         if (!activeTicket) return '00:00:00';
         const currentRemainingHours = Math.max(0, displayHours - (elapsed / 3600));
@@ -923,18 +934,26 @@ const DashboardBody = () => {
                                                 You're {Math.round(currentDistance)} m from the site. Go back to continue.
                                             </p>
                                             <p className="mt-0.5 text-xs font-semibold text-[#b45309] dark:text-amber-300/80">
-                                                Away {Math.floor((awaySeconds || 0) / 60)}:{String((awaySeconds || 0) % 60).padStart(2, '0')} · the session ends after {PAUSE_LIMIT_TEXT} away
+                                                Away {clockAway(awaySeconds || 0)} now{awayTotal > (awaySeconds || 0) ? ` · ${clockAway(awayTotal)} this session` : ''} · the session ends after {PAUSE_LIMIT_TEXT} away
                                             </p>
                                         </div>
                                     </div>
                                 ) : (
-                                    <div className="mt-3 flex items-center gap-2 rounded-xl border border-[var(--s-border)] bg-[var(--s-bg)] p-3">
-                                        <span className="h-2 w-2 rounded-full bg-[var(--s-success)]" />
-                                        <span className="text-[13px] font-bold text-[var(--s-muted)]">
-                                            {!monitoringLocation || !location
-                                                ? 'Fetching location...'
-                                                : `Within service area — ${Math.round(currentDistance)}m from hub`}
-                                        </span>
+                                    <div className="mt-3 rounded-xl border border-[var(--s-border)] bg-[var(--s-bg)] p-3">
+                                        <div className="flex items-center gap-2">
+                                            <span className="h-2 w-2 rounded-full bg-[var(--s-success)]" />
+                                            <span className="text-[13px] font-bold text-[var(--s-muted)]">
+                                                {!monitoringLocation || !location
+                                                    ? 'Fetching location...'
+                                                    : `Within service area — ${Math.round(currentDistance)}m from hub`}
+                                            </span>
+                                        </div>
+                                        {/* After a trip outside: how much time away this session so far (not counted) */}
+                                        {awayTotal > 0 && (
+                                            <p className="mt-1 pl-4 text-xs font-semibold text-[var(--s-muted)]">
+                                                Time away this session: {wordsAway(awayTotal)} (not counted)
+                                            </p>
+                                        )}
                                     </div>
                                 )}
 
