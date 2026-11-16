@@ -1,6 +1,8 @@
 import { useState } from 'react';
-import { ChevronDown, Mail, ShieldCheck, ClipboardList } from 'lucide-react';
+import { ChevronDown, Mail, ShieldCheck, ClipboardList, Scale } from 'lucide-react';
 import Sidebar from '../components/Sidebar';
+import { useViolationTypes } from '../lib/violationTypes';
+import ViolationsTable from '../components/ViolationsTable';
 // Shared with the mobile app (mobile/app/help.jsx); see the _about note in the file
 import help from '../../../shared/help-content.json';
 import { Navigate } from 'react-router-dom';
@@ -57,6 +59,23 @@ const Section = ({ id, icon: Icon, title, intro, children }) => (
     </section>
 );
 
+// The OSA Student Handbook's violations by category with their hours by offense (the violation_types table), the
+// same list as the student Help. Faculty asked for it back (2026-11-16).
+const ViolationsSection = () => {
+    const types = useViolationTypes();
+    const groups = [...types.groups, ...(types.eventGroup ? [types.eventGroup] : [])];
+    return (
+        <Section id="violations" icon={Scale} title="Violations and penalties" intro="From the OSA Student Handbook. OSA applies these after reviewing each report.">
+            {groups.map((g) => (
+                <Collapsible key={g.id} title={g.label}>
+                    <ViolationsTable items={g.items} rules={types.rules} tone="staff" />
+                </Collapsible>
+            ))}
+            <p className="pt-3 text-xs font-medium leading-5 text-slate-500 dark:text-slate-400">Hours are community service. A violation's hours can go up with each repeat offense; "no entry" means no entry into the campus.</p>
+        </Section>
+    );
+};
+
 // `embedded`: inside the faculty & staff layout (components/ReporterShell.jsx), which has the menu and title
 const Help = ({ embedded = false }) => {
     const user = JSON.parse(localStorage.getItem('user') || '{}');
@@ -110,7 +129,9 @@ const Help = ({ embedded = false }) => {
                                 ))}
                             </Section>
 
-                            {/* No penalties table or OSA contact for faculty (2026-11): just a way to report a problem */}
+                            <ViolationsSection />
+
+                            {/* No OSA contact for faculty (2026-11): just a way to report a problem */}
                             <a href={gmailUrl} target="_blank" rel="noopener noreferrer" className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-ustp-blue px-5 py-3 text-sm font-bold text-white hover:opacity-90 sm:w-auto">
                                 <Mail size={16} /> Report a problem
                             </a>

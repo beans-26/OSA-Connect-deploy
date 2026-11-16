@@ -120,15 +120,21 @@ def send_violation_notices(reports):
     one (the secure handshake and login) takes Gmail 1 to 3 seconds, so a connection per email made a class-sized
     report take a minute. Reports whose student has no email are skipped. Returns how many were sent."""
     from django.core.mail import get_connection
-    messages = [violation_notice_message(r) for r in reports if getattr(r.student, 'email', None)]
+    messages = [violation_notice_message(r, testing=True) for r in reports if getattr(r.student, 'email', None)]
     if not messages:
         return 0
     with get_connection(fail_silently=False) as connection:
         return connection.send_messages(messages) or 0
 
 
-def violation_notice_message(report):
-    """The violation notice as an email, not sent yet."""
+# DEMO ONLY (2026-11-16): bulk reports are only used for testing for now, so their emails say so first and the
+# student can ignore them. Remove TEST_NOTICE (and testing=True in send_violation_notices) before real use.
+TEST_NOTICE = ('This is only a test of OSAConnect. You can disregard this email: you did nothing wrong and you '
+               'don\'t need to do anything.')
+
+
+def violation_notice_message(report, testing=False):
+    """The violation notice as an email, not sent yet. testing=True puts TEST_NOTICE before the real notice."""
     student = report.student
     when = report.created_at.replace(tzinfo=datetime.timezone.utc).astimezone(PH_TZ) if report.created_at else None
     when_str = when.strftime('%B %d, %Y, %I:%M %p').replace(' 0', ' ') if when else 'Not recorded'
@@ -149,6 +155,12 @@ def violation_notice_message(report):
     text = (f"{greeting}\n\n{intro}\n\n" + ''.join(f"{k}: {v}\n" for k, v in rows)
             + f"\n{next_step}\n{not_you}\n\n{OFFICE}\n{SITE_URL}\nThis email was sent automatically. Replies to it are not read.\n")
     html = _html('A violation report was filed for you', [greeting, intro], rows=rows, after=[next_step, not_you])
+    if testing:
+        subject = '[Test only] ' + subject
+        text = f"TEST ONLY: {TEST_NOTICE}\n\n" + text
+        box = ('<p style="margin:0 0 18px;padding:12px 14px;border:2px solid #F59E0B;border-radius:8px;'
+               f'background:#FFFBEB;color:#92400E;font-weight:bold;">Test only: {escape(TEST_NOTICE)}</p>')
+        html = html.replace('<h2 ', box + '<h2 ', 1)
     return _message(student.email, subject, text, html)
 
 

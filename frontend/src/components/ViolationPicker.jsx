@@ -1,13 +1,16 @@
 import { useState } from 'react';
 import { Check, ChevronDown, Plus, X } from 'lucide-react';
-import { VIOLATION_GROUPS } from '../lib/violationTypes';
+import { useViolationTypes } from '../lib/violationTypes';
 
 // The violations on the report forms (guard / faculty ReportViolation, admin ReportViolationModal): one dropdown
 // per group (Less Grave, Light), one open at a time, each violation with a + to add it (a check once added; tap
 // again to remove). The added ones show as chips underneath, each with an x.
-// value: the chosen violations; onToggle(v): add or remove one; groups: defaults to VIOLATION_GROUPS.
-export default function ViolationPicker({ value, onToggle, groups = VIOLATION_GROUPS }) {
+// value: the chosen violations; onToggle(v): add or remove one; groups: defaults to the table's Light and Less
+// Grave lists (lib/violationTypes.js).
+export default function ViolationPicker({ value, onToggle, groups: given }) {
     const [openId, setOpenId] = useState(null);
+    const types = useViolationTypes();
+    const groups = given || types.groups;
     return (
         <div className="space-y-2">
             {groups.map((g) => {

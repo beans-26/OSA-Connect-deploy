@@ -4,8 +4,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import {
     ArrowLeft, ChevronDown, ChevronUp, MessageCircleQuestionMark, Wrench,
-    ShieldCheck, ClipboardList, Mail,
+    ShieldCheck, ClipboardList, Mail, Scale,
 } from 'lucide-react-native';
+import { useViolationTypes, offenseCells } from '../components/violationTypes';
 import { HomeHeader } from '../components/StudentLook';
 import { useAuth } from '../components/AuthContext';
 import { useTheme } from '../components/ThemeContext';
@@ -60,6 +61,35 @@ function Card({ icon: Icon, title, children, styles, colors }) {
     );
 }
 
+// "Violations and penalties": every violation that can be reported, by category, with its hours by offense
+// (the violations table, through components/violationTypes.js). Same as the website's student Help.
+function ViolationsCard({ styles, colors }) {
+    const types = useViolationTypes();
+    const groups = [...types.groups, ...(types.eventGroup ? [types.eventGroup] : [])];
+    return (
+        <Card icon={Scale} title="Violations and penalties" styles={styles} colors={colors}>
+            {groups.map((g, gi) => (
+                <Collapsible key={g.id} title={g.label} last={gi === groups.length - 1} styles={styles} colors={colors}>
+                    {/* A table: Violation | 1st | 2nd | 3rd offense */}
+                    <View style={styles.vRow}>
+                        <Text style={[styles.vHead, { flex: 1, textAlign: 'left' }]}>Violation</Text>
+                        {['1st', '2nd', '3rd'].map((h) => <Text key={h} style={[styles.vHead, styles.vCol]}>{h}</Text>)}
+                    </View>
+                    {g.items.map((v) => (
+                        <View key={v} style={[styles.vRow, styles.vLine]}>
+                            <Text style={styles.vName}>{v}</Text>
+                            {offenseCells(types.rules?.[v]).map((c, i) => (
+                                <Text key={i} style={[styles.vCell, styles.vCol, c === 'No entry' && styles.vNoEntry]}>{c}</Text>
+                            ))}
+                        </View>
+                    ))}
+                </Collapsible>
+            ))}
+            <Text style={{ marginTop: 12, fontSize: 12, lineHeight: 18, color: colors.textMuted }}>Hours are community service, set by the OSA Student Handbook. A violation&apos;s hours can go up with each repeat offense; &quot;no entry&quot; means no entry into the campus.</Text>
+        </Card>
+    );
+}
+
 export default function Help() {
     const router = useRouter();
     const { user } = useAuth();
@@ -111,6 +141,8 @@ export default function Help() {
                             </Card>
                         ))}
 
+                        <ViolationsCard {...cardProps} />
+
                         <Card icon={Wrench} title="Troubleshooting" {...cardProps}>
                             {help.student.troubleshooting.map((item, i) => (
                                 <Collapsible key={item.title} title={item.title} last={i === help.student.troubleshooting.length - 1} {...cardProps}>
@@ -128,6 +160,9 @@ export default function Help() {
                                 </Collapsible>
                             ))}
                         </Card>
+
+                        {/* The handbook's violations and penalties, the same list as the students' (2026-11-16) */}
+                        <ViolationsCard {...cardProps} />
                     </>
                 )}
 
@@ -152,6 +187,14 @@ export default function Help() {
 }
 
 const getStyles = (colors) => StyleSheet.create({
+    // Violations and penalties table
+    vRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 8, gap: 6 },
+    vLine: { borderTopWidth: 1, borderTopColor: colors.border },
+    vHead: { fontSize: 10, fontWeight: '900', letterSpacing: 0.8, textTransform: 'uppercase', color: colors.textMuted, textAlign: 'center' },
+    vCol: { width: 58 },
+    vName: { flex: 1, fontSize: 13, fontWeight: '600', lineHeight: 18, color: colors.text },
+    vCell: { fontSize: 12, fontWeight: '500', textAlign: 'center', color: colors.textMuted },
+    vNoEntry: { fontWeight: '700', color: '#DC2626' },
     safeArea: {
         flex: 1,
         backgroundColor: colors.background,

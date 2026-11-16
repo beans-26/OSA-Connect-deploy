@@ -7,7 +7,6 @@ import scanMark from '../../assets/osaconnect-icon.png';
 import { parseStudentQr, NOT_A_STUDENT_QR } from '../../components/studentQr';
 import { DEPARTMENTS, GENDERS, departmentForCourse, courseOptionsFor } from '../../lib/academics';
 // Violation types a guard or faculty & staff can report (shared with the admin's Report Violation)
-import { VIOLATIONS } from '../../lib/violationTypes';
 import ViolationPicker from '../../components/ViolationPicker';
 import { studentName as displayStudentName } from '../../lib/names';
 
@@ -233,12 +232,12 @@ const ReportViolation = ({ publicFaculty = false }) => {
         setShowConfirmModal(true);
     };
 
-    // Ticks or unticks a violation; the list keeps the order of VIOLATIONS
+    // Ticks or unticks a violation (in the order they were added)
     const toggleViolation = (value) => setForm((prev) => ({
         ...prev,
         violations: prev.violations.includes(value)
             ? prev.violations.filter((v) => v !== value)
-            : VIOLATIONS.map(([v]) => v).filter((v) => v === value || prev.violations.includes(v)),
+            : [...prev.violations, value],
     }));
 
     const confirmSubmission = async () => {
@@ -279,7 +278,7 @@ const ReportViolation = ({ publicFaculty = false }) => {
         setStep(1);
     };
 
-    const violationLabels = form.violations.map((v) => VIOLATIONS.find(([value]) => value === v)?.[1] || v);
+    const violationLabels = form.violations;
     // For the receipt: "CITC", initials, and "Wed, Sep 30, 2026 · 8:46 PM"
     const deptShort = (form.department.match(/\(([^)]+)\)\s*$/) || [])[1] || form.department;
     const initials = studentName.split(/\s+/).filter(Boolean).map((w) => w[0]).join('').slice(0, 2).toUpperCase() || '?';

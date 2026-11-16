@@ -690,51 +690,87 @@ class StudentViewSet(viewsets.ModelViewSet):
 # offense, 6 hours for the second, and no entry into the campus from the third on. Admins don't choose the hours:
 # approving a report applies this table (a no-entry sanction has no hours to serve).
 NO_ENTRY = {"punishment": "No Entry into the Campus", "hours": 0}
-LIGHT_OFFENSE = {
-    1: {"punishment": "3 hours community service", "hours": 3},
-    2: {"punishment": "6 hours community service", "hours": 6},
-    3: NO_ENTRY,
-}
 
-# DEMO: No ID is 1 minute on a first offense for the demo (normally LIGHT_OFFENSE: 3 hours)
-DEMO_NO_ID_OFFENSE = {
-    1: {"punishment": "1 minute community service", "hours": 1 / 60},
-    2: LIGHT_OFFENSE[2],
-    3: LIGHT_OFFENSE[3],
-}
-
-# The violations added 2026-11: 5 hours of community service every time (get_punishment repeats the last one)
-FIVE_HOURS = {1: {"punishment": "5 hours community service", "hours": 5}}
-
-PUNISHMENT_SYSTEM = {
-    # The violations guards, faculty & staff and admins report. The forms show them in two dropdowns
-    # (frontend/src/lib/violationTypes.js, the app's staff/dashboard.jsx): Light, then Less Grave offenses.
-    # Light
-    "Curfew Violation": LIGHT_OFFENSE,
-    "No ID / Improper ID Sling": DEMO_NO_ID_OFFENSE,  # DEMO (normally LIGHT_OFFENSE)
-    "No School Uniform": LIGHT_OFFENSE,
-    "Dress Code Violation": LIGHT_OFFENSE,
-    "Smoking": FIVE_HOURS,
-    "Littering": FIVE_HOURS,
-    # Less grave
-    "Verbal Abuse & Cyberbullying": FIVE_HOURS,
-    "Stalking": FIVE_HOURS,
-    "Coercion via Violence": FIVE_HOURS,
-    "Indecent Behavior": FIVE_HOURS,
-    "Alcohol": FIVE_HOURS,
-    "Pornography": FIVE_HOURS,
-    "Gambling": FIVE_HOURS,
-    "ID Fraud": FIVE_HOURS,
-    "Lab Tampering": FIVE_HOURS,
-    "Exam Sabotage": FIVE_HOURS,
-}
-
-# Applied to violation types that aren't in PUNISHMENT_SYSTEM
-DEFAULT_PUNISHMENT = {"punishment": "To be determined", "hours": 4}
-
-# The admin's Report Violation (bulk_create) also lists this one; it's always this many hours (since 2026-11)
+# The violations are a table in the database (violation_types, models.ViolationType), read by the report forms, the
+# penalty rules and the Help pages. This is what the table starts with (seeded the first time it's read):
+# (name, category, hours for the 1st, 2nd and 3rd offense; 0 hours = no entry into the campus). The light offenses
+# of the handbook's Section 3 go 3 hours, 6 hours, then no entry; the ones added 2026-11 are 5 hours every time;
+# a missed mandatory event (admin's Report Violation only) is always 10 hours.
 EVENT_VIOLATION = "Failure to attend mandatory campus event"
 EVENT_HOURS = 10
+VIOLATION_CATEGORIES = [('light', 'Light Offenses'), ('less_grave', 'Less Grave Offenses'), ('event', 'Mandatory Events')]
+DEFAULT_VIOLATION_TYPES = [
+    ("Curfew Violation", 'light', 3, 6, 0),
+    ("No ID / Improper ID Sling", 'light', 1 / 60, 6, 0),  # DEMO: 1 minute on a first offense (normally 3 hours)
+    ("No School Uniform", 'light', 3, 6, 0),
+    ("Dress Code Violation", 'light', 3, 6, 0),
+    ("Smoking", 'light', 5, 5, 5),
+    ("Littering", 'light', 5, 5, 5),
+    ("Verbal Abuse & Cyberbullying", 'less_grave', 5, 5, 5),
+    ("Stalking", 'less_grave', 5, 5, 5),
+    ("Coercion via Violence", 'less_grave', 5, 5, 5),
+    ("Indecent Behavior", 'less_grave', 5, 5, 5),
+    ("Alcohol", 'less_grave', 5, 5, 5),
+    ("Pornography", 'less_grave', 5, 5, 5),
+    ("Gambling", 'less_grave', 5, 5, 5),
+    ("ID Fraud", 'less_grave', 5, 5, 5),
+    ("Lab Tampering", 'less_grave', 5, 5, 5),
+    ("Exam Sabotage", 'less_grave', 5, 5, 5),
+    (EVENT_VIOLATION, 'event', EVENT_HOURS, EVENT_HOURS, EVENT_HOURS),
+]
+
+# Applied to violation types that aren't in the table (reports saved before a type was removed)
+DEFAULT_PUNISHMENT = {"punishment": "To be determined", "hours": 4}
+
+# The table is read at most this often per server process (it changes rarely; every report and approval needs it)
+VIOLATION_TYPES_CACHE_S = 60
+_violation_types_cache = {'at': 0.0, 'rules': None}
+
+
+def _penalty(hours):
+    """{'punishment', 'hours'} for a number of hours (0 = no entry into the campus; under an hour, in minutes)."""
+    hours = float(hours or 0)
+    if hours <= 0:
+        return dict(NO_ENTRY)
+    if hours < 1:
+        minutes = round(hours * 60)
+        return {"punishment": f"{minutes} minute{'' if minutes == 1 else 's'} community service", "hours": hours}
+    return {"punishment": f"{hours:g} hours community service", "hours": int(hours) if hours == int(hours) else hours}
+
+
+def _rules_from(rows):
+    """{name: {'category', 'offenses': {1: penalty, 2: penalty, 3: penalty}}} in list order, from
+    (name, category, first, second, third) rows."""
+    return {name: {'category': category, 'offenses': {1: _penalty(h1), 2: _penalty(h2), 3: _penalty(h3)}}
+            for name, category, h1, h2, h3 in rows}
+
+
+def violation_rules(fresh=False):
+    """The reportable violations and their penalties by offense number, from the violation_types table (active ones,
+    in their order). An empty table is filled with DEFAULT_VIOLATION_TYPES first. If the database can't be read,
+    the defaults are used so reports can still be filed."""
+    import time
+    from .models import ViolationType
+    cache = _violation_types_cache
+    if not fresh and cache['rules'] is not None and time.monotonic() - cache['at'] < VIOLATION_TYPES_CACHE_S:
+        return cache['rules']
+    try:
+        collection = ViolationType._get_collection()
+        if collection.estimated_document_count() == 0:
+            # Upserts by name, so two servers starting at once can't make duplicates
+            for position, (name, category, h1, h2, h3) in enumerate(DEFAULT_VIOLATION_TYPES):
+                collection.update_one({'name': name}, {'$setOnInsert': {
+                    'name': name, 'category': category, 'first_offense_hours': h1, 'second_offense_hours': h2,
+                    'third_offense_hours': h3, 'is_active': True, 'position': position, 'created_at': utc_now()}}, upsert=True)
+        rows = [(t.name, t.category, t.first_offense_hours, t.second_offense_hours, t.third_offense_hours)
+                for t in ViolationType.objects(is_active__ne=False).order_by('position', 'name')]
+        rules = _rules_from(rows)
+    except Exception as e:
+        print(f"violation_rules: using the built-in list ({e})")
+        return _rules_from(DEFAULT_VIOLATION_TYPES)
+    cache['rules'], cache['at'] = rules, time.monotonic()
+    return rules
+
 
 # Keeps every violation record small: a guard's note is a few sentences, never pages of text
 MAX_DESCRIPTION_CHARS = 1000
@@ -756,14 +792,12 @@ def get_offense_count(student, violation_type):
     return count + 1  # +1 because this is the current offense
 
 def get_punishment(violation_type, offense_count):
-    """Get the punishment based on violation type and offense count"""
-    if violation_type in PUNISHMENT_SYSTEM:
-        violation_punishments = PUNISHMENT_SYSTEM[violation_type]
-        if offense_count in violation_punishments:
-            return violation_punishments[offense_count]
-        # If offense count exceeds defined punishments, use the last one
-        return list(violation_punishments.values())[-1]
-    # Default punishment for undefined violations
+    """The penalty for a violation type at an offense number, from the violation_types table (violation_rules).
+    Offenses after the third get the third's penalty."""
+    rule = violation_rules().get(violation_type)
+    if rule:
+        return rule['offenses'][min(max(int(offense_count or 1), 1), 3)]
+    # A type that isn't in the table (any more)
     return DEFAULT_PUNISHMENT
 
 def send_violation_email(report):
@@ -827,7 +861,9 @@ def _report_details_error(data):
             violation_types.append(value)
     if not violation_types:
         return None, None, Response({"error": "Choose at least one violation."}, status=status.HTTP_400_BAD_REQUEST)
-    unknown = [v for v in violation_types if v not in PUNISHMENT_SYSTEM]
+    # Guards and faculty report the table's violations, except a missed mandatory event (the admin's bulk report)
+    reportable = {name for name, rule in violation_rules().items() if rule['category'] != 'event'}
+    unknown = [v for v in violation_types if v not in reportable]
     if unknown:
         # Only the handbook's violations can be reported (the forms list exactly these); anything else came from
         # an edited request
@@ -910,6 +946,9 @@ def _report_summaries(reports):
 # name read from it (vincent.dagaraga@ustp.edu.ph -> Vincent Dagaraga), and OSA checks it against their own
 # faculty records when reviewing it in Pending Reviews.
 FACULTY_EMAIL_RE = re.compile(r'^[a-z0-9._%+-]+@ustp\.edu\.ph$')
+GMAIL_RE = re.compile(r'^[a-z0-9._%+-]+@gmail\.com$')  # DEMO ONLY, see FACULTY_ALLOW_GMAIL in settings.py
+FACULTY_EMAIL_ERROR = ("Use your USTP email (ending in @ustp.edu.ph) or a Gmail address."
+                       if getattr(settings, 'FACULTY_ALLOW_GMAIL', False) else "Use your USTP email, ending in @ustp.edu.ph.")
 FACULTY_CODE_KEY = 'faculty:'  # the codes share otp_verifications with the students' (one per email)
 FACULTY_CODE_WAIT_S = 60
 FACULTY_SALT = 'osaconnect-faculty-email'
@@ -928,9 +967,12 @@ def name_from_ustp_email(email):
 
 
 def _faculty_email(data):
-    """A USTP address from the form, or one of the test addresses in FACULTY_TEST_EMAILS (backend/.env), else None."""
+    """A USTP address from the form, one of the test addresses in FACULTY_TEST_EMAILS (backend/.env), or (DEMO
+    ONLY, while FACULTY_ALLOW_GMAIL is on) any Gmail address, else None."""
     email = _short(data.get('faculty_email'), 254).lower()
-    return email if FACULTY_EMAIL_RE.match(email) or email in settings.FACULTY_TEST_EMAILS else None
+    if FACULTY_EMAIL_RE.match(email) or email in settings.FACULTY_TEST_EMAILS:
+        return email
+    return email if getattr(settings, 'FACULTY_ALLOW_GMAIL', False) and GMAIL_RE.match(email) else None
 
 
 @api_view(['POST'])
@@ -941,7 +983,7 @@ def faculty_verify_request(request):
     from .models import OTPVerification
     email = _faculty_email(request.data)
     if not email:
-        return Response({"error": "Use your USTP email, ending in @ustp.edu.ph."}, status=status.HTTP_400_BAD_REQUEST)
+        return Response({"error": FACULTY_EMAIL_ERROR}, status=status.HTTP_400_BAD_REQUEST)
     # An email that already has a faculty account reports from the account (log in at /faculty)
     if _faculty_account(email):
         return Response({"error": "This email already has a faculty account. Log in to report.", "has_account": True},
@@ -1083,7 +1125,7 @@ def _faculty_signup_details(data):
     if not first or not last:
         return first, last, email, invited, "Type your first name and last name."
     if not email:
-        return first, last, email, invited, "Use your USTP email, ending in @ustp.edu.ph."
+        return first, last, email, invited, FACULTY_EMAIL_ERROR
     if _faculty_account(email):
         return first, last, email, invited, "This email already has an account. Log in instead."
     return first, last, email, invited, None
@@ -1200,7 +1242,7 @@ def faculty_reset_request(request):
     from .models import OTPVerification
     email = _faculty_email(request.data)
     if not email:
-        return Response({"error": "Use your USTP email, ending in @ustp.edu.ph."}, status=status.HTTP_400_BAD_REQUEST)
+        return Response({"error": FACULTY_EMAIL_ERROR}, status=status.HTTP_400_BAD_REQUEST)
     user = _faculty_reset_account(email)
     if not user:
         return Response({"error": "No faculty account uses this email. Guards: ask OSA to reset your password."},
@@ -1465,21 +1507,24 @@ class ViolationViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=['get'])
     def punishments(self, request):
-        """Read-only penalties table for the Help pages (source of truth: PUNISHMENT_SYSTEM)"""
+        """The violations and their penalties, from the violation_types table (violation_rules): for the report
+        forms' dropdowns and the Help pages. Public (no names or records in it)."""
         rules = [
             {
-                "violation_type": violation_type,
+                "violation_type": name,
+                "category": rule['category'],
                 "offenses": [
                     {"offense": offense, "punishment": info["punishment"], "hours": info["hours"]}
-                    for offense, info in sorted(offenses.items())
+                    for offense, info in sorted(rule['offenses'].items())
                 ],
             }
-            for violation_type, offenses in PUNISHMENT_SYSTEM.items()
+            for name, rule in violation_rules().items()
         ]
         return Response({
             "rules": rules,
+            "categories": [{"id": key, "label": label} for key, label in VIOLATION_CATEGORIES],
             "default": DEFAULT_PUNISHMENT,
-            # get_punishment() reuses the last defined penalty once a student passes it
+            # get_punishment() reuses the third offense's penalty for later ones
             "repeat_last_offense": True,
         })
 
@@ -1488,7 +1533,7 @@ class ViolationViewSet(viewsets.ModelViewSet):
         """The admin's "Report Violation" (Students page): one or more violations for one or more students,
         approved right away at the chosen building. POST {students: [{student_id, name}], violation_types,
         description, assigned_building}. Each violation is its own report. The hours: a missed mandatory event
-        is always EVENT_HOURS; the others follow the penalty table by offense number, the same as the guards'
+        is always 10 hours; every violation follows the violation_types table by offense number, the same as the guards'
         and faculty's reports (the admin no longer types hours). Reports are saved under the student ID: an ID
         with no account gets a placeholder record (with the name the admin typed, if any), which becomes the
         student's account when they register (register_with_otp), so these violations show up there. Older
@@ -1506,7 +1551,7 @@ class ViolationViewSet(viewsets.ModelViewSet):
             t = _short(t, 150)
             if t and t not in violation_types:
                 violation_types.append(t)
-        allowed = set(PUNISHMENT_SYSTEM) | {EVENT_VIOLATION}
+        allowed = set(violation_rules())  # the table's violations, a missed mandatory event included
         if not violation_types:
             return Response({"error": "Choose at least one violation."}, status=status.HTTP_400_BAD_REQUEST)
         if any(t not in allowed for t in violation_types):
@@ -1582,11 +1627,8 @@ class ViolationViewSet(viewsets.ModelViewSet):
                 mine = []
                 for violation_type in violation_types:
                     offense_count = earlier.get((student.id, violation_type), 0) + 1
-                    if violation_type == EVENT_VIOLATION:
-                        hours, punishment = EVENT_HOURS, f"{EVENT_HOURS} hours community service"
-                    else:
-                        punishment_info = get_punishment(violation_type, offense_count)
-                        hours, punishment = punishment_info["hours"], punishment_info["punishment"]
+                    punishment_info = get_punishment(violation_type, offense_count)
+                    hours, punishment = punishment_info["hours"], punishment_info["punishment"]
                     report = ViolationReport(
                         student=student,
                         violation_type=violation_type,
@@ -1667,7 +1709,7 @@ class ViolationViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=['post'])
     def approve(self, request, *args, **kwargs):
-        """Approves a pending report with the OSA handbook penalty for its offense number (PUNISHMENT_SYSTEM);
+        """Approves a pending report with the OSA handbook penalty for its offense number (violation_rules);
         the admin only picks the building. Hours to serve: an e-ticket at that building. No hours (no entry into
         the campus): the sanction is recorded and the case goes straight to the archives, no building needed."""
         try:

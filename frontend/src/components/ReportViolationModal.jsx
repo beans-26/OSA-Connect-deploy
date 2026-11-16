@@ -1,11 +1,9 @@
 import { useMemo, useState } from 'react';
 import { X, ChevronDown } from 'lucide-react';
 import { ServiceSiteOptions, postAssignment } from './useServiceSites';
-import { EVENT_VIOLATION, EVENT_HOURS, VIOLATIONS, VIOLATION_GROUPS, hoursNote } from '../lib/violationTypes';
+import { EVENT_VIOLATION, EVENT_HOURS, hoursNote, penaltyText, useViolationTypes } from '../lib/violationTypes';
 import ViolationPicker from './ViolationPicker';
 
-// The guards' two dropdowns plus a third for a missed mandatory event
-const ADMIN_GROUPS = [...VIOLATION_GROUPS, { id: 'event', label: 'Mandatory Events', items: [EVENT_VIOLATION] }];
 
 // The admin's "Report Violation" (Students page): add one or more students by typing or pasting their IDs
 // (new lines, commas or spaces between them), tick the violations (the same ones guards and faculty report,
@@ -14,8 +12,6 @@ const ADMIN_GROUPS = [...VIOLATION_GROUPS, { id: 'event', label: 'Mandatory Even
 // saved under the ID and shows up on their account when they register (bulk_create in backend core/views.py).
 
 const STUDENT_ID = /^\d{10}$/;
-// The violations the admin can tick: the guards' and faculty's, plus a missed mandatory event
-const ADMIN_VIOLATIONS = [...VIOLATIONS.map(([value]) => value), EVENT_VIOLATION];
 // Longer lists fold into a dropdown on the confirmation
 const OPEN_LIST_UP_TO = 3;
 const label = 'text-xs font-bold text-slate-500 dark:text-slate-400 mb-1.5 block';
@@ -65,12 +61,20 @@ const ReportViolationModal = ({ students, serviceSites, onClose, onReported }) =
     const remove = (sid) => setRows((prev) => prev.filter((r) => r.student_id !== sid));
 
     // In the list's order, whatever order they were ticked
-    const chosen = ADMIN_VIOLATIONS.filter((v) => form.violations.includes(v));
+    // The guards' two dropdowns plus a third for a missed mandatory event, from the violations table
+    const types = useViolationTypes();
+    const adminGroups = [...types.groups, ...(types.eventGroup ? [types.eventGroup] : [])];
+    const listed = adminGroups.flatMap((g) => g.items);
+    const chosen = [...listed.filter((v) => form.violations.includes(v)), ...form.violations.filter((v) => !listed.includes(v))];
     const ready = rows.length > 0 && chosen.length > 0 && form.assigned_building;
     const missing = !rows.length ? 'Add at least one student ID.'
         : !chosen.length ? 'Choose at least one violation.' : !form.assigned_building ? 'Choose a building.' : '';
     const site = serviceSites.sites?.find((s) => s.site_code === form.assigned_building);
-    const hoursFor = (v) => (v === EVENT_VIOLATION ? `${EVENT_HOURS} hours` : hoursNote(v) === '5 h' ? '5 hours' : 'By offense (3 h, 6 h, then no entry)');
+    const hoursFor = (v) => {
+        const rule = types.rules?.[v];
+        if (rule) return rule.offenses.every((o) => o.hours === rule.offenses[0].hours) ? penaltyText(rule) : `By offense (${penaltyText(rule)})`;
+        return v === EVENT_VIOLATION ? `${EVENT_HOURS} hours` : hoursNote(v) === '5 h' ? '5 hours' : 'By offense (3 h, 6 h, then no entry)';
+    };
     const displayName = (r) => (r.hasAccount ? r.name : 'Not registered yet');
 
     // "Report students": check everything on the confirmation first
@@ -249,7 +253,7 @@ const ReportViolationModal = ({ students, serviceSites, onClose, onReported }) =
                         <div className="space-y-3 border-t border-slate-100 dark:border-slate-700 pt-5">
                             <fieldset>
                                 <legend className={label}>Violations (choose all that apply)</legend>
-                                <ViolationPicker value={chosen} onToggle={toggleViolation} groups={ADMIN_GROUPS} />
+                                <ViolationPicker value={chosen} onToggle={toggleViolation} groups={adminGroups} />
                                 <p className="mt-1.5 text-[11px] font-medium text-slate-500 dark:text-slate-400">Most are 5 hours. Curfew, ID, uniform and dress code follow the OSA penalty table (3 h, 6 h, then no entry). A missed event is {EVENT_HOURS} hours.</p>
                             </fieldset>
                             <div className="grid grid-cols-1 gap-3">

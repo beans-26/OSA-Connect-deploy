@@ -208,6 +208,10 @@ FACULTY_TEST_EMAILS = {e.strip().lower() for e in os.getenv('FACULTY_TEST_EMAILS
 # DEMO ONLY: the team's Gmail works as a faculty email everywhere (live site included) for thesis demos.
 # Remove this line when the system goes into real use.
 FACULTY_TEST_EMAILS.add('beansilog26@gmail.com')
+# DEMO ONLY (2026-11-16): any @gmail.com address also works as a faculty email (sign up, report without an
+# account, forgot password), so testers can use their own Gmail. Set FACULTY_ALLOW_GMAIL=False or remove this
+# when the system goes into real use; then only @ustp.edu.ph (and FACULTY_TEST_EMAILS) work.
+FACULTY_ALLOW_GMAIL = os.getenv('FACULTY_ALLOW_GMAIL', 'True') != 'False'
 
 # Guard login geofence: guards can only log in on campus, a circle around USTP CDO (the CEA / CITC buildings).
 # Their phone or browser sends its location with the login (core/views.py login_view). Change the circle with

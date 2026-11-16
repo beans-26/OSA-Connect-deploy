@@ -157,6 +157,22 @@ class ViolationReport(Document):
     meta = {'collection': 'violation_reports', 'auto_create_index': False, 'strict': False}
 
 
+class ViolationType(Document):
+    """A violation from the OSA Student Handbook that can be reported, with its community service hours by offense
+    number. The report forms, the penalty rules (views.get_punishment) and the Help pages all read this list, and
+    a report's violation_type is one of these names. Seeded from views.DEFAULT_VIOLATION_TYPES the first time it's
+    read (views.violation_rules)."""
+    name = StringField(required=True, unique=True)  # as saved on reports (ViolationReport.violation_type)
+    category = StringField(required=True)  # 'light', 'less_grave' or 'event' (VIOLATION_CATEGORIES in views.py)
+    first_offense_hours = FloatField(default=0)
+    second_offense_hours = FloatField(default=0)
+    third_offense_hours = FloatField(default=0)  # also every offense after the third; 0 hours = no entry into the campus
+    is_active = BooleanField(default=True)  # an inactive one can't be reported any more (old reports keep it)
+    position = IntField(default=0)  # order in the forms and Help
+    created_at = DateTimeField(default=utc_now)
+    meta = {'collection': 'violation_types', 'auto_create_index': False, 'strict': False}
+
+
 class ClearanceProof(Document):
     """Photo of a clearance document: the signed FM-USTP-OSA-013 form or the reflection paper, one of each
     per violation. Kept apart from the violation so the violation lists stay small (an image is only loaded

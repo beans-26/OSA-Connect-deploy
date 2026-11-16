@@ -1,5 +1,7 @@
 import { useState } from 'react';
-import { ChevronDown, MessageCircleQuestion, Wrench, ShieldCheck, Mail } from 'lucide-react';
+import { ChevronDown, MessageCircleQuestion, Wrench, ShieldCheck, Mail, Scale } from 'lucide-react';
+import { useViolationTypes } from '../../lib/violationTypes';
+import ViolationsTable from '../../components/ViolationsTable';
 // Shared with the mobile app (mobile/app/help.jsx); see the _about note in the file
 import help from '../../../../shared/help-content.json';
 
@@ -67,6 +69,23 @@ const Collapsible = ({ title, children }) => {
     );
 };
 
+// "Violations and penalties": every violation that can be reported, by category, with its hours by offense
+// (the violation_types table, read through lib/violationTypes.js). Same as the app's Help.
+const ViolationsCard = () => {
+    const types = useViolationTypes();
+    const groups = [...types.groups, ...(types.eventGroup ? [types.eventGroup] : [])];
+    return (
+        <Card icon={Scale} title="Violations and penalties">
+            {groups.map((g) => (
+                <Collapsible key={g.id} title={g.label}>
+                    <ViolationsTable items={g.items} rules={types.rules} tone="student" />
+                </Collapsible>
+            ))}
+            <p className="pb-4 pt-3 text-xs font-medium leading-5 text-[var(--s-muted)]">Hours are community service, set by the OSA Student Handbook. A violation's hours can go up with each repeat offense; "no entry" means no entry into the campus.</p>
+        </Card>
+    );
+};
+
 const StudentHelp = () => {
     const { report_problem: problem } = help;
     const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(problem.email)}&su=${encodeURIComponent(problem.subject)}&body=${encodeURIComponent(problem.body)}`;
@@ -85,6 +104,9 @@ const StudentHelp = () => {
                     ))}
                 </Card>
             ))}
+
+            {/* The handbook's violations and their community service hours, from the violations table */}
+            <ViolationsCard />
 
             <Card icon={Wrench} title="Troubleshooting">
                 {help.student.troubleshooting.map((item) => (

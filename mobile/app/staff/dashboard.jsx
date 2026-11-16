@@ -10,27 +10,12 @@ import { onCameraResult } from '../../components/cameraResults';
 import { parseStudentQr, NOT_A_STUDENT_QR } from '../../components/studentQr';
 import api from '../../services/api';
 import { HomeHeader } from '../../components/StudentLook';
+import { useViolationTypes } from '../../components/violationTypes';
 import { useAuth } from '../../components/AuthContext';
 import { useTheme } from '../../components/ThemeContext';
 import { DEPARTMENTS, GENDERS, departmentForCourse, courseOptionsFor } from '../../constants/Data';
 
-// Same options as the website's Guard Report (frontend/src/pages/guard/ReportViolation.jsx);
-// values match PUNISHMENT_SYSTEM in backend/core/views.py
-// (frontend/src/lib/violationTypes.js): two dropdowns, Light then Less Grave
-const VIOLATION_GROUPS = [
-    {
-        id: 'light', label: 'Light Offenses', items: [
-            'Curfew Violation', 'No ID / Improper ID Sling', 'No School Uniform', 'Dress Code Violation', 'Smoking', 'Littering',
-        ],
-    },
-    {
-        id: 'less-grave', label: 'Less Grave Offenses', items: [
-            'Verbal Abuse & Cyberbullying', 'Stalking', 'Coercion via Violence', 'Indecent Behavior', 'Alcohol',
-            'Pornography', 'Gambling', 'ID Fraud', 'Lab Tampering', 'Exam Sabotage',
-        ],
-    },
-];
-const VIOLATION_TYPES = VIOLATION_GROUPS.flatMap((g) => g.items.map((v) => ({ label: v, value: v })));
+// The violations come from the violations table (components/violationTypes.js): Light, then Less Grave. Same as the website.
 
 const pad = (n) => String(n).padStart(2, '0');
 const today = () => {
@@ -209,14 +194,16 @@ export default function PersonnelDashboard() {
         setStep(1);
     };
 
-    // Ticks or unticks a violation; the list keeps the order of VIOLATION_TYPES
+    // The violation dropdowns, from the violations table
+    const { groups: violationGroups } = useViolationTypes();
+    // Ticks or unticks a violation (in the order they were added)
     const toggleViolation = (value) => setForm((prev) => ({
         ...prev,
         violations: prev.violations.includes(value)
             ? prev.violations.filter((v) => v !== value)
-            : VIOLATION_TYPES.map((v) => v.value).filter((v) => v === value || prev.violations.includes(v)),
+            : [...prev.violations, value],
     }));
-    const violationLabels = form.violations.map((value) => VIOLATION_TYPES.find((v) => v.value === value)?.label || value);
+    const violationLabels = form.violations;
     // For the slip: "CITC", initials, and "Wed, Sep 30, 2026 · 8:46 PM"
     const deptShort = (form.department.match(/\(([^)]+)\)\s*$/) || [])[1] || form.department;
     const initials = form.name.trim().split(/\s+/).filter(Boolean).map((w) => w[0]).join('').slice(0, 2).toUpperCase() || '?';
@@ -433,7 +420,7 @@ export default function PersonnelDashboard() {
                                 {/* Tick every violation the student committed; each becomes its own report */}
                                 <Text style={styles.tinyLabel}>What happened (choose all that apply)</Text>
                                 {/* Two dropdowns (one open at a time): + adds a violation, tap again to remove */}
-                                {VIOLATION_GROUPS.map((g) => {
+                                {violationGroups.map((g) => {
                                     const open = openGroup === g.id;
                                     const count = g.items.filter((v) => form.violations.includes(v)).length;
                                     return (
