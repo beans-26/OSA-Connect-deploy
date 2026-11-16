@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { AlertTriangle, Play, QrCode, Clock, Info, CheckCircle2, WifiOff } from 'lucide-react';
+import { AlertTriangle, Play, Pause, QrCode, Clock, Info, CheckCircle2, WifiOff } from 'lucide-react';
 import { deadlineNotice } from '../lib/ticketStatus';
 import usePolling from '../lib/usePolling';
 import QrScannerModal from '../components/QrScannerModal';
@@ -56,7 +56,7 @@ const GeofenceMap = ({ hub, location, isOutOfBounds, isDarkMode, approach = fals
         const map = mapRef.current;
         if (!map || !L) return;
         const layers = layersRef.current;
-        const color = approach ? '#64748b' : isOutOfBounds ? '#ef4444' : '#10b981';
+        const color = approach ? '#64748b' : isOutOfBounds ? '#d97706' : '#10b981';
         layers.circle?.setRadius(hub.radius).setStyle(approach
             ? { color, fillColor: color, fillOpacity: 0.06, dashArray: '6 6', weight: 2 }
             : { color, fillColor: color, fillOpacity: 0.15, dashArray: null, weight: 3 });
@@ -102,7 +102,7 @@ const GeofenceMap = ({ hub, location, isOutOfBounds, isDarkMode, approach = fals
                 </div>
                 {location && (
                     <div className="mb-1 flex items-center">
-                        <span className={`mr-1.5 h-2 w-2 rounded-full ${approach ? 'bg-[#0ea5e9]' : isOutOfBounds ? 'bg-[#ef4444]' : 'bg-[#10b981]'}`} />
+                        <span className={`mr-1.5 h-2 w-2 rounded-full ${approach ? 'bg-[#0ea5e9]' : isOutOfBounds ? 'bg-[#d97706]' : 'bg-[#10b981]'}`} />
                         <span className="text-[10px] font-bold text-[var(--s-text)]">You</span>
                     </div>
                 )}
@@ -365,7 +365,7 @@ const DashboardBody = () => {
     const displayHours = activeTicket ? (activeTicket.base_remaining_hours ?? activeTicket.remaining_hours) : 0;
     // Same as the mobile app: a session can't be ended in its first 20 seconds.
     // Re-rendered every second by the countdown's elapsed tick.
-    const END_COOLDOWN_S = 10; // DEMO (normally 20)
+    const END_COOLDOWN_S = 20;
     const endCooldown = timerActive && startTime
         ? Math.max(0, END_COOLDOWN_S - Math.floor((Date.now() - startTime) / 1000))
         : 0;
@@ -544,7 +544,7 @@ const DashboardBody = () => {
     // student is back, so being sent on an errand doesn't end the session. The server ends it after
     // PAUSE_LIMIT_MIN minutes away. Leaving and coming back are sent right away, so the server's record
     // matches what the student sees.
-    const PAUSE_LIMIT_TEXT = '10 seconds'; // DEMO (normally '30 minutes'; PAUSE_LIMIT_S in backend/core/views.py)
+    const PAUSE_LIMIT_TEXT = '30 minutes'; // PAUSE_LIMIT_S in backend/core/views.py
     const wasOutRef = useRef(false);
     const leftAtRef = useRef(null); // when the student last left the area
     useEffect(() => {
@@ -900,47 +900,47 @@ const DashboardBody = () => {
                     <section className="mx-2 mb-4 mt-3">
                         {timerActive ? (
                             <>
+                                {/* Outside the area the whole card turns one calm amber "paused" state: the title says so and
+                                    the clock greys out (it isn't counting), with a single notice below */}
                                 <div className="mb-3 flex items-center">
-                                    <Play size={16} className={isOutOfBounds ? 'text-[#ef4444]' : 'text-[var(--s-success)]'} />
-                                    <span className={`ml-2 text-xs font-black uppercase tracking-[2px] ${isOutOfBounds ? 'text-[#ef4444]' : 'text-[var(--s-success)]'}`}>
-                                        Live Community Service
+                                    {isOutOfBounds
+                                        ? <Pause size={16} className="text-[#d97706]" />
+                                        : <Play size={16} className="text-[var(--s-success)]" />}
+                                    <span className={`ml-2 text-xs font-black uppercase tracking-[2px] ${isOutOfBounds ? 'text-[#d97706]' : 'text-[var(--s-success)]'}`}>
+                                        {isOutOfBounds ? 'Timer paused' : 'Live Community Service'}
                                     </span>
                                 </div>
-                                <div className="my-2 text-[52px] font-bold leading-tight tabular-nums text-[var(--s-text)]">
+                                <div className={`my-2 text-[52px] font-bold leading-tight tabular-nums ${isOutOfBounds ? 'text-[var(--s-muted)]' : 'text-[var(--s-text)]'}`}>
                                     {formatRemainingTime()}
                                 </div>
 
-                                {/* Location status */}
-                                <div className={`mt-3 flex items-center gap-2 rounded-xl border p-3 ${isOutOfBounds ? 'border-[#fca5a5] bg-[#fee2e2]' : 'border-[var(--s-border)] bg-[var(--s-bg)]'}`}>
-                                    <span className={`h-2 w-2 rounded-full ${isOutOfBounds ? 'bg-[#ef4444]' : 'bg-[var(--s-success)]'}`} />
-                                    <span className={`text-[13px] font-bold ${isOutOfBounds ? 'text-[#ef4444]' : 'text-[var(--s-muted)]'}`}>
-                                        {!monitoringLocation || !location
-                                            ? 'Fetching location...'
-                                            : isOutOfBounds
-                                                ? `Out of area, timer paused — ${Math.round(currentDistance)}m away`
+                                {/* Location status; outside the area it's the one "go back" notice */}
+                                {isOutOfBounds && monitoringLocation && location ? (
+                                    <div className="mt-3 flex items-start gap-2.5 rounded-xl border border-[#fde68a] bg-[#fffbeb] p-3 dark:border-amber-500/30 dark:bg-amber-500/10">
+                                        <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-[#d97706]" />
+                                        <div className="min-w-0">
+                                            <p className="text-[13px] font-bold text-[#92400e] dark:text-amber-200">
+                                                You're {Math.round(currentDistance)} m from the site. Go back to continue.
+                                            </p>
+                                            <p className="mt-0.5 text-xs font-semibold text-[#b45309] dark:text-amber-300/80">
+                                                Away {Math.floor((awaySeconds || 0) / 60)}:{String((awaySeconds || 0) % 60).padStart(2, '0')} · the session ends after {PAUSE_LIMIT_TEXT} away
+                                            </p>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="mt-3 flex items-center gap-2 rounded-xl border border-[var(--s-border)] bg-[var(--s-bg)] p-3">
+                                        <span className="h-2 w-2 rounded-full bg-[var(--s-success)]" />
+                                        <span className="text-[13px] font-bold text-[var(--s-muted)]">
+                                            {!monitoringLocation || !location
+                                                ? 'Fetching location...'
                                                 : `Within service area — ${Math.round(currentDistance)}m from hub`}
-                                    </span>
-                                </div>
+                                        </span>
+                                    </div>
+                                )}
 
                                 {/* Unmounted while a scanner is open: iPhone Safari drew the map over the camera */}
                                 {hub && !isScanning && !showStopScanner && (
                                     <MapGate><GeofenceMap hub={hub} location={location} isOutOfBounds={isOutOfBounds} isDarkMode={isDarkMode} /></MapGate>
-                                )}
-
-                                {/* Outside the area: the timer is paused until the student is back */}
-                                {awaySeconds !== null && (
-                                    <div className="mt-4 flex items-center justify-between rounded-[18px] bg-[#d97706] px-[18px] py-3.5 shadow-[0_4px_6px_rgba(217,119,6,0.2)]">
-                                        <div className="flex flex-1 items-center">
-                                            <AlertTriangle size={24} strokeWidth={2.5} className="text-white" />
-                                            <div className="ml-3">
-                                                <p className="text-[13px] font-black uppercase tracking-[0.5px] text-white">Timer paused: out of area</p>
-                                                <p className="mt-0.5 text-xs font-semibold text-[#fef3c7]">Go back to your service site to continue. Your session ends after {PAUSE_LIMIT_TEXT} away.</p>
-                                            </div>
-                                        </div>
-                                        <div className="ml-3 rounded-xl bg-white px-3 py-1.5 text-lg font-black tabular-nums text-[#d97706]">
-                                            {Math.floor(awaySeconds / 60)}:{String(awaySeconds % 60).padStart(2, '0')}
-                                        </div>
-                                    </div>
                                 )}
 
                                 {endCooldown > 0 && (
@@ -968,7 +968,7 @@ const DashboardBody = () => {
                                         ? 'cursor-not-allowed bg-slate-400 dark:bg-slate-600'
                                         : 'cursor-pointer bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-700 hover:to-red-700 disabled:opacity-50 shadow-lg shadow-rose-500/20 active:scale-[0.98]'}`}
                                 >
-                                    {endCooldown > 0 ? `Scan to End Service (${endCooldown}s)` : 'Scan to End Service'}
+                                    {isOutOfBounds ? 'Go back to the site to end' : endCooldown > 0 ? `Scan to End Service (${endCooldown}s)` : 'Scan to End Service'}
                                 </button>
                             </>
                         ) : (

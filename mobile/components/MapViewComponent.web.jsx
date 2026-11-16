@@ -24,7 +24,7 @@ export default function MapViewComponent({ style, targetLocation, isOutOfBounds,
     const hubLat = targetLocation ? targetLocation.lat : 8.4859;
     const hubLng = targetLocation ? targetLocation.lng : 124.6567;
     const radius = targetLocation ? targetLocation.radius : 50;
-    const color = isOutOfBounds ? '#ef4444' : '#10b981';
+    const color = isOutOfBounds ? '#d97706' : '#10b981';
     // The map is created asynchronously, so drawing must read the latest props, not the ones
     // from the render that started it (otherwise the "you" marker never appears if GPS is steady)
     const latestRef = useRef({ hubLat, hubLng, radius, color, location });

@@ -20,7 +20,7 @@ export default defineConfig(({ mode }) => ({
     allowedHosts: ['floppy-seas-post.loca.lt', '.loca.lt'], // Allow localtunnel domains
     proxy: {
       '/api': {
-        target: 'http://localhost:8000',
+        target: 'http://127.0.0.1:8000', // not localhost: Node resolves it to IPv6 ::1, and runserver 0.0.0.0 is IPv4 only
         changeOrigin: true,
       },
     },
@@ -30,7 +30,7 @@ export default defineConfig(({ mode }) => ({
     allowedHosts: ['.loca.lt'],
     proxy: {
       '/api': {
-        target: 'http://localhost:8000',
+        target: 'http://127.0.0.1:8000', // not localhost: Node resolves it to IPv6 ::1, and runserver 0.0.0.0 is IPv4 only
         changeOrigin: true,
       }
     }

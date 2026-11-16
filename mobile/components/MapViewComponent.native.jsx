@@ -32,8 +32,8 @@ export default function MapViewComponent({
                 }}
                 radius={radius}
                 // Faded until the timer starts (approach); then green inside / red outside
-                fillColor={approach ? 'rgba(100,116,139,0.06)' : isOutOfBounds ? 'rgba(220,38,38,0.06)' : 'rgba(5,150,105,0.08)'}
-                strokeColor={approach ? '#64748b' : isOutOfBounds ? '#dc2626' : '#059669'}
+                fillColor={approach ? 'rgba(100,116,139,0.06)' : isOutOfBounds ? 'rgba(217,119,6,0.06)' : 'rgba(5,150,105,0.08)'}
+                strokeColor={approach ? '#64748b' : isOutOfBounds ? '#d97706' : '#059669'}
                 strokeWidth={approach ? 2 : 3}
                 lineDashPattern={approach ? [6, 6] : undefined}
             />

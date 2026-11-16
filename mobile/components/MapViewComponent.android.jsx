@@ -140,7 +140,7 @@ export default function MapViewComponent({
 
     const hubPt = toScreen ? toScreen(hub) : null;
     const youPt = toScreen && you ? toScreen(you) : null;
-    const areaColor = approach ? '#64748b' : isOutOfBounds ? '#dc2626' : '#059669';
+    const areaColor = approach ? '#64748b' : isOutOfBounds ? '#d97706' : '#059669';
 
     return (
         <View
@@ -160,7 +160,7 @@ export default function MapViewComponent({
                         width: circlePx * 2, height: circlePx * 2, borderRadius: circlePx,
                         left: hubPt.x - circlePx, top: hubPt.y - circlePx,
                         borderColor: areaColor, borderWidth: approach ? 2 : 3, borderStyle: approach ? 'dashed' : 'solid',
-                        backgroundColor: approach ? 'rgba(100,116,139,0.08)' : isOutOfBounds ? 'rgba(220,38,38,0.12)' : 'rgba(5,150,105,0.15)',
+                        backgroundColor: approach ? 'rgba(100,116,139,0.08)' : isOutOfBounds ? 'rgba(217,119,6,0.12)' : 'rgba(5,150,105,0.15)',
                     }]}
                 />
             )}

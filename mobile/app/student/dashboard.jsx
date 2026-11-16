@@ -4,7 +4,7 @@ import {
 } from 'react-native';
 import { showAlert } from '../../components/showAlert';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { QrCode, Play, AlertTriangle, Clock, Info, CheckCircle2 } from 'lucide-react-native';
+import { QrCode, Play, Pause, AlertTriangle, Clock, Info, CheckCircle2 } from 'lucide-react-native';
 import { useCameraPermissions } from 'expo-camera';
 import * as Location from 'expo-location';
 import { useAuth } from '../../components/AuthContext';
@@ -30,7 +30,7 @@ import { IDLE_REFRESH_MS, RUNNING_REFRESH_MS, SAVER_REFRESH_MS } from '../../com
 // Location off this long stops the session; same as the website
 const OUT_OF_BOUNDS_S = 30;
 // Outside the service area the timer pauses; this long away in one go ends the session (the server decides)
-const PAUSE_LIMIT_TEXT = '10 seconds'; // DEMO (normally '30 minutes')
+const PAUSE_LIMIT_TEXT = '30 minutes'; // PAUSE_LIMIT_S in backend/core/views.py
 
 // Haversine formula
 const getDistance = (lat1, lon1, lat2, lon2) => {
@@ -247,8 +247,8 @@ export default function Dashboard() {
                     setStartTime(Date.now() - elapsedSinceIn * 1000);
                     setElapsedSeconds(elapsedSinceIn);
 
-                    if (elapsedSinceIn < 10 && elapsedSinceIn >= 0) { // DEMO (normally 20)
-                        const remainingCooldown = 10 - elapsedSinceIn;
+                    if (elapsedSinceIn < 20 && elapsedSinceIn >= 0) {
+                        const remainingCooldown = 20 - elapsedSinceIn;
                         setScanCooldown(remainingCooldown);
                         if (cooldownRef.current) clearInterval(cooldownRef.current);
                         cooldownRef.current = setInterval(() => {
@@ -584,7 +584,7 @@ export default function Dashboard() {
                 setTimerActive(true);
                 setStartTime(Date.now());
                 setElapsedSeconds(0);
-                setScanCooldown(10); // DEMO (normally 20)
+                setScanCooldown(20);
                 if (cooldownRef.current) clearInterval(cooldownRef.current);
                 cooldownRef.current = setInterval(() => {
                     setScanCooldown(prev => {
@@ -731,30 +731,41 @@ export default function Dashboard() {
                     <View style={styles.sessionCard}>
                         {timerActive ? (
                             <>
+                                {/* Outside the area the card turns one calm amber "paused" state: the title says so and the
+                                    clock greys out (it isn't counting), with a single notice below. Same as the website. */}
                                 <View style={styles.sessionCardHeader}>
-                                    <Play size={16} color={isOutOfBounds ? '#ef4444' : colors.success} />
-                                    <Text style={[styles.sessionCardTitle, isOutOfBounds && { color: '#ef4444' }]}>
-                                        Live Community Service
+                                    {away ? <Pause size={16} color="#d97706" /> : <Play size={16} color={colors.success} />}
+                                    <Text style={[styles.sessionCardTitle, away && { color: '#d97706' }]}>
+                                        {away ? 'Timer paused' : 'Live Community Service'}
                                     </Text>
                                 </View>
                                 <View style={styles.timerContainer}>
                                     <LiveTimer
                                         elapsedSeconds={elapsedSeconds}
                                         requiredSeconds={requiredSeconds}
-                                        textStyle={styles.timerText}
+                                        textStyle={away ? [styles.timerText, { color: colors.textMuted }] : styles.timerText}
                                     />
                                 </View>
-                                {/* Location status */}
-                                <View style={[styles.locationCard, isOutOfBounds && styles.locationCardWarn]}>
-                                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                                        <View style={[styles.locationDot, isOutOfBounds && styles.locationDotWarn]} />
-                                        <Text style={[styles.locationStatus, isOutOfBounds && { color: '#ef4444' }]}>
-                                            {location
-                                                ? isOutOfBounds
-                                                    ? `Out of bounds — ${Math.round(currentDistance)}m away`
-                                                    : `Within service area — ${Math.round(currentDistance)}m from hub`
-                                                : 'Fetching location...'}
-                                        </Text>
+                                {/* Location status; outside the area it's the one "go back" notice */}
+                                <View style={[styles.locationCard, away && styles.locationCardWarn]}>
+                                    <View style={{ flexDirection: 'row', alignItems: away ? 'flex-start' : 'center', gap: 8, flexShrink: 1 }}>
+                                        <View style={[styles.locationDot, away && styles.locationDotWarn, away && { marginTop: 6 }]} />
+                                        {away ? (
+                                            <View style={{ flexShrink: 1 }}>
+                                                <Text style={[styles.locationStatus, { color: '#92400e', fontWeight: '700' }]}>
+                                                    You're {Math.round(currentDistance)} m from the site. Go back to continue.
+                                                </Text>
+                                                <Text style={{ fontSize: 12, fontWeight: '600', color: '#b45309', marginTop: 2 }}>
+                                                    Away {Math.floor((awaySeconds || 0) / 60)}:{String((awaySeconds || 0) % 60).padStart(2, '0')} · the session ends after {PAUSE_LIMIT_TEXT} away
+                                                </Text>
+                                            </View>
+                                        ) : (
+                                            <Text style={styles.locationStatus}>
+                                                {location
+                                                    ? `Within service area — ${Math.round(currentDistance)}m from hub`
+                                                    : 'Fetching location...'}
+                                            </Text>
+                                        )}
                                     </View>
                                 </View>
 
@@ -790,7 +801,7 @@ export default function Dashboard() {
                                         hubMarkerDotStyle={styles.hubMarkerDot}
                                         studentMarkerDotStyle={[
                                             styles.studentMarkerDot,
-                                            { backgroundColor: isOutOfBounds ? '#ef4444' : '#10b981' }
+                                            { backgroundColor: isOutOfBounds ? '#d97706' : '#10b981' }
                                         ]}
                                     />
                                     <View style={styles.mapLegend}>
@@ -800,7 +811,7 @@ export default function Dashboard() {
                                         </View>
                                         {location && (
                                             <View style={styles.mapLegendItem}>
-                                                <View style={[styles.mapLegendDot, { backgroundColor: isOutOfBounds ? '#ef4444' : '#10b981' }]} />
+                                                <View style={[styles.mapLegendDot, { backgroundColor: isOutOfBounds ? '#d97706' : '#10b981' }]} />
                                                 <Text style={styles.mapLegendText}>You</Text>
                                             </View>
                                         )}
@@ -808,25 +819,6 @@ export default function Dashboard() {
                                     </View>
                                 </View>
                                 </MapGate>
-                                {/* Outside the area: the timer is paused until the student is back */}
-                                {away && (
-                                    <View style={[styles.redWarningBanner, { backgroundColor: '#d97706', shadowColor: '#d97706' }]}>
-                                        <View style={styles.redWarningLeft}>
-                                            <AlertTriangle size={24} color="#ffffff" strokeWidth={2.5} />
-                                            <View style={styles.redWarningTextContainer}>
-                                                <Text style={styles.redWarningTitle}>TIMER PAUSED: OUT OF AREA</Text>
-                                                <Text style={[styles.redWarningSubtitle, { color: '#fef3c7' }]}>
-                                                    Go back to your service site to continue. Your session ends after {PAUSE_LIMIT_TEXT} away.
-                                                </Text>
-                                            </View>
-                                        </View>
-                                        <View style={styles.redWarningTimerBox}>
-                                            <Text style={[styles.redWarningTimerText, { color: '#d97706' }]}>
-                                                {Math.floor((awaySeconds || 0) / 60)}:{String((awaySeconds || 0) % 60).padStart(2, '0')}
-                                            </Text>
-                                        </View>
-                                    </View>
-                                )}
                                 {!locationEnabled && (
                                     <View style={[styles.redWarningBanner, { backgroundColor: '#f59e0b', shadowColor: '#f59e0b' }]}>
                                         <View style={styles.redWarningLeft}>
@@ -854,7 +846,7 @@ export default function Dashboard() {
                                     accessibilityState={{ disabled: scanCooldown > 0 || isOutOfBounds }}
                                 >
                                     <Text style={styles.endButtonBlueText}>
-                                        {scanCooldown > 0 ? `Scan to End (${scanCooldown}s)` : 'Scan to End Service'}
+                                        {away ? 'Go back to the site to end' : scanCooldown > 0 ? `Scan to End (${scanCooldown}s)` : 'Scan to End Service'}
                                     </Text>
                                 </TouchableOpacity>
                             </>
@@ -1061,8 +1053,8 @@ const getStyles = (colors, isDarkMode) => StyleSheet.create({
         borderColor: colors.border,
     },
     locationCardWarn: {
-        backgroundColor: '#fee2e2',
-        borderColor: '#fca5a5',
+        backgroundColor: '#fffbeb',
+        borderColor: '#fde68a',
     },
     locationDot: {
         width: 8,
@@ -1071,7 +1063,7 @@ const getStyles = (colors, isDarkMode) => StyleSheet.create({
         backgroundColor: colors.success,
     },
     locationDotWarn: {
-        backgroundColor: '#ef4444',
+        backgroundColor: '#d97706',
     },
     locationStatus: {
         fontSize: 13,
