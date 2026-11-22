@@ -45,7 +45,7 @@ const navLinks = [
     { name: 'Get the app', href: '#download' },
 ];
 
-// The four stages of a case (diagrams/OSAConnect-System-Documentation.md, section 1)
+// The four stages of a case
 const steps = [
     { icon: ScanLine, title: 'Report', text: 'A guard or faculty member scans the student’s QR ID (or types the student ID) and files the violation. The student gets an email.' },
     { icon: Scale, title: 'Review', text: 'OSA approves or dismisses the report. The penalty follows the OSA Student Handbook: 3 hours, then 6 hours, then no entry.' },
