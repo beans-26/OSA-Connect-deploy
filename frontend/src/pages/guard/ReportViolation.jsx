@@ -47,11 +47,6 @@ const readFacultyEmail = () => {
         return saved?.token && saved.expiresAt > Date.now() ? saved : null;
     } catch { return null; }
 };
-// Guards share accounts, so the guard on duty types their name; it's kept on this device for the next report
-const ON_DUTY_KEY = 'osa-guard-on-duty';
-const readOnDuty = () => {
-    try { return (localStorage.getItem(ON_DUTY_KEY) || '').replace('|', ' ').trim(); } catch { return ''; }
-};
 // Contact numbers are 11 digits (09xxxxxxxxx): digits only, and nothing past the 11th
 const contactDigits = (value) => String(value || '').replace(/\D/g, '').slice(0, 11);
 
@@ -84,8 +79,9 @@ const ReportViolation = ({ publicFaculty = false }) => {
     const [emailError, setEmailError] = useState('');
     const [emailHasAccount, setEmailHasAccount] = useState(false); // the email already has a faculty account
     const verifiedName = verified ? [verified.first_name, verified.last_name].filter(Boolean).join(' ') : '';
-    // Guards: the guard on duty's name, typed on the form (the server names the report after it too)
-    const [onDuty, setOnDuty] = useState(readOnDuty);
+    // Guards share accounts, so the guard on duty types their name on every report (it starts empty; nothing is
+    // remembered). The server names the report after it.
+    const [onDuty, setOnDuty] = useState('');
     const reporterName = isGuard ? (onDuty.trim() || '—') : publicFaculty ? (verifiedName || '—') : userName;
 
     const postJson = async (url, body) => {
@@ -275,12 +271,7 @@ const ReportViolation = ({ publicFaculty = false }) => {
                     token: publicFaculty ? verified?.token : undefined,
                 }),
             });
-            if (response.ok) {
-                if (isGuard) {
-                    try { localStorage.setItem(ON_DUTY_KEY, onDuty.trim()); } catch { /* private mode */ }
-                }
-                setSent(true);
-            }
+            if (response.ok) setSent(true);
             else {
                 const err = await response.json().catch(() => ({}));
                 if (err.needs_verification) {
@@ -301,6 +292,7 @@ const ReportViolation = ({ publicFaculty = false }) => {
     const resetForm = () => {
         setSent(false);
         setForm(emptyForm());
+        setOnDuty('');
         setStarted(!kiosk); // back to the scan / enter manually screen
         setManual(false);
         setStep(1);

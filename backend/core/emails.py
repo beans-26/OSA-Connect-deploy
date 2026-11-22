@@ -115,22 +115,42 @@ def send_violation_notice(report):
     violation_notice_message(report).send(fail_silently=False)
 
 
-def send_violation_notices(reports):
-    """The same notices for many reports (the admin's bulk report), over ONE connection to the mail server: opening
-    one (the secure handshake and login) takes Gmail 1 to 3 seconds, so a connection per email made a class-sized
-    report take a minute. Reports whose student has no email are skipped. Returns how many were sent."""
+# Gmail takes about 1.6 s to open a connection and 1.3 s per email on it (measured 2026-11-22), so one connection
+# made a 50-student bulk report wait over a minute. The emails go out over up to this many connections at once.
+MAX_MAIL_CONNECTIONS = 6
+
+
+def send_all(messages):
+    """Sends many emails, split over up to MAX_MAIL_CONNECTIONS connections working at the same time. A connection
+    that fails only loses its own share (logged). Returns how many were sent."""
+    from concurrent.futures import ThreadPoolExecutor
     from django.core.mail import get_connection
-    messages = [violation_notice_message(r, testing=True) for r in reports if getattr(r.student, 'email', None)]
     if not messages:
         return 0
-    with get_connection(fail_silently=False) as connection:
-        return connection.send_messages(messages) or 0
+    lanes = min(MAX_MAIL_CONNECTIONS, len(messages))
+    groups = [messages[i::lanes] for i in range(lanes)]
+
+    def send_group(group):
+        try:
+            with get_connection(fail_silently=False) as connection:
+                return connection.send_messages(group) or 0
+        except Exception as e:
+            print(f"EMAIL ERROR: {len(group)} emails not sent: {e}")
+            return 0
+
+    with ThreadPoolExecutor(max_workers=lanes) as pool:
+        return sum(pool.map(send_group, groups))
+
+
+def send_violation_notices(reports):
+    """The same notices for many reports (the admin's bulk report), sent several at a time (send_all). Reports
+    whose student has no email are skipped. Returns how many were sent."""
+    return send_all([violation_notice_message(r, testing=True) for r in reports if getattr(r.student, 'email', None)])
 
 
 # DEMO ONLY (2026-11-16): bulk reports are only used for testing for now, so their emails say so first and the
 # student can ignore them. Remove TEST_NOTICE (and testing=True in send_violation_notices) before real use.
-TEST_NOTICE = ('This is only a test of OSAConnect. You can disregard this email: you did nothing wrong and you '
-               'don\'t need to do anything.')
+TEST_NOTICE = ('This is only a test, please disregard. You did nothing wrong and you don\'t need to do anything.')
 
 
 def violation_notice_message(report, testing=False):

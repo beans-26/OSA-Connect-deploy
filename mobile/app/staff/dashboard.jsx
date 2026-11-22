@@ -1,5 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import React, { useState, useRef } from 'react';
 import { View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView, Modal, ActivityIndicator, useWindowDimensions, Image } from 'react-native';
 import { showAlert } from '../../components/showAlert';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -29,9 +28,6 @@ const nowTime = () => {
 };
 
 
-// Guards share accounts, so the guard on duty types their name; it's kept on this phone for the next report.
-// Same as the website.
-const ON_DUTY_KEY = 'osa-guard-on-duty';
 // Contact numbers are 11 digits (09xxxxxxxxx): digits only, and nothing past the 11th
 const contactDigits = (value) => String(value || '').replace(/\D/g, '').slice(0, 11);
 
@@ -66,10 +62,9 @@ export default function PersonnelDashboard() {
     const accountName = user?.full_name || user?.username || 'Personnel';
     // Reports go under the account's name; guard accounts name the guard on duty instead. Same as the website.
     const isGuard = user?.role === 'guard';
+    // Guards share accounts, so the guard on duty types their name on every report (it starts empty; nothing is
+    // remembered). Same as the website.
     const [onDuty, setOnDuty] = useState('');
-    useEffect(() => {
-        AsyncStorage.getItem(ON_DUTY_KEY).then((v) => { if (v) setOnDuty((typed) => typed || v.replace('|', ' ').trim()); }).catch(() => {});
-    }, []);
     // Guards and faculty & staff report the same way: the scan / enter manually choice first, then the form in two
     // steps. Same as the website.
     const kiosk = true;
@@ -204,7 +199,6 @@ export default function PersonnelDashboard() {
                 description: isGuard ? form.description.trim() : undefined,
                 on_duty_name: isGuard ? onDuty.trim() : undefined,
             });
-            if (isGuard) AsyncStorage.setItem(ON_DUTY_KEY, onDuty.trim()).catch(() => {});
             setSubmitted(true);
         } catch (error) {
             setAlertMessage({ visible: true, title: "Couldn't send the report", message: error.response?.data?.error || 'Check the details and try again.' });
@@ -215,6 +209,7 @@ export default function PersonnelDashboard() {
 
     const resetForm = () => {
         setForm(emptyForm());
+        setOnDuty('');
         setSubmitted(false);
         setStarted(!kiosk); // back to the scan / enter manually screen
         setStep(1);
