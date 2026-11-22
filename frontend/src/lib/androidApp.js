@@ -5,6 +5,9 @@
 // EAS build, download the APK and attach it to a new GitHub release as "OSAConnect.apk".
 export const ANDROID_APK_URL = 'https://github.com/beans-26/OSA-Connect-deploy/releases/latest/download/OSAConnect.apk';
 export const ANDROID_APP_VERSION = '1.2.0';
+// The app's package and link scheme (mobile/app.json): /open (pages/OpenApp.jsx) opens the app with them
+export const ANDROID_PACKAGE = 'com.osaconnect.student';
+export const ANDROID_APP_SCHEME = 'osaconnect';
 
 export const ANDROID_DOWNLOAD_PATH = '/android';
 // Always the live site: a QR code made on localhost must still work on a phone

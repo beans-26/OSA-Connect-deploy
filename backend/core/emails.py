@@ -56,17 +56,23 @@ def app_url(path=''):
     return base.rstrip('/') + path
 
 
-def _html(title, paragraphs, highlight=None, rows=None, after=(), button=None):
+def _button_html(button):
+    label, url = button
+    return (f'<p style="margin:8px 0 18px;"><a href="{escape(url)}" style="display:inline-block;background:#1E3A8A;'
+            f'color:#ffffff;text-decoration:none;font-weight:bold;padding:12px 22px;border-radius:8px;">{escape(label)}</a></p>'
+            f'<p style="margin:0 0 14px;font-size:13px;color:#586379;">Or open this link: <a href="{escape(url)}" '
+            f'style="color:#1E3A8A;">{escape(url)}</a></p>')
+
+
+def _html(title, paragraphs, highlight=None, rows=None, after=(), button=None, button_after_first=False):
     """A plain, readable HTML body: paragraphs, then a big code (`highlight`), (label, value) `rows` or a
-    (label, url) `button`, then the `after` paragraphs and the office footer."""
+    (label, url) `button`, then the `after` paragraphs and the office footer. button_after_first: the button
+    goes under the first `after` paragraph instead (the violation emails: "Log in to see..." then the button)."""
     parts = [f'<h2 style="margin:0 0 16px;font-size:20px;color:#14213D;">{escape(title)}</h2>']
     for p in paragraphs:
         parts.append(f'<p style="margin:0 0 14px;">{escape(p)}</p>')
-    if button:
-        label, url = button
-        parts.append(f'<p style="margin:8px 0 18px;"><a href="{escape(url)}" style="display:inline-block;background:#1E3A8A;'
-                     f'color:#ffffff;text-decoration:none;font-weight:bold;padding:12px 22px;border-radius:8px;">{escape(label)}</a></p>'
-                     f'<p style="margin:0 0 14px;font-size:13px;color:#586379;">Or open this link: {escape(url)}</p>')
+    if button and not button_after_first:
+        parts.append(_button_html(button))
     if highlight:
         parts.append(
             f'<p style="margin:8px 0 18px;font-size:30px;font-weight:bold;letter-spacing:6px;color:#1E3A8A;">{escape(highlight)}</p>')
@@ -75,8 +81,10 @@ def _html(title, paragraphs, highlight=None, rows=None, after=(), button=None):
             f'<tr><td style="padding:6px 16px 6px 0;color:#586379;vertical-align:top;">{escape(k)}</td>'
             f'<td style="padding:6px 0;vertical-align:top;">{escape(v)}</td></tr>' for k, v in rows)
         parts.append(f'<table style="border-collapse:collapse;margin:0 0 16px;font-size:15px;">{cells}</table>')
-    for p in after:
+    for i, p in enumerate(after):
         parts.append(f'<p style="margin:0 0 14px;">{escape(p)}</p>')
+        if button and button_after_first and i == 0:
+            parts.append(_button_html(button))
     return (
         '<div style="font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.55;color:#14213D;'
         'max-width:560px;margin:0 auto;padding:24px;">'
@@ -145,7 +153,8 @@ def send_all(messages):
 def send_violation_notices(reports):
     """The same notices for many reports (the admin's bulk report), sent several at a time (send_all). Reports
     whose student has no email are skipped. Returns how many were sent."""
-    return send_all([violation_notice_message(r, testing=True) for r in reports if getattr(r.student, 'email', None)])
+    return send_all([violation_notice_message(r, testing=True, approved=True)
+                     for r in reports if getattr(r.student, 'email', None)])
 
 
 # DEMO ONLY (2026-11-16): bulk reports are only used for testing for now, so their emails say so first and the
@@ -153,28 +162,41 @@ def send_violation_notices(reports):
 TEST_NOTICE = ('This is only a test, please disregard. You did nothing wrong and you don\'t need to do anything.')
 
 
-def violation_notice_message(report, testing=False):
-    """The violation notice as an email, not sent yet. testing=True puts TEST_NOTICE before the real notice."""
+def violation_notice_message(report, testing=False, approved=False):
+    """The violation notice as an email, not sent yet. Guard and faculty reports: OSA will review it.
+    approved=True (the admin's bulk report, approved at once): the penalty and service location assigned.
+    testing=True puts TEST_NOTICE before the real notice. Both end with a "Click here to log in" button."""
     student = report.student
     when = report.created_at.replace(tzinfo=datetime.timezone.utc).astimezone(PH_TZ) if report.created_at else None
     when_str = when.strftime('%B %d, %Y, %I:%M %p').replace(' 0', ' ') if when else 'Not recorded'
     subject = 'A violation report was filed for you (OSAConnect)'
     greeting = f'Hi {_first_name(student.name)},'
-    intro = ('A campus guard or staff member filed a violation report under your student ID. '
-             'The Office of Student Affairs will review it before any community service is assigned.')
-    rows = [
-        ('Violation', report.violation_type or 'Not specified'),
+    if approved:
+        intro = 'The Office of Student Affairs recorded a violation under your student ID and assigned the penalty below.'
+        rows = [('Violation', report.violation_type or 'Not specified'),
+                ('Penalty', report.punishment or 'To be determined')]
+        if report.assigned_building:
+            rows.append(('Service location', report.assigned_building))
+        next_step = 'Log in to OSAConnect to see your e-ticket, your service location, the hours to serve and your deadline.'
+    else:
+        intro = ('A campus guard or staff member filed a violation report under your student ID. '
+                 'The Office of Student Affairs will review it before any community service is assigned.')
+        rows = [('Violation', report.violation_type or 'Not specified')]
+        next_step = ('Log in to OSAConnect to follow the review. If it is approved, your e-ticket, assigned building '
+                     'and required hours will appear there.')
+    rows += [
         ('Date and time', when_str),
         ('Details', report.description or 'None given'),
         ('Reported by', report.reporting_guard or 'Campus personnel'),
         ('Student ID', student.student_id),
     ]
-    next_step = ('Log in to OSAConnect to follow the review. If it is approved, your e-ticket, assigned building '
-                 'and required hours will appear there.')
     not_you = 'If you believe this report is wrong, visit the Office of Student Affairs with your student ID.'
+    # /open: the Android app if the student has it, else the website's student login (frontend pages/OpenApp.jsx)
+    login = app_url('/open')
     text = (f"{greeting}\n\n{intro}\n\n" + ''.join(f"{k}: {v}\n" for k, v in rows)
-            + f"\n{next_step}\n{not_you}\n\n{OFFICE}\n{SITE_URL}\nThis email was sent automatically. Replies to it are not read.\n")
-    html = _html('A violation report was filed for you', [greeting, intro], rows=rows, after=[next_step, not_you])
+            + f"\n{next_step}\nClick here to log in: {login}\n\n{not_you}\n\n" + _footer_text())
+    html = _html('A violation report was filed for you', [greeting, intro], rows=rows,
+                 after=[next_step, not_you], button=('Click here to log in', login), button_after_first=True)
     if testing:
         subject = '[Test only] ' + subject
         text = f"TEST ONLY: {TEST_NOTICE}\n\n" + text
