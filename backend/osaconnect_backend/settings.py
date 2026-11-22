@@ -213,15 +213,4 @@ FACULTY_TEST_EMAILS.add('beansilog26@gmail.com')
 # when the system goes into real use; then only @ustp.edu.ph (and FACULTY_TEST_EMAILS) work.
 FACULTY_ALLOW_GMAIL = os.getenv('FACULTY_ALLOW_GMAIL', 'True') != 'False'
 
-# Guard login geofence: guards can only log in on campus, a circle around USTP CDO (the CEA / CITC buildings).
-# Their phone or browser sends its location with the login (core/views.py login_view). Change the circle with
-# these, or set GUARD_GEOFENCE_ENABLED=False to turn the check off (e.g. a demo away from campus).
-GUARD_GEOFENCE_ENABLED = os.getenv('GUARD_GEOFENCE_ENABLED', 'True') != 'False'
-GUARD_GEOFENCE_LAT = float(os.getenv('GUARD_GEOFENCE_LAT', '8.4857'))
-GUARD_GEOFENCE_LNG = float(os.getenv('GUARD_GEOFENCE_LNG', '124.6567'))
-GUARD_GEOFENCE_RADIUS_M = float(os.getenv('GUARD_GEOFENCE_RADIUS_M', '400'))
-# DEMO ONLY: more places where guards may log in, as (name, lat, lng, radius in m). "Ila nyko" is the team's demo
-# spot (its service site); 150 m so phone GPS works there. Remove when the system goes into real use.
-GUARD_DEMO_AREAS = [('Ila nyko', 8.5567196, 124.5326305, 150)]
-
 print(f"SMTP CONFIG: Host={EMAIL_HOST}, User={EMAIL_HOST_USER}, PW_Len={len(EMAIL_HOST_PASSWORD) if EMAIL_HOST_PASSWORD else 0}")

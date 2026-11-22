@@ -40,7 +40,7 @@ export function buildNotifications(violations = [], tickets = [], { reminders = 
         if (v.status === 'Pending OSA Review') {
             list.push({ id: `report-${v.id}`, tone: 'info', title: 'Violation reported', body: `${v.violation_type} was reported. OSA will review it and assign your community service.`, at: v.created_at });
         } else if (v.status === 'Dismissed') {
-            list.push({ id: `dismissed-${v.id}`, tone: 'good', title: 'Report dismissed', body: `OSA dismissed the ${v.violation_type} report. Nothing to serve.`, at: v.created_at });
+            list.push({ id: `dismissed-${v.id}`, tone: 'good', title: 'Report dismissed', body: `OSA dismissed the ${v.violation_type} report. Nothing to serve.${v.dismissed_reason ? ` Reason: ${v.dismissed_reason}` : ''}`, at: v.dismissed_at || v.created_at });
         } else if (!ticketFor.has(v.id) && v.status === 'Cleared') {
             list.push({ id: `cleared-${v.id}`, tone: 'good', title: 'Clearance approved', body: `${v.violation_type} is cleared.`, at: v.cleared_at || v.created_at });
         } else if (!ticketFor.has(v.id) && v.status === 'Completed') {

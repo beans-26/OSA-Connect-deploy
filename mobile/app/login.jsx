@@ -1,6 +1,5 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import * as Location from 'expo-location';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, Linking } from 'react-native';
 import { Link, useLocalSearchParams, useRouter } from 'expo-router';
 import { User, Lock, Eye, EyeOff, ChevronRight, ArrowLeft, Check } from 'lucide-react-native';
@@ -13,35 +12,6 @@ const SITE = /^https:/.test(API_URL) ? API_URL.replace(/\/api\/?$/, '') : 'https
 const ROLE_SIDE = { student: 'student', staff: 'faculty', guard: 'faculty' };
 // "Remember me": the student ID or faculty email (never the password) kept on this phone and filled in next time
 const REMEMBER_KEYS = { student: 'remembered-student-id', faculty: 'remembered-faculty-login' };
-
-// Guards can only log in on campus (backend login_view): the phone's location goes with the login. Resolves
-// { lat, lng, accuracy }, or rejects with a message to show. Quick by default: the phone's last position from the
-// last 2 minutes, else a Wi-Fi / cell fix (enough for the 400 m campus circle). precise: wait for GPS (slow indoors).
-const currentLocation = async (precise = false) => {
-    const { status } = await Location.requestForegroundPermissionsAsync();
-    if (status !== 'granted') {
-        throw new Error('Location access is off. Guards can only log in on campus: allow location for OSAConnect, then log in again.');
-    }
-    const asPoint = ({ coords }) => ({ lat: coords.latitude, lng: coords.longitude, accuracy: coords.accuracy });
-    try {
-        if (!precise) {
-            const last = await Location.getLastKnownPositionAsync({ maxAge: 120000, requiredAccuracy: 100 }).catch(() => null);
-            if (last) return asPoint(last);
-        }
-        return asPoint(await Location.getCurrentPositionAsync({ accuracy: precise ? Location.Accuracy.High : Location.Accuracy.Balanced }));
-    } catch {
-        throw new Error("Couldn't get your location. Turn on location (GPS) and try again.");
-    }
-};
-
-// The guard usernames that logged in on this phone: their location is found before the first login request
-// (one request, no second round trip). Lowercase.
-const GUARDS_KEY = 'guard-logins';
-const readGuards = () => AsyncStorage.getItem(GUARDS_KEY).then((v) => JSON.parse(v || '[]')).catch(() => []);
-const addGuard = async (name) => {
-    const list = await readGuards();
-    if (!list.includes(name)) await AsyncStorage.setItem(GUARDS_KEY, JSON.stringify([...list, name].slice(-10))).catch(() => {});
-};
 
 // The /login screen (register and forgot password link here): the student login, or ?as=faculty. The start
 // screen (welcome.jsx) shows the same form in place, under its own logo, so the logo doesn't load again.
@@ -67,18 +37,6 @@ export function LoginForm({ faculty, onChange }) {
     const [remember, setRemember] = useState(false);
     const { login } = useAuth();
     const rememberKey = REMEMBER_KEYS[faculty ? 'faculty' : 'student'];
-    // A known guard's location, started as soon as their username is in the box (ready by the time they tap Login)
-    const [guards, setGuards] = useState([]);
-    useEffect(() => { if (faculty) readGuards().then(setGuards); }, [faculty]);
-    const early = useRef({ name: null, pending: null });
-    const knownGuard = faculty && guards.includes(username.trim().toLowerCase());
-    useEffect(() => {
-        const name = username.trim().toLowerCase();
-        if (!knownGuard || early.current.name === name) return;
-        const pending = currentLocation();
-        pending.catch(() => {}); // asked for again on Login if this one failed
-        early.current = { name, pending };
-    }, [knownGuard, username]);
     // Fill in what was remembered on this phone (and tick the box)
     useEffect(() => {
         let alive = true;
@@ -103,26 +61,7 @@ export function LoginForm({ faculty, onChange }) {
         setError('');
 
         try {
-            let response;
-            const name = username.trim().toLowerCase();
-            // A guard who logged in here before: their location goes with the first request
-            let location = knownGuard && early.current.name === name ? await early.current.pending.catch(() => undefined) : undefined;
-            try {
-                response = await api.post('/login/', { username, password, location });
-            } catch (first) {
-                // A guard: log in again with where they are (only on campus). A rough fix that came out
-                // "outside": try once more with GPS before giving up
-                const data = first.response?.status === 403 ? first.response.data : null;
-                if (!(data?.needs_location || (data?.outside_area && location && location.accuracy > 50))) throw first;
-                try {
-                    location = await currentLocation(Boolean(location));
-                } catch (geoError) {
-                    setError(geoError.message);
-                    return;
-                }
-                response = await api.post('/login/', { username, password, location });
-            }
-            if (response.data.role === 'guard') addGuard(name);
+            const response = await api.post('/login/', { username, password });
 
             if (response.data.role === 'admin') {
                 setError('Admin login is not supported on mobile');
@@ -257,6 +196,13 @@ export function LoginForm({ faculty, onChange }) {
                 </TouchableOpacity>
             </View>
 
+            {/* The terms and privacy policy: the website's pages (same line as the website login) */}
+            <Text style={styles.terms}>
+                By continuing, you agree to OSAConnect&apos;s{' '}
+                <Text style={styles.termsLink} onPress={() => Linking.openURL(`${SITE}/terms`)} accessibilityRole="link">Terms of Service</Text>
+                {' '}and{' '}
+                <Text style={styles.termsLink} onPress={() => Linking.openURL(`${SITE}/privacy`)} accessibilityRole="link">Privacy Policy</Text>.
+            </Text>
             {/* Dashed line: Android only draws dashes reliably on a full border, so it's a thin box */}
             <View style={styles.dashed} />
             {faculty ? (
@@ -283,6 +229,8 @@ export function LoginForm({ faculty, onChange }) {
 
 const styles = StyleSheet.create({
     title: { marginBottom: 14, fontSize: 19 },
+    terms: { marginTop: 12, textAlign: 'center', fontSize: 11, lineHeight: 16, color: C.textMuted },
+    termsLink: { fontWeight: '700', color: C.link, textDecorationLine: 'underline' },
     back: { flexDirection: 'row', alignItems: 'center', gap: 4, alignSelf: 'flex-start', marginBottom: 10 },
     backText: { fontSize: 12, fontWeight: '700', color: C.link },
     errorBox: {

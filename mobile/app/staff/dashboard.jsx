@@ -1,4 +1,5 @@
-import React, { useState, useRef } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView, Modal, ActivityIndicator, useWindowDimensions, Image } from 'react-native';
 import { showAlert } from '../../components/showAlert';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -28,9 +29,17 @@ const nowTime = () => {
 };
 
 
+// Guards share accounts, so the guard on duty types their name; it's kept on this phone for the next report.
+// Same as the website.
+const ON_DUTY_KEY = 'osa-guard-on-duty';
+// Contact numbers are 11 digits (09xxxxxxxxx): digits only, and nothing past the 11th
+const contactDigits = (value) => String(value || '').replace(/\D/g, '').slice(0, 11);
+
 const emptyForm = () => ({
     student_id: '', name: '', gender: '', course: '', department: '', contact: '',
     email: '', violations: [], // one or more; each becomes its own report
+    // Guards: what happened, in their own words ("N/A" when there's nothing to add)
+    description: '',
     // From the student lookup: a registered student's name shows in a green box (as on the website)
     registered: false, year: '',
     incident_date: today(), incident_time: nowTime(),
@@ -55,12 +64,16 @@ export default function PersonnelDashboard() {
     const debounceTimer = useRef(null);
 
     const accountName = user?.full_name || user?.username || 'Personnel';
-    // Reports go under the account's name (guards: the guard account). Same as the website.
+    // Reports go under the account's name; guard accounts name the guard on duty instead. Same as the website.
     const isGuard = user?.role === 'guard';
+    const [onDuty, setOnDuty] = useState('');
+    useEffect(() => {
+        AsyncStorage.getItem(ON_DUTY_KEY).then((v) => { if (v) setOnDuty((typed) => typed || v.replace('|', ' ').trim()); }).catch(() => {});
+    }, []);
     // Guards and faculty & staff report the same way: the scan / enter manually choice first, then the form in two
     // steps. Same as the website.
     const kiosk = true;
-    const reporterName = accountName;
+    const reporterName = isGuard ? (onDuty.trim() || '—') : accountName;
     // Guards start on a kiosk-style screen: scan the student's ID, or enter the details by hand. The form shows
     // once they choose (after a successful scan, or "Enter manually"); leaving the camera keeps the start screen.
     const [started, setStarted] = useState(!kiosk);
@@ -104,7 +117,7 @@ export default function PersonnelDashboard() {
                     name: data.name || prev.name,
                     course: data.course || prev.course,
                     department: data.department || prev.department,
-                    contact: data.contact_number || prev.contact,
+                    contact: contactDigits(data.contact_number) || prev.contact,
                     email: data.email || prev.email,
                     gender: data.gender || prev.gender,
                     registered: Boolean(data.has_account),
@@ -171,6 +184,14 @@ export default function PersonnelDashboard() {
             setAlertMessage({ visible: true, title: 'Student ID', message: 'Student ID must be exactly 10 numbers, like 2023303188.' });
             return;
         }
+        if (isGuard && !form.description.trim()) {
+            setAlertMessage({ visible: true, title: 'Description', message: 'Write a description, or N/A if there is none.' });
+            return;
+        }
+        if (isGuard && !onDuty.trim()) {
+            setAlertMessage({ visible: true, title: 'Guard on duty', message: 'Type the name of the guard on duty.' });
+            return;
+        }
         setShowConfirmModal(true);
     };
 
@@ -178,7 +199,12 @@ export default function PersonnelDashboard() {
         setShowConfirmModal(false);
         setLoading(true);
         try {
-            await api.post('/violations/', { ...form, violation_types: form.violations, reporting_guard: accountName });
+            await api.post('/violations/', {
+                ...form, violation_types: form.violations, reporting_guard: accountName,
+                description: isGuard ? form.description.trim() : undefined,
+                on_duty_name: isGuard ? onDuty.trim() : undefined,
+            });
+            if (isGuard) AsyncStorage.setItem(ON_DUTY_KEY, onDuty.trim()).catch(() => {});
             setSubmitted(true);
         } catch (error) {
             setAlertMessage({ visible: true, title: "Couldn't send the report", message: error.response?.data?.error || 'Check the details and try again.' });
@@ -249,6 +275,12 @@ export default function PersonnelDashboard() {
                     <Text style={styles.slipLineLabel}>Reported by</Text>
                     <Text style={styles.slipLineValue} numberOfLines={1}>{reporterName}</Text>
                 </View>
+                {isGuard && form.description.trim() ? (
+                    <View style={{ marginTop: 4 }}>
+                        <Text style={styles.slipLineLabel}>Description</Text>
+                        <Text style={[styles.slipLineValue, { textAlign: 'left', marginTop: 2 }]}>{form.description.trim()}</Text>
+                    </View>
+                ) : null}
             </View>
         </View>
     );
@@ -390,9 +422,10 @@ export default function PersonnelDashboard() {
                                             style={styles.field}
                                             placeholder="Contact number"
                                             placeholderTextColor={colors.textMuted}
-                                            keyboardType="phone-pad"
+                                            keyboardType="number-pad"
+                                            maxLength={11}
                                             value={form.contact}
-                                            onChangeText={(t) => setForm({ ...form, contact: t })}
+                                            onChangeText={(t) => setForm({ ...form, contact: contactDigits(t) })}
                                         />
                                     </View>
                                 </View>
@@ -485,6 +518,35 @@ export default function PersonnelDashboard() {
                                         />
                                     </View>
                                 </View>
+                                {isGuard ? (
+                                    <>
+                                        <View>
+                                            <Text style={styles.tinyLabel}>Description</Text>
+                                            <TextInput
+                                                style={[styles.field, styles.descriptionField]}
+                                                placeholder="What happened? Type N/A if none"
+                                                placeholderTextColor={colors.textMuted}
+                                                value={form.description}
+                                                onChangeText={(t) => setForm({ ...form, description: t })}
+                                                multiline
+                                                maxLength={1000}
+                                                textAlignVertical="top"
+                                            />
+                                        </View>
+                                        <View>
+                                            <Text style={styles.tinyLabel}>Guard on duty</Text>
+                                            <TextInput
+                                                style={styles.field}
+                                                placeholder="Guard's full name"
+                                                placeholderTextColor={colors.textMuted}
+                                                value={onDuty}
+                                                onChangeText={setOnDuty}
+                                                autoCapitalize="words"
+                                                maxLength={100}
+                                            />
+                                        </View>
+                                    </>
+                                ) : null}
                             </View>
                         </View>
 
@@ -732,18 +794,8 @@ const getStyles = (colors, isDarkMode, wide) => StyleSheet.create({
     kioskIcon: { width: 112, height: 112, borderRadius: 24, alignItems: 'center', justifyContent: 'center', backgroundColor: isDarkMode ? 'rgba(255,255,255,0.05)' : 'rgba(30,42,107,0.05)' },
     kioskTitle: { fontSize: 20, fontWeight: '800', letterSpacing: 0.5, color: isDarkMode ? '#ffffff' : '#1e2a6b', textAlign: 'center' },
     kioskSub: { fontSize: 12, color: colors.textMuted, textAlign: 'center' },
-    onDuty: {
-        borderWidth: 2,
-        borderColor: isDarkMode ? 'rgba(59, 130, 246, 0.35)' : '#dbeafe',
-        backgroundColor: isDarkMode ? 'rgba(30, 58, 138, 0.25)' : '#eff6ff',
-        borderRadius: 12,
-        padding: 10,
-        marginBottom: 12,
-        gap: 6,
-    },
-    onDutyLabelRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-    onDutyLabel: { fontSize: 12, fontWeight: '800', color: colors.primary },
-    onDutyField: { backgroundColor: colors.card },
+    // The guard's description box: a few lines tall
+    descriptionField: { height: 96, paddingTop: 10 },
     // The violation tick boxes; a ticked one turns red like the old dropdown
     // Two per row, also on phones, so the four fit in two lines
     violationList: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },

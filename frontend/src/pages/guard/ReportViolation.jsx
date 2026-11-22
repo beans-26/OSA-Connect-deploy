@@ -33,6 +33,8 @@ const emptyForm = () => ({
     // Typed in for a student who isn't registered yet; a registered student's name comes from their record
     first_name: '', last_name: '', record_name: '', record_display: '', record_registered: false, record_year: '',
     email: '', violations: [], // one or more; each becomes its own report
+    // Guards: what happened, in their own words ("N/A" when there's nothing to add)
+    description: '',
     incident_date: new Date().toISOString().split('T')[0],
     incident_time: new Date().toTimeString().slice(0, 5),
 });
@@ -45,6 +47,14 @@ const readFacultyEmail = () => {
         return saved?.token && saved.expiresAt > Date.now() ? saved : null;
     } catch { return null; }
 };
+// Guards share accounts, so the guard on duty types their name; it's kept on this device for the next report
+const ON_DUTY_KEY = 'osa-guard-on-duty';
+const readOnDuty = () => {
+    try { return (localStorage.getItem(ON_DUTY_KEY) || '').replace('|', ' ').trim(); } catch { return ''; }
+};
+// Contact numbers are 11 digits (09xxxxxxxxx): digits only, and nothing past the 11th
+const contactDigits = (value) => String(value || '').replace(/\D/g, '').slice(0, 11);
+
 // Only the shape here: the server checks it's a USTP address (or a test address in backend/.env)
 const USTP_EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -74,8 +84,9 @@ const ReportViolation = ({ publicFaculty = false }) => {
     const [emailError, setEmailError] = useState('');
     const [emailHasAccount, setEmailHasAccount] = useState(false); // the email already has a faculty account
     const verifiedName = verified ? [verified.first_name, verified.last_name].filter(Boolean).join(' ') : '';
-    // Guards: the guard account's name (the server names the report after it too)
-    const reporterName = publicFaculty ? (verifiedName || '—') : userName;
+    // Guards: the guard on duty's name, typed on the form (the server names the report after it too)
+    const [onDuty, setOnDuty] = useState(readOnDuty);
+    const reporterName = isGuard ? (onDuty.trim() || '—') : publicFaculty ? (verifiedName || '—') : userName;
 
     const postJson = async (url, body) => {
         setEmailBusy(true);
@@ -193,7 +204,7 @@ const ReportViolation = ({ publicFaculty = false }) => {
                         ...(useName && { record_name: data.name, record_display: data.name || displayStudentName(data) }),
                         course: known(data.course) ? data.course : prev.course,
                         department: known(data.department) ? data.department : prev.department,
-                        contact: data.contact_number || prev.contact, email: data.email || prev.email,
+                        contact: contactDigits(data.contact_number) || prev.contact, email: data.email || prev.email,
                         gender: data.gender || prev.gender,
                     };
                 });
@@ -220,6 +231,16 @@ const ReportViolation = ({ publicFaculty = false }) => {
         if (guardStep1) { nextStep(); return; } // Enter on step 1 goes to step 2, it doesn't send
         if (!form.violations.length) {
             alert('Choose at least one violation.');
+            return;
+        }
+        if (isGuard && !onDuty.trim()) {
+            alert('Type the name of the guard on duty.');
+            document.getElementById('rv-onduty')?.focus();
+            return;
+        }
+        if (isGuard && !form.description.trim()) {
+            alert('Write a description, or N/A if there is none.');
+            document.getElementById('rv-description')?.focus();
             return;
         }
         // Faculty: the button says "Confirm email address" until the email is confirmed with its code
@@ -249,10 +270,17 @@ const ReportViolation = ({ publicFaculty = false }) => {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     ...form, name: sentName, violation_types: form.violations, reporting_guard: userName,
+                    description: isGuard ? form.description.trim() : undefined,
+                    on_duty_name: isGuard ? onDuty.trim() : undefined,
                     token: publicFaculty ? verified?.token : undefined,
                 }),
             });
-            if (response.ok) setSent(true);
+            if (response.ok) {
+                if (isGuard) {
+                    try { localStorage.setItem(ON_DUTY_KEY, onDuty.trim()); } catch { /* private mode */ }
+                }
+                setSent(true);
+            }
             else {
                 const err = await response.json().catch(() => ({}));
                 if (err.needs_verification) {
@@ -358,6 +386,12 @@ const ReportViolation = ({ publicFaculty = false }) => {
                                     <dt className="shrink-0 text-xs font-semibold text-slate-500 dark:text-slate-400">Reported by</dt>
                                     <dd className="min-w-0 truncate text-right font-bold text-slate-800 dark:text-slate-200">{reporterName}</dd>
                                 </div>
+                                {isGuard && form.description.trim() && (
+                                    <div className="pt-1">
+                                        <dt className="text-xs font-semibold text-slate-500 dark:text-slate-400">Description</dt>
+                                        <dd className="mt-0.5 whitespace-pre-line break-words font-semibold text-slate-800 dark:text-slate-200">{form.description.trim()}</dd>
+                                    </div>
+                                )}
                             </dl>
                         </div>
 
@@ -541,7 +575,7 @@ const ReportViolation = ({ publicFaculty = false }) => {
                                         </div>
                                         <div className="min-w-0">
                                             <Label text htmlFor="rv-contact" icon={Phone}>Contact number</Label>
-                                            <input id="rv-contact" required type="tel" placeholder="Contact number" value={form.contact} onChange={e => setForm({ ...form, contact: e.target.value })} className={inputClass} />
+                                            <input id="rv-contact" required type="tel" inputMode="numeric" placeholder="Contact number" maxLength={11} title="Up to 11 numbers, like 09171234567" value={form.contact} onChange={e => setForm({ ...form, contact: contactDigits(e.target.value) })} className={inputClass} />
                                         </div>
                                     </div>
                                     <div>
@@ -575,6 +609,21 @@ const ReportViolation = ({ publicFaculty = false }) => {
                                             <input id="rv-time" type="time" required value={form.incident_time} onChange={e => setForm({ ...form, incident_time: e.target.value })} className={`${inputClass} appearance-none`} />
                                         </div>
                                     </div>
+                                    {isGuard && (
+                                        <>
+                                            <div>
+                                                <Label text htmlFor="rv-description">Description</Label>
+                                                <textarea id="rv-description" required={guardStep2} rows={3} maxLength={1000} value={form.description}
+                                                    onChange={e => setForm({ ...form, description: e.target.value })}
+                                                    placeholder="What happened? Type N/A if none" className={`${inputClass} resize-none`} />
+                                            </div>
+                                            <div>
+                                                <Label text htmlFor="rv-onduty">Guard on duty</Label>
+                                                <input id="rv-onduty" required={guardStep2} value={onDuty} maxLength={100} autoComplete="name"
+                                                    onChange={e => setOnDuty(e.target.value)} placeholder="Guard's full name" className={inputClass} />
+                                            </div>
+                                        </>
+                                    )}
                                     <p className="rv-note rounded-xl bg-slate-50 dark:bg-slate-900 px-3 py-2 sm:py-2.5 text-xs font-medium text-slate-500 dark:text-slate-400">
                                         OSA reviews every report before any penalty is given. The student gets an email about it.
                                     </p>

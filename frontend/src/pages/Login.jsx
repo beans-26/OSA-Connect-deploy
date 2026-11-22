@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { ACTIVITY_KEY } from '../components/studentSession';
 import { homePathFor } from '../lib/portals';
@@ -51,23 +51,6 @@ const readRemembered = (key) => {
     try { return localStorage.getItem(key) || ''; } catch { return ''; }
 };
 
-// Guards can only log in on campus (backend login_view): the browser's location goes with the login.
-// Resolves { lat, lng, accuracy }, or rejects with a message to show. precise: wait for GPS (slow indoors);
-// otherwise a quick fix (Wi-Fi / a position from the last 2 minutes), enough for a 400 m campus circle.
-const currentLocation = (precise = false) => new Promise((resolve, reject) => {
-    if (!window.isSecureContext || !navigator.geolocation) {
-        reject(new Error('Location only works on a secure (https) page. Open the site with https:// and try again.'));
-        return;
-    }
-    navigator.geolocation.getCurrentPosition(
-        ({ coords }) => resolve({ lat: coords.latitude, lng: coords.longitude, accuracy: coords.accuracy }),
-        (err) => reject(new Error(err.code === 1
-            ? 'Location access is blocked. Guards can only log in on campus: allow location for this site (the lock icon next to the address bar), then log in again.'
-            : "Couldn't get your location. Turn on location (GPS) and try again.")),
-        precise ? { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 } : { enableHighAccuracy: false, timeout: 8000, maximumAge: 120000 },
-    );
-});
-
 const Login = ({ portal = 'student' }) => {
     const config = PORTALS[portal];
     const REMEMBER_KEY = REMEMBER_KEYS[portal];
@@ -81,42 +64,17 @@ const Login = ({ portal = 'student' }) => {
     const navigate = useNavigate();
     // Set by StudentIdleGuard after an inactivity logout
     const notice = useLocation().state?.notice;
-    // The guard login: find the location as soon as the page opens, so it's ready by the time they tap Login
-    // (one request instead of two, no waiting on GPS after the tap)
-    const earlyLocation = useRef(null);
-    useEffect(() => {
-        if (portal !== 'guard') return;
-        const pending = currentLocation();
-        pending.catch(() => {}); // asked for again on Login if this one failed
-        earlyLocation.current = pending;
-    }, [portal]);
-
     const handleLogin = async (e) => {
         e.preventDefault();
         setLoading(true);
         setError('');
         try {
-            const send = (location) => fetch('/api/login/', {
+            const response = await fetch('/api/login/', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ username, password, location })
+                body: JSON.stringify({ username, password })
             });
-            // Guard page: the location found when the page opened (if it worked)
-            let location = earlyLocation.current ? await earlyLocation.current.catch(() => undefined) : undefined;
-            let response = await send(location);
-            let data = await response.json();
-            if (response.status === 403 && (data.needs_location || (data.outside_area && location && location.accuracy > 50))) {
-                // A guard: log in again with where they are (only on campus). A rough fix that came out
-                // "outside": try once more with GPS before giving up
-                try {
-                    location = await currentLocation(Boolean(location));
-                } catch (err) {
-                    setError(err.message);
-                    return;
-                }
-                response = await send(location);
-                data = await response.json();
-            }
+            const data = await response.json();
             if (response.ok) {
                 // Admins don't get a hint on the other pages; their login page stays unadvertised
                 if (data.role === 'admin' && portal !== 'admin') {
@@ -294,6 +252,13 @@ const Login = ({ portal = 'student' }) => {
                             </div>
                         )}
                     </form>
+
+                    {/* The terms and privacy policy (pages/Legal.jsx) */}
+                    <p className="mt-4 text-center text-[11px] sm:text-xs leading-relaxed text-slate-600 dark:text-slate-400">
+                        By continuing, you agree to OSAConnect&apos;s{' '}
+                        <Link to="/terms" className="font-bold text-blue-800 dark:text-blue-300 underline underline-offset-2">Terms of Service</Link> and{' '}
+                        <Link to="/privacy" className="font-bold text-blue-800 dark:text-blue-300 underline underline-offset-2">Privacy Policy</Link>.
+                    </p>
 
                     {isStudent && (
                         <div className="mt-5 sm:mt-6 pt-4 sm:pt-5 border-t border-dashed border-slate-400/60 dark:border-slate-500/60 text-left">

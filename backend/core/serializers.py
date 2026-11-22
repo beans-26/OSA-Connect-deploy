@@ -149,6 +149,8 @@ class ETicketSerializer(serializers.DocumentSerializer):
                         'student_id': s_ref.student_id if s_ref else "Unknown",
                         'name': s_ref.name if s_ref else "Unknown",
                         'display_name': display_student_name(s_ref) if s_ref else "Unknown",
+                        # For the student's digital e-ticket (shown to a guard)
+                        'course': (s_ref.course or '') if s_ref else '',
                         'id': str(s_ref.id) if s_ref else "Unknown"
                     }
                 }

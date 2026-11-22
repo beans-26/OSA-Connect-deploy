@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
-import { X, ChevronDown, LogIn, CheckCircle2, Clock, FileText, Download, Loader2, MapPin, CalendarClock } from 'lucide-react';
+import { X, ChevronDown, LogIn, CheckCircle2, Clock, FileText, Download, Loader2, MapPin, CalendarClock, ScanFace } from 'lucide-react';
 import { ticketReceipt } from '../lib/ticketStatus';
 import { SessionReceiptBody, receiptDate, formatDuration, FLAGGED_ENDS } from './SessionReceipt';
+import DigitalTicket from './DigitalTicket';
 
 // Opened by tapping an e-ticket on the student dashboard: the ticket, then its service log grouped by
 // date. Each date is a toggle listing that day's sessions (Session 1, 2, ...); tapping one opens its
@@ -30,6 +31,9 @@ const TicketDetails = ({ ticket, onClose, children, forAdmin = false }) => {
         setTimeout(onClose, 260);
     };
     const [error, setError] = useState('');
+    // The digital e-ticket the student shows a guard
+    const [showDigital, setShowDigital] = useState(false);
+    useEffect(() => { setShowDigital(false); }, [ticket?.id]);
     const [openDate, setOpenDate] = useState(null);
     const [openSessions, setOpenSessions] = useState(() => new Set());
 
@@ -87,6 +91,8 @@ const TicketDetails = ({ ticket, onClose, children, forAdmin = false }) => {
     const toneClass = { red: 'text-[#dc2626]', good: 'text-[#059669]', bad: 'text-[#dc2626]' };
 
     return (
+        <>
+        {showDigital && <DigitalTicket ticket={ticket} onClose={() => setShowDigital(false)} />}
         <div className={`${closing ? 'sheet-fade-out' : 'sheet-fade'} fixed inset-0 z-[70] flex items-end justify-center bg-black/40 backdrop-blur-sm sm:items-center sm:p-4`} role="dialog" aria-modal="true" aria-labelledby="ticket-title" onClick={close}>
             {/* sheet-up: slides up from the bottom as it opens (index.css) */}
             <div className={`${closing ? 'sheet-down' : 'sheet-up'} popup-max-h w-full max-w-md overflow-y-auto rounded-t-3xl bg-[var(--s-card)] shadow-2xl sm:rounded-3xl`} onClick={(e) => e.stopPropagation()}>
@@ -147,6 +153,14 @@ const TicketDetails = ({ ticket, onClose, children, forAdmin = false }) => {
                             </div>
                         );
                     })()}
+
+                    {/* Students: the e-ticket to show a guard, full screen */}
+                    {!forAdmin && (
+                        <button onClick={() => setShowDigital(true)}
+                            className="mb-4 flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-[#0f1a4a] to-[#1e3a8a] px-4 py-3.5 text-sm font-black text-white shadow-md hover:brightness-110">
+                            <ScanFace size={18} /> Show digital e-ticket to guard
+                        </button>
+                    )}
 
                     {/* The blank forms to fill in by hand and bring to OSA: highlighted, they're easy to miss */}
                     {!forAdmin && ['Active', 'Ongoing', 'Completed'].includes(ticket.status) && (
@@ -282,6 +296,7 @@ const TicketDetails = ({ ticket, onClose, children, forAdmin = false }) => {
                 </div>
             </div>
         </div>
+        </>
     );
 };
 

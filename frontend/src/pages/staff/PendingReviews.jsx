@@ -32,6 +32,13 @@ const GuardTag = () => (
     </span>
 );
 
+// When the report was sent, to the second, in Philippine time: "Sun, Nov 22, 2026, 3:41:07 PM"
+const submittedAt = (iso) => {
+    const d = iso ? new Date(iso) : null;
+    if (!d || Number.isNaN(d.getTime())) return '—';
+    return d.toLocaleString('en-PH', { timeZone: 'Asia/Manila', weekday: 'short', month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit', second: '2-digit' });
+};
+
 const PendingReviews = () => {
     const userRole = JSON.parse(localStorage.getItem('user') || '{}').role || 'staff';
     const [reports, setReports] = useState([]);
@@ -43,6 +50,12 @@ const PendingReviews = () => {
     const [penalties, setPenalties] = useState(null);
     // Buildings are the registered service sites (Settings > Service Sites)
     const serviceSites = useServiceSites();
+    // Dismiss Case: the admin writes why before the case is dismissed
+    const [dismissing, setDismissing] = useState(false);
+    const [remarks, setRemarks] = useState('');
+    const [dismissBusy, setDismissBusy] = useState(false);
+    const openReport = (report) => { setSelectedReport(report); setDismissing(false); setRemarks(''); };
+    const closeReport = () => { setSelectedReport(null); setDismissing(false); setRemarks(''); };
 
     useEffect(() => {
         fetchReports();
@@ -65,7 +78,34 @@ const PendingReviews = () => {
         }
     };
 
-    // Approving is the only action here: a case is dismissed only when OSA rejects its faculty reporter
+    // Dismiss Case: only with the admin's remarks (kept on the report)
+    const handleDismiss = async (report) => {
+        const text = remarks.trim();
+        if (!text) {
+            alert('Write why the case is dismissed.');
+            return;
+        }
+        setDismissBusy(true);
+        try {
+            const response = await fetch(`/api/violations/${report.id}/dismiss/`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ remarks: text }),
+            });
+            const data = await response.json().catch(() => ({}));
+            if (response.ok) {
+                closeReport();
+                fetchReports();
+            } else {
+                alert(data.error || 'Something went wrong. Please try again.');
+            }
+        } catch {
+            alert("Can't reach the server. Please try again.");
+        } finally {
+            setDismissBusy(false);
+        }
+    };
+
     const handleAction = async (report) => {
         const reportId = report.id;
         // Community service needs a building; a sanction with no hours (no entry into the campus) doesn't
@@ -81,7 +121,7 @@ const PendingReviews = () => {
             // Approving into a full building asks "assign anyway?" first
             const { ok, cancelled, data } = await postAssignment(`/api/violations/${reportId}/approve/`, { assigned_building });
             if (ok) {
-                setSelectedReport(null);
+                closeReport();
                 fetchReports();
             } else if (!cancelled) {
                 alert(data.error || 'Something went wrong. Please try again.');
@@ -146,7 +186,7 @@ const PendingReviews = () => {
                     ) : (
                         <div className="space-y-2">
                             {filteredReports.map((report) => (
-                                <button type="button" key={report.id} onClick={() => setSelectedReport(report)} className="block w-full text-left cursor-pointer p-2 md:p-3 bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 hover:border-ustp-blue hover:bg-slate-50 dark:hover:bg-slate-700/40 focus-visible:outline-2 focus-visible:outline-ustp-blue rounded-xl transition-all shadow-sm group">
+                                <button type="button" key={report.id} onClick={() => openReport(report)} className="block w-full text-left cursor-pointer p-2 md:p-3 bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 hover:border-ustp-blue hover:bg-slate-50 dark:hover:bg-slate-700/40 focus-visible:outline-2 focus-visible:outline-ustp-blue rounded-xl transition-all shadow-sm group">
                                     <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
                                         <div className="flex gap-3 items-center flex-1">
                                             <div className="w-10 h-10 rounded-full bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-400 flex items-center justify-center shrink-0 transition-colors">
@@ -172,10 +212,10 @@ const PendingReviews = () => {
 
                 {/* Detail Modal */}
                 {selectedReport && (
-                    <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-slate-900/80 backdrop-blur-md" onClick={() => setSelectedReport(null)}>
+                    <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-slate-900/80 backdrop-blur-md" onClick={closeReport}>
                         <div className="bg-white dark:bg-slate-800 rounded-[28px] shadow-2xl w-full max-w-lg overflow-hidden animate-in zoom-in duration-300" onClick={e => e.stopPropagation()}>
                             <div className="bg-slate-50 border-b border-slate-100 dark:border-transparent dark:bg-slate-900 p-6 relative">
-                                <button onClick={() => setSelectedReport(null)} className="absolute top-4 right-4 w-8 h-8 rounded-full bg-slate-200 text-slate-500 hover:bg-slate-300 hover:text-slate-800 dark:text-white dark:bg-slate-800/10 dark:hover:bg-slate-800/20 flex items-center justify-center transition-all"><X size={16} /></button>
+                                <button onClick={closeReport} className="absolute top-4 right-4 w-8 h-8 rounded-full bg-slate-200 text-slate-500 hover:bg-slate-300 hover:text-slate-800 dark:text-white dark:bg-slate-800/10 dark:hover:bg-slate-800/20 flex items-center justify-center transition-all"><X size={16} /></button>
                                 <div className="flex items-center gap-4">
                                     <div className="w-12 h-12 rounded-xl bg-blue-100 dark:bg-slate-800/10 flex items-center justify-center"><User size={24} className="text-blue-600 dark:text-white" /></div>
                                     <div>
@@ -220,6 +260,18 @@ const PendingReviews = () => {
                                     <div className="bg-slate-50 dark:bg-slate-900/50 p-4 rounded-2xl border border-slate-200 dark:border-slate-800">
                                         <p className="text-[9px] font-black uppercase text-slate-500 dark:text-slate-500 mb-0.5">{reportedByLabel(selectedReport.reporter_role)}</p>
                                         <p className="font-bold text-slate-800 dark:text-slate-200 text-sm">{selectedReport.reporting_guard || '—'}</p>
+                                    </div>
+                                )}
+                                {/* When the report was sent, to the second */}
+                                <div className="bg-slate-50 dark:bg-slate-900/50 p-4 rounded-2xl border border-slate-200 dark:border-slate-800">
+                                    <p className="text-[9px] font-black uppercase text-slate-500 dark:text-slate-500 mb-0.5">Report submitted</p>
+                                    <p className="font-bold text-slate-800 dark:text-slate-200 text-sm tabular-nums">{submittedAt(selectedReport.created_at)}</p>
+                                </div>
+                                {/* What the reporter wrote about it ("N/A" when there's nothing to add) */}
+                                {selectedReport.description && (
+                                    <div className="bg-slate-50 dark:bg-slate-900/50 p-4 rounded-2xl border border-slate-200 dark:border-slate-800">
+                                        <p className="text-[9px] font-black uppercase text-slate-500 dark:text-slate-500 mb-0.5">Description</p>
+                                        <p className="font-semibold text-slate-800 dark:text-slate-200 text-sm whitespace-pre-line break-words">{selectedReport.description}</p>
                                     </div>
                                 )}
                                 <div className="bg-yellow-50 dark:bg-yellow-900/10 border border-yellow-200 dark:border-yellow-700/30 p-4 rounded-2xl flex items-center justify-between">
@@ -271,10 +323,42 @@ const PendingReviews = () => {
                                     );
                                 })()}
                             </div>
-                            {/* Unverified faculty: no Approve until OSA confirms the reporter. There's no Dismiss: a case is
-                                dismissed only when OSA rejects the faculty member who filed it (Faculty Accounts). */}
-                            {selectedReport.reporter_status === 'unconfirmed' ? null : (
+                            {/* Unverified faculty: no Approve or Dismiss until OSA decides on the reporter in Faculty Accounts
+                                (rejecting them dismisses the case). Dismiss asks for the reason first. */}
+                            {selectedReport.reporter_status === 'unconfirmed' ? null : dismissing ? (
+                            <div className="p-6 pt-0 space-y-3">
+                                <div>
+                                    <label htmlFor="dismiss-remarks" className="block text-[9px] font-black uppercase text-slate-500 dark:text-slate-400 mb-1.5">Remarks: why is this case dismissed? *</label>
+                                    <textarea
+                                        id="dismiss-remarks"
+                                        autoFocus
+                                        rows={3}
+                                        maxLength={1000}
+                                        value={remarks}
+                                        onChange={(e) => setRemarks(e.target.value)}
+                                        placeholder="e.g. Wrong student reported; the ID was worn properly"
+                                        className="w-full resize-none bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2.5 text-sm font-semibold text-slate-700 dark:text-slate-200 focus:border-red-500 outline-none placeholder:text-slate-400 placeholder:font-medium"
+                                    />
+                                </div>
+                                <div className="flex gap-3">
+                                    <button onClick={() => { setDismissing(false); setRemarks(''); }} disabled={dismissBusy}
+                                        className="flex-1 py-3 rounded-xl font-bold text-[10px] uppercase tracking-widest border-2 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/40 disabled:opacity-60">
+                                        Cancel
+                                    </button>
+                                    <button onClick={() => handleDismiss(selectedReport)} disabled={dismissBusy || !remarks.trim()}
+                                        className={`flex-1 py-3 rounded-xl font-bold text-[10px] uppercase tracking-widest transition-all ${remarks.trim() ? 'bg-red-600 text-white hover:bg-red-700 shadow-lg shadow-red-600/20' : 'bg-slate-100 text-slate-400 dark:bg-slate-800 dark:text-slate-500 cursor-not-allowed'} disabled:opacity-70`}>
+                                        {dismissBusy ? 'Dismissing…' : 'Confirm dismiss'}
+                                    </button>
+                                </div>
+                            </div>
+                            ) : (
                             <div className="p-6 pt-0 flex gap-3">
+                                <button
+                                    onClick={() => setDismissing(true)}
+                                    className="flex-1 py-3 rounded-xl font-bold text-[10px] uppercase tracking-widest border-2 border-red-200 text-red-600 hover:bg-red-50 dark:border-red-500/30 dark:text-red-400 dark:hover:bg-red-500/10 transition-all"
+                                >
+                                    Dismiss Case
+                                </button>
                                 {(() => {
                                     const penalty = penaltyFor(penalties, selectedReport);
                                     const ready = penalty && ((penalty.hours || 0) <= 0 || assignedBuildings[selectedReport.id]);

@@ -50,6 +50,7 @@ const StudentShell = page(() => import('./components/StudentShell'));
 const ReporterShell = page(() => import('./components/ReporterShell'));
 const Help = page(() => import('./pages/Help'));
 const LandingPage = page(() => import('./pages/LandingPage'));
+const Legal = page(() => import('./pages/Legal'));
 
 const PageLoading = () => (
   <div className="flex min-h-screen items-center justify-center bg-slate-50 dark:bg-slate-900">
@@ -154,6 +155,8 @@ function App() {
           <Route path="/register" element={<StudentRegistration />} />
           {/* The Android app download (the landing page's QR code) */}
           <Route path="/android" element={<AndroidDownload />} />
+          <Route path="/terms" element={<Legal kind="terms" />} />
+          <Route path="/privacy" element={<Legal kind="privacy" />} />
           {/* Opened on the admin's phone from the QR in a violation's details; the link itself is the permission */}
           <Route path="/capture/:token" element={<ClearanceCapture />} />
 

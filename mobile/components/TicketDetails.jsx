@@ -1,13 +1,14 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, StyleSheet, Modal, ScrollView, TouchableOpacity, Pressable, ActivityIndicator, Platform, Animated, Easing, Dimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { X, ChevronDown, LogIn, CheckCircle2, Clock, FileText, MapPin, CalendarClock } from 'lucide-react-native';
+import { X, ChevronDown, LogIn, CheckCircle2, Clock, FileText, MapPin, CalendarClock, ScanFace } from 'lucide-react-native';
 import { ticketReceipt } from './ticketStatus';
 import { BlurView } from 'expo-blur';
 import { useTheme } from './ThemeContext';
 import api from '../services/api';
 import { SessionReceiptBody, receiptDate, formatDuration, FLAGGED_ENDS } from './SessionReceipt';
 import ServiceForms from './ServiceForms';
+import DigitalTicket from './DigitalTicket';
 
 // Opened by tapping an e-ticket on the student dashboard: the ticket, then its service log grouped by
 // date. Each date is a toggle listing that day's sessions (Session 1, 2, ...); tapping one opens its
@@ -43,6 +44,9 @@ export default function TicketDetails({ ticket, onClose }) {
     const styles = getStyles(colors);
     const [receipts, setReceipts] = useState(null);
     const [error, setError] = useState('');
+    // The digital e-ticket the student shows a guard
+    const [showDigital, setShowDigital] = useState(false);
+    useEffect(() => { setShowDigital(false); }, [ticket?.id]);
     const [openDate, setOpenDate] = useState(null);
     const [openSessions, setOpenSessions] = useState(() => new Set());
 
@@ -146,6 +150,12 @@ export default function TicketDetails({ ticket, onClose }) {
                         )}
                     </View>
 
+                    {/* The e-ticket to show a guard, full screen (same as the website) */}
+                    <TouchableOpacity style={styles.digitalButton} onPress={() => setShowDigital(true)} accessibilityRole="button">
+                        <ScanFace size={18} color="#fff" />
+                        <Text style={styles.digitalButtonText}>Show digital e-ticket to guard</Text>
+                    </TouchableOpacity>
+
                     {['Active', 'Ongoing', 'Completed'].includes(ticket.status) && <ServiceForms />}
 
                     {/* The full receipt, folded away: violation, required action, buildings assigned */}
@@ -243,6 +253,7 @@ export default function TicketDetails({ ticket, onClose }) {
                 </ScrollView>
             </Animated.View>
             </View>
+            {showDigital && <DigitalTicket ticket={ticket} onClose={() => setShowDigital(false)} />}
         </Modal>
     );
 }
@@ -256,6 +267,8 @@ const getStyles = (colors) => StyleSheet.create({
     kicker: { fontSize: 10, fontWeight: '700', letterSpacing: 2, color: '#dbeafe' },
     title: { fontSize: 18, fontWeight: '700', color: '#fff' },
     close: { padding: 8, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.15)' },
+    digitalButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 14, paddingHorizontal: 16, borderRadius: 16, backgroundColor: '#162a6e', marginBottom: 16 },
+    digitalButtonText: { fontSize: 14, fontWeight: '900', color: '#ffffff' },
     receipt: { borderWidth: 1, borderColor: colors.border, borderRadius: 20, overflow: 'hidden', marginBottom: 16 },
     detailsToggle: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 14 },
     detailsTitle: { fontSize: 14, fontWeight: '600', color: colors.text },

@@ -136,9 +136,11 @@ class ViolationReport(Document):
     reporter_first_name = StringField()
     reporter_last_name = StringField()
     dismissed_at = DateTimeField()
-    # Set when the report was dismissed without an admin opening it: OSA rejected its faculty reporter
-    # (views.faculty_email_decision / faculty_account_decision)
+    # Why it was dismissed: the admin's remarks (views.dismiss), or, when OSA rejected its faculty reporter, a set
+    # reason (views.faculty_email_decision / faculty_account_decision)
     dismissed_reason = StringField()
+    # Dismissed by an admin in Pending Reviews (views.dismiss): their remarks go in dismissed_reason, and who did it here
+    dismissed_by = StringField()
     status = StringField(default=ViolationStatus.PENDING.value)
     offense_count = IntField(default=1)
     punishment = StringField()

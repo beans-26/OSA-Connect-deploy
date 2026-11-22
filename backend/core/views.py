@@ -36,38 +36,6 @@ EMAIL_RE = re.compile(r'^[^@\s]{1,64}@[^@\s]+\.[^@\s]{2,}$')
 
 
 
-# Guard login geofence (settings.GUARD_GEOFENCE_*): GPS accuracy adds up to this much to the campus circle
-GUARD_ACCURACY_MAX_M = 50
-GUARD_NEEDS_LOCATION = "Guards can only log in on campus. Allow location access, then log in again."
-
-
-def _guard_area_error(request):
-    """(message, extra fields) when a guard's login location (request.data['location']: {lat, lng, accuracy})
-    is missing or outside the campus circle, else None. Checked only after the password is right."""
-    from django.conf import settings
-    if not getattr(settings, 'GUARD_GEOFENCE_ENABLED', True):
-        return None
-    loc = request.data.get('location')
-    loc = loc if isinstance(loc, dict) else {}
-    lat, lng = _float_or_none(loc.get('lat')), _float_or_none(loc.get('lng'))
-    if lat is None or lng is None or not (-90 <= lat <= 90 and -180 <= lng <= 180):
-        return GUARD_NEEDS_LOCATION, {"needs_location": True}
-    accuracy = _float_or_none(loc.get('accuracy')) or 0
-    buffer = min(max(accuracy, 0), GUARD_ACCURACY_MAX_M)
-    # DEMO ONLY: the extra demo places (settings.GUARD_DEMO_AREAS) count too
-    for _name, area_lat, area_lng, area_radius in getattr(settings, 'GUARD_DEMO_AREAS', []):
-        if _distance_m(lat, lng, area_lat, area_lng) <= area_radius + buffer:
-            return None
-    distance = _distance_m(lat, lng, settings.GUARD_GEOFENCE_LAT, settings.GUARD_GEOFENCE_LNG)
-    allowed = settings.GUARD_GEOFENCE_RADIUS_M + buffer
-    if distance <= allowed:
-        return None
-    away = distance - settings.GUARD_GEOFENCE_RADIUS_M
-    where = f"{round(away)} m" if away < 1000 else f"{away / 1000:.1f} km"
-    return (f"You're about {where} outside the campus. Guards can only log in on campus.",
-            {"outside_area": True, "distance_m": round(distance)})
-
-
 @api_view(['POST'])
 @permission_classes([AllowAny])
 @rate_limited('login', per_ip=(60, M5), per_target=(10, M5), target=field('username'))
@@ -88,12 +56,6 @@ def login_view(request):
     user = SystemUser.objects.filter(username__iexact=username).first()
     if user and user.is_active is not False:
         if check_and_upgrade(user, password):
-            # Guards: only on campus (their location comes with the login)
-            if user.role == 'guard':
-                area_error = _guard_area_error(request)
-                if area_error:
-                    message, extra = area_error
-                    return Response({"error": message, **extra}, status=status.HTTP_403_FORBIDDEN)
             return Response({
                 "success": True,
                 "token": issue_token(user.role, user.username, user.password),
@@ -1810,10 +1772,28 @@ class ViolationViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=['post'])
     def dismiss(self, request, *args, **kwargs):
-        """Cases aren't dismissed by hand (older app versions still call this): a case is dismissed only when OSA
-        rejects the faculty member who filed it (_dismiss_rejected_reporter_reports)."""
-        return Response({"error": "Cases can't be dismissed by hand. A case is dismissed only when OSA rejects the faculty member who filed it."},
-                        status=status.HTTP_403_FORBIDDEN)
+        """Dismisses a pending report that isn't valid. POST {remarks}: why it was dismissed (required), kept on
+        the report with who dismissed it and when. Same one-step claim as approve: only a still-pending report
+        changes, so an approve and a dismiss at the same moment can't both happen. Dismissed reports don't count
+        as offenses."""
+        violation_id = kwargs.get('id') or kwargs.get('pk')
+        remarks = _short(request.data.get('remarks'), MAX_DESCRIPTION_CHARS)
+        if not remarks:
+            return Response({"error": "Write why the case is dismissed."}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            violation = ViolationReport.objects.get(id=violation_id)
+        except Exception:
+            return Response({"error": "Violation not found."}, status=status.HTTP_404_NOT_FOUND)
+        # Filed by a faculty member OSA hasn't confirmed: decided in Faculty Accounts (rejecting them dismisses it)
+        if faculty_reporter_status(violation.reporting_email):
+            return Response({"error": "The faculty member who filed this isn't confirmed yet. Confirm or reject them in Faculty Accounts first."},
+                            status=status.HTTP_409_CONFLICT)
+        dismissed = ViolationReport.objects(id=violation.id, status="Pending OSA Review").update_one(
+            set__status="Dismissed", set__dismissed_at=utc_now(), set__dismissed_reason=remarks,
+            set__dismissed_by=request.user.name or request.user.username)
+        if not dismissed:
+            return Response({"error": "This violation was already reviewed by someone else."}, status=status.HTTP_409_CONFLICT)
+        return Response({"message": "Case dismissed.", "remarks": remarks}, status=status.HTTP_200_OK)
 
     @action(detail=False, methods=['get'])
     def summary(self, request):
