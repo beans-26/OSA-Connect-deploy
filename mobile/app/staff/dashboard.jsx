@@ -6,6 +6,7 @@ import { useCameraPermissions } from 'expo-camera';
 import { AlertCircle, CheckCircle2, AlertTriangle, Check, X, Keyboard, ArrowLeft, ArrowRight, Plus, ChevronDown, UserCheck } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import SelectField from '../../components/SelectField';
+import KeyboardScrollView from '../../components/KeyboardScrollView';
 import { onCameraResult } from '../../components/cameraResults';
 import { parseStudentQr, NOT_A_STUDENT_QR } from '../../components/studentQr';
 import api from '../../services/api';
@@ -286,7 +287,7 @@ export default function PersonnelDashboard() {
             <View style={{ paddingTop: insets.top }}>
                 <HomeHeader isDarkMode={isDarkMode} greeting="Report Violation" name={`${accountName} · ${isGuard ? 'Guard' : 'Faculty'}`} />
             </View>
-            <ScrollView ref={scrollRef} contentContainerStyle={[styles.scrollContent, { paddingTop: wide ? 24 : 16 }]} keyboardShouldPersistTaps="handled">
+            <KeyboardScrollView ref={scrollRef} contentContainerStyle={[styles.scrollContent, { paddingTop: wide ? 24 : 16 }]} keyboardShouldPersistTaps="handled">
 
                 {!submitted && !started ? (
                     // The guard's start screen (kiosk style): two boxes to choose from. Same as the website.
@@ -574,7 +575,7 @@ export default function PersonnelDashboard() {
                         </TouchableOpacity>
                     </View>
                 )}
-            </ScrollView>
+            </KeyboardScrollView>
 
 
             {/* Confirm before submitting, like the website */}

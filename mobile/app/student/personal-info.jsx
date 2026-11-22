@@ -1,7 +1,8 @@
 import React from 'react';
-import { ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, StatusBar, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, KeyboardAvoidingView, Platform, StatusBar, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../../components/ThemeContext';
+import KeyboardScrollView from '../../components/KeyboardScrollView';
 import { StudentBackdrop } from '../../components/StudentLook';
 import { StudentTopBar, useStudentShell } from '../../components/StudentShell';
 import { Group, InfoRow } from '../../components/SettingsList';
@@ -28,7 +29,7 @@ export default function PersonalInfo() {
                 <View style={styles.center}><ActivityIndicator size="large" color={colors.primary} /></View>
             ) : (
                 <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-                    <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+                    <KeyboardScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
                         <Group label="Basic information">
                             <InfoRow label="Full name" value={profile.name} />
                             <InfoRow label="Student ID" value={profile.student_id} />
@@ -38,7 +39,7 @@ export default function PersonalInfo() {
                             <InfoRow label="Gender" value={profile.gender} />
                         </Group>
                         <ContactDetailsCard studentInfo={profile} onUpdated={(changes) => setProfile((p) => ({ ...p, ...changes }))} />
-                    </ScrollView>
+                    </KeyboardScrollView>
                 </KeyboardAvoidingView>
             )}
         </SafeAreaView>

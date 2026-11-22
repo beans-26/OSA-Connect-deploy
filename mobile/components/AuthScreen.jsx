@@ -1,5 +1,6 @@
 import React, { useRef, useSyncExternalStore } from 'react';
-import { View, Image, ScrollView, StyleSheet } from 'react-native';
+import { View, Image, StyleSheet } from 'react-native';
+import KeyboardScrollView from './KeyboardScrollView';
 import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { introStore } from './introStore';
@@ -79,7 +80,7 @@ export default function AuthScreen({ maxWidth = 400, logoWidth = 220, children }
             {/* No KeyboardAvoidingView: it slid the whole page up when the keyboard opened. The page stays still and
                 only scrolls as much as needed to keep the field being typed in visible (iOS: keyboard insets) */}
             <View style={styles.fill}>
-                <ScrollView
+                <KeyboardScrollView
                     contentContainerStyle={[styles.scroll, { paddingTop: insets.top + 20, paddingBottom: insets.bottom + 20 }]}
                     keyboardShouldPersistTaps="handled"
                     automaticallyAdjustKeyboardInsets
@@ -100,7 +101,7 @@ export default function AuthScreen({ maxWidth = 400, logoWidth = 220, children }
                         />
                         <View style={styles.card}>{children}</View>
                     </View>
-                </ScrollView>
+                </KeyboardScrollView>
             </View>
         </View>
     );

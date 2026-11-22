@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
-import { ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, StatusBar, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, KeyboardAvoidingView, Platform, StatusBar, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Eye, EyeOff } from 'lucide-react-native';
 import { useAuth } from '../../components/AuthContext';
 import { useTheme } from '../../components/ThemeContext';
+import KeyboardScrollView from '../../components/KeyboardScrollView';
 import { StudentBackdrop } from '../../components/StudentLook';
 import { StudentTopBar, shellColors } from '../../components/StudentShell';
 import api from '../../services/api';
@@ -46,7 +47,7 @@ export default function ChangePassword() {
             <StatusBar barStyle={isDarkMode ? 'light-content' : 'dark-content'} backgroundColor={colors.card} />
             <StudentTopBar title="Change password" back="/student/settings" />
             <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-                <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+                <KeyboardScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
                     <View style={styles.card}>
                         {!!message.text && <Text style={[styles.message, message.type === 'success' ? styles.success : styles.error]}>{message.text}</Text>}
                         {fields.map(([key, label]) => (
@@ -69,7 +70,7 @@ export default function ChangePassword() {
                             {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>Update password</Text>}
                         </TouchableOpacity>
                     </View>
-                </ScrollView>
+                </KeyboardScrollView>
             </KeyboardAvoidingView>
         </SafeAreaView>
     );
