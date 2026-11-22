@@ -4,7 +4,7 @@
 // This link always gives the newest release's OSAConnect.apk, so it never needs changing: after a new
 // EAS build, download the APK and attach it to a new GitHub release as "OSAConnect.apk".
 export const ANDROID_APK_URL = 'https://github.com/beans-26/OSA-Connect-deploy/releases/latest/download/OSAConnect.apk';
-export const ANDROID_APP_VERSION = '1.2.0';
+export const ANDROID_APP_VERSION = '1.4.0';
 // The app's package and link scheme (mobile/app.json): /open (pages/OpenApp.jsx) opens the app with them
 export const ANDROID_PACKAGE = 'com.osaconnect.student';
 export const ANDROID_APP_SCHEME = 'osaconnect';
