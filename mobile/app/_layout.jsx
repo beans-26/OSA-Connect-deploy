@@ -5,6 +5,8 @@ import { StatusBar } from 'expo-status-bar';
 import { useAutoUpdate } from '../components/useAutoUpdate';
 import { useState } from 'react';
 import { View } from 'react-native';
+// Moves screens out of the keyboard's way (Android draws edge to edge, so the screen no longer shrinks for it)
+import { KeyboardProvider } from 'react-native-keyboard-controller';
 import LogoIntro from '../components/LogoIntro';
 import { useStudentActivityGuard, markActivity } from '../components/useStudentActivityGuard';
 // Registers the background location task at startup (Android can wake it without the UI)
@@ -34,6 +36,8 @@ function RootContent() {
                 <Stack.Screen name="login" />
                 <Stack.Screen name="student" />
                 <Stack.Screen name="staff" />
+                {/* Faculty without an account (the faculty login's "Report without an account") */}
+                <Stack.Screen name="faculty-report" />
             </Stack>
             {introShown && <LogoIntro onDone={() => setIntroShown(false)} />}
         </View>
@@ -42,10 +46,12 @@ function RootContent() {
 
 export default function RootLayout() {
     return (
-        <AuthProvider>
-            <ThemeProvider>
-                <RootContent />
-            </ThemeProvider>
-        </AuthProvider>
+        <KeyboardProvider>
+            <AuthProvider>
+                <ThemeProvider>
+                    <RootContent />
+                </ThemeProvider>
+            </AuthProvider>
+        </KeyboardProvider>
     );
 }

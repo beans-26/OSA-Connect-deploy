@@ -196,6 +196,16 @@ export function LoginForm({ faculty, onChange }) {
                 </TouchableOpacity>
             </View>
 
+            {/* Faculty without an account report from the app too (app/faculty-report), as on the website's faculty login */}
+            {faculty ? (
+                <Link href="/faculty-report" asChild>
+                    <TouchableOpacity style={styles.noAccount} accessibilityRole="button">
+                        <Text style={styles.noAccountText}>Report without an account</Text>
+                        <ChevronRight size={16} color={C.navy} />
+                    </TouchableOpacity>
+                </Link>
+            ) : null}
+
             {/* The terms and privacy policy: the website's pages (same line as the website login) */}
             <Text style={styles.terms}>
                 By continuing, you agree to OSAConnect&apos;s{' '}
@@ -229,6 +239,11 @@ export function LoginForm({ faculty, onChange }) {
 
 const styles = StyleSheet.create({
     title: { marginBottom: 14, fontSize: 19 },
+    noAccount: {
+        marginTop: 12, height: 40, borderWidth: 2, borderColor: C.navy, borderRadius: 6,
+        flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
+    },
+    noAccountText: { fontSize: 14, fontWeight: '700', color: C.navy },
     terms: { marginTop: 12, textAlign: 'center', fontSize: 11, lineHeight: 16, color: C.textMuted },
     termsLink: { fontWeight: '700', color: C.link, textDecorationLine: 'underline' },
     back: { flexDirection: 'row', alignItems: 'center', gap: 4, alignSelf: 'flex-start', marginBottom: 10 },

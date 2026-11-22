@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView, Modal,
 import { showAlert } from '../../components/showAlert';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useCameraPermissions } from 'expo-camera';
-import { AlertCircle, CheckCircle2, AlertTriangle, Check, X, Keyboard, ArrowLeft, ArrowRight, Plus, ChevronDown, UserCheck } from 'lucide-react-native';
+import { AlertCircle, CheckCircle2, AlertTriangle, Check, X, Keyboard, ArrowLeft, ArrowRight, Plus, ChevronDown, UserCheck, Mail, MailCheck, BadgeCheck } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import SelectField from '../../components/SelectField';
 import KeyboardScrollView from '../../components/KeyboardScrollView';
@@ -42,8 +42,20 @@ const emptyForm = () => ({
     incident_date: today(), incident_time: nowTime(),
 });
 
+// Only the shape here: the server checks it's a USTP address. Same as the website.
+const USTP_EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+// The guard / faculty Home tab (the report form)
 export default function PersonnelDashboard() {
-    const { user } = useAuth();
+    return <ReportForm />;
+}
+
+// The report form. publicFaculty: faculty without an account (app/faculty-report, the faculty login's "Report
+// without an account"): no login; the faculty member confirms their USTP email with a code before sending, and the
+// report goes under the name read from it. Same as the website's /faculty/report.
+export function ReportForm({ publicFaculty = false }) {
+    const auth = useAuth();
+    const user = publicFaculty ? null : auth.user;
     const router = useRouter();
     const { colors, isDarkMode } = useTheme();
     const { width } = useWindowDimensions();
@@ -60,7 +72,59 @@ export default function PersonnelDashboard() {
     const [form, setForm] = useState(emptyForm);
     const debounceTimer = useRef(null);
 
-    const accountName = user?.full_name || user?.username || 'Personnel';
+    // Faculty without an account: "Confirm email address" sends a code, typing it confirms the email (backend
+    // faculty_verify_request / faculty_verify_confirm); the report is sent with the token that comes back.
+    const [facultyEmail, setFacultyEmail] = useState('');
+    const [verified, setVerified] = useState(null); // {token, email, first_name, last_name, expiresAt}
+    const [codeSentTo, setCodeSentTo] = useState('');
+    const [code, setCode] = useState('');
+    const [emailBusy, setEmailBusy] = useState(false);
+    const [emailError, setEmailError] = useState('');
+    const [emailHasAccount, setEmailHasAccount] = useState(false); // the email already has a faculty account
+    const verifiedName = verified ? [verified.first_name, verified.last_name].filter(Boolean).join(' ') : '';
+    const postFaculty = async (url, body) => {
+        setEmailBusy(true);
+        setEmailError('');
+        try {
+            const { data } = await api.post(url, body);
+            setEmailHasAccount(false);
+            return data;
+        } catch (error) {
+            const data = error.response?.data || {};
+            setEmailError(error.response ? (data.error || 'Something went wrong. Try again.') : "Can't reach the server. Check your connection and try again.");
+            setEmailHasAccount(Boolean(data.has_account));
+            return null;
+        } finally {
+            setEmailBusy(false);
+        }
+    };
+    const sendCode = async () => {
+        const email = facultyEmail.trim().toLowerCase();
+        if (!USTP_EMAIL.test(email)) {
+            setEmailError('Use your USTP email, ending in @ustp.edu.ph.');
+            return;
+        }
+        if (await postFaculty('/faculty/verify/request/', { faculty_email: email })) {
+            setFacultyEmail(email);
+            setCodeSentTo(email);
+            setCode('');
+        }
+    };
+    const checkCode = async () => {
+        if (code.length !== 6) { setEmailError('Type the 6-digit code from the email.'); return; }
+        const data = await postFaculty('/faculty/verify/confirm/', { faculty_email: codeSentTo, otp: code });
+        if (data) {
+            setVerified({ ...data, expiresAt: Date.now() + data.expires_in * 1000 });
+            setCodeSentTo('');
+        }
+    };
+    const changeEmail = () => {
+        setVerified(null);
+        setCodeSentTo('');
+        setEmailError('');
+    };
+
+    const accountName = publicFaculty ? (verifiedName || 'Faculty') : (user?.full_name || user?.username || 'Personnel');
     // Reports go under the account's name; guard accounts name the guard on duty instead. Same as the website.
     const isGuard = user?.role === 'guard';
     // Guards share accounts, so the guard on duty types their name on every report (it starts empty; nothing is
@@ -69,7 +133,7 @@ export default function PersonnelDashboard() {
     // Guards and faculty & staff report the same way: the scan / enter manually choice first, then the form in two
     // steps. Same as the website.
     const kiosk = true;
-    const reporterName = isGuard ? (onDuty.trim() || '—') : accountName;
+    const reporterName = isGuard ? (onDuty.trim() || '—') : publicFaculty ? (verifiedName || '—') : accountName;
     // Guards start on a kiosk-style screen: scan the student's ID, or enter the details by hand. The form shows
     // once they choose (after a successful scan, or "Enter manually"); leaving the camera keeps the start screen.
     const [started, setStarted] = useState(!kiosk);
@@ -103,7 +167,8 @@ export default function PersonnelDashboard() {
         const cleanId = id?.trim();
         if (!cleanId || cleanId.length < 5) return;
         try {
-            const { data } = await api.get(`/students/${cleanId}/`);
+            // Faculty without an account look students up too (backend faculty_student_lookup)
+            const { data } = await api.get(publicFaculty ? `/faculty/student/${cleanId}/` : `/students/${cleanId}/`);
             if (!data) return;
             setForm((prev) => {
                 // Ignore late responses for an ID that has since changed
@@ -163,9 +228,10 @@ export default function PersonnelDashboard() {
                 return;
             }
         }
-        // The scanner is its own screen (app/staff/scan.jsx); it hands the result back here
+        // The scanner is its own screen (app/staff/scan.jsx; app/faculty-report/scan.jsx without a login); it hands
+        // the result back here
         onCameraResult('scan', handleBarCodeScanned);
-        router.push('/staff/scan');
+        router.push(publicFaculty ? '/faculty-report/scan' : '/staff/scan');
     };
 
     // Same required fields as the website form
@@ -188,6 +254,13 @@ export default function PersonnelDashboard() {
             setAlertMessage({ visible: true, title: 'Guard on duty', message: 'Type the name of the guard on duty.' });
             return;
         }
+        // Faculty without an account: the button says "Confirm email address" until the email is confirmed
+        if (publicFaculty && (!verified || verified.expiresAt <= Date.now())) {
+            if (verified) changeEmail();
+            if (!codeSentTo) sendCode();
+            else setEmailError('Type the 6-digit code from the email, then tap Verify.');
+            return;
+        }
         setShowConfirmModal(true);
     };
 
@@ -195,13 +268,20 @@ export default function PersonnelDashboard() {
         setShowConfirmModal(false);
         setLoading(true);
         try {
-            await api.post('/violations/', {
+            await api.post(publicFaculty ? '/faculty/report/' : '/violations/', {
                 ...form, violation_types: form.violations, reporting_guard: accountName,
                 description: isGuard ? form.description.trim() : undefined,
                 on_duty_name: isGuard ? onDuty.trim() : undefined,
+                token: publicFaculty ? verified?.token : undefined,
             });
             setSubmitted(true);
         } catch (error) {
+            if (publicFaculty && error.response?.data?.needs_verification) {
+                // The confirmation expired: confirm the email again, the form stays filled in
+                changeEmail();
+                setEmailError(error.response.data.error);
+                return;
+            }
             setAlertMessage({ visible: true, title: "Couldn't send the report", message: error.response?.data?.error || 'Check the details and try again.' });
         } finally {
             setLoading(false);
@@ -285,7 +365,17 @@ export default function PersonnelDashboard() {
         <View style={styles.container}>
             {/* Blue gradient header: the page and the account (Log out is on the Profile tab; same as the website) */}
             <View style={{ paddingTop: insets.top }}>
-                <HomeHeader isDarkMode={isDarkMode} greeting="Report Violation" name={`${accountName} · ${isGuard ? 'Guard' : 'Faculty'}`} />
+                <HomeHeader
+                    isDarkMode={isDarkMode}
+                    greeting="Report Violation"
+                    name={publicFaculty ? (verifiedName ? `${verifiedName} · Faculty` : 'Faculty · without an account') : `${accountName} · ${isGuard ? 'Guard' : 'Faculty'}`}
+                    // Without an account there are no tabs: back to the faculty login
+                    left={publicFaculty ? (
+                        <TouchableOpacity onPress={() => router.replace('/login?as=faculty')} hitSlop={10} accessibilityRole="button" accessibilityLabel="Back to the faculty login">
+                            <ArrowLeft size={22} color="#ffffff" />
+                        </TouchableOpacity>
+                    ) : null}
+                />
             </View>
             <KeyboardScrollView ref={scrollRef} contentContainerStyle={[styles.scrollContent, { paddingTop: wide ? 24 : 16 }]} keyboardShouldPersistTaps="handled">
 
@@ -546,6 +636,72 @@ export default function PersonnelDashboard() {
                             </View>
                         </View>
 
+                        {publicFaculty && guardStep2 ? (
+                            // Faculty without an account: the USTP email the report is sent under, confirmed with a code
+                            <View style={[styles.emailBox, verified && styles.emailBoxOk]}>
+                                {verified ? (
+                                    <View style={styles.emailRow}>
+                                        <BadgeCheck size={18} color={isDarkMode ? '#6ee7b7' : '#059669'} />
+                                        <Text style={styles.emailOkText} numberOfLines={2}>
+                                            Email confirmed: <Text style={{ fontWeight: '800', color: colors.text }}>{verifiedName}</Text> · {verified.email}
+                                        </Text>
+                                        <TouchableOpacity onPress={changeEmail} hitSlop={8}><Text style={styles.stepEdit}>Change</Text></TouchableOpacity>
+                                    </View>
+                                ) : (
+                                    <View style={{ gap: 8 }}>
+                                        <View style={styles.emailRow}>
+                                            <Mail size={15} color={colors.primary} />
+                                            <Text style={styles.emailLabel}>Your USTP email</Text>
+                                        </View>
+                                        <TextInput
+                                            style={styles.field}
+                                            placeholder="yourname@ustp.edu.ph"
+                                            placeholderTextColor={colors.textMuted}
+                                            keyboardType="email-address"
+                                            autoCapitalize="none"
+                                            autoComplete="email"
+                                            maxLength={254}
+                                            editable={!emailBusy}
+                                            value={facultyEmail}
+                                            onChangeText={(t) => { setFacultyEmail(t); if (codeSentTo) setCodeSentTo(''); }}
+                                        />
+                                        {codeSentTo ? (
+                                            <View style={{ gap: 8 }}>
+                                                <Text style={styles.emailHint}>We sent a 6-digit code to <Text style={{ fontWeight: '800' }}>{codeSentTo}</Text>. It expires in 5 minutes. Check Spam if it isn&apos;t there.</Text>
+                                                <View style={styles.emailRow}>
+                                                    <TextInput
+                                                        style={[styles.field, styles.codeField]}
+                                                        placeholder="000000"
+                                                        placeholderTextColor={colors.textMuted}
+                                                        keyboardType="number-pad"
+                                                        autoComplete="one-time-code"
+                                                        maxLength={6}
+                                                        editable={!emailBusy}
+                                                        value={code}
+                                                        onChangeText={(t) => setCode(t.replace(/\D/g, '').slice(0, 6))}
+                                                        onSubmitEditing={checkCode}
+                                                        autoFocus
+                                                    />
+                                                    <TouchableOpacity style={[styles.verifyButton, emailBusy && { opacity: 0.6 }]} onPress={checkCode} disabled={emailBusy}>
+                                                        {emailBusy ? <ActivityIndicator color="#fff" size="small" /> : <Text style={styles.submitText}>Verify</Text>}
+                                                    </TouchableOpacity>
+                                                </View>
+                                                <TouchableOpacity onPress={sendCode} disabled={emailBusy} hitSlop={8} style={{ alignSelf: 'flex-start' }}>
+                                                    <Text style={styles.stepEdit}>Send a new code</Text>
+                                                </TouchableOpacity>
+                                            </View>
+                                        ) : null}
+                                        {emailError ? (
+                                            <Text style={styles.emailError} accessibilityRole="alert">
+                                                {emailError}
+                                                {emailHasAccount ? <Text style={styles.stepEdit} onPress={() => router.replace('/login?as=faculty')}> Log in</Text> : null}
+                                            </Text>
+                                        ) : null}
+                                    </View>
+                                )}
+                            </View>
+                        ) : null}
+
                         {guardStep1 ? (
                             // Guards, step 1: on to the violation
                             <TouchableOpacity style={styles.submitButton} onPress={nextStep} accessibilityRole="button">
@@ -553,8 +709,14 @@ export default function PersonnelDashboard() {
                                 <ArrowRight size={18} color="#fff" />
                             </TouchableOpacity>
                         ) : (
-                        <TouchableOpacity style={[styles.submitButton, loading && { opacity: 0.7 }]} onPress={confirmSubmit} disabled={loading}>
-                            {loading ? <ActivityIndicator color="#fff" /> : (
+                        <TouchableOpacity style={[styles.submitButton, (loading || emailBusy) && { opacity: 0.7 }]} onPress={confirmSubmit} disabled={loading || emailBusy}>
+                            {loading || emailBusy ? <ActivityIndicator color="#fff" /> : publicFaculty && !verified ? (
+                                // Faculty without an account: confirm the email first, then the button becomes Submit report
+                                <>
+                                    <MailCheck size={18} color="#fff" />
+                                    <Text style={styles.submitText}>{codeSentTo ? 'Type the code sent to your email' : 'Confirm email address'}</Text>
+                                </>
+                            ) : (
                                 <Text style={styles.submitText}>Submit report</Text>
                             )}
                         </TouchableOpacity>
@@ -777,6 +939,19 @@ const getStyles = (colors, isDarkMode, wide) => StyleSheet.create({
     stepStudent: { flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10, marginBottom: 12, backgroundColor: colors.background },
     stepStudentText: { flex: 1, fontSize: 14, fontWeight: '700', color: colors.text },
     stepEdit: { fontSize: 12, fontWeight: '700', color: colors.primary },
+    // Faculty without an account: the USTP email box
+    emailBox: {
+        marginTop: 16, borderWidth: 2, borderRadius: 12, padding: 12,
+        borderColor: isDarkMode ? '#1e3a8a' : '#dbeafe', backgroundColor: isDarkMode ? 'rgba(30,58,138,0.25)' : '#eff6ff',
+    },
+    emailBoxOk: { borderColor: isDarkMode ? '#065f46' : '#d1fae5', backgroundColor: isDarkMode ? 'rgba(6,95,70,0.25)' : '#ecfdf5' },
+    emailRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+    emailLabel: { fontSize: 12, fontWeight: '700', color: colors.primary },
+    emailOkText: { flex: 1, fontSize: 12, fontWeight: '600', color: colors.textMuted },
+    emailHint: { fontSize: 12, color: colors.textMuted, lineHeight: 17 },
+    emailError: { fontSize: 12, fontWeight: '600', color: colors.danger, lineHeight: 17 },
+    codeField: { flex: 1, textAlign: 'center', letterSpacing: 6, fontWeight: '700' },
+    verifyButton: { height: wide ? 46 : 40, paddingHorizontal: 18, borderRadius: 12, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center' },
     backChoice: { alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 8, paddingHorizontal: 12, marginBottom: 8, borderRadius: 999 },
     backChoiceText: { fontSize: 14, fontWeight: '700', color: colors.primary },
     // The guard's start screen: two boxes to choose from
