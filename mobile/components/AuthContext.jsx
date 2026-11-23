@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router } from 'expo-router';
 import { stopActiveSession } from './studentSession';
+import { clearOfflineRecords } from './offlineRecords';
 import { setLoginRejectedHandler } from '../services/api';
 
 const AuthContext = createContext();
@@ -21,6 +22,7 @@ export const AuthProvider = ({ children }) => {
             handling = true;
             try {
                 await AsyncStorage.removeItem('user');
+                await clearOfflineRecords(); // the saved e-tickets go with the login
                 setUser(null);
                 router.replace('/welcome');
             } finally {
@@ -68,6 +70,7 @@ export const AuthProvider = ({ children }) => {
         if (user?.role === 'student') await stopActiveSession(user.username, typeof reason === 'string' ? reason : 'logout');
         try {
             await AsyncStorage.removeItem('user');
+            await clearOfflineRecords(); // the saved e-tickets go with the login (phones can be shared)
             setUser(null);
             router.replace('/welcome');
         } catch (error) {

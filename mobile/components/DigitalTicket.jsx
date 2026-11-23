@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, StyleSheet, Modal, TouchableOpacity, Pressable, Animated, Easing, ScrollView } from 'react-native';
 import { X, ShieldCheck } from 'lucide-react-native';
 import { ticketStatusLabel } from './ticketStatus';
+import { useStudentShell } from './StudentShell';
 
 // The digital e-ticket a student shows a guard (opened from the ticket's details, components/TicketDetails.jsx):
 // who they are, the violation, where the case stands and their service. The clock at the bottom runs live, so a
@@ -62,6 +63,8 @@ const Line = ({ label, value, color }) => (
 
 export default function DigitalTicket({ ticket, onClose }) {
     usePreventScreenCapture('digital-ticket');
+    // Shown from the copy saved on the phone (no data): when that copy was last updated
+    const offlineSince = useStudentShell()?.offlineSince;
     const [now, setNow] = useState(() => new Date());
     useEffect(() => {
         const timer = setInterval(() => setNow(new Date()), 1000);
@@ -101,6 +104,11 @@ export default function DigitalTicket({ ticket, onClose }) {
                             </TouchableOpacity>
                         </View>
 
+                        {offlineSince ? (
+                            <View style={styles.offline}>
+                                <Text style={styles.offlineText}>OFFLINE · LAST UPDATED {manila(new Date(offlineSince), { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }).toUpperCase()}</Text>
+                            </View>
+                        ) : null}
                         {/* Where the case stands, big enough to read at arm's length */}
                         <View style={[styles.status, { backgroundColor: STATUS_TONE[ticket.status] || '#334155' }]}>
                             <ShieldCheck size={20} color="#fff" />
@@ -154,6 +162,8 @@ const styles = StyleSheet.create({
     title: { marginTop: 2, fontSize: 20, fontWeight: '900', color: '#ffffff' },
     ticketNo: { marginTop: 4, fontSize: 12, fontWeight: '700', color: '#dbeafe', fontFamily: 'monospace' },
     close: { padding: 8, borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.15)' },
+    offline: { paddingVertical: 6, paddingHorizontal: 20, backgroundColor: '#fef3c7' },
+    offlineText: { textAlign: 'center', fontSize: 11, fontWeight: '800', letterSpacing: 0.5, color: '#92400e' },
     status: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 12, paddingHorizontal: 20 },
     statusText: { fontSize: 18, fontWeight: '900', letterSpacing: 0.5, color: '#ffffff' },
     body: { paddingHorizontal: 20, paddingVertical: 16, overflow: 'hidden' },

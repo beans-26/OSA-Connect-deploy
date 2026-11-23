@@ -8,6 +8,7 @@ import { useTheme } from './ThemeContext';
 import api from '../services/api';
 import { HomeHeader } from './StudentLook';
 import { timeGreeting } from './greeting';
+import { readOfflineRecords, saveOfflineRecords } from './offlineRecords';
 import { buildNotifications, readReminders, readSeen, saveReminders, saveSeen, syncDeadlineReminder, readDataSaver, saveDataSaver, IDLE_REFRESH_MS, SAVER_REFRESH_MS } from './studentNotifications';
 
 // The frame of the student screens (mirrors frontend/src/components/StudentShell.jsx): StudentTopBar (title, a
@@ -68,7 +69,23 @@ export function StudentShellProvider({ children }) {
     // The dashboard loads the same lists and hands them over (setRecords): no second download within 25 s
     const recordsAt = useRef(0);
     const [recordsLoaded, setRecordsLoaded] = useState(false); // false until the first lists arrive
-    const takeRecords = useCallback((next) => { recordsAt.current = Date.now(); setRecords(next); setRecordsLoaded(true); }, []);
+    // When the lists shown were saved on the phone (no data since): the digital e-ticket says "Offline · last
+    // updated …". null once fresh lists arrive.
+    const [offlineSince, setOfflineSince] = useState(null);
+    const takeRecords = useCallback((next) => {
+        recordsAt.current = Date.now(); setRecords(next); setRecordsLoaded(true); setOfflineSince(null);
+        saveOfflineRecords(username, next);
+    }, [username]);
+    // With no data, the last saved lists show at once (they're replaced as soon as the download works)
+    useEffect(() => {
+        if (!username) return;
+        readOfflineRecords(username).then((saved) => {
+            if (!saved || recordsAt.current) return; // fresh lists already arrived
+            setRecords({ violations: saved.violations || [], tickets: saved.tickets });
+            setRecordsLoaded(true);
+            setOfflineSince(saved.savedAt);
+        });
+    }, [username]);
     const load = useCallback(async () => {
         if (!username || Date.now() - recordsAt.current < 25000 || AppState.currentState !== 'active') return;
         try {
@@ -81,7 +98,7 @@ export function StudentShellProvider({ children }) {
                 tickets: (t.data || []).filter((x) => x.violation_details?.student_details?.student_id === username),
             });
         } catch { /* offline: keep the last lists */ }
-    }, [username]);
+    }, [username, takeRecords]);
     useEffect(() => {
         load();
         const timer = setInterval(load, dataSaver ? SAVER_REFRESH_MS : IDLE_REFRESH_MS);
@@ -139,7 +156,7 @@ export function StudentShellProvider({ children }) {
     const value = {
         guideAsk, askGuide: () => setGuideAsk((n) => n + 1),
         walkthroughAsk, askWalkthrough: () => setWalkthroughAsk((n) => n + 1),
-        profile, setProfile, records, recordsLoaded, setRecords: takeRecords, reload: load, notifications, unread, seen, markAllRead,
+        profile, setProfile, records, recordsLoaded, offlineSince, setRecords: takeRecords, reload: load, notifications, unread, seen, markAllRead,
         reminders, setReminders, dataSaver, setDataSaver, openLogout, go,
     };
 

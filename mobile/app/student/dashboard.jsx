@@ -24,6 +24,7 @@ import StudentWalkthrough from '../../components/StudentWalkthrough';
 import StudentGuide from '../../components/StudentGuide';
 import { deadlineNotice } from '../../components/ticketStatus';
 import { StudentTopBar, useStudentShell } from '../../components/StudentShell';
+import { readOfflineRecords } from '../../components/offlineRecords';
 import MapGate from '../../components/MapGate';
 import { IDLE_REFRESH_MS, RUNNING_REFRESH_MS, SAVER_REFRESH_MS } from '../../components/studentNotifications';
 
@@ -270,6 +271,9 @@ export default function Dashboard() {
             }
         } catch (error) {
             console.error('Failed to fetch data', error);
+            // No data: show the tickets saved on the phone instead of "no e-tickets"
+            const saved = await readOfflineRecords(user.username);
+            if (saved) setTickets((current) => (current.length ? current : saved.tickets));
         } finally {
             setLoading(false);
         }
