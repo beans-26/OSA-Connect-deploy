@@ -207,6 +207,8 @@ def _assigned_site_code(eticket, sites=None):
 
 # Tickets still being served; these count against a site's capacity
 OPEN_TICKET_STATUSES = ('Active', 'Ongoing')
+# Reports the admin can dismiss: pending (Pending Reviews) or approved and not cleared yet (Dashboard)
+DISMISSABLE_STATUSES = ('Pending OSA Review', 'Approved', 'Completed')
 
 
 def site_assigned_counts(sites=None):
@@ -1772,10 +1774,12 @@ class ViolationViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=['post'])
     def dismiss(self, request, *args, **kwargs):
-        """Dismisses a pending report that isn't valid. POST {remarks}: why it was dismissed (required), kept on
-        the report with who dismissed it and when. Same one-step claim as approve: only a still-pending report
-        changes, so an approve and a dismiss at the same moment can't both happen. Dismissed reports don't count
-        as offenses."""
+        """Dismisses a report that isn't valid: a pending one (Pending Reviews), or an approved one not cleared yet
+        (Dashboard). POST {remarks}: why it was dismissed (required), kept on the report with who dismissed it and
+        when. An approved case's e-ticket stays in the student's list as "Dismissed", with the hours already served;
+        it can't be served any more. Not while the student is serving right now. One-step claims on the report's
+        status, so an approve, a clearance and a dismiss at the same moment can't both happen. Dismissed reports
+        don't count as offenses."""
         violation_id = kwargs.get('id') or kwargs.get('pk')
         remarks = _short(request.data.get('remarks'), MAX_DESCRIPTION_CHARS)
         if not remarks:
@@ -1788,11 +1792,22 @@ class ViolationViewSet(viewsets.ModelViewSet):
         if faculty_reporter_status(violation.reporting_email):
             return Response({"error": "The faculty member who filed this isn't confirmed yet. Confirm or reject them in Faculty Accounts first."},
                             status=status.HTTP_409_CONFLICT)
-        dismissed = ViolationReport.objects(id=violation.id, status="Pending OSA Review").update_one(
+        # The e-ticket first, in one step, and only if no session is running: a student who starts serving at the
+        # same moment either keeps serving (the dismiss is refused) or can't start (the ticket is Dismissed)
+        ticket = ETicket.objects(violation=violation).order_by('-created_at').first()
+        before = ticket.status if ticket else None
+        if ticket and before not in ('Cleared', 'Dismissed'):
+            if not ETicket.objects(id=ticket.id, status__in=['Active', 'Completed']).update_one(set__status='Dismissed'):
+                return Response({"error": "The student is serving right now. Dismiss the case after they stop."},
+                                status=status.HTTP_409_CONFLICT)
+        dismissed = ViolationReport.objects(id=violation.id, status__in=DISMISSABLE_STATUSES).update_one(
             set__status="Dismissed", set__dismissed_at=utc_now(), set__dismissed_reason=remarks,
             set__dismissed_by=request.user.name or request.user.username)
         if not dismissed:
-            return Response({"error": "This violation was already reviewed by someone else."}, status=status.HTTP_409_CONFLICT)
+            if ticket and before not in ('Cleared', 'Dismissed'):
+                ETicket.objects(id=ticket.id, status='Dismissed').update_one(set__status=before)
+            return Response({"error": "This case was already cleared, dismissed or changed by someone else. Reload the page."},
+                            status=status.HTTP_409_CONFLICT)
         return Response({"message": "Case dismissed.", "remarks": remarks}, status=status.HTTP_200_OK)
 
     @action(detail=False, methods=['get'])
@@ -2164,7 +2179,8 @@ class ETicketViewSet(viewsets.ModelViewSet):
         if self.action == 'list' and scope == 'open':
             qs = qs.filter(status__ne='Cleared')
         elif self.action == 'list' and scope == 'archived':
-            qs = qs.filter(status__in=['Cleared', 'Completed'])
+            # Dismissed: approved cases the admin dismissed from the Dashboard (the Archives' Dismissed tab)
+            qs = qs.filter(status__in=['Cleared', 'Completed', 'Dismissed'])
         # select_related returns a plain list, which single-record routes (/etickets/<id>/) can't use
         return qs.select_related(max_depth=2) if self.action == 'list' else qs
 
@@ -2375,7 +2391,7 @@ class TimeLogViewSet(viewsets.ModelViewSet):
         qs = super().get_queryset()
         # ?scope=archived (the Archives page): only the sessions of finished tickets, not every session ever logged
         if self.action == 'list' and self.request.query_params.get('scope') == 'archived':
-            qs = qs.filter(eticket__in=ETicket.objects(status__in=['Cleared', 'Completed']).only('id'))
+            qs = qs.filter(eticket__in=ETicket.objects(status__in=['Cleared', 'Completed', 'Dismissed']).only('id'))
         return qs
 
     def _forbidden_ticket(self):
@@ -2398,6 +2414,9 @@ class TimeLogViewSet(viewsets.ModelViewSet):
             if action_type == 'in':
                 # A finished ticket can't be served again: starting a session would turn it back to Ongoing and
                 # block its clearance
+                if eticket.status == 'Dismissed':
+                    return Response({"error": "OSA dismissed this case. There are no hours left to serve on it.", "code": "ticket_dismissed"},
+                                    status=status.HTTP_400_BAD_REQUEST)
                 if eticket.status in ('Completed', 'Cleared', 'Finished') or (eticket.remaining_hours or 0) <= 0:
                     return Response({"error": "You've already finished the service hours for this ticket. Bring your forms to the OSA office for clearance.", "code": "ticket_done"},
                                     status=status.HTTP_400_BAD_REQUEST)

@@ -1,5 +1,5 @@
-// What the e-ticket statuses are called on screen (the database keeps Active / Ongoing / Completed / Cleared):
-// Not started / In progress, Serving now, For clearance, Cleared.
+// What the e-ticket statuses are called on screen (the database keeps Active / Ongoing / Completed / Cleared /
+// Dismissed): Not started / In progress, Serving now, For clearance, Cleared, Dismissed.
 // Same wording as frontend/src/lib/ticketStatus.js.
 export const ticketStatusLabel = (ticket) => {
     if (!ticket) return '';
@@ -61,7 +61,8 @@ export const ticketReceipt = (ticket, sessions) => {
     const required = ticket.total_hours_required || 0;
     const remaining = ticket.base_remaining_hours ?? ticket.remaining_hours ?? 0;
     const added = ticket.added_hours || 0;
-    const finished = ['Completed', 'Cleared'].includes(ticket.status);
+    // Dismissed: OSA dismissed the approved case; the hours served stay, nothing is left to serve
+    const finished = ['Completed', 'Cleared', 'Dismissed'].includes(ticket.status);
     const lastSession = sessions?.length ? sessions[0].time_out || sessions[0].time_in : null;
 
     const lines = [
@@ -79,7 +80,9 @@ export const ticketReceipt = (ticket, sessions) => {
         lines.push(['Deadline', `${fmtDate(new Date(end - 1).toISOString())}${note}`, met === false || passed ? 'bad' : undefined]);
     }
 
-    const header = ticket.status === 'Cleared'
+    const header = ticket.status === 'Dismissed'
+        ? { tone: 'dismissed', title: 'Case dismissed by OSA', subtitle: v.dismissed_reason ? `Reason: ${v.dismissed_reason}` : 'There are no hours left to serve.' }
+        : ticket.status === 'Cleared'
         ? { tone: 'done', title: 'Violation cleared', subtitle: 'OSA approved your ISO form and reflection paper.' }
         : ticket.status === 'Completed'
             ? { tone: 'clearance', title: 'Hours completed · For clearance', subtitle: 'Bring your signed ISO form and reflection paper to the OSA office.' }

@@ -33,6 +33,9 @@ class ETicketStatus(Enum):
     COMPLETED = "Completed"
     CLEARED = "Cleared"
     FINISHED = "Finished"
+    # The admin dismissed the approved case (Dashboard > Dismiss Case, with remarks): it can't be served any more,
+    # and the hours already served stay on it (views.dismiss)
+    DISMISSED = "Dismissed"
 
 ROMAN_SUFFIXES = {'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X'}
 

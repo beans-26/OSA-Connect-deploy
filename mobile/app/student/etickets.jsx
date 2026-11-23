@@ -15,6 +15,7 @@ const BADGE = {
     Ongoing: [{ bg: '#dcfce7', text: '#047857' }, { bg: 'rgba(16,185,129,0.15)', text: '#6ee7b7' }],
     Completed: [{ bg: '#fef3c7', text: '#b45309' }, { bg: 'rgba(245,158,11,0.15)', text: '#fcd34d' }],
     Cleared: [{ bg: '#f1f5f9', text: '#64748b' }, { bg: 'rgba(100,116,139,0.2)', text: '#cbd5e1' }],
+    Dismissed: [{ bg: '#fef2f2', text: '#b91c1c' }, { bg: 'rgba(239,68,68,0.15)', text: '#fca5a5' }],
 };
 const OTHER_BADGE = [{ bg: '#faf5ff', text: '#7c3aed' }, { bg: 'rgba(139,92,246,0.15)', text: '#c4b5fd' }];
 

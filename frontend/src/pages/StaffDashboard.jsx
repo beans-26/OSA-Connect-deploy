@@ -144,7 +144,13 @@ const CompletionReceipt = ({ report, ticket }) => {
 };
 
 /* ─── Violation Detail Modal ──────────────────────────────────────── */
-const ViolationModal = ({ report, ticket, onClose, onAction, onReassigned, onCleared }) => {
+const ViolationModal = ({ report, ticket, onClose, onAction, onReassigned, onCleared, onDismissed }) => {
+    // Dismiss Case (approved cases): the admin writes why first. The student keeps the e-ticket, marked Dismissed,
+    // with the hours already served (backend views.dismiss). Not while the student is serving.
+    const [dismissing, setDismissing] = useState(false);
+    const [remarks, setRemarks] = useState('');
+    const [dismissBusy, setDismissBusy] = useState(false);
+    const [dismissError, setDismissError] = useState('');
     const [showProfile, setShowProfile] = useState(false);
     const [editingBuilding, setEditingBuilding] = useState(false);
     const [newBuilding, setNewBuilding] = useState('');
@@ -211,6 +217,27 @@ const ViolationModal = ({ report, ticket, onClose, onAction, onReassigned, onCle
         return () => clearInterval(timer);
     }, [phoneLink, report?.id]);
 
+    const dismissCase = async () => {
+        const text = remarks.trim();
+        if (!text) { setDismissError('Write why the case is dismissed.'); return; }
+        setDismissBusy(true);
+        setDismissError('');
+        try {
+            const response = await fetch(`/api/violations/${report.id}/dismiss/`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ remarks: text }),
+            });
+            const data = await response.json().catch(() => ({}));
+            if (!response.ok) throw new Error(data.error || "Couldn't dismiss the case.");
+            onDismissed();
+        } catch (e) {
+            setDismissError(e.message === 'Failed to fetch' ? "Can't reach the server. Please try again." : e.message);
+        } finally {
+            setDismissBusy(false);
+        }
+    };
+
     const approveClearance = async () => {
         setClearing(true);
         setClearError('');
@@ -253,6 +280,8 @@ const ViolationModal = ({ report, ticket, onClose, onAction, onReassigned, onCle
     // Service site chosen on approval; older reports only have it on the e-ticket
     const assignedBuilding = report.assigned_building || ticket?.assigned_location;
     const canChangeBuilding = !isPending && ticket?.status !== 'Ongoing';
+    // Approved (or hours done) and not cleared: can be dismissed, once the student isn't serving
+    const canDismiss = ['Approved', 'Completed'].includes(report.status) && ticket?.status !== 'Cleared';
 
     // Moves the violation (and its ticket) to another service site; asks first if that site is full
     const saveBuilding = async () => {
@@ -555,7 +584,6 @@ const ViolationModal = ({ report, ticket, onClose, onAction, onReassigned, onCle
 
                 {/* Footer Actions */}
                 <div className="shrink-0 px-6 pb-6 pt-2 flex flex-col gap-2">
-                    {/* No Dismiss: a case is dismissed only when OSA rejects the faculty member who filed it */}
                     {isPending && (
                         <div className="mb-2">
                             <button
@@ -595,6 +623,43 @@ const ViolationModal = ({ report, ticket, onClose, onAction, onReassigned, onCle
                             Approve
                         </button>
                     )}
+
+                    {canDismiss && (dismissing ? (
+                        <div className="mb-2 space-y-2 rounded-2xl border border-red-200 dark:border-red-500/30 bg-red-50/60 dark:bg-red-500/10 p-3">
+                            <label htmlFor="case-dismiss-remarks" className="block text-[9px] font-black uppercase tracking-widest text-red-700 dark:text-red-300">Remarks: why is this case dismissed? *</label>
+                            <textarea
+                                id="case-dismiss-remarks"
+                                autoFocus
+                                rows={3}
+                                maxLength={1000}
+                                value={remarks}
+                                onChange={(e) => setRemarks(e.target.value)}
+                                placeholder="e.g. Wrong student reported; the ID was worn properly"
+                                className="w-full resize-none bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2.5 text-sm font-semibold text-slate-700 dark:text-slate-200 focus:border-red-500 outline-none placeholder:text-slate-400 placeholder:font-medium"
+                            />
+                            <p className="text-[10px] font-semibold text-red-700/80 dark:text-red-300/80">The student keeps the e-ticket marked Dismissed, with the hours already served, and sees your remarks.</p>
+                            {dismissError && <p className="text-[11px] font-bold text-red-600">{dismissError}</p>}
+                            <div className="flex gap-2">
+                                <button onClick={() => { setDismissing(false); setRemarks(''); setDismissError(''); }} disabled={dismissBusy}
+                                    className="flex-1 py-2.5 rounded-xl font-black text-[10px] uppercase tracking-widest border-2 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-700/40 disabled:opacity-60">
+                                    Cancel
+                                </button>
+                                <button onClick={dismissCase} disabled={dismissBusy || !remarks.trim()}
+                                    className="flex-1 py-2.5 rounded-xl font-black text-[10px] uppercase tracking-widest bg-red-600 text-white hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed">
+                                    {dismissBusy ? 'Dismissing…' : 'Confirm dismiss'}
+                                </button>
+                            </div>
+                        </div>
+                    ) : ticket?.status === 'Ongoing' ? (
+                        <p className="mb-1 text-center text-[10px] font-semibold text-slate-400">Serving now. The case can be dismissed after they stop.</p>
+                    ) : (
+                        <button
+                            onClick={() => { setDismissing(true); setDismissError(''); }}
+                            className="w-full py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest border-2 border-red-200 text-red-600 hover:bg-red-50 dark:border-red-500/30 dark:text-red-400 dark:hover:bg-red-500/10 transition-all"
+                        >
+                            Dismiss Case
+                        </button>
+                    ))}
 
                     <button
                         onClick={onClose}
@@ -1037,6 +1102,7 @@ const userRole = JSON.parse(localStorage.getItem('user') || '{}').role || 'staff
                     onClose={() => setSelectedViolation(null)}
                     onAction={handleAction}
                     onCleared={() => { setSelectedViolation(null); fetchDashboardData(); }}
+                    onDismissed={() => { setSelectedViolation(null); fetchDashboardData(); }}
                     onReassigned={(building) => {
                         setSelectedViolation((prev) => prev && ({
                             ...prev,

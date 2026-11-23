@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, StyleSheet, Modal, ScrollView, TouchableOpacity, Pressable, ActivityIndicator, Platform, Animated, Easing, Dimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { X, ChevronDown, LogIn, CheckCircle2, Clock, FileText, MapPin, CalendarClock, ScanFace } from 'lucide-react-native';
+import { X, ChevronDown, LogIn, CheckCircle2, Clock, FileText, MapPin, CalendarClock, ScanFace, Ban } from 'lucide-react-native';
 import { ticketReceipt } from './ticketStatus';
 import { BlurView } from 'expo-blur';
 import { useTheme } from './ThemeContext';
@@ -84,6 +84,7 @@ export default function TicketDetails({ ticket, onClose }) {
         done: { box: { borderColor: '#e2e8f0', backgroundColor: '#f1f5f9' }, title: '#334155', sub: '#64748b', Icon: CheckCircle2 },
         clearance: { box: { borderColor: '#a7f3d0', backgroundColor: '#ecfdf5' }, title: '#065f46', sub: '#047857', Icon: FileText },
         active: { box: { borderColor: colors.border, backgroundColor: colors.background }, title: colors.text, sub: colors.textMuted, Icon: Clock },
+        dismissed: { box: { borderColor: '#fecaca', backgroundColor: '#fef2f2' }, title: '#991b1b', sub: '#b91c1c', Icon: Ban },
     }[summary.header.tone];
     const TONE = { red: '#dc2626', good: '#059669', bad: '#dc2626' };
     const required = ticket.total_hours_required || 0;

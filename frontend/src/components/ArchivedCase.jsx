@@ -111,6 +111,7 @@ const CaseWithoutTicket = ({ violation, onClose }) => {
             ['Reason', violation.dismissed_reason || 'Dismissed by OSA after review'],
             ...(violation.reporting_email ? [['Reporter email', violation.reporting_email]] : []),
             ['Dismissed on', fmtDate(violation.dismissed_at)],
+            ...(violation.dismissed_by ? [['Dismissed by', violation.dismissed_by]] : []),
         ] : [
             ['Sanction', violation.punishment || '—'],
             ['Service hours', 'None required'],
@@ -143,7 +144,9 @@ const CaseWithoutTicket = ({ violation, onClose }) => {
 const ArchivedCase = ({ violation, ticket, onClose }) => (
     // receipt-colors (index.css) gives the receipt its colours on admin pages, in light and dark mode
     <div className="receipt-colors print:hidden">
-        {ticket && violation.status !== 'Dismissed' ? (
+        {/* A dismissed case with an e-ticket (dismissed from the Dashboard after approval): its receipt, which says
+            why, and the hours served before it was dismissed */}
+        {ticket ? (
             <TicketDetails ticket={ticket} onClose={onClose} forAdmin>
                 <div className="mb-5 rounded-2xl border border-[var(--s-border)] px-4 py-3">
                     <p className="mb-1 text-[9px] font-black uppercase tracking-[2px] text-[var(--s-muted)]">Student</p>
@@ -154,7 +157,11 @@ const ArchivedCase = ({ violation, ticket, onClose }) => (
                         <p className="text-[11px] font-semibold text-[var(--s-muted)]">{violation.student_details.course}</p>
                     )}
                 </div>
-                <ClearanceEvidence violation={violation} />
+                {violation.status === 'Dismissed' ? (
+                    <div className="mb-5 rounded-2xl border border-[#fecaca] bg-[#fef2f2] px-4 py-3 text-[12px] font-semibold text-[#991b1b]">
+                        Dismissed {fmtDate(violation.dismissed_at)}{violation.dismissed_by ? ` by ${violation.dismissed_by}` : ''}.
+                    </div>
+                ) : <ClearanceEvidence violation={violation} />}
             </TicketDetails>
         ) : (
             <CaseWithoutTicket violation={violation} onClose={onClose} />

@@ -12,6 +12,7 @@ const ticketBadge = (status) =>
     status === 'Ongoing' ? 'bg-[#dcfce7] text-[#047857] dark:bg-emerald-500/15 dark:text-emerald-300' :
     status === 'Completed' ? 'bg-[#fef3c7] text-[#b45309] dark:bg-amber-500/15 dark:text-amber-300' :
     status === 'Cleared' ? 'bg-[#f1f5f9] text-[#64748b] dark:bg-slate-500/20 dark:text-slate-300' :
+    status === 'Dismissed' ? 'bg-[#fef2f2] text-[#b91c1c] dark:bg-red-500/15 dark:text-red-300' :
     'bg-[#faf5ff] text-[#7c3aed] dark:bg-violet-500/15 dark:text-violet-300';
 
 // The E-Tickets tab (mirrors mobile/app/student/etickets.jsx): every e-ticket. "How to serve your hours" opens

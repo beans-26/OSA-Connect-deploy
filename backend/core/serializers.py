@@ -145,6 +145,8 @@ class ETicketSerializer(serializers.DocumentSerializer):
                     'assigned_building': v_ref.assigned_building,
                     'building_history': v_ref.building_history or [],
                     'cleared_at': (v_ref.cleared_at.isoformat() + 'Z') if v_ref.cleared_at else None,
+                    # A Dismissed e-ticket (the admin dismissed the approved case): why, for the student's receipt
+                    'dismissed_reason': v_ref.dismissed_reason if v_ref.status == 'Dismissed' else None,
                     'student_details': {
                         'student_id': s_ref.student_id if s_ref else "Unknown",
                         'name': s_ref.name if s_ref else "Unknown",

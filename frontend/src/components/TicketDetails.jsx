@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { X, ChevronDown, LogIn, CheckCircle2, Clock, FileText, Download, Loader2, MapPin, CalendarClock, ScanFace } from 'lucide-react';
+import { X, ChevronDown, LogIn, CheckCircle2, Clock, FileText, Download, Loader2, MapPin, CalendarClock, ScanFace, Ban } from 'lucide-react';
 import { ticketReceipt } from '../lib/ticketStatus';
 import { SessionReceiptBody, receiptDate, formatDuration, FLAGGED_ENDS } from './SessionReceipt';
 import DigitalTicket from './DigitalTicket';
@@ -86,6 +86,7 @@ const TicketDetails = ({ ticket, onClose, children, forAdmin = false }) => {
         done: ['border-[#e2e8f0] bg-[#f1f5f9]', 'text-[#334155]', 'text-[#64748b]', CheckCircle2],
         clearance: ['border-[#a7f3d0] bg-[#ecfdf5]', 'text-[#065f46]', 'text-[#047857]', FileText],
         active: ['border-[var(--s-border)] bg-[var(--s-bg)]', 'text-[var(--s-text)]', 'text-[var(--s-muted)]', Clock],
+        dismissed: ['border-[#fecaca] bg-[#fef2f2]', 'text-[#991b1b]', 'text-[#b91c1c]', Ban],
     }[summary.header.tone];
     const HeaderIcon = headerStyle[3];
     const toneClass = { red: 'text-[#dc2626]', good: 'text-[#059669]', bad: 'text-[#dc2626]' };

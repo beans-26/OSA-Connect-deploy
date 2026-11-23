@@ -7,6 +7,10 @@ import ThemeToggle from '../../components/ThemeToggle';
 import ArchivedCase from '../../components/ArchivedCase';
 import PhotoViewer from '../../components/PhotoViewer';
 
+// The reason the server saves when OSA rejects the faculty member who filed a report (views.py
+// REJECTED_REPORTER_REASON); other dismissals carry the admin's own remarks
+const REJECTED_REPORTER_REASON = 'The reporter was not confirmed as USTP faculty.';
+
 const Archives = () => {
     const userRole = JSON.parse(localStorage.getItem('user') || '{}').role || 'staff';
     const [violations, setViolations] = useState([]);
@@ -14,8 +18,9 @@ const Archives = () => {
     const [logs, setLogs] = useState([]);
     const [searchTerm, setSearchTerm] = useState('');
     const [filterType, setFilterType] = useState('All');
-    // Completed cases only: the Dismissed tab was removed (2026-11); dismissed reports aren't listed here
-    const tab = 'completed';
+    // Completed (cleared) cases, or Dismissed ones: dismissed while pending, from the Dashboard after approval (the
+    // e-ticket stays, with the hours served), or because OSA rejected the faculty member who filed it
+    const [tab, setTab] = useState('completed');
     // 'loading' until the first response, so an empty list isn't shown as "No Archived Records" too early
     const [loadState, setLoadState] = useState('loading'); // loading | ready | error
     // The case opened by clicking it (its id, so the 30 s refresh shows the latest data)
@@ -56,7 +61,10 @@ const Archives = () => {
         const ticket = tickets.find(t => t.violation_details?.id === v.id || t.violation === v.id);
         return status === 'completed' && !ticket;
     });
-    const archivedViolations = completedViolations;
+    const dismissedViolations = violations
+        .filter((v) => (v.status || '').toLowerCase() === 'dismissed')
+        .sort((a, b) => (Date.parse(b.dismissed_at || b.created_at) || 0) - (Date.parse(a.dismissed_at || a.created_at) || 0));
+    const archivedViolations = tab === 'dismissed' ? dismissedViolations : completedViolations;
 
     // Opens an uploaded clearance photo (kind 'iso_form' or 'reflection') full screen over the page
     const openClearanceFile = async (violation, kind, label) => {
@@ -254,6 +262,23 @@ const Archives = () => {
                 </header>
 
 
+                {/* Completed | Dismissed: the same tabs as Faculty Accounts (filled when open, white pill otherwise) */}
+                <div className="mb-4 flex flex-wrap gap-1.5 print:hidden" role="tablist" aria-label="Archived cases">
+                    {[['completed', 'Completed', CheckCircle, completedViolations.length], ['dismissed', 'Dismissed', XCircle, dismissedViolations.length]].map(([key, label, Icon, count]) => (
+                        <button
+                            key={key}
+                            role="tab"
+                            aria-selected={tab === key}
+                            onClick={() => setTab(key)}
+                            className={`flex items-center gap-1.5 rounded-full px-4 py-2 text-xs font-bold transition-colors ${tab === key
+                                ? (key === 'dismissed' ? 'bg-red-600 text-white' : 'bg-ustp-blue text-white')
+                                : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-100 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700'}`}
+                        >
+                            <Icon size={14} /> {label} <span className={tab === key ? 'text-white/70' : 'text-slate-400'}>{loadState === 'loading' ? '' : count}</span>
+                        </button>
+                    ))}
+                </div>
+
                 <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 mb-4 print:hidden">
                     <div className="flex-1 relative">
                         <Search size={18} className="absolute top-1/2 left-5 -translate-y-1/2 text-slate-300 dark:text-slate-600" />
@@ -299,7 +324,7 @@ const Archives = () => {
                         <h4 className="font-black text-slate-300 dark:text-slate-600 text-xl uppercase tracking-widest">{tab === 'dismissed' ? 'No Dismissed Cases' : 'No Archived Records'}</h4>
                         <p className="text-slate-400 dark:text-slate-500 mt-3 font-medium max-w-md mx-auto">
                             {tab === 'dismissed'
-                                ? 'Reports you dismiss, and reports from faculty accounts you reject, appear here.'
+                                ? 'Cases you dismiss (from Pending Reviews or the Dashboard), and reports from faculty accounts you reject, appear here.'
                                 : 'Violations appear here once the student has served the hours and you approve their signed ISO form and reflection paper on the dashboard.'}
                         </p>
                     </div>
@@ -335,7 +360,7 @@ const Archives = () => {
                                                     {isDismissed ? 'Dismissed' : violation.status === 'Cleared' ? 'Cleared' : 'Completed'}
                                                 </span>
                                                 {/* Dismissed automatically: OSA rejected the faculty member who filed it */}
-                                                {violation.dismissed_reason && (
+                                                {violation.dismissed_reason === REJECTED_REPORTER_REASON && (
                                                     <span title={violation.dismissed_reason} className="text-[9px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full whitespace-nowrap bg-amber-100 text-amber-800 dark:bg-amber-500/15 dark:text-amber-300">
                                                         Reporter not faculty
                                                     </span>
@@ -361,7 +386,7 @@ const Archives = () => {
                                         </div>
 
                                         <div className="flex gap-4 items-center">
-                                            {!isDismissed && (
+                                            {(!isDismissed || ticket) && (
                                                 <>
                                                     <div className="text-center px-2 md:px-3 min-w-[70px]">
                                                         <p className="text-[9px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-0.5">Required</p>
@@ -373,9 +398,9 @@ const Archives = () => {
                                                     </div>
                                                 </>
                                             )}
-                                            <div className={`text-center ${!isDismissed ? 'px-2 md:px-3 border-l border-slate-100 dark:border-slate-700' : ''}`}>
-                                                <p className="text-[9px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-0.5">Date</p>
-                                                <p className="text-xs font-bold text-slate-600 dark:text-slate-400">{formatDate(violation.created_at)}</p>
+                                            <div className={`text-center ${!isDismissed || ticket ? 'px-2 md:px-3 border-l border-slate-100 dark:border-slate-700' : ''}`}>
+                                                <p className="text-[9px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-0.5">{isDismissed ? 'Dismissed' : 'Date'}</p>
+                                                <p className="text-xs font-bold text-slate-600 dark:text-slate-400">{formatDate(isDismissed ? (violation.dismissed_at || violation.created_at) : violation.created_at)}</p>
                                             </div>
                                         </div>
                                     </div>
