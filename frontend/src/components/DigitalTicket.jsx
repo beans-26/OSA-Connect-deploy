@@ -13,6 +13,26 @@ const STATUS_TONE = {
     Ongoing: 'bg-[#047857] text-white',
     Completed: 'bg-[#b45309] text-white',
     Cleared: 'bg-[#334155] text-white',
+    Dismissed: 'bg-[#b91c1c] text-white',
+};
+
+// The watermark: the student ID and the time to the second, in rows across the card, drifting sideways.
+// Browsers can't block screenshots (iPhone students use the website), but a screenshot freezes the watermark and
+// its time, so a guard can tell a picture from the real page. Mirrors the app's (which also blocks screenshots).
+const WATERMARK_CSS = `@keyframes ticket-drift { from { transform: rotate(-24deg) translateX(-160px); } to { transform: rotate(-24deg) translateX(0); } }
+@media (prefers-reduced-motion: reduce) { .ticket-watermark { animation-duration: 20s !important; } }`;
+const Watermark = ({ studentId, time }) => {
+    const row = Array.from({ length: 4 }, () => `${studentId} · ${time}`).join('      ');
+    return (
+        <div aria-hidden="true" className="pointer-events-none absolute -inset-x-32 -inset-y-16 -z-10 flex select-none items-center">
+            <style>{WATERMARK_CSS}</style>
+            <div className="ticket-watermark" style={{ animation: 'ticket-drift 6s linear infinite' }}>
+                {Array.from({ length: 9 }, (_, i) => (
+                    <p key={i} className="whitespace-nowrap text-[13px] font-black leading-[30px] tabular-nums text-[#1e3a8a]/[0.09]" style={i % 2 ? { marginLeft: 80 } : undefined}>{row}</p>
+                ))}
+            </div>
+        </div>
+    );
 };
 
 const manila = (date, options) => date.toLocaleString('en-PH', { timeZone: 'Asia/Manila', ...options });
@@ -73,7 +93,8 @@ const DigitalTicket = ({ ticket, onClose }) => {
                     <p className="text-lg font-black uppercase tracking-wide">{ticketStatusLabel(ticket)}</p>
                 </div>
 
-                <div className="px-5 py-4">
+                <div className="relative isolate overflow-hidden px-5 py-4">
+                    <Watermark studentId={student.student_id || ''} time={manila(now, { hour: 'numeric', minute: '2-digit', second: '2-digit' })} />
                     {/* The student */}
                     <p className="truncate text-lg font-black text-slate-900">{studentName(student) || student.name || '—'}</p>
                     <p className="font-mono text-sm font-bold text-slate-600">{student.student_id || '—'}</p>
