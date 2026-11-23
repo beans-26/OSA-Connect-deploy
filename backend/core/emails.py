@@ -167,7 +167,8 @@ def violation_notice_message(report, testing=False, approved=False):
     approved=True (the admin's bulk report, approved at once): the penalty and service location assigned.
     testing=True puts TEST_NOTICE before the real notice. Both end with a "Click here to log in" button."""
     student = report.student
-    when = report.created_at.replace(tzinfo=datetime.timezone.utc).astimezone(PH_TZ) if report.created_at else None
+    caught = getattr(report, 'incident_at', None) or report.created_at  # when it happened (the report form's date and time)
+    when = caught.replace(tzinfo=datetime.timezone.utc).astimezone(PH_TZ) if caught else None
     when_str = when.strftime('%B %d, %Y, %I:%M %p').replace(' 0', ' ') if when else 'Not recorded'
     subject = 'A violation report was filed for you (OSAConnect)'
     greeting = f'Hi {_first_name(student.name)},'

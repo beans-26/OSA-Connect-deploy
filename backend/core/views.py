@@ -837,10 +837,37 @@ def _report_details_error(data):
     return student_id, violation_types, None
 
 
+INCIDENT_MAX_AGE_DAYS = 30
+_PH_TZ = datetime.timezone(datetime.timedelta(hours=8))
+
+
+def _incident_time(data):
+    """(when the violation happened as naive UTC, None) from the report form's date (YYYY-MM-DD) and time (HH:MM),
+    Philippine time; (None, None) when the form has none; (None, error Response) when it can't be right."""
+    day = str(data.get('incident_date') or '').strip()
+    if not day:
+        return None, None
+    clock = str(data.get('incident_time') or '').strip() or '00:00'
+    try:
+        local = datetime.datetime.strptime(f"{day} {clock[:5]}", "%Y-%m-%d %H:%M").replace(tzinfo=_PH_TZ)
+    except ValueError:
+        return None, Response({"error": "Check the date and time of the violation."}, status=status.HTTP_400_BAD_REQUEST)
+    when = local.astimezone(datetime.timezone.utc).replace(tzinfo=None)
+    now = utc_now()
+    if when > now + datetime.timedelta(minutes=5):  # a few minutes for a phone clock that runs ahead
+        return None, Response({"error": "The date and time of the violation can't be in the future."}, status=status.HTTP_400_BAD_REQUEST)
+    if when < now - datetime.timedelta(days=INCIDENT_MAX_AGE_DAYS):
+        return None, Response({"error": f"The violation must have happened in the last {INCIDENT_MAX_AGE_DAYS} days."}, status=status.HTTP_400_BAD_REQUEST)
+    return when, None
+
+
 def file_violation_reports(data, reporter, reporting_account=None, **reporter_fields):
     """Files one report per violation from a report form (guards, faculty & staff, admins): (reports, None),
     or (None, error Response). reporter_fields: the faculty email fields of faculty_report."""
     student_id, violation_types, error = _report_details_error(data)
+    if error:
+        return None, error
+    incident_at, error = _incident_time(data)
     if error:
         return None, error
 
@@ -890,6 +917,7 @@ def file_violation_reports(data, reporter, reporting_account=None, **reporter_fi
                 offense_count=offense_count,
                 punishment=punishment_info["punishment"],
                 created_at=utc_now(),
+                incident_at=incident_at,
                 **reporter_fields,
             ).save()
             send_violation_email(report)

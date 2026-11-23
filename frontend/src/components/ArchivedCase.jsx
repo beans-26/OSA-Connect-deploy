@@ -104,7 +104,7 @@ const CaseWithoutTicket = ({ violation, onClose }) => {
         ['Student', `${studentName(violation.student_details) || '—'} (${violation.student_details?.student_id || '—'})`],
         ['Violation', violation.violation_type || '—'],
         ['Offense', `#${violation.offense_count || 1}`],
-        ['Date caught', fmtDate(violation.created_at)],
+        ['Date caught', fmtDate(violation.incident_at || violation.created_at)],
         [reportedByLabel(violation.reporter_role), violation.reporting_guard || '—'],
         ...(dismissed ? [
             ['Status', 'Dismissed'],

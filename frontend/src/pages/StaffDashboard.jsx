@@ -108,7 +108,7 @@ const CompletionReceipt = ({ report, ticket }) => {
                 <Section title="Violation">
                     <Line label="Violation" value={report.violation_type} accent="text-red-600 dark:text-red-400" />
                     <Line label="Offense" value={`#${report.offense_count || 1}`} />
-                    <Line label="Date caught" value={fmtDate(report.created_at, true)} />
+                    <Line label="Date caught" value={fmtDate(report.incident_at || report.created_at, true)} />
                     <Line label={reportedByLabel(report.reporter_role)} value={report.reporting_guard} />
                 </Section>
                 <Section title="Required Action">
@@ -314,8 +314,8 @@ const ViolationModal = ({ report, ticket, onClose, onAction, onReassigned, onCle
             <Icon size={12} /> {children}
         </h4>
     );
-    const caughtAt = report.created_at
-        ? new Date(report.created_at).toLocaleString('en-PH', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })
+    const caughtAt = (report.incident_at || report.created_at)
+        ? new Date(report.incident_at || report.created_at).toLocaleString('en-PH', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })
         : '—';
     // Hours so far for the progress bar (open tickets only)
     const requiredHours = ticket?.total_hours_required || 0;

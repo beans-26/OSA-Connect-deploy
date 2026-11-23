@@ -96,7 +96,7 @@ export const ticketReceipt = (ticket, sessions) => {
     return {
         header,
         sections: [
-            { title: 'Violation', lines: [['Violation', v.violation_type || '—', 'red'], ['Offense', `#${v.offense_count || 1}`], ['Date caught', fmtDate(v.created_at, true)], ['Reported by', v.reporting_guard || '—']] },
+            { title: 'Violation', lines: [['Violation', v.violation_type || '—', 'red'], ['Offense', `#${v.offense_count || 1}`], ['Date caught', fmtDate(v.incident_at || v.created_at, true)], ['Reported by', v.reporting_guard || '—']] },
             { title: 'Required Action', lines },
         ],
         buildings,

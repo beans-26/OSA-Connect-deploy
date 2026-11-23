@@ -142,6 +142,8 @@ class ETicketSerializer(serializers.DocumentSerializer):
                     'reporting_guard': v_ref.reporting_guard,
                     'reporter_role': report_reporter_role(v_ref, _reporter_lookups(self.context)['roles']),
                     'created_at': (v_ref.created_at.isoformat() + 'Z') if v_ref.created_at else None,
+                    # When it happened, from the report form ("Caught"); None: the same as created_at
+                    'incident_at': (v_ref.incident_at.isoformat() + 'Z') if v_ref.incident_at else None,
                     'assigned_building': v_ref.assigned_building,
                     'building_history': v_ref.building_history or [],
                     'cleared_at': (v_ref.cleared_at.isoformat() + 'Z') if v_ref.cleared_at else None,

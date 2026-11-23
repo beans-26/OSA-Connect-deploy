@@ -150,7 +150,10 @@ class ViolationReport(Document):
     assigned_building = StringField() # New field for OSA review
     # Every building the violation was assigned to, oldest first: {name, at, by} (approval, then each change)
     building_history = ListField(DictField())
-    created_at = DateTimeField(default=utc_now)
+    created_at = DateTimeField(default=utc_now)  # when the report was submitted
+    # When the violation happened: the date and time on the report form (views._incident_time); reports without
+    # one (older ones, bulk reports) were caught when they were submitted. Shown as "Caught" everywhere.
+    incident_at = DateTimeField()
     # After the hours are served the student brings the signed ISO form and a reflection paper to OSA:
     # the admin uploads a photo of each (ClearanceProof) and clears the violation, which moves it to the archives
     iso_form_uploaded_at = DateTimeField()
