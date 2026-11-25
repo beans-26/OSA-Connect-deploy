@@ -692,10 +692,14 @@ _violation_types_cache = {'at': 0.0, 'rules': None}
 
 
 def _penalty(hours):
-    """{'punishment', 'hours'} for a number of hours (0 = no entry into the campus; under an hour, in minutes)."""
+    """{'punishment', 'hours'} for a number of hours (0 = no entry into the campus; under an hour, in minutes;
+    under a minute, in seconds: demo settings only)."""
     hours = float(hours or 0)
     if hours <= 0:
         return dict(NO_ENTRY)
+    if hours * 60 < 1:
+        seconds = round(hours * 3600)
+        return {"punishment": f"{seconds} second{'' if seconds == 1 else 's'} community service", "hours": hours}
     if hours < 1:
         minutes = round(hours * 60)
         return {"punishment": f"{minutes} minute{'' if minutes == 1 else 's'} community service", "hours": hours}
