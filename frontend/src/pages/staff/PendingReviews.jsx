@@ -39,13 +39,6 @@ const submittedAt = (iso) => {
     return d.toLocaleString('en-PH', { timeZone: 'Asia/Manila', weekday: 'short', month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit', second: '2-digit' });
 };
 
-// When the violation happened (the report form has no seconds): "Sun, Nov 22, 2026, 7:30 AM"
-const caughtAt = (iso) => {
-    const d = iso ? new Date(iso) : null;
-    if (!d || Number.isNaN(d.getTime())) return '—';
-    return d.toLocaleString('en-PH', { timeZone: 'Asia/Manila', weekday: 'short', month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' });
-};
-
 const PendingReviews = () => {
     const userRole = JSON.parse(localStorage.getItem('user') || '{}').role || 'staff';
     const [reports, setReports] = useState([]);
@@ -267,13 +260,6 @@ const PendingReviews = () => {
                                     <div className="bg-slate-50 dark:bg-slate-900/50 p-4 rounded-2xl border border-slate-200 dark:border-slate-800">
                                         <p className="text-[9px] font-black uppercase text-slate-500 dark:text-slate-500 mb-0.5">{reportedByLabel(selectedReport.reporter_role)}</p>
                                         <p className="font-bold text-slate-800 dark:text-slate-200 text-sm">{selectedReport.reporting_guard || '—'}</p>
-                                    </div>
-                                )}
-                                {/* When the violation happened: the date and time on the report form */}
-                                {selectedReport.incident_at && (
-                                    <div className="bg-slate-50 dark:bg-slate-900/50 p-4 rounded-2xl border border-slate-200 dark:border-slate-800">
-                                        <p className="text-[9px] font-black uppercase text-slate-500 dark:text-slate-500 mb-0.5">Caught</p>
-                                        <p className="font-bold text-slate-800 dark:text-slate-200 text-sm tabular-nums">{caughtAt(selectedReport.incident_at)}</p>
                                     </div>
                                 )}
                                 {/* When the report was sent, to the second */}
